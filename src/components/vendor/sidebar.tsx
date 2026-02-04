@@ -12,30 +12,26 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
-  Car,
   Wrench,
   Book,
-  History,
+  Users,
   LogOut,
-  Bell,
-  Search,
-  User,
+  AreaChart,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Logo } from "../logo";
-import { Input } from "../ui/input";
 
 const navItems = [
-  { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard" },
-  { href: "/dashboard/my-cars", icon: <Car />, label: "My Cars" },
-  { href: "/dashboard/garages", icon: <Wrench />, label: "Garages" },
-  { href: "/dashboard/bookings", icon: <Book />, label: "Bookings" },
-  { href: "/dashboard/service-history", icon: <History />, label: "Service History" },
+  { href: "/vendor/dashboard", icon: <LayoutDashboard />, label: "Overview" },
+  { href: "/vendor/dashboard/bookings", icon: <Book />, label: "Bookings" },
+  { href: "/vendor/dashboard/services", icon: <Wrench />, label: "Services" },
+  { href: "/vendor/dashboard/customers", icon: <Users />, label: "Customers" },
+  { href: "/vendor/dashboard/analytics", icon: <AreaChart />, label: "Analytics" },
 ];
 
-export function DashboardSidebar() {
+export function VendorSidebar() {
   const pathname = usePathname();
 
   return (
@@ -47,10 +43,9 @@ export function DashboardSidebar() {
                 <SidebarTrigger />
             </div>
         </div>
-        <div className="relative">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search..." className="pl-8" />
-        </div>
+        <p className="text-sm text-sidebar-foreground/80 pt-1 group-data-[collapsible=icon]:hidden">
+            Precision Auto Qatar
+        </p>
       </SidebarHeader>
       <SidebarContent className="p-2">
         <SidebarMenu>
@@ -58,7 +53,7 @@ export function DashboardSidebar() {
             <SidebarMenuItem key={item.href}>
               <Link href={item.href} passHref>
                 <SidebarMenuButton
-                  isActive={item.href === '/dashboard' ? pathname === item.href : pathname.startsWith(item.href)}
+                  isActive={item.href === '/vendor/dashboard' ? pathname === item.href : pathname.startsWith(item.href)}
                   tooltip={{ children: item.label }}
                 >
                   {item.icon}
@@ -73,11 +68,11 @@ export function DashboardSidebar() {
         <div className="flex items-center gap-2">
             <Avatar>
                 <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
-                <AvatarFallback>CN</AvatarFallback>
+                <AvatarFallback>PA</AvatarFallback>
             </Avatar>
             <div className="flex flex-col">
-                <span className="text-sm font-semibold">User</span>
-                <span className="text-xs text-muted-foreground">user@example.com</span>
+                <span className="text-sm font-semibold">Vendor Admin</span>
+                <span className="text-xs text-muted-foreground">admin@precisionauto.qa</span>
             </div>
         </div>
         <Button variant="ghost" className="w-full justify-start gap-2">
