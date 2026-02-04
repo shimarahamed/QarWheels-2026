@@ -1,13 +1,33 @@
 import { mockCars } from "@/lib/data";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { Car as CarIcon, Calendar, Gauge } from "lucide-react";
+import {
+  Car as CarIcon,
+  Calendar,
+  Gauge,
+  ArrowLeft,
+  History,
+} from "lucide-react";
 import Image from "next/image";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { notFound } from "next/navigation";
 import { CarMaintenancePredictions } from "@/components/dashboard/car-maintenance-predictions";
 import { ServiceHistorySummary } from "@/components/dashboard/service-history-summary";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { format } from "date-fns";
 
 export default function CarDetailsPage({
   params,
@@ -39,7 +59,7 @@ export default function CarDetailsPage({
         <p className="text-muted-foreground">{car.vin}</p>
       </header>
 
-      <div className="grid lg:grid-cols-3 gap-8">
+      <div className="grid lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-2 space-y-8">
           <Card>
             {image && (
@@ -84,9 +104,50 @@ export default function CarDetailsPage({
             </CardContent>
           </Card>
 
-          <ServiceHistorySummary car={car} />
+          <Card>
+            <CardHeader>
+              <CardTitle>Service History</CardTitle>
+              <CardDescription>
+                A log of all maintenance performed on this vehicle.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {car.serviceHistory.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Service</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="text-right">Cost</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {car.serviceHistory.map((record) => (
+                      <TableRow key={record.id}>
+                        <TableCell className="font-medium">
+                          {format(new Date(record.date), "PPP")}
+                        </TableCell>
+                        <TableCell>{record.service}</TableCell>
+                        <TableCell>{record.description}</TableCell>
+                        <TableCell className="text-right">
+                          QAR {record.cost.toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center text-muted-foreground p-8">
+                  <History className="mx-auto h-12 w-12 mb-4" />
+                  <p>No service history recorded for this vehicle.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
         <div className="lg:col-span-1 space-y-8">
+          <ServiceHistorySummary car={car} />
           <CarMaintenancePredictions car={car} />
         </div>
       </div>
