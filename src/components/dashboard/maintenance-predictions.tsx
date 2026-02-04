@@ -1,0 +1,207 @@
+"use client";
+
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { getMaintenancePredictions } from "@/lib/actions";
+import type { PredictiveMaintenanceOutput } from "@/ai/flows/predictive-maintenance-suggestions";
+import { mockCars } from "@/lib/data";
+import { Loader2, Sparkles } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+const formSchema = z.object({
+  vin: z.string().min(1, "Please select a car."),
+  mileage: z.coerce.number().min(1, "Mileage is required."),
+  serviceHistory: z.string().min(1, "Service history is required."),
+  qatarClimate: z.string().min(1, "Climate information is required."),
+});
+
+export function MaintenancePredictions() {
+  const [prediction, setPrediction] = useState<PredictiveMaintenanceOutput | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      vin: mockCars.length > 0 ? mockCars[0].vin : "",
+      mileage: mockCars.length > 0 ? mockCars[0].mileage : 0,
+      serviceHistory: `[{"date": "2023-01-15", "service": "Oil Change", "description": "Standard 5W-30 synthetic oil."},\n{"date": "2023-07-20", "service": "Brake Pad Replacement", "description": "Replaced front brake pads."}]`,
+      qatarClimate: `Hot and arid desert climate. Summer (May-Sep) temperatures average 42°C, can exceed 50°C. High humidity along the coast. Winter (Dec-Feb) is milder, around 23°C. Sand and dust storms are common.`,
+    },
+  });
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
+    setPrediction(null);
+    try {
+      const result = await getMaintenancePredictions(values);
+      setPrediction(result);
+    } catch (error) {
+      console.error("Failed to get predictions:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to get maintenance predictions. Please try again.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  return (
+    <div className="grid md:grid-cols-2 gap-8 items-start">
+      <Card>
+        <CardHeader>
+          <CardTitle>Get Predictions</CardTitle>
+          <CardDescription>
+            Fill in your car's details to get AI-powered maintenance suggestions.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="vin"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Car (VIN)</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a car" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {mockCars.map((car) => (
+                          <SelectItem key={car.vin} value={car.vin}>
+                            {car.year} {car.make} {car.model}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="mileage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Current Mileage (km)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="e.g., 75000" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="serviceHistory"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Service History (JSON)</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Enter service history..." {...field} rows={5} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="qatarClimate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Climate Info</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Enter climate info..." {...field} rows={3} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" disabled={isLoading} className="w-full">
+                {isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-2 h-4 w-4" />
+                )}
+                Predict Now
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+
+      <Card className="min-h-[300px] flex items-center justify-center">
+        {isLoading && (
+            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p>Our AI is analyzing your data...</p>
+                <p className="text-xs">This might take a moment.</p>
+            </div>
+        )}
+        {!isLoading && !prediction && (
+            <div className="text-center text-muted-foreground p-8">
+                <Sparkles className="mx-auto h-12 w-12 mb-4" />
+                <p>Your AI-powered predictions will appear here.</p>
+            </div>
+        )}
+        {prediction && (
+            <div className="w-full">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Sparkles className="text-accent" />
+                        <span>Maintenance Forecast</span>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div>
+                        <h4 className="font-semibold mb-2">Predicted Needs:</h4>
+                        <p className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-md">{prediction.predictedMaintenanceNeeds}</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold mb-2">Confidence Level:</h4>
+                        <p className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-md">{prediction.confidenceLevel}</p>
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <p className="text-xs text-muted-foreground">This is an AI-generated prediction. Always consult with a qualified technician.</p>
+                </CardFooter>
+            </div>
+        )}
+      </Card>
+    </div>
+  );
+}

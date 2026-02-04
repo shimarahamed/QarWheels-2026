@@ -1,3 +1,40 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-image",
+      "description": "A modern car driving on a highway in Qatar with the Doha skyline in the background.",
+      "imageUrl": "https://images.unsplash.com/photo-1471540161297-5ddd90d98af1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxtb2Rlcm4lMjBjYXJ8ZW58MHx8fHwxNzcwMjIwMjI4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "modern car"
+    },
+    {
+      "id": "feature-vin",
+      "description": "Close-up of a car's VIN plate.",
+      "imageUrl": "https://images.unsplash.com/photo-1585014165903-6d6c6ebad3e9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjYXIlMjBkYXNoYm9hcmR8ZW58MHx8fHwxNzcwMTk3Mzk5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "car dashboard"
+    },
+    {
+      "id": "feature-ai",
+      "description": "Abstract futuristic image representing artificial intelligence and data.",
+      "imageUrl": "https://images.unsplash.com/photo-1562575214-da9fcf59b907?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxhYnN0cmFjdCUyMHRlY2hub2xvZ3l8ZW58MHx8fHwxNzcwMTcwOTA2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "abstract technology"
+    },
+    {
+      "id": "feature-search",
+      "description": "A map with pins showing locations of garages.",
+      "imageUrl": "https://images.unsplash.com/photo-1717343824755-aa0bc935c47c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxtYXAlMjBjaXR5fGVufDB8fHx8MTc3MDIyNzQ0NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "map city"
+    },
+    {
+      "id": "car-placeholder-1",
+      "description": "A white sedan.",
+      "imageUrl": "https://images.unsplash.com/photo-1737051484020-8b7cb4d22f49?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHx3aGl0ZSUyMHNlZGFufGVufDB8fHx8MTc3MDE5MzU5MHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "white sedan"
+    },
+    {
+      "id": "car-placeholder-2",
+      "description": "A black SUV.",
+      "imageUrl": "https://images.unsplash.com/photo-1627140290942-7c8f9f56e870?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxibGFjayUyMHN1dnxlbnwwfHx8fDE3NzAxODEzODJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "black suv"
+    }
+  ]
 }
