@@ -67,8 +67,16 @@ const SidebarProvider = React.forwardRef<
     },
     ref
   ) => {
-    const isMobile = useIsMobile()
+    const isMobileValue = useIsMobile()
+    const [isMounted, setIsMounted] = React.useState(false);
     const [openMobile, setOpenMobile] = React.useState(false)
+
+    React.useEffect(() => {
+      setIsMounted(true);
+    }, []);
+
+    const isMobile = isMounted ? isMobileValue : false;
+
 
     // This is the internal state of the sidebar.
     // We use openProp and setOpenProp for control from outside the component.
