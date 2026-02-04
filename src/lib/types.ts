@@ -1,3 +1,11 @@
+export type ServiceRecord = {
+    id: string;
+    date: string;
+    service: string;
+    description: string;
+    cost: number;
+};
+
 export type Car = {
     id: string;
     userId: string;
@@ -7,4 +15,15 @@ export type Car = {
     year: number;
     mileage: number;
     imageId: string;
+    serviceHistory: ServiceRecord[];
+};
+
+export type Booking = {
+    id: string;
+    carId: string;
+    garageName: string;
+    serviceType: string;
+    date: string;
+    status: 'Confirmed' | 'Completed' | 'Cancelled';
+    cost?: number;
 };

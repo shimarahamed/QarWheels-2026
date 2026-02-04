@@ -24,13 +24,16 @@ export function ServiceHistorySummary({ car }: { car: Car }) {
 
   useEffect(() => {
     async function fetchSummary() {
+      if (car.serviceHistory.length === 0) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       setSummary(null);
       try {
         const result = await summarizeServiceHistory({
           vin: car.vin,
-          // A default service history for now
-          serviceHistory: `[{"date": "2023-01-15", "service": "Oil Change", "description": "Standard 5W-30 synthetic oil for ${car.make} ${car.model}."},\n{"date": "2023-07-20", "service": "Brake Pad Replacement", "description": "Replaced front brake pads."}]`,
+          serviceHistory: JSON.stringify(car.serviceHistory),
         });
         setSummary(result);
       } catch (error) {
@@ -63,8 +66,11 @@ export function ServiceHistorySummary({ car }: { car: Car }) {
             <p>Analyzing service history...</p>
           </div>
         )}
-        {!isLoading && !summary && (
+        {!isLoading && !summary && car.serviceHistory.length > 0 && (
           <p className="text-muted-foreground">Could not load summary.</p>
+        )}
+        {!isLoading && car.serviceHistory.length === 0 && (
+            <p className="text-muted-foreground">No service history available to analyze.</p>
         )}
         {summary && (
           <div className="space-y-4">

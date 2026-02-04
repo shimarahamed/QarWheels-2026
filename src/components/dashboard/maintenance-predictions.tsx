@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -39,7 +39,7 @@ import { useToast } from "@/hooks/use-toast";
 const formSchema = z.object({
   vin: z.string().min(1, "Please select a car."),
   mileage: z.coerce.number().min(1, "Mileage is required."),
-  serviceHistory: z.string().min(1, "Service history is required."),
+  serviceHistory: z.string(),
   qatarClimate: z.string().min(1, "Climate information is required."),
 });
 
@@ -53,10 +53,23 @@ export function MaintenancePredictions() {
     defaultValues: {
       vin: mockCars.length > 0 ? mockCars[0].vin : "",
       mileage: mockCars.length > 0 ? mockCars[0].mileage : 0,
-      serviceHistory: `[{"date": "2023-01-15", "service": "Oil Change", "description": "Standard 5W-30 synthetic oil."},\n{"date": "2023-07-20", "service": "Brake Pad Replacement", "description": "Replaced front brake pads."}]`,
+      serviceHistory: mockCars.length > 0 ? JSON.stringify(mockCars[0].serviceHistory, null, 2) : "[]",
       qatarClimate: `Hot and arid desert climate. Summer (May-Sep) temperatures average 42°C, can exceed 50°C. High humidity along the coast. Winter (Dec-Feb) is milder, around 23°C. Sand and dust storms are common.`,
     },
   });
+
+  const selectedVin = form.watch("vin");
+
+  useEffect(() => {
+    if (selectedVin) {
+        const selectedCar = mockCars.find(car => car.vin === selectedVin);
+        if (selectedCar) {
+            form.setValue("mileage", selectedCar.mileage);
+            form.setValue("serviceHistory", JSON.stringify(selectedCar.serviceHistory, null, 2));
+        }
+    }
+  }, [selectedVin, form]);
+
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);

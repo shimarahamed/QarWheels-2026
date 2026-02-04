@@ -28,8 +28,7 @@ export function CarMaintenancePredictions({ car }: { car: Car }) {
         const result = await getMaintenancePredictions({
           vin: car.vin,
           mileage: car.mileage,
-          // A default service history and climate info for now
-          serviceHistory: `[{"date": "2023-01-15", "service": "Oil Change", "description": "Standard 5W-30 synthetic oil."},\n{"date": "2023-07-20", "service": "Brake Pad Replacement", "description": "Replaced front brake pads."}]`,
+          serviceHistory: JSON.stringify(car.serviceHistory),
           qatarClimate: `Hot and arid desert climate. Summer (May-Sep) temperatures average 42°C, can exceed 50°C. High humidity along the coast. Winter (Dec-Feb) is milder, around 23°C. Sand and dust storms are common.`,
         });
         setPrediction(result);
