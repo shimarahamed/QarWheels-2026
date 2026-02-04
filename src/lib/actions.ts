@@ -10,6 +10,11 @@ import {
   type SummarizeServiceHistoryInput,
   type SummarizeServiceHistoryOutput,
 } from "@/ai/flows/summarize-service-history";
+import {
+  getVinDetails as fetchVinDetails,
+  type VinDetailsInput,
+  type VinDetailsOutput,
+} from "@/ai/flows/get-vin-details";
 
 export async function getMaintenancePredictions(
   input: PredictiveMaintenanceInput
@@ -35,5 +40,17 @@ export async function summarizeServiceHistory(
   } catch (error) {
     console.error("Error in summarizeServiceHistory action:", error);
     throw new Error("Failed to get summary from the AI model.");
+  }
+}
+
+export async function getVinDetails(
+  input: VinDetailsInput
+): Promise<VinDetailsOutput> {
+  try {
+    const output = await fetchVinDetails(input);
+    return output;
+  } catch (error) {
+    console.error("Error in getVinDetails action:", error);
+    throw new Error("Failed to retrieve vehicle details.");
   }
 }
