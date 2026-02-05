@@ -61,7 +61,7 @@ export function LandingPage() {
               <h1 className="lg:leading-tighter text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl xl:text-[3.4rem] 2xl:text-[3.75rem] font-headline">
                 Intelligent Car Care for Qatar's Roads
               </h1>
-              <p className="mx-auto max-w-[700px] text-foreground/80 md:text-xl">
+              <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
                 QarWheels is your smart automotive assistant. Select your role to
                 get started.
               </p>
@@ -118,7 +118,7 @@ export function LandingPage() {
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">
                   Smarter, Simpler, Smoother
                 </h2>
-                <p className="max-w-[900px] text-foreground/80 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
                   We've built a platform to take the guesswork out of car
                   ownership. Focus on the drive, we'll handle the rest.
                 </p>
@@ -128,7 +128,7 @@ export function LandingPage() {
               {features.map((feature, index) => (
                 <div
                   key={index}
-                  className="grid gap-2 p-6 rounded-lg bg-background shadow-sm transition-transform hover:scale-105 hover:shadow-lg"
+                  className="grid gap-2 p-6 rounded-lg bg-background shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/20"
                 >
                   <div className="flex items-center gap-4">
                     {feature.icon}
@@ -136,7 +136,7 @@ export function LandingPage() {
                       {feature.title}
                     </h3>
                   </div>
-                  <p className="text-sm text-foreground/80">
+                  <p className="text-sm text-muted-foreground">
                     {feature.description}
                   </p>
                 </div>
@@ -146,7 +146,7 @@ export function LandingPage() {
         </section>
       </main>
       <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
-        <p className="text-xs text-foreground/60">
+        <p className="text-xs text-muted-foreground">
           &copy; {new Date().getFullYear()} QarWheels. All rights reserved.
         </p>
         <nav className="sm:ml-auto flex gap-4 sm:gap-6">
