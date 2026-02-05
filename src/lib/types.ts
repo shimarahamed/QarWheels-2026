@@ -27,3 +27,13 @@ export type Booking = {
     status: 'Confirmed' | 'Completed' | 'Cancelled';
     cost?: number;
 };
+
+export type Garage = {
+    id: string;
+    name: string;
+    address: string;
+    rating: number;
+    reviewCount: number;
+    services: string[];
+    imageId: string;
+};

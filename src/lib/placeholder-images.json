@@ -35,6 +35,30 @@
       "description": "A black SUV.",
       "imageUrl": "https://images.unsplash.com/photo-1627140290942-7c8f9f56e870?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxibGFjayUyMHN1dnxlbnwwfHx8fDE3NzAxODEzODJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "black suv"
+    },
+    {
+      "id": "garage-interior",
+      "description": "Clean, modern auto repair shop interior.",
+      "imageUrl": "https://images.unsplash.com/photo-1599256872455-515639649b38?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhdXRvJTIwcmVwYWlyJTIwc2hvcHxlbnwwfHx8fDE3NzEyMTAwNTZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "auto repair"
+    },
+    {
+      "id": "garage-exterior",
+      "description": "Exterior of a modern car garage.",
+      "imageUrl": "https://images.unsplash.com/photo-1628102283435-436978d38c7f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxjYXIlMjBnYXJhZ2V8ZW58MHx8fHwxNzcxMjEwMTEyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "car garage"
+    },
+    {
+      "id": "garage-interior-2",
+      "description": "Well-lit garage with cars on lifts.",
+      "imageUrl": "https://images.unsplash.com/photo-1581293757782-ac3f38174360?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxhdXRvJTIwcmVwYWlyJTIwc2hvcHxlbnwwfHx8fDE3NzEyMTAwNTZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "auto repair"
+    },
+    {
+      "id": "garage-exterior-2",
+      "description": "Front entrance of a car service center.",
+      "imageUrl": "https://images.unsplash.com/photo-1564993438542-ac73e162a4b8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxjYXIlMjBzZXJ2aWNlJTIwY2VudGVyfGVufDB8fHx8MTc3MTIxMDI1Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "service center"
     }
   ]
 }

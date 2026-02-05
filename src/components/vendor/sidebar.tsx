@@ -18,6 +18,10 @@ import {
   LogOut,
   AreaChart,
   Settings,
+  Package,
+  Percent,
+  Star,
+  MessageSquare,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -27,8 +31,12 @@ import { Logo } from "../logo";
 const navItems = [
   { href: "/vendor/dashboard", icon: <LayoutDashboard />, label: "Overview" },
   { href: "/vendor/dashboard/bookings", icon: <Book />, label: "Bookings" },
-  { href: "/vendor/dashboard/services", icon: <Wrench />, label: "Services" },
   { href: "/vendor/dashboard/customers", icon: <Users />, label: "Customers" },
+  { href: "/vendor/dashboard/services", icon: <Wrench />, label: "Services" },
+  { href: "/vendor/dashboard/inventory", icon: <Package />, label: "Inventory" },
+  { href: "/vendor/dashboard/staff", icon: <Users />, label: "Staff" },
+  { href: "/vendor/dashboard/promotions", icon: <Percent />, label: "Promotions" },
+  { href: "/vendor/dashboard/reviews", icon: <Star />, label: "Reviews" },
   { href: "/vendor/dashboard/analytics", icon: <AreaChart />, label: "Analytics" },
   { href: "/vendor/dashboard/settings", icon: <Settings />, label: "Settings" },
 ];
