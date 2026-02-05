@@ -17,6 +17,7 @@ import {
   Users,
   LogOut,
   AreaChart,
+  Settings,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ const navItems = [
   { href: "/vendor/dashboard/services", icon: <Wrench />, label: "Services" },
   { href: "/vendor/dashboard/customers", icon: <Users />, label: "Customers" },
   { href: "/vendor/dashboard/analytics", icon: <AreaChart />, label: "Analytics" },
+  { href: "/vendor/dashboard/settings", icon: <Settings />, label: "Settings" },
 ];
 
 export function VendorSidebar() {
