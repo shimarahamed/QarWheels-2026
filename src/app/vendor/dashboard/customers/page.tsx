@@ -1,5 +1,5 @@
 'use client';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import {
     Card,
@@ -40,10 +40,16 @@ import {
 
 
 function EditCustomerForm({ customer, onFormSubmit, onCancel }: { customer: VendorCustomer, onFormSubmit: () => void, onCancel: () => void }) {
-    const { register, handleSubmit, formState: { errors } } = useForm<VendorCustomer>({
+    const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorCustomer>({
         defaultValues: customer,
     });
     const { toast } = useToast();
+
+    useEffect(() => {
+        if (customer) {
+            reset(customer);
+        }
+    }, [customer, reset]);
 
     const onSubmit = (data: VendorCustomer) => {
         console.log("Updated customer data:", data); // API call
@@ -142,6 +148,13 @@ export default function VendorCustomersPage() {
         setIsViewOpen(true);
     };
 
+    const handleOpenChange = (isOpen: boolean) => {
+        setIsViewOpen(isOpen);
+        if (!isOpen) {
+            setSelectedCustomer(null);
+        }
+    }
+
     return (
       <div className="space-y-8">
         <header>
@@ -200,7 +213,7 @@ export default function VendorCustomersPage() {
           </CardContent>
         </Card>
 
-        <CustomerProfileDialog customer={selectedCustomer} open={isViewOpen} onOpenChange={setIsViewOpen} />
+        <CustomerProfileDialog customer={selectedCustomer} open={isViewOpen} onOpenChange={handleOpenChange} />
       </div>
     );
   }

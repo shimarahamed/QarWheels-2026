@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import {
   Card,
@@ -42,10 +42,16 @@ import { useToast } from "@/hooks/use-toast";
 
 // The form component
 function EditServiceForm({ service, onFormSubmit }: { service: VendorService, onFormSubmit: () => void }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<VendorService>({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorService>({
     defaultValues: service,
   });
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (service) {
+      reset(service);
+    }
+  }, [service, reset]);
 
   const onSubmit = (data: VendorService) => {
     console.log("Updated service data:", data); // In a real app, you'd call an API here
@@ -95,6 +101,13 @@ export default function VendorServicesPage() {
     setSelectedService(service);
     setIsEditDialogOpen(true);
   };
+
+  const handleOpenChange = (isOpen: boolean) => {
+      setIsEditDialogOpen(isOpen);
+      if (!isOpen) {
+          setSelectedService(null);
+      }
+  }
   
   return (
     <div className="space-y-8">
@@ -156,7 +169,7 @@ export default function VendorServicesPage() {
       </Card>
 
       {selectedService && (
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <Dialog open={isEditDialogOpen} onOpenChange={handleOpenChange}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Edit Service</DialogTitle>
@@ -164,7 +177,7 @@ export default function VendorServicesPage() {
                         Make changes to the service details below. Click save when you're done.
                     </DialogDescription>
                 </DialogHeader>
-                <EditServiceForm service={selectedService} onFormSubmit={() => setIsEditDialogOpen(false)} />
+                <EditServiceForm service={selectedService} onFormSubmit={() => handleOpenChange(false)} />
             </DialogContent>
         </Dialog>
       )}

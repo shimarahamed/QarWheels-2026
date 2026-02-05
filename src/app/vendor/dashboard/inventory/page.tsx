@@ -1,5 +1,5 @@
 'use client';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import {
     Card,
@@ -42,10 +42,16 @@ import { useToast } from "@/hooks/use-toast";
 
 
 function EditInventoryForm({ item, onFormSubmit }: { item: VendorInventoryItem, onFormSubmit: () => void }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<VendorInventoryItem>({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorInventoryItem>({
     defaultValues: item,
   });
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (item) {
+        reset(item);
+    }
+  }, [item, reset]);
 
   const onSubmit = (data: VendorInventoryItem) => {
     console.log("Updated item data:", data); // API call
@@ -104,6 +110,13 @@ export default function VendorInventoryPage() {
         setSelectedItem(item);
         setIsEditDialogOpen(true);
     };
+
+    const handleOpenChange = (isOpen: boolean) => {
+        setIsEditDialogOpen(isOpen);
+        if (!isOpen) {
+            setSelectedItem(null);
+        }
+    }
 
     return (
       <div className="space-y-8">
@@ -173,7 +186,7 @@ export default function VendorInventoryPage() {
           </CardContent>
         </Card>
         {selectedItem && (
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <Dialog open={isEditDialogOpen} onOpenChange={handleOpenChange}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Edit Inventory Item</DialogTitle>
@@ -181,7 +194,7 @@ export default function VendorInventoryPage() {
                             Update the details for this item.
                         </DialogDescription>
                     </DialogHeader>
-                    <EditInventoryForm item={selectedItem} onFormSubmit={() => setIsEditDialogOpen(false)} />
+                    <EditInventoryForm item={selectedItem} onFormSubmit={() => handleOpenChange(false)} />
                 </DialogContent>
             </Dialog>
         )}

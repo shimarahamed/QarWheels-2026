@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import {
     Card,
@@ -45,10 +45,16 @@ import {
 
 
 function EditStaffForm({ staffMember, onFormSubmit }: { staffMember: VendorStaffMember, onFormSubmit: () => void }) {
-  const { register, handleSubmit, control, formState: { errors } } = useForm<VendorStaffMember>({
+  const { register, handleSubmit, control, formState: { errors }, reset } = useForm<VendorStaffMember>({
     defaultValues: staffMember,
   });
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (staffMember) {
+        reset(staffMember);
+    }
+  }, [staffMember, reset]);
 
   const onSubmit = (data: VendorStaffMember) => {
     console.log("Updated staff data:", data); // API call
@@ -131,6 +137,13 @@ export default function VendorStaffPage() {
         setIsEditDialogOpen(true);
     };
 
+    const handleOpenChange = (isOpen: boolean) => {
+        setIsEditDialogOpen(isOpen);
+        if (!isOpen) {
+            setSelectedStaff(null);
+        }
+    }
+
     return (
       <div className="space-y-8">
         <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -204,7 +217,7 @@ export default function VendorStaffPage() {
           </CardContent>
         </Card>
         {selectedStaff && (
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <Dialog open={isEditDialogOpen} onOpenChange={handleOpenChange}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Edit Staff Member</DialogTitle>
@@ -212,7 +225,7 @@ export default function VendorStaffPage() {
                             Update the details for {selectedStaff.name}.
                         </DialogDescription>
                     </DialogHeader>
-                    <EditStaffForm staffMember={selectedStaff} onFormSubmit={() => setIsEditDialogOpen(false)} />
+                    <EditStaffForm staffMember={selectedStaff} onFormSubmit={() => handleOpenChange(false)} />
                 </DialogContent>
             </Dialog>
         )}

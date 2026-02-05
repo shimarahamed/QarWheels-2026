@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import {
     Card,
@@ -31,14 +31,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 
 function EditPromotionForm({ promotion, onFormSubmit }: { promotion: VendorPromotion, onFormSubmit: () => void }) {
-  const { register, handleSubmit, control, formState: { errors } } = useForm<VendorPromotion>({
-    defaultValues: {
-        ...promotion,
-        startDate: format(new Date(promotion.startDate), 'yyyy-MM-dd'),
-        endDate: format(new Date(promotion.endDate), 'yyyy-MM-dd'),
-    }
-  });
+  const { register, handleSubmit, control, formState: { errors }, reset } = useForm<VendorPromotion>();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (promotion) {
+      reset({
+          ...promotion,
+          startDate: format(new Date(promotion.startDate), 'yyyy-MM-dd'),
+          endDate: format(new Date(promotion.endDate), 'yyyy-MM-dd'),
+      });
+    }
+  }, [promotion, reset]);
 
   const onSubmit = (data: VendorPromotion) => {
     console.log("Updated promotion data:", data); // API call here
@@ -133,6 +137,13 @@ export default function VendorPromotionsPage() {
         setIsEditDialogOpen(true);
     };
 
+    const handleOpenChange = (isOpen: boolean) => {
+        setIsEditDialogOpen(isOpen);
+        if (!isOpen) {
+            setSelectedPromotion(null);
+        }
+    }
+
     return (
       <div className="space-y-8">
         <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -178,7 +189,7 @@ export default function VendorPromotionsPage() {
         </div>
 
         {selectedPromotion && (
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <Dialog open={isEditDialogOpen} onOpenChange={handleOpenChange}>
               <DialogContent className="sm:max-w-md">
                   <DialogHeader>
                       <DialogTitle>Edit Promotion</DialogTitle>
@@ -186,7 +197,7 @@ export default function VendorPromotionsPage() {
                           Update the details for your promotion.
                       </DialogDescription>
                   </DialogHeader>
-                  <EditPromotionForm promotion={selectedPromotion} onFormSubmit={() => setIsEditDialogOpen(false)} />
+                  <EditPromotionForm promotion={selectedPromotion} onFormSubmit={() => handleOpenChange(false)} />
               </DialogContent>
           </Dialog>
         )}
