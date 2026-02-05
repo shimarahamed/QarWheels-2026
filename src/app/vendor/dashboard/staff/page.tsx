@@ -1,3 +1,7 @@
+'use client';
+
+import { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import {
     Card,
     CardContent,
@@ -15,7 +19,7 @@ import {
   } from "@/components/ui/table";
   import { Button } from "@/components/ui/button";
   import { MoreHorizontal, PlusCircle } from "lucide-react";
-  import { mockStaff } from "@/lib/vendor-data";
+  import { mockStaff, VendorStaffMember } from "@/lib/vendor-data";
   import {
     DropdownMenu,
     DropdownMenuContent,
@@ -25,8 +29,108 @@ import {
   } from "@/components/ui/dropdown-menu";
   import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
   import { Badge } from "@/components/ui/badge";
-  
-  export default function VendorStaffPage() {
+  import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+    DialogClose
+  } from "@/components/ui/dialog";
+  import { Input } from "@/components/ui/input";
+  import { Label } from "@/components/ui/label";
+  import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+  import { useToast } from "@/hooks/use-toast";
+
+
+function EditStaffForm({ staffMember, onFormSubmit }: { staffMember: VendorStaffMember, onFormSubmit: () => void }) {
+  const { register, handleSubmit, control, formState: { errors } } = useForm<VendorStaffMember>({
+    defaultValues: staffMember,
+  });
+  const { toast } = useToast();
+
+  const onSubmit = (data: VendorStaffMember) => {
+    console.log("Updated staff data:", data); // API call
+    toast({
+      title: "Staff Member Updated",
+      description: `${data.name}'s profile has been successfully updated.`,
+    });
+    onFormSubmit();
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="name">Staff Name</Label>
+        <Input id="name" {...register("name", { required: "Name is required" })} />
+        {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="email">Email Address</Label>
+        <Input id="email" type="email" {...register("email", { required: "Email is required" })} />
+        {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+            <Label htmlFor="role">Role</Label>
+            <Controller
+                control={control}
+                name="role"
+                render={({ field }) => (
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Technician">Technician</SelectItem>
+                            <SelectItem value="Service Advisor">Service Advisor</SelectItem>
+                            <SelectItem value="Admin">Admin</SelectItem>
+                        </SelectContent>
+                    </Select>
+                )}
+            />
+        </div>
+        <div className="space-y-2">
+            <Label htmlFor="status">Status</Label>
+             <Controller
+                control={control}
+                name="status"
+                render={({ field }) => (
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Active">Active</SelectItem>
+                            <SelectItem value="Inactive">Inactive</SelectItem>
+                        </SelectContent>
+                    </Select>
+                )}
+            />
+        </div>
+      </div>
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button type="button" variant="outline">Cancel</Button>
+        </DialogClose>
+        <Button type="submit">Save Changes</Button>
+      </DialogFooter>
+    </form>
+  );
+}
+
+
+export default function VendorStaffPage() {
+    const [staff, setStaff] = useState(mockStaff);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [selectedStaff, setSelectedStaff] = useState<VendorStaffMember | null>(null);
+
+    const handleEditClick = (staffMember: VendorStaffMember) => {
+        setSelectedStaff(staffMember);
+        setIsEditDialogOpen(true);
+    };
+
     return (
       <div className="space-y-8">
         <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -59,23 +163,23 @@ import {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockStaff.map((staff) => (
-                  <TableRow key={staff.id}>
+                {staff.map((staffMember) => (
+                  <TableRow key={staffMember.id}>
                     <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
                             <Avatar>
-                                <AvatarImage src={`https://api.dicebear.com/8.x/initials/svg?seed=${staff.name}`} />
-                                <AvatarFallback>{staff.name.charAt(0)}</AvatarFallback>
+                                <AvatarImage src={`https://api.dicebear.com/8.x/initials/svg?seed=${staffMember.name}`} />
+                                <AvatarFallback>{staffMember.name.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div>
-                                {staff.name}
-                                <div className="text-sm text-muted-foreground hidden md:block">{staff.email}</div>
+                                {staffMember.name}
+                                <div className="text-sm text-muted-foreground hidden md:block">{staffMember.email}</div>
                             </div>
                         </div>
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell">{staff.role}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{staffMember.role}</TableCell>
                     <TableCell>
-                        <Badge variant={staff.status === 'Active' ? 'default' : 'secondary'}>{staff.status}</Badge>
+                        <Badge variant={staffMember.status === 'Active' ? 'default' : 'secondary'}>{staffMember.status}</Badge>
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -87,10 +191,9 @@ import {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem>Edit Profile</DropdownMenuItem>
-                              <DropdownMenuItem>Change Role</DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => handleEditClick(staffMember)}>Edit Profile</DropdownMenuItem>
                               <DropdownMenuItem>Reset Password</DropdownMenuItem>
-                              <DropdownMenuItem>{staff.status === 'Active' ? 'Deactivate' : 'Activate'}</DropdownMenuItem>
+                              <DropdownMenuItem>{staffMember.status === 'Active' ? 'Deactivate' : 'Activate'}</DropdownMenuItem>
                           </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -100,6 +203,19 @@ import {
             </Table>
           </CardContent>
         </Card>
+        {selectedStaff && (
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Edit Staff Member</DialogTitle>
+                        <DialogDescription>
+                            Update the details for {selectedStaff.name}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <EditStaffForm staffMember={selectedStaff} onFormSubmit={() => setIsEditDialogOpen(false)} />
+                </DialogContent>
+            </Dialog>
+        )}
       </div>
     );
   }

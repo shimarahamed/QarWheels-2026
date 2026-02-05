@@ -1,3 +1,6 @@
+'use client';
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import {
     Card,
     CardContent,
@@ -15,7 +18,7 @@ import {
   } from "@/components/ui/table";
   import { Button } from "@/components/ui/button";
   import { MoreHorizontal, PlusCircle } from "lucide-react";
-  import { mockInventory } from "@/lib/vendor-data";
+  import { mockInventory, VendorInventoryItem } from "@/lib/vendor-data";
   import {
     DropdownMenu,
     DropdownMenuContent,
@@ -24,8 +27,84 @@ import {
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-  
-  export default function VendorInventoryPage() {
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+
+
+function EditInventoryForm({ item, onFormSubmit }: { item: VendorInventoryItem, onFormSubmit: () => void }) {
+  const { register, handleSubmit, formState: { errors } } = useForm<VendorInventoryItem>({
+    defaultValues: item,
+  });
+  const { toast } = useToast();
+
+  const onSubmit = (data: VendorInventoryItem) => {
+    console.log("Updated item data:", data); // API call
+    toast({
+      title: "Inventory Item Updated",
+      description: `"${data.name}" has been successfully updated.`,
+    });
+    onFormSubmit();
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="name">Item Name</Label>
+        <Input id="name" {...register("name", { required: "Name is required" })} />
+        {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="sku">SKU</Label>
+        <Input id="sku" {...register("sku", { required: "SKU is required" })} />
+        {errors.sku && <p className="text-sm text-destructive">{errors.sku.message}</p>}
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="stock">Stock</Label>
+            <Input id="stock" type="number" {...register("stock", { required: "Stock is required", valueAsNumber: true })} />
+            {errors.stock && <p className="text-sm text-destructive">{errors.stock.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="price">Price (QAR)</Label>
+            <Input id="price" type="number" step="0.01" {...register("price", { required: "Price is required", valueAsNumber: true })} />
+            {errors.price && <p className="text-sm text-destructive">{errors.price.message}</p>}
+          </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="supplier">Supplier</Label>
+        <Input id="supplier" {...register("supplier", { required: "Supplier is required" })} />
+        {errors.supplier && <p className="text-sm text-destructive">{errors.supplier.message}</p>}
+      </div>
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button type="button" variant="outline">Cancel</Button>
+        </DialogClose>
+        <Button type="submit">Save Changes</Button>
+      </DialogFooter>
+    </form>
+  );
+}
+
+export default function VendorInventoryPage() {
+    const [inventory, setInventory] = useState(mockInventory);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [selectedItem, setSelectedItem] = useState<VendorInventoryItem | null>(null);
+
+    const handleEditClick = (item: VendorInventoryItem) => {
+        setSelectedItem(item);
+        setIsEditDialogOpen(true);
+    };
+
     return (
       <div className="space-y-8">
         <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -60,7 +139,7 @@ import { Badge } from "@/components/ui/badge";
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockInventory.map((item) => (
+                {inventory.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell className="hidden sm:table-cell font-mono text-xs">{item.sku}</TableCell>
@@ -81,7 +160,7 @@ import { Badge } from "@/components/ui/badge";
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem>Edit Item</DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => handleEditClick(item)}>Edit Item</DropdownMenuItem>
                               <DropdownMenuItem>Adjust Stock</DropdownMenuItem>
                               <DropdownMenuItem className="text-destructive focus:text-destructive-foreground">Delete</DropdownMenuItem>
                           </DropdownMenuContent>
@@ -93,6 +172,19 @@ import { Badge } from "@/components/ui/badge";
             </Table>
           </CardContent>
         </Card>
+        {selectedItem && (
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Edit Inventory Item</DialogTitle>
+                        <DialogDescription>
+                            Update the details for this item.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <EditInventoryForm item={selectedItem} onFormSubmit={() => setIsEditDialogOpen(false)} />
+                </DialogContent>
+            </Dialog>
+        )}
       </div>
     );
   }
