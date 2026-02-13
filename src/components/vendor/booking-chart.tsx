@@ -2,13 +2,33 @@
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { useState, useEffect } from 'react';
 import { mockAnalyticsData } from "@/lib/vendor-data"
+import { Skeleton } from "@/components/ui/skeleton";
 
-export function BookingChart() {
+export function BookingChart({ timeRange }: { timeRange: string }) {
     const [data, setData] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        setData(mockAnalyticsData.bookings);
-    }, []);
+        setLoading(true);
+        // Simulate fetching and filtering data
+        const timer = setTimeout(() => {
+            // Adjust counts to make the chart feel interactive
+            const multiplier = timeRange === 'last_30_days' ? 0.2 : timeRange === 'last_6_months' ? 0.8 : 1;
+            const interactiveData = mockAnalyticsData.bookings.map(d => ({
+                ...d,
+                count: Math.max(1, Math.round(d.count * multiplier * (Math.random() * 0.3 + 0.85)))
+            }));
+            setData(interactiveData);
+            setLoading(false);
+        }, 1200);
+
+        return () => clearTimeout(timer);
+    }, [timeRange]);
+
+    if (loading) {
+        return <Skeleton className="h-[350px] w-full" />;
+    }
+
 
   return (
     <ResponsiveContainer width="100%" height={350}>
