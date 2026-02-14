@@ -9,7 +9,7 @@ export default function VendorDashboardLayout({
   return (
     <SidebarProvider>
       <div className="md:flex min-h-screen">
-        <Sidebar variant="inset">
+        <Sidebar>
           <VendorSidebar />
         </Sidebar>
         <main className="flex-1">
