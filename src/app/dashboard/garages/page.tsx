@@ -37,7 +37,7 @@ function GarageList() {
             {mockGarages.map((garage) => {
                 const image = PlaceHolderImages.find((img) => img.id === garage.imageId);
                 return (
-                    <Card key={garage.id} className="flex flex-col group overflow-hidden transition-all duration-300 hover:shadow-xl">
+                    <Card key={garage.id} className="flex flex-col group overflow-hidden transition-shadow duration-300 hover:shadow-xl">
                         <div className="overflow-hidden">
                             {image && (
                                 <Image
@@ -94,7 +94,7 @@ export default function GaragesPage() {
 
         <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input placeholder="Search by name, service, or location..." className="pl-10 text-base py-6" />
+            <Input placeholder="Search by name, service, or location..." className="pl-10" />
         </div>
 
         {/* Desktop View */}
