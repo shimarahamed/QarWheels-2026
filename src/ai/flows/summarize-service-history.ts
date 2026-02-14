@@ -13,6 +13,9 @@ import {z} from 'genkit';
 const SummarizeServiceHistoryInputSchema = z.object({
   serviceHistory: z.string().describe('The car service history as a text.'),
   vin: z.string().describe('The Vehicle Identification Number (VIN) of the car.'),
+  make: z.string().describe('The manufacturer of the vehicle.'),
+  model: z.string().describe('The model of the vehicle.'),
+  year: z.number().describe('The manufacturing year of the vehicle.'),
 });
 export type SummarizeServiceHistoryInput = z.infer<typeof SummarizeServiceHistoryInputSchema>;
 
@@ -32,10 +35,11 @@ const prompt = ai.definePrompt({
   output: {schema: SummarizeServiceHistoryOutputSchema},
   prompt: `You are an expert automotive technician. Your task is to summarize the service history of a car and identify potential issues.
 
-  Summarize the following service history, highlighting key maintenance events and potential issues. Also consider the VIN number to identify the car model, and base potential issues on common failures for that model.
+  You are provided with the vehicle's make, model, year, and full service history. Use this information to identify potential issues based on common failures for that specific model.
 
-  Service History: {{{serviceHistory}}}
+  Vehicle: {{{year}}} {{{make}}} {{{model}}}
   VIN: {{{vin}}}
+  Service History: {{{serviceHistory}}}
 
   Provide a concise summary of the service history and list any potential issues identified. Be clear and precise.
 `,
@@ -49,6 +53,9 @@ const summarizeServiceHistoryFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    if (!output) {
+      throw new Error("The AI model failed to produce a valid summary output.");
+    }
+    return output;
   }
 );

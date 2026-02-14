@@ -37,6 +37,9 @@ export function ServiceHistorySummary({ car }: { car: Car }) {
         const result = await summarizeServiceHistory({
           vin: car.vin,
           serviceHistory: JSON.stringify(car.serviceHistory),
+          make: car.make,
+          model: car.model,
+          year: car.year,
         });
         setSummary(result);
       } catch (error) {
