@@ -40,10 +40,10 @@ export const mockBookings: Booking[] = [
 ];
 
 export const mockGarages: Garage[] = [
-    { id: "garage-1", name: "Precision Auto Qatar", address: "Street 10, Industrial Area, Doha", rating: 4.8, reviewCount: 125, services: ["Engine Repair", "Brake Service", "AC Repair", "Full Detailing"], imageId: "garage-interior" },
-    { id: "garage-2", name: "Doha Car Experts", address: "Salwa Road, Doha", rating: 4.5, reviewCount: 88, services: ["Oil Change", "Tire Alignment", "Diagnostics"], imageId: "garage-exterior" },
-    { id: "garage-3", name: "German Auto Specialists", address: "Barwa Village, Al Wakrah", rating: 4.9, reviewCount: 210, services: ["BMW Service", "Mercedes Service", "Audi Service"], imageId: "garage-interior-2" },
-    { id: "garage-4", name: "Quick Lube Center", address: "C Ring Road, Doha", rating: 4.2, reviewCount: 350, services: ["Quick Oil Change", "Filter Replacement"], imageId: "garage-exterior-2" },
+    { id: "garage-1", name: "Precision Auto Qatar", address: "Street 10, Industrial Area, Doha", rating: 4.8, reviewCount: 125, services: ["Engine Repair", "Brake Service", "AC Repair", "Full Detailing"], imageId: "garage-interior", lat: 25.21, lng: 51.48 },
+    { id: "garage-2", name: "Doha Car Experts", address: "Salwa Road, Doha", rating: 4.5, reviewCount: 88, services: ["Oil Change", "Tire Alignment", "Diagnostics"], imageId: "garage-exterior", lat: 25.25, lng: 51.47 },
+    { id: "garage-3", name: "German Auto Specialists", address: "Barwa Village, Al Wakrah", rating: 4.9, reviewCount: 210, services: ["BMW Service", "Mercedes Service", "Audi Service"], imageId: "garage-interior-2", lat: 25.17, lng: 51.55 },
+    { id: "garage-4", name: "Quick Lube Center", address: "C Ring Road, Doha", rating: 4.2, reviewCount: 350, services: ["Quick Oil Change", "Filter Replacement"], imageId: "garage-exterior-2", lat: 25.28, lng: 51.51 },
 ];
 
 export const mockUser: User = {

@@ -4,10 +4,14 @@ import { Input } from '@/components/ui/input';
 import { mockGarages } from '@/lib/data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
-import { Search, Star, MapPin } from 'lucide-react';
+import { Search, Star, MapPin, List, Map as MapIcon } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
+import { GaragesMap } from '@/components/dashboard/garages-map';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 function StarRating({ rating, className }: { rating: number, className?: string }) {
     const fullStars = Math.floor(rating);
@@ -27,26 +31,13 @@ function StarRating({ rating, className }: { rating: number, className?: string 
     );
 }
 
-export default function GaragesPage() {
-  return (
-    <div className="space-y-8">
-        <header>
-            <h1 className="text-3xl font-bold font-headline">Find Garages</h1>
-            <p className="text-muted-foreground">
-                Search for trusted automotive service centers in Qatar.
-            </p>
-        </header>
-
-        <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input placeholder="Search by name, service, or location..." className="pl-10 text-base py-6" />
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+function GarageList() {
+    return (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-1">
             {mockGarages.map((garage) => {
                 const image = PlaceHolderImages.find((img) => img.id === garage.imageId);
                 return (
-                    <Card key={garage.id} className="flex flex-col group overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                    <Card key={garage.id} className="flex flex-col group overflow-hidden transition-all duration-300 hover:shadow-xl">
                         <div className="overflow-hidden">
                             {image && (
                                 <Image
@@ -87,6 +78,49 @@ export default function GaragesPage() {
                     </Card>
                 );
             })}
+        </div>
+    )
+}
+
+export default function GaragesPage() {
+  return (
+    <div className="space-y-8">
+        <header>
+            <h1 className="text-3xl font-bold font-headline">Find Garages</h1>
+            <p className="text-muted-foreground">
+                Search for trusted automotive service centers in Qatar.
+            </p>
+        </header>
+
+        <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input placeholder="Search by name, service, or location..." className="pl-10 text-base py-6" />
+        </div>
+
+        {/* Desktop View */}
+        <div className="hidden lg:grid grid-cols-5 gap-8" style={{height: 'calc(100vh - 280px)'}}>
+            <ScrollArea className="col-span-2 h-full pr-4 -mr-4">
+               <GarageList />
+            </ScrollArea>
+            <div className="col-span-3 h-full">
+                <GaragesMap />
+            </div>
+        </div>
+
+        {/* Mobile View */}
+        <div className="lg:hidden">
+            <Tabs defaultValue="list" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="list"><List className="mr-2 h-4 w-4" />List View</TabsTrigger>
+                    <TabsTrigger value="map"><MapIcon className="mr-2 h-4 w-4" />Map View</TabsTrigger>
+                </TabsList>
+                <TabsContent value="list" className="mt-6">
+                    <GarageList />
+                </TabsContent>
+                <TabsContent value="map" className="mt-6">
+                    <GaragesMap />
+                </TabsContent>
+            </Tabs>
         </div>
     </div>
   );

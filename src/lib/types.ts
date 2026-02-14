@@ -36,6 +36,8 @@ export type Garage = {
     reviewCount: number;
     services: string[];
     imageId: string;
+    lat: number;
+    lng: number;
 };
 
 export type User = {
