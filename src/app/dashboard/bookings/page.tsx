@@ -31,7 +31,7 @@ function BookingCard({ booking }: { booking: Booking }) {
   };
 
   return (
-    <Card>
+    <Card className="flex flex-col">
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
@@ -43,7 +43,7 @@ function BookingCard({ booking }: { booking: Booking }) {
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 flex-grow">
         {car && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Car className="h-4 w-4" />

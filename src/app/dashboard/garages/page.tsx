@@ -46,7 +46,7 @@ export default function GaragesPage() {
             {mockGarages.map((garage) => {
                 const image = PlaceHolderImages.find((img) => img.id === garage.imageId);
                 return (
-                    <Card key={garage.id} className="flex flex-col group overflow-hidden">
+                    <Card key={garage.id} className="flex flex-col group overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
                         <div className="overflow-hidden">
                             {image && (
                                 <Image

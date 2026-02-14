@@ -79,6 +79,10 @@ function BookingWizard() {
     setTimeout(() => {
         // mockBookings.push(newBooking); // This won't work with mock data persistence.
         setIsBooking(false);
+        toast({
+            title: "Booking Confirmed!",
+            description: "Your appointment has been successfully scheduled.",
+        });
         setStep(4); // Move to success step
     }, 1500);
 
@@ -95,10 +99,14 @@ function BookingWizard() {
                     Back
                 </Button>
                 <div className="flex items-center gap-4 mt-4">
-                    {[1, 2, 3].map(s => (
-                        <div key={s} className="flex-1 text-center">
-                            <div className={cn("py-2 border-b-4", step >= s ? 'border-primary' : 'border-border')}>
-                                Step {s}
+                    {[
+                        {num: 1, title: "Vehicle"},
+                        {num: 2, title: "Date & Time"},
+                        {num: 3, title: "Confirm"}
+                    ].map(s => (
+                        <div key={s.num} className="flex-1 text-center">
+                            <div className={cn("py-2 border-b-4", step >= s.num ? 'border-primary' : 'border-border')}>
+                                <span className="hidden sm:inline">Step {s.num}: </span>{s.title}
                             </div>
                         </div>
                     ))}
