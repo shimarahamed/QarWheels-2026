@@ -1,4 +1,4 @@
-import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar";
+import { SidebarProvider, Sidebar } from "@/components/ui/sidebar";
 import { VendorSidebar } from "@/components/vendor/sidebar";
 
 export default function VendorDashboardLayout({
@@ -12,10 +12,8 @@ export default function VendorDashboardLayout({
         <Sidebar>
           <VendorSidebar />
         </Sidebar>
-        <main className="flex-1">
-          <SidebarInset>
-            <div className="p-4 sm:p-6 lg:p-8">{children}</div>
-          </SidebarInset>
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+          {children}
         </main>
       </div>
     </SidebarProvider>
