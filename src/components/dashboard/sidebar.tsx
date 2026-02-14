@@ -17,7 +17,6 @@ import {
   Book,
   History,
   LogOut,
-  Bell,
   Search,
   User,
 } from "lucide-react";
@@ -26,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Logo } from "../logo";
 import { Input } from "../ui/input";
+import { mockUser } from "@/lib/data";
 
 const navItems = [
   { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard" },
@@ -33,6 +33,7 @@ const navItems = [
   { href: "/dashboard/garages", icon: <Wrench />, label: "Garages" },
   { href: "/dashboard/bookings", icon: <Book />, label: "Bookings" },
   { href: "/dashboard/service-history", icon: <History />, label: "Service History" },
+  { href: "/dashboard/profile", icon: <User />, label: "Profile" },
 ];
 
 export function DashboardSidebar() {
@@ -70,17 +71,19 @@ export function DashboardSidebar() {
           ))}
         </SidebarMenu>
       </SidebarContent>
-      <SidebarFooter className="p-2 border-t mt-auto">
-        <div className="flex items-center gap-2">
-            <Avatar>
-                <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
-                <AvatarFallback>CN</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col">
-                <span className="text-sm font-semibold">User</span>
-                <span className="text-xs text-muted-foreground">user@example.com</span>
+      <SidebarFooter className="p-2 border-t mt-auto space-y-2">
+        <Link href="/dashboard/profile" className="p-2 rounded-md hover:bg-accent -mx-2">
+            <div className="flex items-center gap-3">
+                <Avatar className="h-9 w-9">
+                    <AvatarImage src={`https://api.dicebear.com/8.x/initials/svg?seed=${mockUser.name}`} alt={mockUser.name} />
+                    <AvatarFallback>{mockUser.name.substring(0, 2)}</AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col">
+                    <span className="text-sm font-semibold">{mockUser.name}</span>
+                    <span className="text-xs text-muted-foreground">{mockUser.email}</span>
+                </div>
             </div>
-        </div>
+        </Link>
         <Button variant="ghost" className="w-full justify-start gap-2">
             <LogOut />
             <span>Logout</span>

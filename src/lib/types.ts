@@ -37,3 +37,16 @@ export type Garage = {
     services: string[];
     imageId: string;
 };
+
+export type User = {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    avatarUrl: string;
+    notificationPreferences: {
+        bookingConfirmations: boolean;
+        serviceReminders: boolean;
+        promotionalOffers: boolean;
+    };
+};

@@ -1,4 +1,4 @@
-import type { Car, Booking, Garage } from "./types";
+import type { Car, Booking, Garage, User } from "./types";
 
 export const mockCars: Car[] = [
   {
@@ -45,3 +45,16 @@ export const mockGarages: Garage[] = [
     { id: "garage-3", name: "German Auto Specialists", address: "Barwa Village, Al Wakrah", rating: 4.9, reviewCount: 210, services: ["BMW Service", "Mercedes Service", "Audi Service"], imageId: "garage-interior-2" },
     { id: "garage-4", name: "Quick Lube Center", address: "C Ring Road, Doha", rating: 4.2, reviewCount: 350, services: ["Quick Oil Change", "Filter Replacement"], imageId: "garage-exterior-2" },
 ];
+
+export const mockUser: User = {
+  id: "user-1",
+  name: "Saleh Al-Mansoori",
+  email: "saleh.almansoori@example.com",
+  phone: "+974 5555 1234",
+  avatarUrl: `https://api.dicebear.com/8.x/initials/svg?seed=Saleh Al-Mansoori`,
+  notificationPreferences: {
+    bookingConfirmations: true,
+    serviceReminders: true,
+    promotionalOffers: false,
+  },
+};
