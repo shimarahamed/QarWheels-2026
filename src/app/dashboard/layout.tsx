@@ -9,7 +9,7 @@ export default function DashboardLayout({
   return (
     <SidebarProvider>
       <div className="md:flex min-h-screen">
-        <Sidebar>
+        <Sidebar variant="inset">
           <DashboardSidebar />
         </Sidebar>
         <main className="flex-1">

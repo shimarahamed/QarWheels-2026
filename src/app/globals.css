@@ -31,13 +31,13 @@
     --radius: 0.5rem;
 
     /* Sidebar Light */
-    --sidebar-background: 207 79% 20%; /* Deep Blue */
-    --sidebar-foreground: 0 0% 100%;
+    --sidebar-background: 210 29% 97%; /* Light Gray, same as card */
+    --sidebar-foreground: 220 15% 20%; /* Dark Gray, same as foreground */
     --sidebar-primary: 190 100% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 207 79% 30%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 207 79% 25%;
+    --sidebar-accent: 210 29% 90%; /* Slightly darker gray, same as secondary */
+    --sidebar-accent-foreground: 220 15% 20%; /* Dark Gray */
+    --sidebar-border: 210 20% 88%; /* Same as border */
     --sidebar-ring: 190 100% 42%;
   }
 }
