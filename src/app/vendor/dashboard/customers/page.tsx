@@ -39,7 +39,7 @@ import {
   import { useToast } from "@/hooks/use-toast";
 
 
-function EditCustomerForm({ customer, onFormSubmit, onCancel }: { customer: VendorCustomer, onFormSubmit: () => void, onCancel: () => void }) {
+function EditCustomerForm({ customer, onSave, onCancel }: { customer: VendorCustomer, onSave: (data: VendorCustomer) => void, onCancel: () => void }) {
     const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorCustomer>({
         defaultValues: customer,
     });
@@ -57,7 +57,7 @@ function EditCustomerForm({ customer, onFormSubmit, onCancel }: { customer: Vend
             title: "Customer Updated",
             description: `${data.name}'s profile has been successfully updated.`,
         });
-        onFormSubmit();
+        onSave(data);
     };
 
     return (
@@ -87,13 +87,13 @@ function EditCustomerForm({ customer, onFormSubmit, onCancel }: { customer: Vend
     );
 }
 
-function CustomerProfileDialog({ customer, open, onOpenChange }: { customer: VendorCustomer | null, open: boolean, onOpenChange: (open: boolean) => void }) {
+function CustomerProfileDialog({ customer, open, onOpenChange, onCustomerUpdate }: { customer: VendorCustomer | null, open: boolean, onOpenChange: (open: boolean) => void, onCustomerUpdate: (data: VendorCustomer) => void }) {
     const [isEditing, setIsEditing] = useState(false);
     if (!customer) return null;
 
-    const handleFormSubmit = () => {
+    const handleFormSave = (data: VendorCustomer) => {
+        onCustomerUpdate(data);
         setIsEditing(false);
-        onOpenChange(false);
     }
     
     return (
@@ -109,7 +109,7 @@ function CustomerProfileDialog({ customer, open, onOpenChange }: { customer: Ven
                     </DialogDescription>
                 </DialogHeader>
                 {isEditing ? (
-                    <EditCustomerForm customer={customer} onFormSubmit={handleFormSubmit} onCancel={() => setIsEditing(false)}/>
+                    <EditCustomerForm customer={customer} onSave={handleFormSave} onCancel={() => setIsEditing(false)}/>
                 ) : (
                     <div className="space-y-4 pt-4">
                         <div className="flex items-center gap-4">
@@ -155,6 +155,11 @@ export default function VendorCustomersPage() {
         }
     }
 
+    const handleCustomerUpdate = (updatedCustomer: VendorCustomer) => {
+      setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+      setIsViewOpen(false);
+    }
+
     return (
       <div className="space-y-8">
         <header>
@@ -183,7 +188,7 @@ export default function VendorCustomersPage() {
               </TableHeader>
               <TableBody>
                 {customers.map((customer) => (
-                  <TableRow key={customer.id}>
+                  <TableRow key={customer.id} onClick={() => handleViewClick(customer)} className="cursor-pointer">
                     <TableCell className="font-medium">{customer.name}</TableCell>
                     <TableCell>
                         <div>{customer.phone}</div>
@@ -194,7 +199,7 @@ export default function VendorCustomersPage() {
                     <TableCell>
                       <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                              <Button aria-haspopup="true" size="icon" variant="ghost">
+                              <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
                               <MoreHorizontal className="h-4 w-4" />
                               <span className="sr-only">Toggle menu</span>
                               </Button>
@@ -213,7 +218,7 @@ export default function VendorCustomersPage() {
           </CardContent>
         </Card>
 
-        <CustomerProfileDialog customer={selectedCustomer} open={isViewOpen} onOpenChange={handleOpenChange} />
+        <CustomerProfileDialog customer={selectedCustomer} open={isViewOpen} onOpenChange={handleOpenChange} onCustomerUpdate={handleCustomerUpdate} />
       </div>
     );
   }

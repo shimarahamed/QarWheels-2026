@@ -41,7 +41,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 // The form component
-function EditServiceForm({ service, onFormSubmit }: { service: VendorService, onFormSubmit: () => void }) {
+function EditServiceForm({ service, onSave, onCancel }: { service: VendorService, onSave: (data: VendorService) => void, onCancel: () => void }) {
   const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorService>({
     defaultValues: service,
   });
@@ -59,7 +59,7 @@ function EditServiceForm({ service, onFormSubmit }: { service: VendorService, on
       title: "Service Updated",
       description: `"${data.name}" has been successfully updated.`,
     });
-    onFormSubmit();
+    onSave(data);
   };
 
   return (
@@ -83,7 +83,7 @@ function EditServiceForm({ service, onFormSubmit }: { service: VendorService, on
       </div>
       <DialogFooter>
         <DialogClose asChild>
-          <Button type="button" variant="outline">Cancel</Button>
+          <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
         </DialogClose>
         <Button type="submit">Save Changes</Button>
       </DialogFooter>
@@ -107,6 +107,11 @@ export default function VendorServicesPage() {
       if (!isOpen) {
           setSelectedService(null);
       }
+  }
+
+  const handleServiceUpdate = (updatedService: VendorService) => {
+    setServices(prev => prev.map(s => s.id === updatedService.id ? updatedService : s));
+    handleOpenChange(false);
   }
   
   return (
@@ -142,14 +147,14 @@ export default function VendorServicesPage() {
             </TableHeader>
             <TableBody>
               {services.map((service) => (
-                <TableRow key={service.id}>
+                <TableRow key={service.id} onClick={() => handleEditClick(service)} className="cursor-pointer">
                   <TableCell className="font-medium">{service.name}</TableCell>
                   <TableCell>{service.duration}</TableCell>
                   <TableCell className="text-right">{service.price.toFixed(2)}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
                             <MoreHorizontal className="h-4 w-4" />
                             <span className="sr-only">Toggle menu</span>
                             </Button>
@@ -177,7 +182,7 @@ export default function VendorServicesPage() {
                         Make changes to the service details below. Click save when you're done.
                     </DialogDescription>
                 </DialogHeader>
-                <EditServiceForm service={selectedService} onFormSubmit={() => handleOpenChange(false)} />
+                <EditServiceForm service={selectedService} onSave={handleServiceUpdate} onCancel={() => handleOpenChange(false)} />
             </DialogContent>
         </Dialog>
       )}

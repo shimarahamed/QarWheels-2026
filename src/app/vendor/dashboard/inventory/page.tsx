@@ -41,7 +41,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 
-function EditInventoryForm({ item, onFormSubmit }: { item: VendorInventoryItem, onFormSubmit: () => void }) {
+function EditInventoryForm({ item, onSave, onCancel }: { item: VendorInventoryItem, onSave: (data: VendorInventoryItem) => void, onCancel: () => void }) {
   const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorInventoryItem>({
     defaultValues: item,
   });
@@ -59,7 +59,7 @@ function EditInventoryForm({ item, onFormSubmit }: { item: VendorInventoryItem, 
       title: "Inventory Item Updated",
       description: `"${data.name}" has been successfully updated.`,
     });
-    onFormSubmit();
+    onSave(data);
   };
 
   return (
@@ -93,7 +93,7 @@ function EditInventoryForm({ item, onFormSubmit }: { item: VendorInventoryItem, 
       </div>
       <DialogFooter>
         <DialogClose asChild>
-          <Button type="button" variant="outline">Cancel</Button>
+          <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
         </DialogClose>
         <Button type="submit">Save Changes</Button>
       </DialogFooter>
@@ -116,6 +116,11 @@ export default function VendorInventoryPage() {
         if (!isOpen) {
             setSelectedItem(null);
         }
+    }
+
+    const handleItemUpdate = (updatedItem: VendorInventoryItem) => {
+        setInventory(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
+        handleOpenChange(false);
     }
 
     return (
@@ -153,7 +158,7 @@ export default function VendorInventoryPage() {
               </TableHeader>
               <TableBody>
                 {inventory.map((item) => (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} onClick={() => handleEditClick(item)} className="cursor-pointer">
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell className="hidden sm:table-cell font-mono text-xs">{item.sku}</TableCell>
                     <TableCell>
@@ -166,7 +171,7 @@ export default function VendorInventoryPage() {
                     <TableCell>
                       <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                              <Button aria-haspopup="true" size="icon" variant="ghost">
+                              <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
                               <MoreHorizontal className="h-4 w-4" />
                               <span className="sr-only">Toggle menu</span>
                               </Button>
@@ -194,7 +199,7 @@ export default function VendorInventoryPage() {
                             Update the details for this item.
                         </DialogDescription>
                     </DialogHeader>
-                    <EditInventoryForm item={selectedItem} onFormSubmit={() => handleOpenChange(false)} />
+                    <EditInventoryForm item={selectedItem} onSave={handleItemUpdate} onCancel={() => handleOpenChange(false)} />
                 </DialogContent>
             </Dialog>
         )}
