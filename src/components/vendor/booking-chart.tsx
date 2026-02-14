@@ -35,13 +35,13 @@ export function BookingChart({ timeRange }: { timeRange: string }) {
       <BarChart data={data}>
         <XAxis
           dataKey="service"
-          stroke="#888888"
+          stroke="hsl(var(--muted-foreground))"
           fontSize={12}
           tickLine={false}
           axisLine={false}
         />
         <YAxis
-          stroke="#888888"
+          stroke="hsl(var(--muted-foreground))"
           fontSize={12}
           tickLine={false}
           axisLine={false}

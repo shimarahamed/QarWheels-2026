@@ -67,7 +67,7 @@ export const mockVendorBookings: VendorBooking[] = [
     { id: "vb-1", customerName: "John Doe", customerPhone: "+974 5555 1234", carModel: "2022 Toyota Land Cruiser", service: "Full Synthetic Oil Change", date: "2024-08-15T10:00:00Z", status: "Upcoming", cost: 350 },
     { id: "vb-2", customerName: "Jane Smith", customerPhone: "+974 5555 5678", carModel: "2023 Nissan Patrol", service: "Brake Inspection", date: "2024-08-15T11:00:00Z", status: "Upcoming", cost: 150 },
     { id: "vb-3", customerName: "Ahmed Al-Mansoori", customerPhone: "+974 5555 9012", carModel: "2021 Land Rover Range Rover", service: "AC System Check", date: "2024-08-14T14:00:00Z", status: "Completed", cost: 250 },
-    { id: "vb-4", customerName: "Fatima Al-Abdullah", customerPhone: "+974 5555 3456", carModel: "2020 BMW X5", service: "Full Detailing", date: "2024-08-14T09:00:00Z", status: "Completed", cost: 1200 },
+    { id: "vb-4", customerName: "Fatima Al-Abdullah", customerPhone: "+974 5555 3456", carModel: "2020 BMW X5", service: "Full Detailing", date: "2024-08-14T09:00:00Z", status: "In Progress", cost: 1200 },
     { id: "vb-5", customerName: "Michael Chen", customerPhone: "+974 5555 7890", carModel: "2022 Toyota Camry", service: "Tire Rotation & Balancing", date: "2024-08-13T16:00:00Z", status: "Completed", cost: 200 },
     { id: "vb-6", customerName: "Carlos Gomez", customerPhone: "+974 5555 2345", carModel: "2019 Ford F-150", service: "Engine Diagnostic", date: "2024-08-16T09:30:00Z", status: "Upcoming", cost: 300 },
     { id: "vb-7", customerName: "Li Wei", customerPhone: "+974 5555 6789", carModel: "2023 Lexus LX", service: "Paint Protection Film", date: "2024-08-12T10:00:00Z", status: "Cancelled", cost: 4500 },
@@ -93,9 +93,9 @@ export const mockVendorCustomers: VendorCustomer[] = [
 export const mockInventory: VendorInventoryItem[] = [
     { id: "inv-1", name: "Synthetic Oil 5W-30 (1L)", sku: "OIL-SYN-5W30-1L", stock: 150, price: 75, supplier: "Global Parts Co." },
     { id: "inv-2", name: "OEM Oil Filter - Toyota", sku: "FIL-TYT-001", stock: 80, price: 45, supplier: "Global Parts Co." },
-    { id: "inv-3", name: "Front Brake Pads - Nissan Patrol", sku: "BRK-NIS-PAT-F", stock: 45, price: 350, supplier: "AutoPro Imports" },
+    { id: "inv-3", name: "Front Brake Pads - Nissan Patrol", sku: "BRK-NIS-PAT-F", stock: 8, price: 350, supplier: "AutoPro Imports" },
     { id: "inv-4", name: "R134a Refrigerant Can", sku: "AC-REF-R134A", stock: 200, price: 100, supplier: "Cooling Systems Inc." },
-    { id: "inv-5", name: "Microfiber Towel Pack (10)", sku: "DET-MIC-TOW-10", stock: 90, price: 50, supplier: "Detailing Kings" },
+    { id: "inv-5", name: "Microfiber Towel Pack (10)", sku: "DET-MIC-TOW-10", stock: 45, supplier: "Detailing Kings" },
 ];
 
 export const mockStaff: VendorStaffMember[] = [
@@ -156,4 +156,6 @@ export const mockAnalyticsData = {
         { hour: '4pm', bookings: 25 },
         { hour: '5pm', bookings: 19 },
     ],
+    pendingQuotes: 3,
+    shopRating: 4.8,
 };

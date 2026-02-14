@@ -44,7 +44,7 @@ export function VendorSidebar() {
 
   return (
     <>
-      <SidebarHeader className="border-b">
+      <SidebarHeader className="border-b border-sidebar-border">
         <Logo />
         <p className="text-sm text-sidebar-foreground/80 pt-1 group-data-[collapsible=icon]:hidden">
             Precision Auto Qatar
@@ -68,21 +68,23 @@ export function VendorSidebar() {
           ))}
         </SidebarMenu>
       </SidebarContent>
-      <SidebarFooter className="p-2 border-t mt-auto">
-        <div className="flex items-center gap-2">
-            <Avatar>
-                <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
-                <AvatarFallback>PA</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col">
-                <span className="text-sm font-semibold">Vendor Admin</span>
-                <span className="text-xs text-muted-foreground">admin@precisionauto.qa</span>
+      <SidebarFooter className="p-2 border-t mt-auto border-sidebar-border space-y-2">
+        <div className="p-2 rounded-md hover:bg-sidebar-accent">
+            <div className="flex items-center gap-3">
+                <Avatar className="h-9 w-9">
+                    <AvatarImage src="https://api.dicebear.com/8.x/initials/svg?seed=Vendor%20Admin" alt="Vendor Admin" />
+                    <AvatarFallback>VA</AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+                    <span className="text-sm font-semibold">Vendor Admin</span>
+                    <span className="text-xs text-muted-foreground">admin@precisionauto.qa</span>
+                </div>
             </div>
         </div>
         <Button asChild variant="ghost" className="w-full justify-start gap-2">
             <Link href="/">
                 <LogOut />
-                <span>Logout</span>
+                <span className="group-data-[collapsible=icon]:hidden">Logout</span>
             </Link>
         </Button>
       </SidebarFooter>

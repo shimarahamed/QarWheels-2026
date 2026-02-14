@@ -157,7 +157,7 @@ export default function VendorInventoryPage() {
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell className="hidden sm:table-cell font-mono text-xs">{item.sku}</TableCell>
                     <TableCell>
-                        <Badge variant={item.stock < 10 ? 'destructive' : item.stock < 50 ? 'outline' : 'secondary'}>
+                        <Badge variant={item.stock < 10 ? 'warning' : item.stock < 50 ? 'outline' : 'secondary'}>
                             {item.stock} in stock
                         </Badge>
                     </TableCell>

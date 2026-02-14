@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { mockAnalyticsData } from "@/lib/vendor-data"
 import { Skeleton } from "@/components/ui/skeleton";
 
-export function OverviewChart({ timeRange }: { timeRange: string }) {
+export function OverviewChart({ timeRange }: { timeRange?: string }) {
     const [data, setData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -35,13 +35,13 @@ export function OverviewChart({ timeRange }: { timeRange: string }) {
       <BarChart data={data}>
         <XAxis
           dataKey="month"
-          stroke="#888888"
+          stroke="hsl(var(--muted-foreground))"
           fontSize={12}
           tickLine={false}
           axisLine={false}
         />
         <YAxis
-          stroke="#888888"
+          stroke="hsl(var(--muted-foreground))"
           fontSize={12}
           tickLine={false}
           axisLine={false}

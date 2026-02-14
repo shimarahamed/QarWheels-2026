@@ -10,6 +10,8 @@ import {
   Users,
   Wrench,
   CalendarCheck,
+  Star,
+  FileText,
 } from "lucide-react";
 import {
   Table,
@@ -19,8 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { mockVendorBookings } from "@/lib/vendor-data";
+import { mockVendorBookings, mockAnalyticsData } from "@/lib/vendor-data";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -40,10 +41,6 @@ export default function VendorDashboard() {
     )
     .reduce((sum, b) => sum + b.cost, 0);
 
-  const upcomingCount = mockVendorBookings.filter(
-    (b) => b.status === "Upcoming"
-  ).length;
-
   const inProgressCount = mockVendorBookings.filter(
     (b) => b.status === "In Progress"
   ).length;
@@ -52,7 +49,7 @@ export default function VendorDashboard() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-3xl font-bold font-headline">Garage Overview</h1>
+        <h1 className="text-3xl font-bold font-headline">Workshop Command Center</h1>
         <p className="text-muted-foreground">
           Welcome to your dashboard, Precision Auto Qatar.
         </p>
@@ -74,21 +71,7 @@ export default function VendorDashboard() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Upcoming Bookings
-            </CardTitle>
-            <CalendarCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+{upcomingCount}</div>
-            <p className="text-xs text-muted-foreground">
-              Total confirmed appointments
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Jobs In Progress</CardTitle>
+            <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -100,13 +83,25 @@ export default function VendorDashboard() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">New Customers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Pending Quotes</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+2</div>
+            <div className="text-2xl font-bold">+{mockAnalyticsData.pendingQuotes}</div>
             <p className="text-xs text-muted-foreground">
-              This week
+              New RFQs to respond to
+            </p>
+          </CardContent>
+        </Card>
+         <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Shop Rating</CardTitle>
+            <Star className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{mockAnalyticsData.shopRating}</div>
+            <p className="text-xs text-muted-foreground">
+              Based on all customer reviews
             </p>
           </CardContent>
         </Card>
@@ -118,7 +113,7 @@ export default function VendorDashboard() {
             <CardTitle>Revenue Overview</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
-            <OverviewChart />
+            <OverviewChart timeRange="last_6_months" />
           </CardContent>
         </Card>
         <Card className="lg:col-span-3">
