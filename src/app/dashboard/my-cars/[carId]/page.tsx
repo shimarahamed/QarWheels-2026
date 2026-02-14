@@ -28,6 +28,7 @@ import { CarMaintenancePredictions } from "@/components/dashboard/car-maintenanc
 import { ServiceHistorySummary } from "@/components/dashboard/service-history-summary";
 import Link from "next/link";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
 
 export default function CarDetailsPage({
   params,
@@ -44,31 +45,32 @@ export default function CarDetailsPage({
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/dashboard/my-cars"
-        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to My Cars
-      </Link>
+       <Button variant="ghost" asChild className="-ml-4">
+        <Link
+          href="/dashboard/my-cars"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to My Cars
+        </Link>
+      </Button>
 
       <header>
-        <h1 className="text-3xl font-bold font-headline">
+        <h1 className="text-3xl font-bold font-headline tracking-tight">
           {car.year} {car.make} {car.model}
         </h1>
-        <p className="text-muted-foreground">{car.vin}</p>
+        <p className="text-muted-foreground font-mono">{car.vin}</p>
       </header>
 
       <div className="grid lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-2 space-y-8">
-          <Card>
+          <Card className="overflow-hidden">
             {image && (
               <Image
                 src={image.imageUrl}
                 alt={car.make + " " + car.model}
                 width={800}
                 height={450}
-                className="w-full aspect-video object-cover rounded-t-lg"
+                className="w-full aspect-video object-cover"
                 data-ai-hint={image.imageHint}
               />
             )}
@@ -76,8 +78,10 @@ export default function CarDetailsPage({
               <CardTitle>Vehicle Details</CardTitle>
             </CardHeader>
             <CardContent className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
-              <div className="flex items-center gap-4">
-                <CarIcon className="h-8 w-8 text-primary" />
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 bg-primary/10 text-primary p-3 rounded-lg">
+                    <CarIcon className="h-6 w-6" />
+                </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Make/Model</p>
                   <p className="font-semibold">
@@ -85,15 +89,19 @@ export default function CarDetailsPage({
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <Calendar className="h-8 w-8 text-primary" />
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 bg-primary/10 text-primary p-3 rounded-lg">
+                    <Calendar className="h-6 w-6" />
+                </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Year</p>
                   <p className="font-semibold">{car.year}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <Gauge className="h-8 w-8 text-primary" />
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 bg-primary/10 text-primary p-3 rounded-lg">
+                    <Gauge className="h-6 w-6" />
+                </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Mileage</p>
                   <p className="font-semibold">
@@ -113,34 +121,37 @@ export default function CarDetailsPage({
             </CardHeader>
             <CardContent>
               {car.serviceHistory.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Service</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Cost</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {car.serviceHistory.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell className="font-medium">
-                          {format(new Date(record.date), "PPP")}
-                        </TableCell>
-                        <TableCell>{record.service}</TableCell>
-                        <TableCell>{record.description}</TableCell>
-                        <TableCell className="text-right">
-                          QAR {record.cost.toFixed(2)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div className="overflow-x-auto">
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Service</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="text-right">Cost</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {car.serviceHistory.map((record) => (
+                        <TableRow key={record.id}>
+                            <TableCell className="font-medium whitespace-nowrap">
+                            {format(new Date(record.date), "PPP")}
+                            </TableCell>
+                            <TableCell>{record.service}</TableCell>
+                            <TableCell>{record.description}</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">
+                            QAR {record.cost.toFixed(2)}
+                            </TableCell>
+                        </TableRow>
+                        ))}
+                    </TableBody>
+                    </Table>
+                </div>
               ) : (
-                <div className="text-center text-muted-foreground p-8">
-                  <History className="mx-auto h-12 w-12 mb-4" />
-                  <p>No service history recorded for this vehicle.</p>
+                <div className="text-center text-muted-foreground py-12 px-8 rounded-lg bg-muted/50">
+                  <History className="mx-auto h-12 w-12 mb-4 text-primary/50" />
+                  <h3 className="font-semibold text-lg">No History Found</h3>
+                  <p>No service history has been recorded for this vehicle yet.</p>
                 </div>
               )}
             </CardContent>

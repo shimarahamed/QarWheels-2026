@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { summarizeServiceHistory } from "@/lib/actions";
 import type { SummarizeServiceHistoryOutput } from "@/ai/flows/summarize-service-history";
-import { Loader2, Terminal } from "lucide-react";
+import { Loader2, Sparkles, Terminal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Car } from "@/lib/types";
 import {
@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -31,6 +32,8 @@ export function ServiceHistorySummary({ car }: { car: Car }) {
       setIsLoading(true);
       setSummary(null);
       try {
+         // Add a small delay to simulate network latency for skeleton loader
+        await new Promise(resolve => setTimeout(resolve, 1000));
         const result = await summarizeServiceHistory({
           vin: car.vin,
           serviceHistory: JSON.stringify(car.serviceHistory),
@@ -52,31 +55,38 @@ export function ServiceHistorySummary({ car }: { car: Car }) {
   }, [car, toast]);
 
   return (
-    <Card>
+    <Card className="flex flex-col">
       <CardHeader>
-        <CardTitle>AI Service History Analysis</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+            <Sparkles className="text-primary"/>
+            <span>AI Service Analysis</span>
+        </CardTitle>
         <CardDescription>
-          An AI-generated summary of the vehicle's maintenance records.
+          An AI-generated summary of maintenance records.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-grow">
         {isLoading && (
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <p>Analyzing service history...</p>
+          <div className="flex items-center gap-3 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <p className="font-semibold">Analyzing service history...</p>
           </div>
         )}
-        {!isLoading && !summary && car.serviceHistory.length > 0 && (
-          <p className="text-muted-foreground">Could not load summary.</p>
-        )}
         {!isLoading && car.serviceHistory.length === 0 && (
-            <p className="text-muted-foreground">No service history available to analyze.</p>
+            <div className="text-center text-muted-foreground py-8 px-4 rounded-lg bg-muted/50">
+                <Terminal className="mx-auto h-12 w-12 mb-4 text-primary/50" />
+                <h3 className="font-semibold text-lg">No History to Analyze</h3>
+                <p>Add service records to enable AI analysis.</p>
+            </div>
+        )}
+         {!isLoading && !summary && car.serviceHistory.length > 0 && (
+          <p className="text-muted-foreground">Could not load summary.</p>
         )}
         {summary && (
           <div className="space-y-4">
             <div>
               <h4 className="font-semibold mb-2">Summary:</h4>
-              <p className="text-sm">{summary.summary}</p>
+              <p className="text-sm text-muted-foreground">{summary.summary}</p>
             </div>
             <Alert>
               <Terminal className="h-4 w-4" />
@@ -86,6 +96,13 @@ export function ServiceHistorySummary({ car }: { car: Car }) {
           </div>
         )}
       </CardContent>
+        {summary && (
+        <CardFooter>
+            <p className="text-xs text-muted-foreground">
+                AI analysis may not be fully accurate.
+            </p>
+        </CardFooter>
+        )}
     </Card>
   );
 }
