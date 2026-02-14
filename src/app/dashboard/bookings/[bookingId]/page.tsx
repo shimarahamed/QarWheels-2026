@@ -17,13 +17,21 @@ import { Badge } from "@/components/ui/badge";
 import { Booking } from "@/lib/types";
 import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { useState, useEffect } from "react";
 
 
 export default function BookingDetailsPage() {
     const params = useParams();
     const { bookingId } = params;
+    const [formattedDate, setFormattedDate] = useState<string | null>(null);
 
     const booking = mockBookings.find((b) => b.id === bookingId);
+
+    useEffect(() => {
+        if (booking) {
+            setFormattedDate(format(new Date(booking.date), "PPP, p"));
+        }
+    }, [booking]);
 
     if (!booking) {
         notFound();
@@ -90,7 +98,7 @@ export default function BookingDetailsPage() {
                             </div>
                             <div>
                                 <p className="text-muted-foreground">Date & Time</p>
-                                <p className="font-semibold">{format(new Date(booking.date), "PPP, p")}</p>
+                                <p className="font-semibold">{formattedDate || 'Loading date...'}</p>
                             </div>
                         </div>
                          {booking.cost && (
