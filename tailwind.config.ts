@@ -47,6 +47,8 @@ export default {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
+        'tech-accent': 'hsl(var(--tech-accent))',
+        success: 'hsl(var(--success))',
         chart: {
           '1': 'hsl(var(--chart-1))',
           '2': 'hsl(var(--chart-2))',
@@ -89,10 +91,21 @@ export default {
             height: '0',
           },
         },
+        'pulse-colors': {
+          '0%, 100%': { 
+            backgroundColor: 'hsl(var(--primary))', 
+            boxShadow: '0 0 0 0 hsl(var(--primary) / 0.7)' 
+          },
+          '50%': { 
+            backgroundColor: 'hsl(var(--tech-accent))', 
+            boxShadow: '0 0 40px 10px transparent'
+          },
+        }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'pulse-colors': 'pulse-colors 4s infinite',
       },
     },
   },
