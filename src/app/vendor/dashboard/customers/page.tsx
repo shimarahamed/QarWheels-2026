@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import {
     Card,
@@ -17,13 +17,14 @@ import {
     TableRow,
   } from "@/components/ui/table";
   import { Button } from "@/components/ui/button";
-  import { MoreHorizontal, Car, Calendar, Edit, Mail, Phone } from "lucide-react";
+  import { MoreHorizontal, Car, Calendar, Edit, Mail, Phone, PlusCircle, Trash2 } from "lucide-react";
   import { mockVendorCustomers, VendorCustomer } from "@/lib/vendor-data";
   import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuLabel,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu";
   import { format } from "date-fns";
@@ -34,29 +35,33 @@ import {
     DialogTitle,
     DialogDescription,
   } from "@/components/ui/dialog";
+    import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
   import { Input } from "@/components/ui/input";
   import { Label } from "@/components/ui/label";
   import { useToast } from "@/hooks/use-toast";
 
 
-function EditCustomerForm({ customer, onSave, onCancel }: { customer: VendorCustomer, onSave: (data: VendorCustomer) => void, onCancel: () => void }) {
+function CustomerForm({ customer, onSave, onCancel }: { customer?: VendorCustomer | null, onSave: (data: VendorCustomer) => void, onCancel: () => void }) {
     const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorCustomer>({
-        defaultValues: customer,
+        defaultValues: customer || {},
     });
-    const { toast } = useToast();
 
-    useEffect(() => {
+    useState(() => {
         if (customer) {
             reset(customer);
         }
     }, [customer, reset]);
 
     const onSubmit = (data: VendorCustomer) => {
-        console.log("Updated customer data:", data); // API call
-        toast({
-            title: "Customer Updated",
-            description: `${data.name}'s profile has been successfully updated.`,
-        });
         onSave(data);
     };
 
@@ -79,94 +84,89 @@ function EditCustomerForm({ customer, onSave, onCancel }: { customer: VendorCust
                     {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
                 </div>
             </div>
+             <div className="space-y-2">
+                <Label htmlFor="vehicleCount">Vehicle Count</Label>
+                <Input id="vehicleCount" type="number" {...register("vehicleCount", { required: "Vehicle count is required", valueAsNumber: true })} />
+                {errors.vehicleCount && <p className="text-sm text-destructive">{errors.vehicleCount.message}</p>}
+            </div>
              <div className="flex justify-end gap-2 pt-4">
                 <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
-                <Button type="submit">Save Changes</Button>
+                <Button type="submit">Save Customer</Button>
             </div>
         </form>
     );
 }
 
-function CustomerProfileDialog({ customer, open, onOpenChange, onCustomerUpdate }: { customer: VendorCustomer | null, open: boolean, onOpenChange: (open: boolean) => void, onCustomerUpdate: (data: VendorCustomer) => void }) {
-    const [isEditing, setIsEditing] = useState(false);
-    if (!customer) return null;
-
-    const handleFormSave = (data: VendorCustomer) => {
-        onCustomerUpdate(data);
-        setIsEditing(false);
-    }
-    
-    return (
-        <Dialog open={open} onOpenChange={(isOpen) => { onOpenChange(isOpen); if (!isOpen) setIsEditing(false); }}>
-            <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center justify-between">
-                        Customer Profile
-                        {!isEditing && <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}><Edit className="mr-2 h-4 w-4" /> Edit</Button>}
-                    </DialogTitle>
-                    <DialogDescription>
-                        Details for {customer.name}.
-                    </DialogDescription>
-                </DialogHeader>
-                {isEditing ? (
-                    <EditCustomerForm customer={customer} onSave={handleFormSave} onCancel={() => setIsEditing(false)}/>
-                ) : (
-                    <div className="space-y-4 pt-4">
-                        <div className="flex items-center gap-4">
-                            <Phone className="h-4 w-4 text-muted-foreground" />
-                            <span>{customer.phone}</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <Mail className="h-4 w-4 text-muted-foreground" />
-                            <span>{customer.email}</span>
-                        </div>
-                        <div className="border-t my-4" />
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                                <p className="text-muted-foreground flex items-center gap-2"><Car className="h-4 w-4" /> Vehicles</p>
-                                <p className="font-semibold">{customer.vehicleCount}</p>
-                            </div>
-                             <div>
-                                <p className="text-muted-foreground flex items-center gap-2"><Calendar className="h-4 w-4" /> First Visit</p>
-                                <p className="font-semibold">{format(new Date(customer.firstVisit), "PPP")}</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </DialogContent>
-        </Dialog>
-    );
-}
-
 export default function VendorCustomersPage() {
     const [customers, setCustomers] = useState(mockVendorCustomers);
-    const [isViewOpen, setIsViewOpen] = useState(false);
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState<VendorCustomer | null>(null);
+    const { toast } = useToast();
 
-    const handleViewClick = (customer: VendorCustomer) => {
+
+    const handleRowClick = (customer: VendorCustomer) => {
         setSelectedCustomer(customer);
-        setIsViewOpen(true);
+        setIsFormOpen(true);
     };
 
-    const handleOpenChange = (isOpen: boolean) => {
-        setIsViewOpen(isOpen);
-        if (!isOpen) {
-            setSelectedCustomer(null);
-        }
+    const handleAddNewClick = () => {
+        setSelectedCustomer(null);
+        setIsFormOpen(true);
+    };
+    
+    const handleDeleteClick = (customer: VendorCustomer) => {
+        setSelectedCustomer(customer);
+        setIsDeleteConfirmOpen(true);
+    };
+
+    const handleSaveCustomer = (data: VendorCustomer) => {
+      let message = "";
+      if (selectedCustomer && selectedCustomer.id) {
+        // Update
+        setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? {...data, id: selectedCustomer.id, firstVisit: selectedCustomer.firstVisit} : c));
+        message = `${data.name}'s profile has been updated.`;
+      } else {
+        // Create
+        const newCustomer = { ...data, id: `vc-${Date.now()}`, firstVisit: new Date().toISOString() };
+        setCustomers(prev => [newCustomer, ...prev]);
+        message = `${data.name} has been added as a new customer.`;
+      }
+      
+      toast({
+            title: selectedCustomer ? "Customer Updated" : "Customer Added",
+            description: message,
+      });
+
+      setIsFormOpen(false);
+      setSelectedCustomer(null);
     }
 
-    const handleCustomerUpdate = (updatedCustomer: VendorCustomer) => {
-      setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
-      setIsViewOpen(false);
+    const handleDeleteConfirm = () => {
+        if (!selectedCustomer) return;
+        setCustomers(prev => prev.filter(c => c.id !== selectedCustomer.id));
+        toast({
+            title: "Customer Deleted",
+            description: `The profile for ${selectedCustomer.name} has been deleted.`,
+            variant: "destructive"
+        });
+        setIsDeleteConfirmOpen(false);
+        setSelectedCustomer(null);
     }
 
     return (
       <div className="space-y-8">
-        <header>
-          <h1 className="text-3xl font-bold font-headline">Customer Directory</h1>
-          <p className="text-muted-foreground">
-            View information about your clients.
-          </p>
+        <header className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
+          <div>
+            <h1 className="text-3xl font-bold font-headline">Customer Directory</h1>
+            <p className="text-muted-foreground">
+                View, add, and manage your client information.
+            </p>
+          </div>
+          <Button onClick={handleAddNewClick}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add New Customer
+          </Button>
         </header>
         <Card>
             <CardHeader>
@@ -178,25 +178,25 @@ export default function VendorCustomersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>First Visit</TableHead>
+                  <TableHead className="hidden md:table-cell">Contact</TableHead>
+                  <TableHead className="hidden sm:table-cell">First Visit</TableHead>
                   <TableHead>Vehicles</TableHead>
-                  <TableHead>
-                    <span className="sr-only">Actions</span>
+                  <TableHead className="text-right">
+                    Actions
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {customers.map((customer) => (
-                  <TableRow key={customer.id} onClick={() => handleViewClick(customer)} className="cursor-pointer">
+                  <TableRow key={customer.id} onClick={() => handleRowClick(customer)} className="cursor-pointer">
                     <TableCell className="font-medium">{customer.name}</TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                         <div>{customer.phone}</div>
                         <div className="text-sm text-muted-foreground">{customer.email}</div>
                     </TableCell>
-                    <TableCell>{format(new Date(customer.firstVisit), "PPP")}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{format(new Date(customer.firstVisit), "PPP")}</TableCell>
                     <TableCell>{customer.vehicleCount}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
                       <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                               <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
@@ -206,8 +206,14 @@ export default function VendorCustomersPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem onSelect={() => handleViewClick(customer)}>View Profile</DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => handleRowClick(customer)}>
+                                <Edit className="mr-2 h-4 w-4" /> View & Edit
+                              </DropdownMenuItem>
                               <DropdownMenuItem>View Booking History</DropdownMenuItem>
+                               <DropdownMenuSeparator />
+                              <DropdownMenuItem onSelect={() => handleDeleteClick(customer)} className="text-destructive focus:text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                              </DropdownMenuItem>
                           </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -218,7 +224,33 @@ export default function VendorCustomersPage() {
           </CardContent>
         </Card>
 
-        <CustomerProfileDialog customer={selectedCustomer} open={isViewOpen} onOpenChange={handleOpenChange} onCustomerUpdate={handleCustomerUpdate} />
+        <Dialog open={isFormOpen} onOpenChange={(open) => { if(!open) setSelectedCustomer(null); setIsFormOpen(open)}}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>{selectedCustomer ? 'Edit Customer Profile' : 'Add New Customer'}</DialogTitle>
+                    <DialogDescription>
+                       {selectedCustomer ? `Editing details for ${selectedCustomer.name}` : 'Enter the details for the new customer.'}
+                    </DialogDescription>
+                </DialogHeader>
+                <CustomerForm customer={selectedCustomer} onSave={handleSaveCustomer} onCancel={() => setIsFormOpen(false)} />
+            </DialogContent>
+        </Dialog>
+        
+        <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+             <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the profile for <span className="font-bold">{selectedCustomer?.name}</span>.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteConfirm}>Continue</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
       </div>
     );
   }

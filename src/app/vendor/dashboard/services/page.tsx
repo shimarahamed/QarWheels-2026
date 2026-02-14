@@ -25,49 +25,57 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose
 } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, PlusCircle } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Edit, Trash2 } from "lucide-react";
 import { mockVendorServices, VendorService } from "@/lib/vendor-data";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
-// The form component
-function EditServiceForm({ service, onSave, onCancel }: { service: VendorService, onSave: (data: VendorService) => void, onCancel: () => void }) {
+
+function ServiceForm({ service, onSave, onCancel }: { service?: VendorService | null, onSave: (data: VendorService) => void, onCancel: () => void }) {
   const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorService>({
-    defaultValues: service,
+    defaultValues: service || {},
   });
-  const { toast } = useToast();
 
   useEffect(() => {
-    if (service) {
-      reset(service);
-    }
+      reset(service || {name: '', description: '', price: 0, duration: 0});
   }, [service, reset]);
 
   const onSubmit = (data: VendorService) => {
-    console.log("Updated service data:", data); // In a real app, you'd call an API here
-    toast({
-      title: "Service Updated",
-      description: `"${data.name}" has been successfully updated.`,
-    });
     onSave(data);
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
       <div className="space-y-2">
         <Label htmlFor="name">Service Name</Label>
         <Input id="name" {...register("name", { required: "Name is required" })} />
         {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="description">Description</Label>
+        <Textarea id="description" {...register("description", { required: "Description is required" })} />
+        {errors.description && <p className="text-sm text-destructive">{errors.description.message}</p>}
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
@@ -82,10 +90,8 @@ function EditServiceForm({ service, onSave, onCancel }: { service: VendorService
         </div>
       </div>
       <DialogFooter>
-        <DialogClose asChild>
           <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-        </DialogClose>
-        <Button type="submit">Save Changes</Button>
+        <Button type="submit">Save Service</Button>
       </DialogFooter>
     </form>
   );
@@ -94,36 +100,63 @@ function EditServiceForm({ service, onSave, onCancel }: { service: VendorService
 
 export default function VendorServicesPage() {
   const [services, setServices] = useState(mockVendorServices);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<VendorService | null>(null);
+  const { toast } = useToast();
 
-  const handleEditClick = (service: VendorService) => {
+  const handleRowClick = (service: VendorService) => {
     setSelectedService(service);
-    setIsEditDialogOpen(true);
+    setIsFormOpen(true);
+  };
+  
+  const handleAddNewClick = () => {
+    setSelectedService(null);
+    setIsFormOpen(true);
   };
 
-  const handleOpenChange = (isOpen: boolean) => {
-      setIsEditDialogOpen(isOpen);
-      if (!isOpen) {
-          setSelectedService(null);
-      }
-  }
+  const handleDeleteClick = (service: VendorService) => {
+    setSelectedService(service);
+    setIsDeleteConfirmOpen(true);
+  };
 
-  const handleServiceUpdate = (updatedService: VendorService) => {
-    setServices(prev => prev.map(s => s.id === updatedService.id ? updatedService : s));
-    handleOpenChange(false);
+  const handleSaveService = (data: VendorService) => {
+    if (selectedService && selectedService.id) {
+        // Update
+        setServices(prev => prev.map(s => s.id === selectedService.id ? {...data, id: selectedService.id} : s));
+        toast({ title: "Service Updated", description: `"${data.name}" has been updated.` });
+    } else {
+        // Create
+        const newService = { ...data, id: `vs-${Date.now()}` };
+        setServices(prev => [newService, ...prev]);
+        toast({ title: "Service Added", description: `"${data.name}" has been added.` });
+    }
+    setIsFormOpen(false);
+    setSelectedService(null);
+  }
+  
+  const handleDeleteConfirm = () => {
+    if (!selectedService) return;
+    setServices(prev => prev.filter(s => s.id !== selectedService.id));
+    toast({
+        title: "Service Deleted",
+        description: `The service "${selectedService.name}" has been deleted.`,
+        variant: "destructive"
+    });
+    setIsDeleteConfirmOpen(false);
+    setSelectedService(null);
   }
   
   return (
     <div className="space-y-8">
-      <header className="flex items-center justify-between">
+      <header className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
         <div>
           <h1 className="text-3xl font-bold font-headline">Manage Services</h1>
           <p className="text-muted-foreground">
             Add, edit, and view the services your garage offers.
           </p>
         </div>
-        <Button>
+        <Button onClick={handleAddNewClick}>
           <PlusCircle className="mr-2 h-4 w-4" />
           Add New Service
         </Button>
@@ -138,20 +171,20 @@ export default function VendorServicesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Service Name</TableHead>
-                <TableHead>Duration (mins)</TableHead>
-                <TableHead className="text-right">Price (QAR)</TableHead>
-                <TableHead>
-                  <span className="sr-only">Actions</span>
+                <TableHead className="hidden sm:table-cell">Duration (mins)</TableHead>
+                <TableHead className="hidden md:table-cell text-right">Price (QAR)</TableHead>
+                <TableHead className="text-right">
+                  Actions
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {services.map((service) => (
-                <TableRow key={service.id} onClick={() => handleEditClick(service)} className="cursor-pointer">
+                <TableRow key={service.id} onClick={() => handleRowClick(service)} className="cursor-pointer">
                   <TableCell className="font-medium">{service.name}</TableCell>
-                  <TableCell>{service.duration}</TableCell>
-                  <TableCell className="text-right">{service.price.toFixed(2)}</TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">{service.duration}</TableCell>
+                  <TableCell className="hidden md:table-cell text-right">{service.price.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
@@ -161,8 +194,13 @@ export default function VendorServicesPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onSelect={() => handleEditClick(service)}>Edit</DropdownMenuItem>
-                            <DropdownMenuItem>Delete</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleRowClick(service)}>
+                                <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onSelect={() => handleDeleteClick(service)} className="text-destructive focus:text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -173,19 +211,32 @@ export default function VendorServicesPage() {
         </CardContent>
       </Card>
 
-      {selectedService && (
-        <Dialog open={isEditDialogOpen} onOpenChange={handleOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
+        <Dialog open={isFormOpen} onOpenChange={(open) => {if(!open) setSelectedService(null); setIsFormOpen(open)}}>
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>Edit Service</DialogTitle>
+                    <DialogTitle>{selectedService ? 'Edit Service' : 'Add New Service'}</DialogTitle>
                     <DialogDescription>
-                        Make changes to the service details below. Click save when you're done.
+                       {selectedService ? 'Make changes to the service details below.' : 'Fill in the details for the new service.'}
                     </DialogDescription>
                 </DialogHeader>
-                <EditServiceForm service={selectedService} onSave={handleServiceUpdate} onCancel={() => handleOpenChange(false)} />
+                <ServiceForm service={selectedService} onSave={handleSaveService} onCancel={() => setIsFormOpen(false)} />
             </DialogContent>
         </Dialog>
-      )}
+      
+        <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+             <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the <span className="font-bold">{selectedService?.name}</span> service.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteConfirm}>Continue</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }

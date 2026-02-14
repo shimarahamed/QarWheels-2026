@@ -11,7 +11,7 @@ import {
     CardFooter,
   } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Percent, Calendar } from "lucide-react";
+import { PlusCircle, Percent, Calendar, Trash2, Edit } from "lucide-react";
 import { mockPromotions, VendorPromotion } from "@/lib/vendor-data";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -22,39 +22,42 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose
 } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
-function EditPromotionForm({ promotion, onFormSubmit }: { promotion: VendorPromotion, onFormSubmit: () => void }) {
-  const { register, handleSubmit, control, formState: { errors }, reset } = useForm<VendorPromotion>();
-  const { toast } = useToast();
-
+function PromotionForm({ promotion, onSave, onCancel }: { promotion?: VendorPromotion | null, onSave: (data: VendorPromotion) => void, onCancel: () => void }) {
+  const { register, handleSubmit, control, formState: { errors }, reset } = useForm<any>({
+      defaultValues: promotion || {status: 'Scheduled'},
+  });
+  
   useEffect(() => {
-    if (promotion) {
-      reset({
-          ...promotion,
-          startDate: format(new Date(promotion.startDate), 'yyyy-MM-dd'),
-          endDate: format(new Date(promotion.endDate), 'yyyy-MM-dd'),
-      });
-    }
+    reset({
+        ...promotion,
+        startDate: promotion?.startDate ? format(new Date(promotion.startDate), 'yyyy-MM-dd') : '',
+        endDate: promotion?.endDate ? format(new Date(promotion.endDate), 'yyyy-MM-dd') : '',
+    });
   }, [promotion, reset]);
 
-  const onSubmit = (data: VendorPromotion) => {
-    console.log("Updated promotion data:", data); // API call here
-    toast({
-      title: "Promotion Updated",
-      description: `"${data.title}" has been successfully updated.`,
-    });
-    onFormSubmit();
+  const onSubmit = (data: any) => {
+    onSave(data);
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
       <div className="space-y-2">
         <Label htmlFor="title">Title</Label>
         <Input id="title" {...register("title", { required: "Title is required" })} />
@@ -73,7 +76,7 @@ function EditPromotionForm({ promotion, onFormSubmit }: { promotion: VendorPromo
         </div>
         <div className="space-y-2">
             <Label htmlFor="discount">Discount</Label>
-            <Input id="discount" {...register("discount", { required: "Discount is required" })} />
+            <Input id="discount" {...register("discount", { required: "Discount is required" })} placeholder="e.g. 20% or QAR 50" />
             {errors.discount && <p className="text-sm text-destructive">{errors.discount.message}</p>}
         </div>
       </div>
@@ -109,39 +112,73 @@ function EditPromotionForm({ promotion, onFormSubmit }: { promotion: VendorPromo
         />
       </div>
       <DialogFooter>
-        <DialogClose asChild>
-          <Button type="button" variant="outline">Cancel</Button>
-        </DialogClose>
-        <Button type="submit">Save Changes</Button>
+          <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button type="submit">Save Promotion</Button>
       </DialogFooter>
     </form>
   );
 }
 
 function getStatusVariant(status: VendorPromotion['status']) {
-    switch (status) {
-        case 'Active': return 'default';
-        case 'Scheduled': return 'outline';
-        case 'Expired': return 'secondary';
-        default: return 'default';
-    }
+    const now = new Date();
+    if (status === 'Active' && new Date(status) > now) return 'default';
+    if (status === 'Expired' || new Date(status) < now) return 'secondary';
+    if (status === 'Scheduled') return 'outline';
+    return 'default';
 }
   
 export default function VendorPromotionsPage() {
     const [promotions, setPromotions] = useState(mockPromotions);
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [selectedPromotion, setSelectedPromotion] = useState<VendorPromotion | null>(null);
+    const { toast } = useToast();
 
     const handleEditClick = (promotion: VendorPromotion) => {
         setSelectedPromotion(promotion);
-        setIsEditDialogOpen(true);
+        setIsFormOpen(true);
+    };
+    
+    const handleAddNewClick = () => {
+        setSelectedPromotion(null);
+        setIsFormOpen(true);
     };
 
-    const handleOpenChange = (isOpen: boolean) => {
-        setIsEditDialogOpen(isOpen);
-        if (!isOpen) {
-            setSelectedPromotion(null);
+    const handleDeleteClick = (promotion: VendorPromotion) => {
+        setSelectedPromotion(promotion);
+        setIsDeleteConfirmOpen(true);
+    };
+
+    const handleSavePromotion = (data: VendorPromotion) => {
+        let message = "";
+        if (selectedPromotion && selectedPromotion.id) {
+            // Update
+            setPromotions(prev => prev.map(p => p.id === selectedPromotion.id ? { ...data, id: selectedPromotion.id } : p));
+            message = `"${data.title}" has been updated.`;
+        } else {
+            // Create
+            const newPromotion = { ...data, id: `promo-${Date.now()}` };
+            setPromotions(prev => [newPromotion, ...prev]);
+            message = `"${data.title}" has been created.`;
         }
+        toast({
+            title: selectedPromotion ? "Promotion Updated" : "Promotion Created",
+            description: message,
+        });
+        setIsFormOpen(false);
+        setSelectedPromotion(null);
+    };
+
+    const handleDeleteConfirm = () => {
+        if (!selectedPromotion) return;
+        setPromotions(prev => prev.filter(p => p.id !== selectedPromotion.id));
+        toast({
+            title: "Promotion Deleted",
+            description: `The promotion "${selectedPromotion.title}" has been deleted.`,
+            variant: "destructive"
+        });
+        setIsDeleteConfirmOpen(false);
+        setSelectedPromotion(null);
     }
 
     return (
@@ -153,7 +190,7 @@ export default function VendorPromotionsPage() {
               Create and manage discounts and special offers.
             </p>
           </div>
-          <Button>
+          <Button onClick={handleAddNewClick}>
             <PlusCircle className="mr-2 h-4 w-4" />
             Create New Promotion
           </Button>
@@ -181,26 +218,43 @@ export default function VendorPromotionsPage() {
                         </div>
                     </CardContent>
                     <CardFooter className="flex gap-2">
-                        <Button variant="outline" className="w-full" onClick={() => handleEditClick(promo)}>Edit</Button>
-                        <Button variant="destructive" className="w-full">Delete</Button>
+                        <Button variant="outline" className="w-full" onClick={() => handleEditClick(promo)}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit
+                        </Button>
+                        <Button variant="destructive" className="w-full" onClick={() => handleDeleteClick(promo)}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </Button>
                     </CardFooter>
                 </Card>
             ))}
         </div>
 
-        {selectedPromotion && (
-          <Dialog open={isEditDialogOpen} onOpenChange={handleOpenChange}>
+          <Dialog open={isFormOpen} onOpenChange={(open) => {if(!open) setSelectedPromotion(null); setIsFormOpen(open);}}>
               <DialogContent className="sm:max-w-md">
                   <DialogHeader>
-                      <DialogTitle>Edit Promotion</DialogTitle>
+                      <DialogTitle>{selectedPromotion ? 'Edit Promotion' : 'Create New Promotion'}</DialogTitle>
                       <DialogDescription>
-                          Update the details for your promotion.
+                          {selectedPromotion ? 'Update the details for your promotion.' : 'Fill out the details for the new promotion.'}
                       </DialogDescription>
                   </DialogHeader>
-                  <EditPromotionForm promotion={selectedPromotion} onFormSubmit={() => handleOpenChange(false)} />
+                  <PromotionForm promotion={selectedPromotion} onSave={handleSavePromotion} onCancel={() => setIsFormOpen(false)} />
               </DialogContent>
           </Dialog>
-        )}
+
+           <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+             <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the <span className="font-bold">{selectedPromotion?.title}</span> promotion.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteConfirm}>Continue</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }

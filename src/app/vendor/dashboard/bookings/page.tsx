@@ -17,16 +17,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { mockVendorBookings, VendorBooking } from "@/lib/vendor-data";
 import { format } from "date-fns";
-import { MoreHorizontal, Edit, Phone, Car, Calendar, CircleDollarSign } from "lucide-react";
+import { MoreHorizontal, Edit, Phone, Car, Calendar, CircleDollarSign, PlusCircle, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -43,79 +45,41 @@ function getStatusVariant(status: VendorBooking['status']) {
     }
 }
 
-
-function BookingsTable({ bookings, onRowClick }: { bookings: VendorBooking[], onRowClick: (booking: VendorBooking) => void }) {
-    return (
-        <Table>
-            <TableHeader>
-            <TableRow>
-                <TableHead>Customer</TableHead>
-                <TableHead>Service</TableHead>
-                <TableHead className="hidden md:table-cell">Date</TableHead>
-                <TableHead className="hidden md:table-cell">Cost</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>
-                <span className="sr-only">Actions</span>
-                </TableHead>
-            </TableRow>
-            </TableHeader>
-            <TableBody>
-            {bookings.map((booking) => (
-                <TableRow key={booking.id} onClick={() => onRowClick(booking)} className="cursor-pointer">
-                    <TableCell>
-                        <div className="font-medium">{booking.customerName}</div>
-                        <div className="text-sm text-muted-foreground">{booking.carModel}</div>
-                    </TableCell>
-                    <TableCell>{booking.service}</TableCell>
-                    <TableCell className="hidden md:table-cell">
-                        {format(new Date(booking.date), "PPP p")}
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">QAR {booking.cost.toFixed(2)}</TableCell>
-                    <TableCell>
-                        <Badge variant={getStatusVariant(booking.status)}>{booking.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem onSelect={() => onRowClick(booking)}>View Details</DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </TableCell>
-                </TableRow>
-            ))}
-            </TableBody>
-      </Table>
-    )
-}
-
-function EditBookingForm({ booking, onSave, onCancel }: { booking: VendorBooking, onSave: (data: VendorBooking) => void, onCancel: () => void }) {
+function BookingForm({ booking, onSave, onCancel }: { booking?: VendorBooking | null, onSave: (data: VendorBooking) => void, onCancel: () => void }) {
     const { register, handleSubmit, control, formState: { errors }, reset } = useForm<VendorBooking>({
-        defaultValues: booking,
+        defaultValues: booking || { status: 'Upcoming' },
     });
     const { toast } = useToast();
 
     useEffect(() => {
-        reset(booking);
+        reset(booking || { status: 'Upcoming', customerName: '', carModel: '', service: '', cost: 0, customerPhone: '' });
     }, [booking, reset]);
 
     const onSubmit = (data: VendorBooking) => {
-        console.log("Updated booking data:", data);
         toast({
-            title: "Booking Updated",
-            description: `Booking for ${data.customerName} has been updated.`,
+            title: booking ? "Booking Updated" : "Booking Created",
+            description: `Booking for ${data.customerName} has been saved.`,
         });
         onSave(data);
     };
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
+             <div className="space-y-2">
+                <Label htmlFor="customerName">Customer Name</Label>
+                <Input id="customerName" {...register("customerName", { required: "Customer name is required" })} />
+                {errors.customerName && <p className="text-sm text-destructive">{errors.customerName.message}</p>}
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="carModel">Car Model</Label>
+                <Input id="carModel" {...register("carModel", { required: "Car model is required" })} />
+                {errors.carModel && <p className="text-sm text-destructive">{errors.carModel.message}</p>}
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="service">Service</Label>
+                <Input id="service" {...register("service", { required: "Service is required" })} />
+                {errors.service && <p className="text-sm text-destructive">{errors.service.message}</p>}
+            </div>
              <div className="space-y-2">
                 <Label htmlFor="status">Booking Status</Label>
                 <Controller
@@ -149,138 +113,185 @@ function EditBookingForm({ booking, onSave, onCancel }: { booking: VendorBooking
     );
 }
 
-
-function BookingDetailsDialog({ booking, open, onOpenChange, onBookingUpdate }: { booking: VendorBooking | null, open: boolean, onOpenChange: (open: boolean) => void, onBookingUpdate: (data: VendorBooking) => void }) {
-    const [isEditing, setIsEditing] = useState(false);
-    if (!booking) return null;
-
-    const handleFormSave = (data: VendorBooking) => {
-        onBookingUpdate(data);
-        setIsEditing(false);
-    }
-
-    const closeDialog = (isOpen: boolean) => {
-        onOpenChange(isOpen);
-        if (!isOpen) setIsEditing(false);
-    }
-    
+function BookingsTable({ bookings, onRowClick, onDeleteClick }: { bookings: VendorBooking[], onRowClick: (booking: VendorBooking) => void, onDeleteClick: (booking: VendorBooking) => void }) {
     return (
-        <Dialog open={open} onOpenChange={closeDialog}>
-            <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center justify-between">
-                        Booking Details
-                        {!isEditing && <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}><Edit className="mr-2 h-4 w-4" /> Edit</Button>}
-                    </DialogTitle>
-                    <DialogDescription>
-                        For {booking.customerName} on {format(new Date(booking.date), "PPP")}
-                    </DialogDescription>
-                </DialogHeader>
-                {isEditing ? (
-                    <EditBookingForm booking={booking} onSave={handleFormSave} onCancel={() => setIsEditing(false)} />
-                ) : (
-                    <div className="space-y-4 pt-4">
-                        <div className="p-4 rounded-lg bg-muted grid gap-4">
-                            <p className="font-semibold text-lg">{booking.service}</p>
-                            <div className="flex items-center justify-between">
-                                <span className="text-muted-foreground">Status</span>
-                                <Badge variant={getStatusVariant(booking.status)}>{booking.status}</Badge>
-                            </div>
-                            <div className="flex items-center justify-between font-semibold">
-                                <span className="text-muted-foreground">Cost</span>
-                                <span>QAR {booking.cost.toFixed(2)}</span>
-                            </div>
-                        </div>
-
-                        <Card>
-                            <CardContent className="pt-6 space-y-4">
-                                <div className="flex items-center gap-4">
-                                    <Car className="h-4 w-4 text-muted-foreground" />
-                                    <span className="font-medium">{booking.carModel}</span>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <Phone className="h-4 w-4 text-muted-foreground" />
-                                    <span>{booking.customerPhone}</span>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                                    <span>{format(new Date(booking.date), "PPP, p")}</span>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                )}
-            </DialogContent>
-        </Dialog>
-    );
+        <Table>
+            <TableHeader>
+            <TableRow>
+                <TableHead>Customer</TableHead>
+                <TableHead className="hidden sm:table-cell">Service</TableHead>
+                <TableHead className="hidden md:table-cell">Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+            </TableHeader>
+            <TableBody>
+            {bookings.map((booking) => (
+                <TableRow key={booking.id} onClick={() => onRowClick(booking)} className="cursor-pointer">
+                    <TableCell>
+                        <div className="font-medium">{booking.customerName}</div>
+                        <div className="text-sm text-muted-foreground hidden md:block">{booking.carModel}</div>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">{booking.service}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                        {format(new Date(booking.date), "PPP p")}
+                    </TableCell>
+                    <TableCell>
+                        <Badge variant={getStatusVariant(booking.status)}>{booking.status}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem onSelect={() => onRowClick(booking)}>
+                                    <Edit className="mr-2 h-4 w-4" /> View & Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <AlertDialogTrigger asChild onSelect={(e) => e.preventDefault()}>
+                                     <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={(e) => { e.stopPropagation(); onDeleteClick(booking); }}>
+                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </TableCell>
+                </TableRow>
+            ))}
+            </TableBody>
+      </Table>
+    )
 }
 
 export default function VendorBookingsPage() {
     const [bookings, setBookings] = useState(mockVendorBookings);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [selectedBooking, setSelectedBooking] = useState<VendorBooking | null>(null);
+    const { toast } = useToast();
 
     const handleRowClick = (booking: VendorBooking) => {
         setSelectedBooking(booking);
-        setIsDialogOpen(true);
+        setIsFormOpen(true);
     };
 
-    const handleBookingUpdate = (updatedBooking: VendorBooking) => {
-        setBookings(prev => prev.map(b => b.id === updatedBooking.id ? updatedBooking : b));
-        setIsDialogOpen(false);
+     const handleAddNewClick = () => {
+        setSelectedBooking(null);
+        setIsFormOpen(true);
     };
 
-    const upcoming = bookings.filter(b => b.status === "Upcoming");
-    const inProgress = bookings.filter(b => b.status === "In Progress");
-    const completed = bookings.filter(b => b.status === "Completed");
-    const cancelled = bookings.filter(b => b.status === "Cancelled");
-    const all = bookings;
+    const handleDeleteClick = (booking: VendorBooking) => {
+        setSelectedBooking(booking);
+        setIsDeleteConfirmOpen(true);
+    };
+
+    const handleSaveBooking = (data: VendorBooking) => {
+        if (selectedBooking && selectedBooking.id) {
+            // Update
+            setBookings(prev => prev.map(b => b.id === selectedBooking.id ? {...data, id: selectedBooking.id, date: selectedBooking.date} : b));
+        } else {
+            // Create
+            const newBooking = { ...data, id: `vb-${Date.now()}`, date: new Date().toISOString() };
+            setBookings(prev => [newBooking, ...prev]);
+        }
+        setIsFormOpen(false);
+        setSelectedBooking(null);
+    };
+
+    const handleDeleteConfirm = () => {
+        if (!selectedBooking) return;
+        setBookings(prev => prev.filter(b => b.id !== selectedBooking.id));
+        toast({
+            title: "Booking Deleted",
+            description: `The booking for ${selectedBooking.customerName} has been deleted.`,
+            variant: "destructive"
+        });
+        setIsDeleteConfirmOpen(false);
+        setSelectedBooking(null);
+    }
+
+    const upcoming = bookings.filter(b => b.status === "Upcoming").sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const inProgress = bookings.filter(b => b.status === "In Progress").sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const completed = bookings.filter(b => b.status === "Completed").sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const cancelled = bookings.filter(b => b.status === "Cancelled").sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const all = [...bookings].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-3xl font-bold font-headline">Manage Bookings</h1>
-        <p className="text-muted-foreground">
-          View and manage all your customer appointments.
-        </p>
+      <header className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
+        <div>
+            <h1 className="text-3xl font-bold font-headline">Manage Bookings</h1>
+            <p className="text-muted-foreground">
+            View and manage all your customer appointments.
+            </p>
+        </div>
+         <Button onClick={handleAddNewClick}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Create Booking
+        </Button>
       </header>
-      <Card>
-        <CardContent className="p-0">
-        <Tabs defaultValue="upcoming">
-            <div className="p-4 border-b">
-                <TabsList>
-                    <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-                    <TabsTrigger value="in-progress">In Progress</TabsTrigger>
-                    <TabsTrigger value="completed">Completed</TabsTrigger>
-                    <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
-                    <TabsTrigger value="all">All</TabsTrigger>
-                </TabsList>
-            </div>
-            <TabsContent value="upcoming" className="p-4">
-                <BookingsTable bookings={upcoming} onRowClick={handleRowClick} />
-            </TabsContent>
-            <TabsContent value="in-progress" className="p-4">
-                <BookingsTable bookings={inProgress} onRowClick={handleRowClick} />
-            </TabsContent>
-            <TabsContent value="completed" className="p-4">
-                <BookingsTable bookings={completed} onRowClick={handleRowClick} />
-            </TabsContent>
-            <TabsContent value="cancelled" className="p-4">
-                <BookingsTable bookings={cancelled} onRowClick={handleRowClick} />
-            </TabsContent>
-            <TabsContent value="all" className="p-4">
-                <BookingsTable bookings={all} onRowClick={handleRowClick} />
-            </TabsContent>
-        </Tabs>
-        </CardContent>
-      </Card>
+        <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+            <Card>
+                <CardContent className="p-0">
+                <Tabs defaultValue="upcoming">
+                    <div className="p-4 border-b">
+                        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
+                            <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+                            <TabsTrigger value="in-progress">In Progress</TabsTrigger>
+                            <TabsTrigger value="completed">Completed</TabsTrigger>
+                            <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+                            <TabsTrigger value="all">All</TabsTrigger>
+                        </TabsList>
+                    </div>
+                    <TabsContent value="upcoming" className="p-1 sm:p-4">
+                        <BookingsTable bookings={upcoming} onRowClick={handleRowClick} onDeleteClick={handleDeleteClick} />
+                    </TabsContent>
+                    <TabsContent value="in-progress" className="p-1 sm:p-4">
+                        <BookingsTable bookings={inProgress} onRowClick={handleRowClick} onDeleteClick={handleDeleteClick} />
+                    </TabsContent>
+                    <TabsContent value="completed" className="p-1 sm:p-4">
+                        <BookingsTable bookings={completed} onRowClick={handleRowClick} onDeleteClick={handleDeleteClick}/>
+                    </TabsContent>
+                    <TabsContent value="cancelled" className="p-1 sm:p-4">
+                        <BookingsTable bookings={cancelled} onRowClick={handleRowClick} onDeleteClick={handleDeleteClick}/>
+                    </TabsContent>
+                    <TabsContent value="all" className="p-1 sm:p-4">
+                        <BookingsTable bookings={all} onRowClick={handleRowClick} onDeleteClick={handleDeleteClick}/>
+                    </TabsContent>
+                </Tabs>
+                </CardContent>
+            </Card>
 
-      <BookingDetailsDialog 
-        booking={selectedBooking} 
-        open={isDialogOpen} 
-        onOpenChange={setIsDialogOpen}
-        onBookingUpdate={handleBookingUpdate}
-      />
+            <Dialog open={isFormOpen} onOpenChange={(open) => { if(!open) setSelectedBooking(null); setIsFormOpen(open);}}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>{selectedBooking ? 'Edit Booking' : 'Create New Booking'}</DialogTitle>
+                        <DialogDescription>
+                            {selectedBooking ? `Details for ${selectedBooking.customerName} on ${format(new Date(selectedBooking.date), "PPP")}` : 'Fill out the details for the new booking.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <BookingForm booking={selectedBooking} onSave={handleSaveBooking} onCancel={() => setIsFormOpen(false)} />
+                </DialogContent>
+            </Dialog>
+
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the booking for <span className="font-bold">{selectedBooking?.customerName}</span>.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteConfirm}>Continue</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }
