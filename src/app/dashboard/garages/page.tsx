@@ -46,17 +46,19 @@ export default function GaragesPage() {
             {mockGarages.map((garage) => {
                 const image = PlaceHolderImages.find((img) => img.id === garage.imageId);
                 return (
-                    <Card key={garage.id} className="flex flex-col">
-                        {image && (
-                            <Image
-                                src={image.imageUrl}
-                                alt={garage.name}
-                                width={400}
-                                height={225}
-                                className="w-full aspect-video object-cover rounded-t-lg"
-                                data-ai-hint={image.imageHint}
-                            />
-                        )}
+                    <Card key={garage.id} className="flex flex-col group overflow-hidden">
+                        <div className="overflow-hidden">
+                            {image && (
+                                <Image
+                                    src={image.imageUrl}
+                                    alt={garage.name}
+                                    width={400}
+                                    height={225}
+                                    className="w-full aspect-video object-cover rounded-t-lg transition-transform duration-300 group-hover:scale-105"
+                                    data-ai-hint={image.imageHint}
+                                />
+                            )}
+                        </div>
                         <CardHeader>
                             <CardTitle>{garage.name}</CardTitle>
                             <div className="flex items-center gap-2">
@@ -79,7 +81,7 @@ export default function GaragesPage() {
                         </CardContent>
                         <CardFooter>
                             <Button asChild className="w-full">
-                                <Link href="#">View Profile & Book</Link>
+                                <Link href={`/dashboard/garages/${garage.id}`}>View Profile & Book</Link>
                             </Button>
                         </CardFooter>
                     </Card>

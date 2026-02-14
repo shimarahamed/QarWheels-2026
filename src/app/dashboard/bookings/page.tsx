@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Car, Calendar, Wrench, CircleDollarSign } from "lucide-react";
+import { Car, Calendar, Wrench, CircleDollarSign, PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { Booking } from "@/lib/types";
@@ -65,7 +65,7 @@ function BookingCard({ booking }: { booking: Booking }) {
       </CardContent>
       <CardFooter>
         <Button variant="outline" size="sm" asChild>
-          <Link href="#">View Details</Link>
+          <Link href={`/dashboard/bookings/${booking.id}`}>View Details</Link>
         </Button>
       </CardFooter>
     </Card>
@@ -102,11 +102,19 @@ export default function BookingsPage() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-3xl font-bold font-headline">My Bookings</h1>
-        <p className="text-muted-foreground">
-          Manage your upcoming and past service appointments.
-        </p>
+      <header className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
+        <div>
+            <h1 className="text-3xl font-bold font-headline">My Bookings</h1>
+            <p className="text-muted-foreground">
+            Manage your upcoming and past service appointments.
+            </p>
+        </div>
+        <Button asChild>
+            <Link href="/dashboard/garages">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Book New Service
+            </Link>
+        </Button>
       </header>
 
       <Tabs defaultValue="upcoming">
