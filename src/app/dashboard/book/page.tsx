@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
-import { ArrowLeft, Car, Calendar as CalendarIcon, Clock, Wrench, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Car, Calendar as CalendarIcon, Clock, Wrench, CheckCircle, Building } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -29,6 +29,12 @@ import Link from 'next/link';
 const availableTimeSlots = [
   '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
   '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM',
+];
+
+const steps = [
+    {num: 1, title: "Vehicle"},
+    {num: 2, title: "Date & Time"},
+    {num: 3, title: "Confirm"}
 ];
 
 function BookingWizard() {
@@ -99,14 +105,12 @@ function BookingWizard() {
                     Back
                 </Button>
                 <div className="flex items-center gap-4 mt-4">
-                    {[
-                        {num: 1, title: "Vehicle"},
-                        {num: 2, title: "Date & Time"},
-                        {num: 3, title: "Confirm"}
-                    ].map(s => (
+                    {steps.map(s => (
                         <div key={s.num} className="flex-1 text-center">
                             <div className={cn("py-2 border-b-4", step >= s.num ? 'border-primary' : 'border-border')}>
-                                <span className="hidden sm:inline">Step {s.num}: </span>{s.title}
+                               <p className={cn("font-medium", step === s.num ? 'text-primary' : step < s.num ? 'text-muted-foreground' : 'text-foreground')}>
+                                 <span className="hidden sm:inline">Step {s.num}: </span>{s.title}
+                               </p>
                             </div>
                         </div>
                     ))}
@@ -160,7 +164,7 @@ function BookingWizard() {
                     mode="single"
                     selected={selectedDate}
                     onSelect={setSelectedDate}
-                    disabled={(date) => date < new Date() || date < new Date("1900-01-01")}
+                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                     initialFocus
                     className="rounded-md border"
                 />
@@ -168,7 +172,7 @@ function BookingWizard() {
             <div className="space-y-4">
                 <h3 className="font-semibold">Available Slots for {selectedDate ? format(selectedDate, 'PPP') : 'selected date'}</h3>
                 {selectedDate ? (
-                     <div className="grid grid-cols-2 gap-2">
+                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {availableTimeSlots.map(time => (
                             <Button key={time} variant={selectedTime === time ? "default" : "outline"} onClick={() => setSelectedTime(time)}>
                                 {time}
@@ -193,12 +197,33 @@ function BookingWizard() {
             <CardDescription>Please review the details below before confirming your appointment.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-4 p-4 border rounded-lg">
-                <div className="flex items-center gap-3"><Wrench className="h-5 w-5 text-primary"/> <span className="font-semibold">{service.name} at {garage.name}</span></div>
-                <div className="flex items-center gap-3"><Car className="h-5 w-5 text-primary"/> <span>{selectedCar.year} {selectedCar.make} {selectedCar.model}</span></div>
-                <div className="flex items-center gap-3"><CalendarIcon className="h-5 w-5 text-primary"/> <span>{format(selectedDate, 'PPP')}</span></div>
-                <div className="flex items-center gap-3"><Clock className="h-5 w-5 text-primary"/> <span>{selectedTime}</span></div>
-            </div>
+            <Card className="bg-muted/50">
+                <CardContent className="p-6 grid gap-6">
+                    <div className="grid gap-1.5">
+                        <p className="text-sm text-muted-foreground flex items-center"><Building className="h-4 w-4 mr-2"/>Garage</p>
+                        <p className="font-semibold">{garage.name}</p>
+                    </div>
+                    <div className="grid gap-1.5">
+                        <p className="text-sm text-muted-foreground flex items-center"><Wrench className="h-4 w-4 mr-2"/>Service</p>
+                        <p className="font-semibold">{service.name}</p>
+                    </div>
+                    <div className="grid gap-1.5">
+                        <p className="text-sm text-muted-foreground flex items-center"><Car className="h-4 w-4 mr-2"/>Vehicle</p>
+                        <p className="font-semibold">{selectedCar.year} {selectedCar.make} {selectedCar.model}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-1.5">
+                            <p className="text-sm text-muted-foreground flex items-center"><CalendarIcon className="h-4 w-4 mr-2"/>Date</p>
+                            <p className="font-semibold">{format(selectedDate, 'PPP')}</p>
+                        </div>
+                        <div className="grid gap-1.5">
+                            <p className="text-sm text-muted-foreground flex items-center"><Clock className="h-4 w-4 mr-2"/>Time</p>
+                            <p className="font-semibold">{selectedTime}</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
             <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
                 <span className="font-semibold">Estimated Cost</span>
                 <span className="font-bold text-lg">QAR {service.price.toFixed(2)}</span>

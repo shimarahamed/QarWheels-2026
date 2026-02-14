@@ -7,7 +7,6 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
-  SidebarTrigger,
   SidebarContent,
 } from "@/components/ui/sidebar";
 import {
@@ -21,7 +20,6 @@ import {
   Package,
   Percent,
   Star,
-  MessageSquare,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -47,12 +45,7 @@ export function VendorSidebar() {
   return (
     <>
       <SidebarHeader className="border-b">
-        <div className="flex items-center justify-between w-full">
-            <Logo />
-            <div className="md:hidden">
-                <SidebarTrigger />
-            </div>
-        </div>
+        <Logo />
         <p className="text-sm text-sidebar-foreground/80 pt-1 group-data-[collapsible=icon]:hidden">
             Precision Auto Qatar
         </p>

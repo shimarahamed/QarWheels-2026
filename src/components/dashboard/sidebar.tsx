@@ -7,7 +7,6 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
-  SidebarTrigger,
   SidebarContent,
 } from "@/components/ui/sidebar";
 import {
@@ -42,12 +41,7 @@ export function DashboardSidebar() {
   return (
     <>
       <SidebarHeader className="border-b">
-        <div className="flex items-center justify-between w-full">
-            <Logo />
-            <div className="md:hidden">
-                <SidebarTrigger />
-            </div>
-        </div>
+        <Logo />
         <div className="relative">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search..." className="pl-8" />
