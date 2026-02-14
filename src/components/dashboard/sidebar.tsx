@@ -78,9 +78,11 @@ export function DashboardSidebar() {
                 </div>
             </div>
         </Link>
-        <Button variant="ghost" className="w-full justify-start gap-2">
+        <Button asChild variant="ghost" className="w-full justify-start gap-2">
+          <Link href="/">
             <LogOut />
             <span>Logout</span>
+          </Link>
         </Button>
       </SidebarFooter>
     </>

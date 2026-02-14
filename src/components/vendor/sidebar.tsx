@@ -79,9 +79,11 @@ export function VendorSidebar() {
                 <span className="text-xs text-muted-foreground">admin@precisionauto.qa</span>
             </div>
         </div>
-        <Button variant="ghost" className="w-full justify-start gap-2">
-            <LogOut />
-            <span>Logout</span>
+        <Button asChild variant="ghost" className="w-full justify-start gap-2">
+            <Link href="/">
+                <LogOut />
+                <span>Logout</span>
+            </Link>
         </Button>
       </SidebarFooter>
     </>
