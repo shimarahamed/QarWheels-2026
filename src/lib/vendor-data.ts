@@ -95,7 +95,7 @@ export const mockInventory: VendorInventoryItem[] = [
     { id: "inv-2", name: "OEM Oil Filter - Toyota", sku: "FIL-TYT-001", stock: 80, price: 45, supplier: "Global Parts Co." },
     { id: "inv-3", name: "Front Brake Pads - Nissan Patrol", sku: "BRK-NIS-PAT-F", stock: 8, price: 350, supplier: "AutoPro Imports" },
     { id: "inv-4", name: "R134a Refrigerant Can", sku: "AC-REF-R134A", stock: 200, price: 100, supplier: "Cooling Systems Inc." },
-    { id: "inv-5", name: "Microfiber Towel Pack (10)", sku: "DET-MIC-TOW-10", stock: 45, supplier: "Detailing Kings" },
+    { id: "inv-5", name: "Microfiber Towel Pack (10)", sku: "DET-MIC-TOW-10", stock: 45, price: 15, supplier: "Detailing Kings" },
 ];
 
 export const mockStaff: VendorStaffMember[] = [
