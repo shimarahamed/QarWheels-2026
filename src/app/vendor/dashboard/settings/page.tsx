@@ -65,33 +65,33 @@ export default function VendorSettingsPage() {
                         <CardTitle>Opening Hours</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                             <Label htmlFor="hours-sun">Sunday</Label>
-                            <Input id="hours-sun" className="w-40" defaultValue="8:00 AM - 7:00 PM" />
+                            <Input id="hours-sun" className="w-full sm:w-40" defaultValue="8:00 AM - 7:00 PM" />
                         </div>
-                         <div className="flex items-center justify-between">
+                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                             <Label htmlFor="hours-mon">Monday</Label>
-                            <Input id="hours-mon" className="w-40" defaultValue="8:00 AM - 7:00 PM" />
+                            <Input id="hours-mon" className="w-full sm:w-40" defaultValue="8:00 AM - 7:00 PM" />
                         </div>
-                         <div className="flex items-center justify-between">
+                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                             <Label htmlFor="hours-tue">Tuesday</Label>
-                            <Input id="hours-tue" className="w-40" defaultValue="8:00 AM - 7:00 PM" />
+                            <Input id="hours-tue" className="w-full sm:w-40" defaultValue="8:00 AM - 7:00 PM" />
                         </div>
-                         <div className="flex items-center justify-between">
+                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                             <Label htmlFor="hours-wed">Wednesday</Label>
-                            <Input id="hours-wed" className="w-40" defaultValue="8:00 AM - 7:00 PM" />
+                            <Input id="hours-wed" className="w-full sm:w-40" defaultValue="8:00 AM - 7:00 PM" />
                         </div>
-                         <div className="flex items-center justify-between">
+                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                             <Label htmlFor="hours-thu">Thursday</Label>
-                            <Input id="hours-thu" className="w-40" defaultValue="8:00 AM - 7:00 PM" />
+                            <Input id="hours-thu" className="w-full sm:w-40" defaultValue="8:00 AM - 7:00 PM" />
                         </div>
-                         <div className="flex items-center justify-between">
+                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                             <Label htmlFor="hours-fri">Friday</Label>
-                            <Input id="hours-fri" className="w-40" defaultValue="Closed" />
+                            <Input id="hours-fri" className="w-full sm:w-40" defaultValue="Closed" />
                         </div>
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                             <Label htmlFor="hours-sat">Saturday</Label>
-                            <Input id="hours-sat" className="w-40" defaultValue="9:00 AM - 5:00 PM" />
+                            <Input id="hours-sat" className="w-full sm:w-40" defaultValue="9:00 AM - 5:00 PM" />
                         </div>
                         <Button className="w-full">Save Hours</Button>
                     </CardContent>
