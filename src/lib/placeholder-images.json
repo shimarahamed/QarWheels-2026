@@ -39,31 +39,31 @@
     {
       "id": "garage-interior",
       "description": "Clean, modern auto repair shop interior.",
-      "imageUrl": "https://images.unsplash.com/photo-1599256872455-515639649b38?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhdXRvJTIwcmVwYWlyJTIwc2hvcHxlbnwwfHx8fDE3NzEyMTAwNTZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1551522435-a13afa10f103?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxnYXJhZ2V8ZW58MHx8fHwxNzcxMTEzNTYxfDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "auto repair"
     },
     {
       "id": "garage-exterior",
       "description": "Exterior of a modern car garage.",
-      "imageUrl": "https://images.unsplash.com/photo-1628102283435-436978d38c7f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxjYXIlMjBnYXJhZ2V8ZW58MHx8fHwxNzcxMjEwMTEyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1549636367-13c144c47063?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyMHx8Z2FyYWdlfGVufDB8fHx8MTc3MTExMzU2MXww&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "car garage"
     },
     {
       "id": "garage-interior-2",
       "description": "Well-lit garage with cars on lifts.",
-      "imageUrl": "https://images.unsplash.com/photo-1581293757782-ac7f38174360?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxhdXRvJTIwcmVwYWlyJTIwc2hvcHxlbnwwfHx8fDE3NzEyMTAwNTZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjYXIlMjBnYXJhZ2V8ZW58MHx8fHwxNzcxMTEzNjIyfDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "auto repair"
     },
     {
       "id": "garage-exterior-2",
       "description": "Front entrance of a car service center.",
-      "imageUrl": "https://images.unsplash.com/photo-1564993438542-ac73e162a4b8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxjYXIlMjBzZXJ2aWNlJTIwY2VudGVyfGVufDB8fHx8MTc3MTIxMDI1Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1509440040931-1505a7cb590e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxM3x8Y2FyJTIwZ2FyYWdlfGVufDB8fHx8MTc3MTExMzYyMnww&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "service center"
     },
     {
       "id": "doha-map",
       "description": "A stylized map of a city, representing Doha.",
-      "imageUrl": "https://images.unsplash.com/photo-1549488344-cbb6c34cf08b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwzNDE5ODJ8MHwxfHNlYXJjaHwxfHxjaXR5JTIwbWFwfGVufDB8fHx8MTY0NjM4NjQzMQ&ixlib=rb-4.0.3&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1478860409698-8707f313ee8b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxtYXBzfGVufDB8fHx8MTc3MTExMzY2MHww&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "city map"
     }
   ]
