@@ -14,7 +14,7 @@ export default function VendorDashboardLayout({
         <Sidebar>
           <VendorSidebar />
         </Sidebar>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
             <header className="flex items-center justify-between h-16 px-4 border-b md:hidden sticky top-0 bg-background z-30">
                 <Link href="/vendor/dashboard">
                     <Logo />
