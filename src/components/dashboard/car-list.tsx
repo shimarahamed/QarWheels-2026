@@ -3,6 +3,7 @@ import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Image from "next/image";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 export function CarList() {
   return (
@@ -10,23 +11,25 @@ export function CarList() {
       {mockCars.map((car) => {
         const image = PlaceHolderImages.find((img) => img.id === car.imageId);
         return (
-          <Link href={`/dashboard/my-cars/${car.id}`} key={car.id} className="block h-full">
-            <Card className="overflow-hidden hover:shadow-lg transition-shadow h-full">
+          <Link href={`/dashboard/my-cars/${car.id}`} key={car.id} className="block h-full group">
+            <Card className="overflow-hidden h-full border transition-shadow duration-300 hover:shadow-lg hover:border-primary">
               <CardHeader className="p-0">
                 {image && (
-                  <Image
-                    src={image.imageUrl}
-                    alt={car.make + " " + car.model}
-                    width={300}
-                    height={200}
-                    className="w-full aspect-video object-cover"
-                    data-ai-hint={image.imageHint}
-                  />
+                  <div className="overflow-hidden">
+                    <Image
+                      src={image.imageUrl}
+                      alt={car.make + " " + car.model}
+                      width={300}
+                      height={200}
+                      className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
+                      data-ai-hint={image.imageHint}
+                    />
+                  </div>
                 )}
               </CardHeader>
               <CardContent className="p-4">
-                <CardTitle className="text-lg font-headline">{car.year} {car.make} {car.model}</CardTitle>
-                <p className="text-sm text-muted-foreground">{car.vin}</p>
+                <CardTitle className="text-lg">{car.year} {car.make} {car.model}</CardTitle>
+                <p className="text-sm text-muted-foreground font-mono">{car.vin}</p>
                 <p className="text-sm mt-2"><strong>Mileage:</strong> {car.mileage.toLocaleString()} km</p>
               </CardContent>
             </Card>

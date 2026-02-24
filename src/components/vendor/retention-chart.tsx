@@ -11,18 +11,14 @@ export function RetentionChart({ timeRange }: { timeRange: string }) {
     useEffect(() => {
         setLoading(true);
         // Simulate fetching data based on the time range
-        const timer = setTimeout(() => {
-            let filteredData = mockAnalyticsData.retention;
-            if (timeRange === 'last_30_days') {
-                filteredData = mockAnalyticsData.retention.slice(-1);
-            } else if (timeRange === 'last_6_months') {
-                filteredData = mockAnalyticsData.retention.slice(-6);
-            }
-            setData(filteredData);
-            setLoading(false);
-        }, 1400);
-
-        return () => clearTimeout(timer);
+        let filteredData = mockAnalyticsData.retention;
+        if (timeRange === 'last_30_days') {
+            filteredData = mockAnalyticsData.retention.slice(-1);
+        } else if (timeRange === 'last_6_months') {
+            filteredData = mockAnalyticsData.retention.slice(-6);
+        }
+        setData(filteredData);
+        setLoading(false);
     }, [timeRange]);
 
     if (loading) {

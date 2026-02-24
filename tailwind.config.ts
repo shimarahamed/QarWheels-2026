@@ -9,8 +9,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Inter', 'sans-serif'],
-        headline: ['Plus Jakarta Sans', 'sans-serif'],
+        body: ['var(--font-body)', 'Inter', 'sans-serif'],
+        headline: ['var(--font-headline)', 'Plus Jakarta Sans', 'sans-serif'],
         code: ['"Fira Code"', 'monospace'],
       },
       colors: {

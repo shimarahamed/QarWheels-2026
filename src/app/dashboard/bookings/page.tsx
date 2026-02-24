@@ -31,7 +31,7 @@ function BookingCard({ booking }: { booking: Booking }) {
   };
 
   return (
-    <Card className="flex flex-col">
+    <Card className="flex flex-col transition-shadow hover:shadow-lg hover:border-primary">
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>

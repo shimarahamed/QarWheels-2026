@@ -41,7 +41,7 @@ export default function ServiceHistoryPage() {
           {mockCars.map((car) => {
             const image = PlaceHolderImages.find((img) => img.id === car.imageId);
             return (
-              <AccordionItem value={car.id} key={car.id} className="border-b-0 rounded-2xl bg-card border shadow-sm overflow-hidden">
+              <AccordionItem value={car.id} key={car.id} className="border-b-0 rounded-lg bg-card border shadow-sm overflow-hidden transition-shadow hover:shadow-lg hover:border-primary">
                 <AccordionTrigger className="p-6 hover:no-underline">
                   <div className="flex items-center gap-6 text-left w-full">
                     {image && (

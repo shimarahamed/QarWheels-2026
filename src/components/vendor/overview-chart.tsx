@@ -11,19 +11,16 @@ export function OverviewChart({ timeRange }: { timeRange?: string }) {
     useEffect(() => {
         setLoading(true);
         // Simulate fetching data based on the time range
-        const timer = setTimeout(() => {
-            let filteredData = mockAnalyticsData.revenue;
-            if (timeRange === 'last_30_days') {
-                // For this mock data, "last 30 days" will be the most recent month
-                filteredData = mockAnalyticsData.revenue.slice(-1);
-            } else if (timeRange === 'last_6_months') {
-                filteredData = mockAnalyticsData.revenue.slice(-6);
-            }
-            setData(filteredData);
-            setLoading(false);
-        }, 1000); // 1 second delay to simulate network request
+        let filteredData = mockAnalyticsData.revenue;
+        if (timeRange === 'last_30_days') {
+            // For this mock data, "last 30 days" will be the most recent month
+            filteredData = mockAnalyticsData.revenue.slice(-1);
+        } else if (timeRange === 'last_6_months') {
+            filteredData = mockAnalyticsData.revenue.slice(-6);
+        }
+        setData(filteredData);
+        setLoading(false);
 
-        return () => clearTimeout(timer);
     }, [timeRange]);
 
     if (loading) {

@@ -32,8 +32,6 @@ export function ServiceHistorySummary({ car }: { car: Car }) {
       setIsLoading(true);
       setSummary(null);
       try {
-         // Add a small delay to simulate network latency for skeleton loader
-        await new Promise(resolve => setTimeout(resolve, 1000));
         const result = await summarizeServiceHistory({
           vin: car.vin,
           serviceHistory: JSON.stringify(car.serviceHistory),

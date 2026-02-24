@@ -240,13 +240,15 @@ export default function VendorBookingsPage() {
                 <CardContent className="p-0">
                 <Tabs defaultValue="upcoming">
                     <div className="p-4 border-b">
-                        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
-                            <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-                            <TabsTrigger value="in-progress">In Progress</TabsTrigger>
-                            <TabsTrigger value="completed">Completed</TabsTrigger>
-                            <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
-                            <TabsTrigger value="all">All</TabsTrigger>
-                        </TabsList>
+                        <div className="overflow-x-auto no-scrollbar">
+                             <TabsList className="inline-grid w-full grid-cols-5 min-w-[600px]">
+                                <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+                                <TabsTrigger value="in-progress">In Progress</TabsTrigger>
+                                <TabsTrigger value="completed">Completed</TabsTrigger>
+                                <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+                                <TabsTrigger value="all">All</TabsTrigger>
+                            </TabsList>
+                        </div>
                     </div>
                     <TabsContent value="upcoming" className="p-1 sm:p-4">
                         <BookingsTable bookings={upcoming} onRowClick={handleRowClick} onDeleteClick={handleDeleteClick} />

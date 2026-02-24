@@ -37,15 +37,15 @@ function GarageList() {
             {mockGarages.map((garage) => {
                 const image = PlaceHolderImages.find((img) => img.id === garage.imageId);
                 return (
-                    <Card key={garage.id} className="flex flex-col group overflow-hidden transition-shadow duration-300 hover:shadow-xl">
-                        <div className="overflow-hidden">
+                    <Card key={garage.id} className="flex flex-col group overflow-hidden transition-shadow duration-300 hover:shadow-lg hover:border-primary">
+                        <div className="overflow-hidden rounded-t-lg">
                             {image && (
                                 <Image
                                     src={image.imageUrl}
                                     alt={garage.name}
                                     width={400}
                                     height={225}
-                                    className="w-full aspect-video object-cover rounded-t-lg transition-transform duration-300 group-hover:scale-105"
+                                    className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
                                     data-ai-hint={image.imageHint}
                                 />
                             )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, Suspense } from 'react';
+import { useState, useMemo, Suspense, Fragment } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { mockGarages, mockCars, mockBookings } from '@/lib/data';
 import { mockVendorServices } from '@/lib/vendor-data';
@@ -31,10 +31,10 @@ const availableTimeSlots = [
   '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM',
 ];
 
-const steps = [
-    {num: 1, title: "Vehicle"},
-    {num: 2, title: "Date & Time"},
-    {num: 3, title: "Confirm"}
+const bookingSteps = [
+    {num: 1, title: "Vehicle", icon: Car},
+    {num: 2, title: "Date & Time", icon: CalendarIcon},
+    {num: 3, title: "Confirm", icon: Wrench}
 ];
 
 function BookingWizard() {
@@ -53,6 +53,7 @@ function BookingWizard() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [isBooking, setIsBooking] = useState(false);
+  const [bookingDetails, setBookingDetails] = useState<any>(null);
 
   if (!garage || !service) {
     return (
@@ -69,7 +70,6 @@ function BookingWizard() {
   const handleBookingConfirm = () => {
     setIsBooking(true);
     // In a real app, you would save this to the database.
-    // Here we just simulate it.
     const newBooking = {
       id: `booking-${mockBookings.length + 1}`,
       carId: selectedCarId!,
@@ -80,10 +80,9 @@ function BookingWizard() {
       cost: service.price,
     };
     
-    console.log("Creating new booking:", newBooking);
+    setBookingDetails(newBooking);
 
     setTimeout(() => {
-        // mockBookings.push(newBooking); // This won't work with mock data persistence.
         setIsBooking(false);
         toast({
             title: "Booking Confirmed!",
@@ -102,17 +101,24 @@ function BookingWizard() {
              <header className="mb-8">
                 <Button variant="ghost" onClick={() => step > 1 ? setStep(step - 1) : router.back()} className="-ml-4">
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back
+                    {step === 1 ? 'Back to Garage' : 'Back'}
                 </Button>
-                <div className="flex items-center gap-4 mt-4">
-                    {steps.map(s => (
-                        <div key={s.num} className="flex-1 text-center">
-                            <div className={cn("py-2 border-b-4", step >= s.num ? 'border-primary' : 'border-border')}>
-                               <p className={cn("font-medium", step === s.num ? 'text-primary' : step < s.num ? 'text-muted-foreground' : 'text-foreground')}>
-                                 <span className="hidden sm:inline">Step {s.num}: </span>{s.title}
-                               </p>
+                <div className="flex items-center justify-between mt-6 max-w-2xl mx-auto">
+                    {bookingSteps.map((s, index) => (
+                        <Fragment key={s.num}>
+                            <div className="flex flex-col items-center gap-2 w-24">
+                                <div className={cn("h-12 w-12 rounded-full flex items-center justify-center border-2 transition-all duration-300", 
+                                    step > s.num ? "bg-primary border-primary text-primary-foreground" : 
+                                    step === s.num ? "border-primary scale-110" : "border-border bg-card"
+                                )}>
+                                    <s.icon className={cn("h-6 w-6", step === s.num ? "text-primary" : step > s.num ? "text-primary-foreground" : "text-muted-foreground")} />
+                                </div>
+                                <p className={cn("text-sm text-center font-medium", step >= s.num ? 'text-primary' : 'text-muted-foreground')}>{s.title}</p>
                             </div>
-                        </div>
+                            {index < bookingSteps.length - 1 && (
+                                <div className={cn("flex-auto border-t-2 transition-colors duration-300", step > s.num ? 'border-primary' : 'border-border')} />
+                            )}
+                        </Fragment>
                     ))}
                 </div>
             </header>
@@ -235,16 +241,39 @@ function BookingWizard() {
         </Card>
       )}
 
-      {step === 4 && (
+      {step === 4 && bookingDetails && selectedCar && (
         <Card className="text-center py-12">
             <CardHeader>
                 <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
                 <CardTitle className="text-3xl">Booking Confirmed!</CardTitle>
-                <CardDescription>Your appointment has been successfully scheduled.</CardDescription>
+                <CardDescription>Your appointment has been successfully scheduled. A confirmation has been sent to your email.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-                <p>A confirmation has been sent to your email.</p>
-                 <div className="flex flex-col sm:flex-row gap-2 justify-center">
+            <CardContent className="space-y-6 max-w-md mx-auto">
+                <Card className="text-left bg-muted/50">
+                    <CardContent className="p-4 grid gap-4 text-sm">
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Garage</span>
+                            <span className="font-semibold">{bookingDetails.garageName}</span>
+                        </div>
+                         <div className="flex justify-between">
+                            <span className="text-muted-foreground">Service</span>
+                            <span className="font-semibold">{bookingDetails.serviceType}</span>
+                        </div>
+                         <div className="flex justify-between">
+                            <span className="text-muted-foreground">Vehicle</span>
+                            <span className="font-semibold">{selectedCar.year} {selectedCar.make} {selectedCar.model}</span>
+                        </div>
+                         <div className="flex justify-between">
+                            <span className="text-muted-foreground">Date & Time</span>
+                            <span className="font-semibold">{format(new Date(bookingDetails.date), "PPP, p")}</span>
+                        </div>
+                         <div className="flex justify-between">
+                            <span className="text-muted-foreground">Cost</span>
+                            <span className="font-semibold">QAR {bookingDetails.cost.toFixed(2)}</span>
+                        </div>
+                    </CardContent>
+                </Card>
+                 <div className="flex flex-col sm:flex-row gap-2 justify-center pt-4">
                     <Button asChild size="lg">
                         <Link href="/dashboard/bookings">View My Bookings</Link>
                     </Button>

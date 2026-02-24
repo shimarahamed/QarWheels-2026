@@ -27,8 +27,6 @@ export function CarMaintenancePredictions({ car }: { car: Car }) {
       setIsLoading(true);
       setPrediction(null);
       try {
-        // Add a small delay to simulate network latency for skeleton loader
-        await new Promise(resolve => setTimeout(resolve, 1500));
         const result = await getMaintenancePredictions({
           vin: car.vin,
           mileage: car.mileage,

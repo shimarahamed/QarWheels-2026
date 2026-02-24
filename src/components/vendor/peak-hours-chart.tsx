@@ -11,17 +11,13 @@ export function PeakHoursChart({ timeRange }: { timeRange: string }) {
     useEffect(() => {
         setLoading(true);
         // Simulate fetching and filtering data
-        const timer = setTimeout(() => {
-            const multiplier = timeRange === 'last_30_days' ? 0.2 : timeRange === 'last_6_months' ? 0.8 : 1;
-            const interactiveData = mockAnalyticsData.peakHours.map(d => ({
-                ...d,
-                bookings: Math.max(1, Math.round(d.bookings * multiplier * (Math.random() * 0.4 + 0.8))),
-            }));
-            setData(interactiveData);
-            setLoading(false);
-        }, 1600);
-
-        return () => clearTimeout(timer);
+        const multiplier = timeRange === 'last_30_days' ? 0.2 : timeRange === 'last_6_months' ? 0.8 : 1;
+        const interactiveData = mockAnalyticsData.peakHours.map(d => ({
+            ...d,
+            bookings: Math.max(1, Math.round(d.bookings * multiplier * (Math.random() * 0.4 + 0.8))),
+        }));
+        setData(interactiveData);
+        setLoading(false);
     }, [timeRange]);
 
     if (loading) {
