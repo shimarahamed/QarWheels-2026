@@ -1,4 +1,6 @@
-import { mockBookings, mockCars } from "@/lib/data";
+// This page still uses mock data for bookings. Cars are fetched from Firestore.
+'use client';
+import { mockBookings } from "@/lib/data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,9 +16,12 @@ import { Car, Calendar, Wrench, CircleDollarSign, PlusCircle } from "lucide-reac
 import Link from "next/link";
 import { format } from "date-fns";
 import { Booking } from "@/lib/types";
+import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
+import type { Car as CarType } from "@/lib/types";
 
-function BookingCard({ booking }: { booking: Booking }) {
-  const car = mockCars.find((c) => c.id === booking.carId);
+function BookingCard({ booking, cars }: { booking: Booking, cars: CarType[] | null }) {
+  const car = cars?.find((c) => c.id === booking.carId);
   const getStatusVariant = (status: Booking["status"]) => {
     switch (status) {
       case "Confirmed":
@@ -72,7 +77,7 @@ function BookingCard({ booking }: { booking: Booking }) {
   );
 }
 
-function BookingList({ bookings }: { bookings: Booking[] }) {
+function BookingList({ bookings, cars }: { bookings: Booking[], cars: CarType[] | null }) {
   if (bookings.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-12">
@@ -85,13 +90,20 @@ function BookingList({ bookings }: { bookings: Booking[] }) {
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {bookings.map((booking) => (
-        <BookingCard key={booking.id} booking={booking} />
+        <BookingCard key={booking.id} booking={booking} cars={cars} />
       ))}
     </div>
   );
 }
 
 export default function BookingsPage() {
+  const { firestore, user } = useFirebase();
+  const carsCollection = useMemoFirebase(
+    () => (user ? collection(firestore, 'users', user.uid, 'cars') : null),
+    [firestore, user]
+  );
+  const { data: cars } = useCollection<CarType>(carsCollection);
+
   const now = new Date();
   const upcomingBookings = mockBookings.filter(
     (b) => new Date(b.date) >= now && b.status === "Confirmed"
@@ -123,10 +135,10 @@ export default function BookingsPage() {
           <TabsTrigger value="past">History</TabsTrigger>
         </TabsList>
         <TabsContent value="upcoming" className="mt-6">
-          <BookingList bookings={upcomingBookings} />
+          <BookingList bookings={upcomingBookings} cars={cars} />
         </TabsContent>
         <TabsContent value="past" className="mt-6">
-          <BookingList bookings={pastBookings} />
+          <BookingList bookings={pastBookings} cars={cars} />
         </TabsContent>
       </Tabs>
     </div>

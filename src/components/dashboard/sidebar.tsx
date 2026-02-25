@@ -17,14 +17,14 @@ import {
   History,
   LogOut,
   Search,
-  User,
+  User as UserIcon,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Logo } from "../logo";
 import { Input } from "../ui/input";
-import { mockUser } from "@/lib/data";
+import { useFirebase } from "@/firebase";
 
 const navItems = [
   { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard" },
@@ -32,11 +32,18 @@ const navItems = [
   { href: "/dashboard/garages", icon: <Wrench />, label: "Garages" },
   { href: "/dashboard/bookings", icon: <Book />, label: "Bookings" },
   { href: "/dashboard/service-history", icon: <History />, label: "Service History" },
-  { href: "/dashboard/profile", icon: <User />, label: "Profile" },
+  { href: "/dashboard/profile", icon: <UserIcon />, label: "Profile" },
 ];
 
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const { auth, user } = useFirebase();
+
+  const handleLogout = () => {
+    auth.signOut();
+  };
+
+  const userName = user?.isAnonymous ? "Anonymous User" : user?.email || "User";
 
   return (
     <>
@@ -66,24 +73,26 @@ export function DashboardSidebar() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="p-2 border-t mt-auto space-y-2">
-        <Link href="/dashboard/profile" className="p-2 rounded-md hover:bg-accent -mx-2">
-            <div className="flex items-center gap-3">
-                <Avatar className="h-9 w-9">
-                    <AvatarImage src={`https://api.dicebear.com/8.x/initials/svg?seed=${mockUser.name}`} alt={mockUser.name} />
-                    <AvatarFallback>{mockUser.name.substring(0, 2)}</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col">
-                    <span className="text-sm font-semibold">{mockUser.name}</span>
-                    <span className="text-xs text-muted-foreground">{mockUser.email}</span>
+        {user && (
+          <>
+            <Link href="/dashboard/profile" className="p-2 rounded-md hover:bg-accent -mx-2">
+                <div className="flex items-center gap-3">
+                    <Avatar className="h-9 w-9">
+                        <AvatarImage src={user.photoURL || `https://api.dicebear.com/8.x/initials/svg?seed=${userName}`} alt={userName} />
+                        <AvatarFallback>{userName.substring(0, 2)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col overflow-hidden">
+                        <span className="text-sm font-semibold truncate">{userName}</span>
+                        <span className="text-xs text-muted-foreground truncate">{user.uid}</span>
+                    </div>
                 </div>
-            </div>
-        </Link>
-        <Button asChild variant="ghost" className="w-full justify-start gap-2">
-          <Link href="/">
-            <LogOut />
-            <span>Logout</span>
-          </Link>
-        </Button>
+            </Link>
+            <Button onClick={handleLogout} variant="ghost" className="w-full justify-start gap-2">
+              <LogOut />
+              <span>Logout</span>
+            </Button>
+          </>
+        )}
       </SidebarFooter>
     </>
   );

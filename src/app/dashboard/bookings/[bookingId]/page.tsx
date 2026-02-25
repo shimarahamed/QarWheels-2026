@@ -1,6 +1,6 @@
 'use client';
 
-import { mockBookings, mockCars } from "@/lib/data";
+import { mockBookings } from "@/lib/data";
 import { notFound, useParams } from "next/navigation";
 import {
   Card,
@@ -37,8 +37,9 @@ export default function BookingDetailsPage() {
         notFound();
     }
 
-    const car = mockCars.find((c) => c.id === booking.carId);
-    const image = car ? PlaceHolderImages.find((img) => img.id === car.imageId) : null;
+    // Car data will be fetched from Firestore in a later step. This component still relies on mock data for car.
+    // const car = mockCars.find((c) => c.id === booking.carId);
+    // const image = car ? PlaceHolderImages.find((img) => img.id === car.imageId) : null;
 
     const getStatusVariant = (status: Booking["status"]) => {
         switch (status) {
@@ -113,7 +114,7 @@ export default function BookingDetailsPage() {
                             </div>
                          )}
                     </div>
-                    {car && (
+                    {/* {car && (
                         <div>
                              <h3 className="font-bold font-headline text-lg mb-4">Vehicle Information</h3>
                              <Card className="overflow-hidden flex flex-col sm:flex-row items-center gap-4">
@@ -132,7 +133,7 @@ export default function BookingDetailsPage() {
                                 </div>
                              </Card>
                         </div>
-                    )}
+                    )} */}
                 </CardContent>
             </Card>
         </div>

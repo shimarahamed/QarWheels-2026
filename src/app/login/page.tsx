@@ -1,9 +1,35 @@
+'use client';
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Fingerprint, Smartphone } from "lucide-react"
+import { Fingerprint, Smartphone, Loader2 } from "lucide-react"
 import { Logo } from "@/components/logo"
+import { useFirebase, initiateAnonymousSignIn } from "@/firebase";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function LoginPage() {
+  const { auth, user, isUserLoading } = useFirebase();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user) {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
+
+  const handleSignIn = () => {
+    initiateAnonymousSignIn(auth);
+  };
+  
+  if (isUserLoading || user) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    )
+  }
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-center">
       
@@ -17,9 +43,9 @@ export default function LoginPage() {
         </div>
         
         <div className="w-full space-y-4">
-             <Button className="w-full h-14 text-lg bg-primary/90 hover:bg-primary shadow-lg shadow-primary/20 flex items-center gap-3 animate-pulse">
+             <Button onClick={handleSignIn} className="w-full h-14 text-lg bg-primary/90 hover:bg-primary shadow-lg shadow-primary/20 flex items-center gap-3 animate-pulse">
                 <Fingerprint className="h-6 w-6"/>
-                Sign in with Face ID
+                Sign in Anonymously
              </Button>
              <div className="relative py-2">
                 <div className="absolute inset-0 flex items-center">

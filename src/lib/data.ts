@@ -1,35 +1,4 @@
-import type { Car, Booking, Garage, User } from "./types";
-
-export const mockCars: Car[] = [
-  {
-    id: "car-1",
-    userId: "user-1",
-    vin: "JN1AZ00Z000000001",
-    make: "Toyota",
-    model: "Land Cruiser",
-    year: 2022,
-    mileage: 45000,
-    imageId: "car-placeholder-2",
-    serviceHistory: [
-      { id: "hist-1-1", date: "2023-01-15", service: "Oil Change", description: "Standard 5W-30 synthetic oil.", cost: 350 },
-      { id: "hist-1-2", date: "2023-07-20", service: "Brake Pad Replacement", description: "Replaced front brake pads.", cost: 800 },
-      { id: "hist-1-3", date: "2024-01-10", service: "Full Inspection", description: "Comprehensive vehicle check-up.", cost: 500 },
-    ],
-  },
-  {
-    id: "car-2",
-    userId: "user-1",
-    vin: "SALVA20A000000002",
-    make: "Nissan",
-    model: "Patrol",
-    year: 2023,
-    mileage: 15000,
-    imageId: "car-placeholder-1",
-    serviceHistory: [
-      { id: "hist-2-1", date: "2023-10-05", service: "First Service (10,000km)", description: "Oil and filter change, tire rotation.", cost: 450 },
-    ],
-  },
-];
+import type { Booking, Garage, User } from "./types";
 
 export const mockBookings: Booking[] = [
   { id: "booking-1", carId: "car-1", garageName: "Precision Auto Qatar", serviceType: "AC Check & Recharge", date: "2024-08-15T10:00:00Z", status: "Confirmed" },

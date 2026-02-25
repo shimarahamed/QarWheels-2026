@@ -87,18 +87,19 @@ service cloud.firestore {
     }
 
     /**
-     * Validates relational integrity on Car creation. Ensures the car's 'id'
-     * and 'userId' fields match the path parameters.
+     * Validates relational integrity on Car creation. Ensures the car's 'userId'
+     * field matches the path parameter.
      */
-    function hasValidCarDataOnCreate(userId, carId) {
-      return request.resource.data.id == carId && request.resource.data.userId == userId;
+    function hasValidCarDataOnCreate(userId) {
+      return request.resource.data.userId == userId;
     }
 
     /**
      * Enforces immutability of a Car's 'id' and 'userId' fields during an update.
      */
     function hasValidCarDataOnUpdate() {
-      return request.resource.data.id == resource.data.id && request.resource.data.userId == resource.data.userId;
+      // The 'id' field of a car document is not standard and should not be enforced.
+      return request.resource.data.userId == resource.data.userId;
     }
 
     /**
@@ -142,7 +143,7 @@ service cloud.firestore {
      * @principle Restricts access to a user's own data tree (Self-Creation & Ownership).
      */
     match /users/{userId} {
-      allow get, list: if isOwner(userId);
+      allow get, list: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && hasValidUserProfileDataOnCreate(userId);
       allow update: if isExistingOwner(userId) && hasValidUserProfileDataOnUpdate();
       allow delete: if isExistingOwner(userId);
@@ -155,10 +156,10 @@ service cloud.firestore {
        * @principle Enforces document ownership for all operations based on the path.
        */
       match /cars/{carId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && hasValidCarDataOnCreate(userId, carId);
-        allow update: if isExistingOwner(userId) && hasValidCarDataOnUpdate();
-        allow delete: if isExistingOwner(userId);
+        allow get, list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && hasValidCarDataOnCreate(userId);
+        allow update: if isOwner(userId) && hasValidCarDataOnUpdate();
+        allow delete: if isOwner(userId);
 
         /**
          * @description A user can manage service records for their own cars.

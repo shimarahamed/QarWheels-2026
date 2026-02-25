@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useRouter } from "next/navigation"
+import { collection, serverTimestamp } from 'firebase/firestore';
 
 import { Button } from "@/components/ui/button"
 import {
@@ -21,6 +22,8 @@ import { Car as CarIcon, Loader2, Wand2 } from "lucide-react"
 import { getVinDetails } from "@/lib/actions"
 import type { VinDetailsOutput } from "@/ai/flows/get-vin-details"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useFirebase, addDocumentNonBlocking } from "@/firebase"
+import type { Car } from "@/lib/types"
 
 const formSchema = z.object({
   vin: z.string().trim().length(17, {
@@ -35,6 +38,7 @@ export function AddCarForm() {
   const [carDetails, setCarDetails] = useState<CarDetails | null>(null);
   const { toast } = useToast()
   const router = useRouter();
+  const { firestore, user } = useFirebase();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -62,15 +66,41 @@ export function AddCarForm() {
   }
 
   function handleConfirm() {
-    // In a real app, this would call an action to save the car to a database.
-    // Since we're using mock data, we'll just show a success message and redirect.
-    console.log("Adding car:", carDetails);
+    if (!carDetails || !user || !firestore) {
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Cannot add car. User not authenticated or system not ready.",
+        });
+        return;
+    }
+
+    const carsCollectionRef = collection(firestore, 'users', user.uid, 'cars');
+    const newCar: Omit<Car, 'id'> = {
+      userId: user.uid,
+      vin: carDetails.vin,
+      make: carDetails.make,
+      model: carDetails.model,
+      year: carDetails.year,
+      currentMileage: 0,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      serviceHistory: [],
+      // Optional fields initialized
+      licensePlate: '',
+      color: '',
+      engineType: '',
+      purchaseDate: new Date().toISOString(),
+      imageUrl: '',
+    };
+    
+    addDocumentNonBlocking(carsCollectionRef, newCar);
+
     toast({
-      title: "Car Added Successfully! (Simulated)",
-      description: `${carDetails?.year} ${carDetails?.make} ${carDetails?.model} has been added.`,
+      title: "Car Added!",
+      description: `${carDetails.year} ${carDetails.make} ${carDetails.model} has been added to your garage.`,
     });
-    // We are redirecting to the 'My Cars' page. The newly added car won't be in the list
-    // because we are using static mock data and cannot update it from the client.
+    
     router.push("/dashboard/my-cars");
   }
 

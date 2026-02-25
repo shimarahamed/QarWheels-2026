@@ -2,7 +2,7 @@
 
 import { useState, useMemo, Suspense, Fragment } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { mockGarages, mockCars, mockBookings } from '@/lib/data';
+import { mockGarages, mockBookings } from '@/lib/data';
 import { mockVendorServices } from '@/lib/vendor-data';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,9 @@ import { ArrowLeft, Car, Calendar as CalendarIcon, Clock, Wrench, CheckCircle, B
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { collection } from 'firebase/firestore';
+import type { Car as CarType } from "@/lib/types";
 
 const availableTimeSlots = [
   '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
@@ -41,6 +44,13 @@ function BookingWizard() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { toast } = useToast();
+  
+  const { firestore, user } = useFirebase();
+  const carsCollection = useMemoFirebase(
+    () => (user ? collection(firestore, 'users', user.uid, 'cars') : null),
+    [firestore, user]
+  );
+  const { data: cars, isLoading: isLoadingCars } = useCollection<CarType>(carsCollection);
 
   const garageId = searchParams.get('garageId');
   const serviceName = searchParams.get('service');
@@ -93,7 +103,7 @@ function BookingWizard() {
 
   };
 
-  const selectedCar = mockCars.find(c => c.id === selectedCarId);
+  const selectedCar = cars?.find(c => c.id === selectedCarId);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -138,12 +148,12 @@ function BookingWizard() {
                     <p className="text-sm text-muted-foreground">{garage.name}</p>
                 </div>
             </div>
-            <Select onValueChange={setSelectedCarId} value={selectedCarId || undefined}>
+            <Select onValueChange={setSelectedCarId} value={selectedCarId || undefined} disabled={isLoadingCars}>
               <SelectTrigger className="w-full h-12 text-base">
-                <SelectValue placeholder="Select a car..." />
+                <SelectValue placeholder={isLoadingCars ? "Loading cars..." : "Select a car..."} />
               </SelectTrigger>
               <SelectContent>
-                {mockCars.map(car => (
+                {cars?.map(car => (
                   <SelectItem key={car.id} value={car.id}>
                     <div className="flex items-center gap-3">
                       <Car className="h-5 w-5 text-muted-foreground" />
@@ -153,7 +163,7 @@ function BookingWizard() {
                 ))}
               </SelectContent>
             </Select>
-            <Button onClick={() => setStep(2)} disabled={!selectedCarId} className="w-full" size="lg">Next: Choose Date & Time</Button>
+            <Button onClick={() => setStep(2)} disabled={!selectedCarId || isLoadingCars} className="w-full" size="lg">Next: Choose Date & Time</Button>
           </CardContent>
         </Card>
       )}

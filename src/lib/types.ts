@@ -4,6 +4,12 @@ export type ServiceRecord = {
     service: string;
     description: string;
     cost: number;
+    serviceType: string;
+    serviceDescription: string;
+    serviceDate: string;
+    mileageAtService: number;
+    invoiceUrl?: string;
+    notes?: string;
 };
 
 export type Car = {
@@ -13,9 +19,19 @@ export type Car = {
     make: string;
     model: string;
     year: number;
-    mileage: number;
-    imageId: string;
+    licensePlate?: string;
+    color?: string;
+    engineType?: string;
+    currentMileage: number;
+    lastMileageUpdateDate?: string;
+    purchaseDate?: string;
+    imageUrl?: string;
+    createdAt: any; // serverTimestamp
+    updatedAt: any; // serverTimestamp
     serviceHistory: ServiceRecord[];
+    // This was the old field, replacing with currentMileage
+    mileage?: number; 
+    imageId?: string;
 };
 
 export type Booking = {

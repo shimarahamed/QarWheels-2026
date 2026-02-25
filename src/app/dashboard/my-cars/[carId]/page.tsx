@@ -1,11 +1,12 @@
-import { mockCars } from "@/lib/data";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
+'use client';
+
 import {
   Car as CarIcon,
   Calendar,
   Gauge,
   ArrowLeft,
   History,
+  Loader2,
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -23,25 +24,41 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { notFound } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import { CarMaintenancePredictions } from "@/components/dashboard/car-maintenance-predictions";
 import { ServiceHistorySummary } from "@/components/dashboard/service-history-summary";
 import Link from "next/link";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
+import { doc } from 'firebase/firestore';
+import type { Car } from "@/lib/types";
+import { PlaceHolderImages } from "@/lib/placeholder-images";
 
-export default function CarDetailsPage({
-  params,
-}: {
-  params: { carId: string };
-}) {
-  const car = mockCars.find((c) => c.id === params.carId);
+export default function CarDetailsPage() {
+  const params = useParams();
+  const carId = params.carId as string;
+  const { firestore, user } = useFirebase();
+
+  const carRef = useMemoFirebase(
+    () => (user && carId ? doc(firestore, 'users', user.uid, 'cars', carId) : null),
+    [firestore, user, carId]
+  );
+  const { data: car, isLoading } = useDoc<Car>(carRef);
+  
+  if (isLoading) {
+    return (
+        <div className="flex h-64 w-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    )
+  }
 
   if (!car) {
     notFound();
   }
 
-  const image = PlaceHolderImages.find((img) => img.id === car.imageId);
+  const image = PlaceHolderImages.find((img) => car.make.toLowerCase().includes(img.imageHint.split(' ')[1])) || PlaceHolderImages[1];
 
   return (
     <div className="space-y-6">
@@ -66,7 +83,7 @@ export default function CarDetailsPage({
           <Card className="overflow-hidden">
             {image && (
               <Image
-                src={image.imageUrl}
+                src={car.imageUrl || image.imageUrl}
                 alt={car.make + " " + car.model}
                 width={800}
                 height={450}
@@ -105,7 +122,7 @@ export default function CarDetailsPage({
                 <div>
                   <p className="text-sm text-muted-foreground">Mileage</p>
                   <p className="font-semibold">
-                    {car.mileage.toLocaleString()} km
+                    {car.currentMileage.toLocaleString()} km
                   </p>
                 </div>
               </div>
@@ -120,7 +137,7 @@ export default function CarDetailsPage({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {car.serviceHistory.length > 0 ? (
+              {car.serviceHistory && car.serviceHistory.length > 0 ? (
                 <div className="overflow-x-auto">
                     <Table>
                     <TableHeader>

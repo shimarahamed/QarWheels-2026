@@ -32,9 +32,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { getMaintenancePredictions } from "@/lib/actions";
 import type { PredictiveMaintenanceOutput } from "@/ai/flows/predictive-maintenance-suggestions";
-import { mockCars } from "@/lib/data";
 import { Loader2, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
+import type { Car } from "@/lib/types";
 
 const formSchema = z.object({
   vin: z.string().min(1, "Please select a car."),
@@ -47,28 +49,47 @@ export function MaintenancePredictions() {
   const [prediction, setPrediction] = useState<PredictiveMaintenanceOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { firestore, user } = useFirebase();
+
+  const carsCollection = useMemoFirebase(
+    () => (user ? collection(firestore, 'users', user.uid, 'cars') : null),
+    [firestore, user]
+  );
+  const { data: cars, isLoading: isLoadingCars } = useCollection<Car>(carsCollection);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      vin: mockCars.length > 0 ? mockCars[0].vin : "",
-      mileage: mockCars.length > 0 ? mockCars[0].mileage : 0,
-      serviceHistory: mockCars.length > 0 ? JSON.stringify(mockCars[0].serviceHistory, null, 2) : "[]",
+      vin: "",
+      mileage: 0,
+      serviceHistory: "[]",
       qatarClimate: `Hot and arid desert climate. Summer (May-Sep) temperatures average 42°C, can exceed 50°C. High humidity along the coast. Winter (Dec-Feb) is milder, around 23°C. Sand and dust storms are common.`,
     },
   });
 
+  useEffect(() => {
+    if (cars && cars.length > 0 && !form.getValues('vin')) {
+      const firstCar = cars[0];
+      form.reset({
+        vin: firstCar.vin,
+        mileage: firstCar.currentMileage,
+        serviceHistory: JSON.stringify(firstCar.serviceHistory, null, 2),
+        qatarClimate: form.getValues('qatarClimate'),
+      });
+    }
+  }, [cars, form]);
+
   const selectedVin = form.watch("vin");
 
   useEffect(() => {
-    if (selectedVin) {
-        const selectedCar = mockCars.find(car => car.vin === selectedVin);
+    if (selectedVin && cars) {
+        const selectedCar = cars.find(car => car.vin === selectedVin);
         if (selectedCar) {
-            form.setValue("mileage", selectedCar.mileage);
+            form.setValue("mileage", selectedCar.currentMileage);
             form.setValue("serviceHistory", JSON.stringify(selectedCar.serviceHistory, null, 2));
         }
     }
-  }, [selectedVin, form]);
+  }, [selectedVin, form, cars]);
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -107,14 +128,14 @@ export function MaintenancePredictions() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Car (VIN)</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isLoadingCars}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a car" />
+                          <SelectValue placeholder={isLoadingCars ? "Loading cars..." : "Select a car"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {mockCars.map((car) => (
+                        {cars?.map((car) => (
                           <SelectItem key={car.vin} value={car.vin}>
                             {car.year} {car.make} {car.model}
                           </SelectItem>
@@ -164,7 +185,7 @@ export function MaintenancePredictions() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={isLoading} className="w-full">
+              <Button type="submit" disabled={isLoading || isLoadingCars || !cars || cars.length === 0} className="w-full">
                 {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
+import { FirebaseClientProvider } from '@/firebase';
 
 const fontBody = Inter({
   subsets: ['latin'],
@@ -31,7 +32,9 @@ export default function RootLayout({
       <body
         className={`${fontBody.variable} ${fontHeadline.variable} font-body antialiased`}
       >
-        {children}
+        <FirebaseClientProvider>
+          {children}
+        </FirebaseClientProvider>
         <Toaster />
       </body>
     </html>

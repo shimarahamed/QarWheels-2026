@@ -1,4 +1,7 @@
-import { mockCars } from "@/lib/data";
+'use client';
+import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
+import type { Car } from "@/lib/types";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import {
   Accordion,
@@ -21,12 +24,30 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Car, History } from "lucide-react";
+import { Car as CarIcon, History, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import Image from "next/image";
 import { ServiceHistorySummary } from "@/components/dashboard/service-history-summary";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+
 
 export default function ServiceHistoryPage() {
+  const { firestore, user } = useFirebase();
+  const carsCollection = useMemoFirebase(
+    () => (user ? collection(firestore, 'users', user.uid, 'cars') : null),
+    [firestore, user]
+  );
+  const { data: cars, isLoading } = useCollection<Car>(carsCollection);
+
+  if (isLoading) {
+    return (
+        <div className="flex h-64 w-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    )
+  }
+
   return (
     <div className="space-y-8">
       <header>
@@ -36,17 +57,17 @@ export default function ServiceHistoryPage() {
         </p>
       </header>
 
-      {mockCars.length > 0 ? (
+      {cars && cars.length > 0 ? (
         <Accordion type="single" collapsible className="w-full space-y-4">
-          {mockCars.map((car) => {
-            const image = PlaceHolderImages.find((img) => img.id === car.imageId);
+          {cars.map((car) => {
+            const image = PlaceHolderImages.find((img) => img.id === car.imageId) || PlaceHolderImages[0];
             return (
               <AccordionItem value={car.id} key={car.id} className="border-b-0 rounded-lg bg-card border shadow-sm overflow-hidden transition-shadow hover:shadow-lg hover:border-primary">
                 <AccordionTrigger className="p-6 hover:no-underline">
                   <div className="flex items-center gap-6 text-left w-full">
                     {image && (
                       <Image
-                        src={image.imageUrl}
+                        src={car.imageUrl || image.imageUrl}
                         alt={car.make}
                         width={120}
                         height={80}
@@ -63,7 +84,7 @@ export default function ServiceHistoryPage() {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="p-6 pt-0">
-                    {car.serviceHistory.length > 0 ? (
+                    {car.serviceHistory && car.serviceHistory.length > 0 ? (
                         <div className="grid lg:grid-cols-3 gap-6 items-start">
                             <div className="lg:col-span-2">
                                  <Card>
@@ -135,9 +156,12 @@ export default function ServiceHistoryPage() {
       ) : (
         <Card>
             <CardContent className="text-center text-muted-foreground py-16">
-                <Car className="mx-auto h-12 w-12 mb-4 text-primary/50" />
+                <CarIcon className="mx-auto h-12 w-12 mb-4 text-primary/50" />
                 <h3 className="text-lg font-semibold">No Cars Added</h3>
                 <p>You haven't added any cars to your profile yet.</p>
+                 <Button asChild className="mt-4">
+                  <Link href="/dashboard/my-cars/add">Add Your First Car</Link>
+                </Button>
             </CardContent>
         </Card>
       )}
