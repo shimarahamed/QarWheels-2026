@@ -1,0 +1,431 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a user registered on the QarWheels platform, holding their basic profile information.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address, used for communication and potentially login. (Relationship: UserProfile 1:N Car)",
+          "format": "email"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The user's first name."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The user's last name."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The user's contact phone number."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "firstName",
+        "lastName",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Car": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Car",
+      "type": "object",
+      "description": "Represents a vehicle owned by a user, including its core details, VIN information, and current status.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Car entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who owns this car. (Relationship: UserProfile 1:N Car)"
+        },
+        "vin": {
+          "type": "string",
+          "description": "Vehicle Identification Number, a globally unique identifier for the car. Used for prefilling car information via external APIs."
+        },
+        "make": {
+          "type": "string",
+          "description": "The manufacturer of the car (e.g., 'Toyota', 'BMW')."
+        },
+        "model": {
+          "type": "string",
+          "description": "The specific model of the car (e.g., 'Camry', 'X5')."
+        },
+        "year": {
+          "type": "number",
+          "description": "The manufacturing year of the car."
+        },
+        "licensePlate": {
+          "type": "string",
+          "description": "The car's license plate number."
+        },
+        "color": {
+          "type": "string",
+          "description": "The exterior color of the car."
+        },
+        "engineType": {
+          "type": "string",
+          "description": "The type of engine (e.g., 'Gasoline', 'Diesel', 'Electric', 'Hybrid')."
+        },
+        "currentMileage": {
+          "type": "number",
+          "description": "The current recorded mileage of the car."
+        },
+        "lastMileageUpdateDate": {
+          "type": "string",
+          "description": "The date and time when the current mileage was last updated.",
+          "format": "date-time"
+        },
+        "purchaseDate": {
+          "type": "string",
+          "description": "The date when the user acquired the car.",
+          "format": "date-time"
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL to an image of the car, typically stored in Firebase Storage.",
+          "format": "uri"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the car record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the car record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "vin",
+        "make",
+        "model",
+        "year",
+        "currentMileage",
+        "lastMileageUpdateDate",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Vendor": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Vendor",
+      "type": "object",
+      "description": "Represents a service provider or parts store registered on the QarWheels platform, including their location and approval status.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Vendor entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The official name of the garage or parts store."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of vendor (e.g., 'Garage', 'Parts Store', 'Both')."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the vendor's services or offerings."
+        },
+        "address": {
+          "type": "string",
+          "description": "The physical street address of the vendor's location."
+        },
+        "city": {
+          "type": "string",
+          "description": "The city where the vendor is located."
+        },
+        "country": {
+          "type": "string",
+          "description": "The country where the vendor is located (e.g., 'Qatar')."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The main contact phone number for the vendor."
+        },
+        "email": {
+          "type": "string",
+          "description": "The main contact email address for the vendor.",
+          "format": "email"
+        },
+        "websiteUrl": {
+          "type": "string",
+          "description": "The official website URL for the vendor.",
+          "format": "uri"
+        },
+        "latitude": {
+          "type": "number",
+          "description": "The geographical latitude coordinate of the vendor's location, for map display."
+        },
+        "longitude": {
+          "type": "number",
+          "description": "The geographical longitude coordinate of the vendor's location, for map display."
+        },
+        "status": {
+          "type": "string",
+          "description": "The approval status of the vendor ('Pending Approval', 'Approved', 'Rejected', 'Active', 'Inactive')."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the vendor record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the vendor record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "type",
+        "address",
+        "city",
+        "country",
+        "phoneNumber",
+        "email",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ServiceRecord": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ServiceRecord",
+      "type": "object",
+      "description": "Details of a historical service performed on a specific car, including vendor information and invoice links.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ServiceRecord entity."
+        },
+        "carId": {
+          "type": "string",
+          "description": "Reference to the Car that received the service. (Relationship: Car 1:N ServiceRecord)"
+        },
+        "vendorId": {
+          "type": "string",
+          "description": "Reference to the Vendor who performed the service. (Relationship: Vendor 1:N ServiceRecord)"
+        },
+        "serviceType": {
+          "type": "string",
+          "description": "The general category of service performed (e.g., 'Oil Change', 'Brake Service', 'Tire Rotation')."
+        },
+        "serviceDescription": {
+          "type": "string",
+          "description": "A detailed description of the work performed during the service."
+        },
+        "serviceDate": {
+          "type": "string",
+          "description": "The date and time when the service was completed.",
+          "format": "date-time"
+        },
+        "mileageAtService": {
+          "type": "number",
+          "description": "The car's mileage at the time the service was performed."
+        },
+        "cost": {
+          "type": "number",
+          "description": "The total cost of the service."
+        },
+        "invoiceUrl": {
+          "type": "string",
+          "description": "URL to the invoice document for this service, stored in Firebase Storage.",
+          "format": "uri"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Any additional notes or comments about the service."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the service record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the service record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "carId",
+        "vendorId",
+        "serviceType",
+        "serviceDate",
+        "mileageAtService",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ServicePrediction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ServicePrediction",
+      "type": "object",
+      "description": "An AI-generated prediction for future car maintenance needs, linked to a specific car.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ServicePrediction entity."
+        },
+        "carId": {
+          "type": "string",
+          "description": "Reference to the Car for which the prediction was made. (Relationship: Car 1:N ServicePrediction)"
+        },
+        "predictedServiceType": {
+          "type": "string",
+          "description": "The type of service predicted (e.g., 'Oil Change', 'Tire Replacement', 'Brake Inspection')."
+        },
+        "predictedDueDate": {
+          "type": "string",
+          "description": "The estimated date when the predicted service will be due.",
+          "format": "date-time"
+        },
+        "predictedMileage": {
+          "type": "number",
+          "description": "The estimated mileage at which the predicted service will be due."
+        },
+        "reasoning": {
+          "type": "string",
+          "description": "A detailed explanation from the AI model about why this service is predicted."
+        },
+        "confidenceScore": {
+          "type": "number",
+          "description": "A numerical score (0.0-1.0) indicating the AI model's confidence in this prediction."
+        },
+        "predictionTimestamp": {
+          "type": "string",
+          "description": "The date and time when this service prediction was generated.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the prediction (e.g., 'Open', 'Actioned', 'Dismissed')."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the service prediction record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the service prediction record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "carId",
+        "predictedServiceType",
+        "predictedDueDate",
+        "predictedMileage",
+        "reasoning",
+        "confidenceScore",
+        "predictionTimestamp",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores individual user profiles. Access is restricted to the user whose ID matches '{userId}'. The 'id' field within the document must match the '{userId}' path parameter for data integrity."
+        }
+      },
+      {
+        "path": "/users/{userId}/cars/{carId}",
+        "definition": {
+          "entityName": "Car",
+          "schema": {
+            "$ref": "#/backend/entities/Car"
+          },
+          "description": "Stores details for each car owned by a user. This is a subcollection of a user's profile. Includes denormalized 'userId' field for authorization independence, ensuring the car belongs to the user defined by the path."
+        }
+      },
+      {
+        "path": "/users/{userId}/cars/{carId}/serviceRecords/{serviceRecordId}",
+        "definition": {
+          "entityName": "ServiceRecord",
+          "schema": {
+            "$ref": "#/backend/entities/ServiceRecord"
+          },
+          "description": "Contains historical service records for a specific car. Nested under a user's car, ensuring ownership is tied to the user and car. Includes denormalized 'carId' for authorization independence within the subcollection context."
+        }
+      },
+      {
+        "path": "/users/{userId}/cars/{carId}/servicePredictions/{servicePredictionId}",
+        "definition": {
+          "entityName": "ServicePrediction",
+          "schema": {
+            "$ref": "#/backend/entities/ServicePrediction"
+          },
+          "description": "Stores AI-generated service predictions for a specific car. Nested under a user's car. Includes denormalized 'carId' for authorization independence within the subcollection context."
+        }
+      },
+      {
+        "path": "/vendors/{vendorId}",
+        "definition": {
+          "entityName": "Vendor",
+          "schema": {
+            "$ref": "#/backend/entities/Vendor"
+          },
+          "description": "Stores information about service providers and parts stores. Includes 'ownerId' (denormalized user ID of the vendor registrant) for vendor-specific access and a 'status' field ('Approved', 'Pending Approval') for controlling public visibility. Public users can only read 'Approved' vendors, requiring explicit client-side query filtering enforced by security rules. Admins can manage all vendors regardless of status."
+        }
+      },
+      {
+        "path": "/roles_admin/{adminId}",
+        "definition": {
+          "entityName": "AdminRole",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "A collection used for Database Access Control (DBAC). The existence of a document at this path where '{adminId}' matches a user's UID grants administrative privileges to that user. Document content can be minimal or empty."
+        }
+      }
+    ],
+    "reasoning": "The recommended Firestore data structure for QarWheels prioritizes Authorization Independence, Structural Segregation, and consistent Access Modeling to ensure security, scalability, and debuggability. All user-specific data (profiles, cars, service records, and service predictions) are nested under a top-level `/users/{userId}` collection. This path-based ownership makes security rules extremely simple and atomic: access to any document within a user's branch can be authorized by checking `request.auth.uid == userId` from the path. This eliminates the need for `get()` calls to parent documents, thus ensuring Authorization Independence.\n\nFor `Car` documents, the `userId` is explicitly denormalized into the document, reinforcing ownership and allowing for future flexibility if `Car` documents were ever to be queried or moved to a top-level collection. Similarly, `ServiceRecord` and `ServicePrediction` documents contain `carId`, linking them directly to their parent car, while their parent `userId` is derived from the path.\n\nVendor data, which has both public and private/admin-managed states, is handled within a single `/vendors/{vendorId}` collection. To achieve QAPs (Rules are not Filters) for public listing, each `Vendor` document includes an `ownerId` (the user who registered the vendor) for management by the vendor themselves, and a `status` field. Public read access will require client queries to explicitly filter for `status == 'Approved'`, with security rules enforcing this query constraint. This ensures that a `list` operation will only ever return approved vendors, satisfying the QAP principle without requiring the rules to act as filters. Admin roles are managed via a dedicated `/roles_admin/{adminId}` collection, using the 'existence over content' pattern for DBAC.\n\nOverall, this design supports robust `list` operations by structuring data hierarchically for user-owned content and by using explicit status fields and rule-enforced query parameters for shared, global data. Authorization is explicit, self-contained within the document or its immediate path, and avoids complex hierarchical lookups."
+  }
+}
