@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -141,7 +142,7 @@ export function LandingPage() {
                         </p>
                     </div>
                 </div>
-                <div className="mx-auto grid items-start gap-8 sm:max-w-4xl sm:grid-cols-1 md:gap-12 lg:max-w-5xl lg:grid-cols-3">
+                <div className="mx-auto grid items-start gap-8 sm:grid-cols-1 md:gap-12 lg:grid-cols-3">
                     {howItWorks.map((step, index) => (
                         <div key={index} className="grid gap-4 text-center">
                             <div className="mx-auto bg-card p-4 rounded-full w-fit border">
