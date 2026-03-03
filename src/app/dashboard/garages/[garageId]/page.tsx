@@ -93,7 +93,6 @@ export default function GarageDetailsPage() {
                                 <MapPin className="h-4 w-4 shrink-0" />
                                 <span>{vendor.address}</span>
                             </div>
-                            <p className="text-xs text-muted-foreground/70 font-mono mt-1">Ref: {vendor.id}</p>
                         </div>
                         <div className="shrink-0">
                              <StarRating rating={vendor.rating} reviewCount={vendor.reviewCount}/>

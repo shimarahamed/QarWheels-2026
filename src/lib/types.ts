@@ -4,14 +4,11 @@ import { Timestamp } from "firebase/firestore";
 export type WithId<T> = T & { id: string };
 
 export type ServiceRecord = {
-    date: string;
-    service: string;
-    description: string;
-    cost: number;
     serviceType: string;
     serviceDescription: string;
     serviceDate: string;
     mileageAtService: number;
+    cost: number;
     invoiceUrl?: string;
     notes?: string;
 };

@@ -76,7 +76,6 @@ export default function CarDetailsPage() {
           {car.year} {car.make} {car.model}
         </h1>
         <p className="text-muted-foreground font-mono">{car.vin}</p>
-        <p className="text-xs text-muted-foreground/70 font-mono">Ref: {car.id}</p>
       </header>
 
       <div className="grid lg:grid-cols-3 gap-8 items-start">
@@ -153,10 +152,10 @@ export default function CarDetailsPage() {
                         {car.serviceHistory.map((record) => (
                         <TableRow key={record.id}>
                             <TableCell className="font-medium whitespace-nowrap">
-                            {format(new Date(record.date), "PPP")}
+                            {format(new Date(record.serviceDate), "PPP")}
                             </TableCell>
-                            <TableCell>{record.service}</TableCell>
-                            <TableCell>{record.description}</TableCell>
+                            <TableCell>{record.serviceType}</TableCell>
+                            <TableCell>{record.serviceDescription}</TableCell>
                             <TableCell className="text-right whitespace-nowrap">
                             QAR {record.cost.toFixed(2)}
                             </TableCell>

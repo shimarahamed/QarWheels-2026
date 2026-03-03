@@ -104,14 +104,14 @@ export default function ServiceHistoryPage() {
                                             </TableHeader>
                                             <TableBody>
                                             {car.serviceHistory
-                                                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                                .sort((a, b) => new Date(b.serviceDate).getTime() - new Date(a.serviceDate).getTime())
                                                 .map((record) => (
                                                 <TableRow key={record.id}>
                                                     <TableCell className="font-medium whitespace-nowrap">
-                                                    {format(new Date(record.date), "PPP")}
+                                                    {format(new Date(record.serviceDate), "PPP")}
                                                     </TableCell>
-                                                    <TableCell>{record.service}</TableCell>
-                                                    <TableCell>{record.description}</TableCell>
+                                                    <TableCell>{record.serviceType}</TableCell>
+                                                    <TableCell>{record.serviceDescription}</TableCell>
                                                     <TableCell className="text-right whitespace-nowrap">
                                                     QAR {record.cost.toFixed(2)}
                                                     </TableCell>
