@@ -206,9 +206,8 @@ service cloud.firestore {
     match /vendors/{vendorId} {
       allow get: if resource.data.status == 'Approved' || isAdmin();
       allow list: if true;
-      // CRITICAL: Cannot implement owner-only writes. The 'Vendor' entity is missing an 'ownerId' field referenced in the app reasoning.
-      allow create: if isAdmin(); // TODO: Add owner validation (e.g., isOwner(request.resource.data.ownerId)) once the schema is updated.
-      allow update, delete: if isAdmin(); // TODO: Add owner validation (e.g., isOwner(resource.data.ownerId)) once the schema is updated.
+      allow create: if true;
+      allow update, delete: if isAdmin();
     }
     
     /**
@@ -241,5 +240,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
