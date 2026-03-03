@@ -2,7 +2,7 @@
 
 import { useState, useMemo, Suspense, Fragment } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { mockGarages, mockBookings } from '@/lib/data';
+import { mockGarages } from '@/lib/data';
 import { mockVendorServices } from '@/lib/vendor-data';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -21,12 +21,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
-import { ArrowLeft, Car, Calendar as CalendarIcon, Clock, Wrench, CheckCircle, Building } from 'lucide-react';
+import { ArrowLeft, Car, Calendar as CalendarIcon, Clock, Wrench, CheckCircle, Building, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from 'firebase/firestore';
+import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase";
+import { collection, serverTimestamp } from 'firebase/firestore';
 import type { Car as CarType } from "@/lib/types";
 
 const availableTimeSlots = [
@@ -78,29 +78,67 @@ function BookingWizard() {
   }
 
   const handleBookingConfirm = () => {
+    if (!firestore || !user || !selectedCarId || !selectedDate || !selectedTime) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Missing required information to create a booking.",
+      });
+      return;
+    }
+
     setIsBooking(true);
-    // In a real app, you would save this to the database.
+    
+    // Parse time correctly for ISO string
+    const [time, modifier] = selectedTime.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+
+    if (modifier === 'PM' && hours !== 12) {
+        hours += 12;
+    }
+    if (modifier === 'AM' && hours === 12) {
+        hours = 0;
+    }
+
+    const bookingDateTime = new Date(selectedDate);
+    bookingDateTime.setHours(hours, minutes, 0, 0);
+
     const newBooking = {
-      id: `booking-${mockBookings.length + 1}`,
-      carId: selectedCarId!,
-      garageName: garage.name,
-      serviceType: service.name,
-      date: new Date(`${format(selectedDate!, 'yyyy-MM-dd')}T${selectedTime!.split(' ')[0]}:00`).toISOString(),
+      userId: user.uid,
+      vendorId: garage.id,
+      vendorName: garage.name,
+      carId: selectedCarId,
+      serviceName: service.name,
+      bookingDate: bookingDateTime.toISOString(),
       status: 'Confirmed' as const,
       cost: service.price,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     };
-    
-    setBookingDetails(newBooking);
 
-    setTimeout(() => {
-        setIsBooking(false);
+    const bookingsCollectionRef = collection(firestore, 'bookings');
+    
+    addDocumentNonBlocking(bookingsCollectionRef, newBooking)
+      .then((docRef) => {
+        setBookingDetails({ ...newBooking, id: docRef.id });
         toast({
             title: "Booking Confirmed!",
             description: "Your appointment has been successfully scheduled.",
         });
         setStep(4); // Move to success step
-    }, 1500);
-
+      })
+      .catch((err) => {
+         console.error("Booking failed: ", err);
+         // The global error handler will catch permission errors, but we can handle others here.
+         toast({
+            variant: "destructive",
+            title: "Booking Failed",
+            description: "Could not save your appointment. Please try again.",
+        });
+      })
+      .finally(() => {
+        setIsBooking(false);
+      });
   };
 
   const selectedCar = cars?.find(c => c.id === selectedCarId);
@@ -245,7 +283,7 @@ function BookingWizard() {
                 <span className="font-bold text-lg">QAR {service.price.toFixed(2)}</span>
             </div>
             <Button onClick={handleBookingConfirm} disabled={isBooking} className="w-full" size="lg">
-                {isBooking ? 'Confirming...' : 'Confirm Booking'}
+                {isBooking ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Confirming...</> : 'Confirm Booking'}
             </Button>
           </CardContent>
         </Card>
@@ -263,11 +301,11 @@ function BookingWizard() {
                     <CardContent className="p-4 grid gap-4 text-sm">
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Garage</span>
-                            <span className="font-semibold">{bookingDetails.garageName}</span>
+                            <span className="font-semibold">{bookingDetails.vendorName}</span>
                         </div>
                          <div className="flex justify-between">
                             <span className="text-muted-foreground">Service</span>
-                            <span className="font-semibold">{bookingDetails.serviceType}</span>
+                            <span className="font-semibold">{bookingDetails.serviceName}</span>
                         </div>
                          <div className="flex justify-between">
                             <span className="text-muted-foreground">Vehicle</span>
@@ -275,7 +313,7 @@ function BookingWizard() {
                         </div>
                          <div className="flex justify-between">
                             <span className="text-muted-foreground">Date & Time</span>
-                            <span className="font-semibold">{format(new Date(bookingDetails.date), "PPP, p")}</span>
+                            <span className="font-semibold">{format(new Date(bookingDetails.bookingDate), "PPP, p")}</span>
                         </div>
                          <div className="flex justify-between">
                             <span className="text-muted-foreground">Cost</span>
@@ -306,3 +344,5 @@ export default function BookPage() {
         </Suspense>
     )
 }
+
+    

@@ -12,6 +12,7 @@
  *     - /servicePredictions/{servicePredictionId}: AI-generated maintenance predictions.
  * - /vendors/{vendorId}: A top-level collection for service vendors. Data is
  *   publicly readable only for vendors with a status of 'Approved'.
+ * - /bookings/{bookingId}: A top-level collection for all appointments.
  * - /roles_admin/{adminId}: A collection for managing admin privileges. The existence
  *   of a document with the user's ID grants them admin access.
  *
@@ -209,6 +210,19 @@ service cloud.firestore {
       allow create: if isAdmin(); // TODO: Add owner validation (e.g., isOwner(request.resource.data.ownerId)) once the schema is updated.
       allow update, delete: if isAdmin(); // TODO: Add owner validation (e.g., isOwner(resource.data.ownerId)) once the schema is updated.
     }
+    
+    /**
+     * @description Manages access to service bookings.
+     * @path /bookings/{bookingId}
+     * @allow A user can create their own booking and can only view/manage bookings they own.
+     * @deny A user cannot view or modify another user's bookings.
+     * @principle Enforces data ownership on a global collection via a 'userId' field.
+     */
+    match /bookings/{bookingId} {
+      allow get, list: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isOwner(request.resource.data.userId);
+      allow update, delete: if isOwner(resource.data.userId);
+    }
 
     // --------------------------------
     // Admin & Role Management Rules
@@ -227,3 +241,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

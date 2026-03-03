@@ -1,6 +1,4 @@
-// This page still uses mock data for bookings. Cars are fetched from Firestore.
 'use client';
-import { mockBookings } from "@/lib/data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,16 +10,16 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Car, Calendar, Wrench, CircleDollarSign, PlusCircle } from "lucide-react";
+import { Car, Calendar, Wrench, CircleDollarSign, PlusCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { Booking } from "@/lib/types";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, query, where, Timestamp } from "firebase/firestore";
 import type { Car as CarType } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
-function BookingCard({ booking, cars }: { booking: Booking, cars: CarType[] | null }) {
-  const car = cars?.find((c) => c.id === booking.carId);
+function BookingCard({ booking, car }: { booking: Booking, car?: CarType }) {
   const getStatusVariant = (status: Booking["status"]) => {
     switch (status) {
       case "Confirmed":
@@ -35,13 +33,17 @@ function BookingCard({ booking, cars }: { booking: Booking, cars: CarType[] | nu
     }
   };
 
+  const bookingDate = booking.bookingDate instanceof Timestamp 
+    ? booking.bookingDate.toDate() 
+    : new Date(booking.bookingDate);
+
   return (
     <Card className="flex flex-col transition-shadow hover:shadow-lg hover:border-primary">
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle>{booking.serviceType}</CardTitle>
-            <CardDescription>{booking.garageName}</CardDescription>
+            <CardTitle>{booking.serviceName}</CardTitle>
+            <CardDescription>{booking.vendorName}</CardDescription>
           </div>
           <Badge variant={getStatusVariant(booking.status)}>
             {booking.status}
@@ -59,7 +61,7 @@ function BookingCard({ booking, cars }: { booking: Booking, cars: CarType[] | nu
         )}
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Calendar className="h-4 w-4" />
-          <span>{format(new Date(booking.date), "PPP, p")}</span>
+          <span>{format(bookingDate, "PPP, p")}</span>
         </div>
         {booking.cost && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -77,8 +79,26 @@ function BookingCard({ booking, cars }: { booking: Booking, cars: CarType[] | nu
   );
 }
 
-function BookingList({ bookings, cars }: { bookings: Booking[], cars: CarType[] | null }) {
-  if (bookings.length === 0) {
+function BookingList({ bookings, cars, isLoading }: { bookings: Booking[] | null, cars: CarType[] | null, isLoading: boolean }) {
+  if (isLoading) {
+    return (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {[...Array(3)].map((_, i) => (
+                <Card key={i} className="space-y-4 p-4">
+                    <div className="flex justify-between">
+                        <Skeleton className="h-5 w-32" />
+                        <Skeleton className="h-5 w-20" />
+                    </div>
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-8 w-24" />
+                </Card>
+            ))}
+        </div>
+    )
+  }
+  
+  if (!bookings || bookings.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-12">
         <Wrench className="mx-auto h-12 w-12 mb-4" />
@@ -89,28 +109,37 @@ function BookingList({ bookings, cars }: { bookings: Booking[], cars: CarType[] 
 
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      {bookings.map((booking) => (
-        <BookingCard key={booking.id} booking={booking} cars={cars} />
-      ))}
+      {bookings.map((booking) => {
+        const car = cars?.find((c) => c.id === booking.carId);
+        return <BookingCard key={booking.id} booking={booking} car={car} />
+      })}
     </div>
   );
 }
 
 export default function BookingsPage() {
   const { firestore, user } = useFirebase();
+
   const carsCollection = useMemoFirebase(
     () => (user ? collection(firestore, 'users', user.uid, 'cars') : null),
     [firestore, user]
   );
   const { data: cars } = useCollection<CarType>(carsCollection);
 
-  const now = new Date();
-  const upcomingBookings = mockBookings.filter(
-    (b) => new Date(b.date) >= now && b.status === "Confirmed"
-  ).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const bookingsQuery = useMemoFirebase(
+    () => (user ? query(collection(firestore, 'bookings'), where('userId', '==', user.uid)) : null),
+    [firestore, user]
+  );
+  const { data: bookings, isLoading: isLoadingBookings } = useCollection<Booking>(bookingsQuery);
 
-  const pastBookings = mockBookings.filter((b) => new Date(b.date) < now)
-  .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const now = new Date();
+  
+  const upcomingBookings = bookings?.filter(
+    (b) => new Date(b.bookingDate instanceof Timestamp ? b.bookingDate.toDate() : b.bookingDate) >= now && b.status === "Confirmed"
+  ).sort((a,b) => new Date(a.bookingDate instanceof Timestamp ? a.bookingDate.toDate() : a.bookingDate).getTime() - new Date(b.bookingDate instanceof Timestamp ? b.bookingDate.toDate() : b.bookingDate).getTime());
+
+  const pastBookings = bookings?.filter((b) => new Date(b.bookingDate instanceof Timestamp ? b.bookingDate.toDate() : b.bookingDate) < now)
+  .sort((a,b) => new Date(b.bookingDate instanceof Timestamp ? b.bookingDate.toDate() : b.bookingDate).getTime() - new Date(a.bookingDate instanceof Timestamp ? a.bookingDate.toDate() : a.bookingDate).getTime());
 
   return (
     <div className="space-y-8">
@@ -135,12 +164,14 @@ export default function BookingsPage() {
           <TabsTrigger value="past">History</TabsTrigger>
         </TabsList>
         <TabsContent value="upcoming" className="mt-6">
-          <BookingList bookings={upcomingBookings} cars={cars} />
+          <BookingList bookings={upcomingBookings} cars={cars} isLoading={isLoadingBookings} />
         </TabsContent>
         <TabsContent value="past" className="mt-6">
-          <BookingList bookings={pastBookings} cars={cars} />
+          <BookingList bookings={pastBookings} cars={cars} isLoading={isLoadingBookings} />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
+
+    

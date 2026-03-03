@@ -1,3 +1,5 @@
+import { Timestamp } from "firebase/firestore";
+
 export type ServiceRecord = {
     id: string;
     date: string;
@@ -36,13 +38,18 @@ export type Car = {
 
 export type Booking = {
     id: string;
+    userId: string;
+    vendorId: string;
+    vendorName: string;
     carId: string;
-    garageName: string;
-    serviceType: string;
-    date: string;
+    serviceName: string;
+    bookingDate: Timestamp | string; // Firestore returns Timestamp, but we send string
     status: 'Confirmed' | 'Completed' | 'Cancelled';
     cost?: number;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
 };
+
 
 export type Garage = {
     id: string;
@@ -68,3 +75,5 @@ export type User = {
         promotionalOffers: boolean;
     };
 };
+
+    

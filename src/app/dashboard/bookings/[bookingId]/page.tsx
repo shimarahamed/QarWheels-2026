@@ -1,6 +1,5 @@
 'use client';
 
-import { mockBookings } from "@/lib/data";
 import { notFound, useParams } from "next/navigation";
 import {
   Card,
@@ -9,37 +8,57 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowLeft, Calendar, Car, CircleDollarSign, Wrench } from "lucide-react";
+import { ArrowLeft, Calendar, Car, CircleDollarSign, Wrench, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Booking } from "@/lib/types";
+import { Booking, Car as CarType } from "@/lib/types";
 import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { useState, useEffect } from "react";
-
+import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
+import { doc, Timestamp } from "firebase/firestore";
 
 export default function BookingDetailsPage() {
     const params = useParams();
-    const { bookingId } = params;
-    const [formattedDate, setFormattedDate] = useState<string | null>(null);
+    const { bookingId } = params as { bookingId: string };
+    const { firestore, user } = useFirebase();
 
-    const booking = mockBookings.find((b) => b.id === bookingId);
-
-    useEffect(() => {
-        if (booking) {
-            setFormattedDate(format(new Date(booking.date), "PPP, p"));
-        }
-    }, [booking]);
+    const bookingRef = useMemoFirebase(
+      () => (bookingId ? doc(firestore, 'bookings', bookingId) : null),
+      [firestore, bookingId]
+    );
+    const { data: booking, isLoading: isLoadingBooking } = useDoc<Booking>(bookingRef);
+    
+    // We need to fetch the car associated with this booking
+    const carRef = useMemoFirebase(
+      () => (user && booking?.carId ? doc(firestore, 'users', user.uid, 'cars', booking.carId) : null),
+      [firestore, user, booking?.carId]
+    );
+    const { data: car, isLoading: isLoadingCar } = useDoc<CarType>(carRef);
+    
+    if (isLoadingBooking || isLoadingCar) {
+      return (
+        <div className="flex h-64 w-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    )
+    }
 
     if (!booking) {
         notFound();
     }
+    
+    // Security check: ensure the booking belongs to the current user
+    if (user && booking.userId !== user.uid) {
+        notFound();
+    }
 
-    // Car data will be fetched from Firestore in a later step. This component still relies on mock data for car.
-    // const car = mockCars.find((c) => c.id === booking.carId);
-    // const image = car ? PlaceHolderImages.find((img) => img.id === car.imageId) : null;
+    const image = car ? (PlaceHolderImages.find((img) => car.make.toLowerCase().includes(img.imageHint.split(' ')[1])) || PlaceHolderImages[1]) : null;
+
+    const bookingDate = booking.bookingDate instanceof Timestamp 
+        ? booking.bookingDate.toDate() 
+        : new Date(booking.bookingDate);
 
     const getStatusVariant = (status: Booking["status"]) => {
         switch (status) {
@@ -74,8 +93,8 @@ export default function BookingDetailsPage() {
                 <CardHeader>
                     <div className="flex justify-between items-start">
                         <div>
-                            <CardTitle>{booking.serviceType}</CardTitle>
-                            <CardDescription>at {booking.garageName}</CardDescription>
+                            <CardTitle>{booking.serviceName}</CardTitle>
+                            <CardDescription>at {booking.vendorName}</CardDescription>
                         </div>
                         <Badge variant={getStatusVariant(booking.status)}>
                             {booking.status}
@@ -90,7 +109,7 @@ export default function BookingDetailsPage() {
                             </div>
                             <div>
                                 <p className="text-muted-foreground">Service</p>
-                                <p className="font-semibold">{booking.serviceType}</p>
+                                <p className="font-semibold">{booking.serviceName}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -99,7 +118,7 @@ export default function BookingDetailsPage() {
                             </div>
                             <div>
                                 <p className="text-muted-foreground">Date & Time</p>
-                                <p className="font-semibold">{formattedDate || 'Loading date...'}</p>
+                                <p className="font-semibold">{format(bookingDate, "PPP, p")}</p>
                             </div>
                         </div>
                          {booking.cost && (
@@ -114,17 +133,18 @@ export default function BookingDetailsPage() {
                             </div>
                          )}
                     </div>
-                    {/* {car && (
+                    {car && (
                         <div>
                              <h3 className="font-bold font-headline text-lg mb-4">Vehicle Information</h3>
                              <Card className="overflow-hidden flex flex-col sm:flex-row items-center gap-4">
                                 {image && (
                                     <Image 
-                                        src={image.imageUrl}
+                                        src={car.imageUrl || image.imageUrl}
                                         alt={`${car.make} ${car.model}`}
                                         width={200}
                                         height={120}
                                         className="w-full sm:w-48 aspect-video object-cover"
+                                        data-ai-hint={image.imageHint}
                                     />
                                 )}
                                 <div className="p-4">
@@ -133,9 +153,11 @@ export default function BookingDetailsPage() {
                                 </div>
                              </Card>
                         </div>
-                    )} */}
+                    )}
                 </CardContent>
             </Card>
         </div>
     );
 }
+
+    

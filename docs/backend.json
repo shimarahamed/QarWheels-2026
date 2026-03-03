@@ -192,6 +192,25 @@
           "type": "string",
           "description": "The approval status of the vendor ('Pending Approval', 'Approved', 'Rejected', 'Active', 'Inactive')."
         },
+        "rating": {
+          "type": "number",
+          "description": "The average customer rating from 1 to 5."
+        },
+        "reviewCount": {
+          "type": "number",
+          "description": "The total number of reviews received."
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A list of services offered by the vendor."
+        },
+        "imageId": {
+          "type": "string",
+          "description": "Reference to an image placeholder ID."
+        },
         "createdAt": {
           "type": "string",
           "description": "Timestamp when the vendor record was created.",
@@ -213,6 +232,9 @@
         "phoneNumber",
         "email",
         "status",
+        "rating",
+        "reviewCount",
+        "services",
         "createdAt",
         "updatedAt"
       ]
@@ -355,6 +377,74 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "Booking": {
+      "title": "Booking",
+      "type": "object",
+      "description": "Represents a service appointment made by a user with a vendor.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string",
+          "description": "ID of the user who made the booking."
+        },
+        "vendorId": {
+          "type": "string",
+          "description": "ID of the vendor the booking is with."
+        },
+        "vendorName": {
+          "type": "string",
+          "description": "Denormalized name of the vendor for easy display."
+        },
+        "carId": {
+          "type": "string",
+          "description": "ID of the user's car for the service."
+        },
+        "serviceName": {
+          "type": "string",
+          "description": "The name of the service booked."
+        },
+        "bookingDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time of the appointment."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "Confirmed",
+            "Completed",
+            "Cancelled"
+          ]
+        },
+        "cost": {
+          "type": "number",
+          "description": "The estimated or final cost of the service."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the booking was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the booking was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "vendorId",
+        "vendorName",
+        "carId",
+        "serviceName",
+        "bookingDate",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "auth": {
@@ -424,8 +514,19 @@
           },
           "description": "A collection used for Database Access Control (DBAC). The existence of a document at this path where '{adminId}' matches a user's UID grants administrative privileges to that user. Document content can be minimal or empty."
         }
+      },
+      {
+        "path": "/bookings/{bookingId}",
+        "definition": {
+          "entityName": "Booking",
+          "schema": {
+            "$ref": "#/backend/entities/Booking"
+          },
+          "description": "Stores all service bookings. Access is granted to the user who owns the booking or an admin."
+        }
       }
     ],
     "reasoning": "The recommended Firestore data structure for QarWheels prioritizes Authorization Independence, Structural Segregation, and consistent Access Modeling to ensure security, scalability, and debuggability. All user-specific data (profiles, cars, service records, and service predictions) are nested under a top-level `/users/{userId}` collection. This path-based ownership makes security rules extremely simple and atomic: access to any document within a user's branch can be authorized by checking `request.auth.uid == userId` from the path. This eliminates the need for `get()` calls to parent documents, thus ensuring Authorization Independence.\n\nFor `Car` documents, the `userId` is explicitly denormalized into the document, reinforcing ownership and allowing for future flexibility if `Car` documents were ever to be queried or moved to a top-level collection. Similarly, `ServiceRecord` and `ServicePrediction` documents contain `carId`, linking them directly to their parent car, while their parent `userId` is derived from the path.\n\nVendor data, which has both public and private/admin-managed states, is handled within a single `/vendors/{vendorId}` collection. To achieve QAPs (Rules are not Filters) for public listing, each `Vendor` document includes an `ownerId` (the user who registered the vendor) for management by the vendor themselves, and a `status` field. Public read access will require client queries to explicitly filter for `status == 'Approved'`, with security rules enforcing this query constraint. This ensures that a `list` operation will only ever return approved vendors, satisfying the QAP principle without requiring the rules to act as filters. Admin roles are managed via a dedicated `/roles_admin/{adminId}` collection, using the 'existence over content' pattern for DBAC.\n\nOverall, this design supports robust `list` operations by structuring data hierarchically for user-owned content and by using explicit status fields and rule-enforced query parameters for shared, global data. Authorization is explicit, self-contained within the document or its immediate path, and avoids complex hierarchical lookups."
   }
 }
+    
