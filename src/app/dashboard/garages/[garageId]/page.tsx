@@ -1,17 +1,20 @@
 'use client';
 import { notFound, useParams } from 'next/navigation';
-import { mockGarages, mockUser } from '@/lib/data';
+import { mockUser } from '@/lib/data';
 import { mockReviews, mockVendorServices } from '@/lib/vendor-data';
 import Image from 'next/image';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Star, MapPin, ArrowLeft, Wrench, Clock, CircleDollarSign, MessageSquare } from 'lucide-react';
+import { Star, MapPin, ArrowLeft, Wrench, Clock, CircleDollarSign, MessageSquare, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
+import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import type { Vendor } from '@/lib/types';
+
 
 function StarRating({ rating, className, reviewCount }: { rating: number, className?: string, reviewCount?: number }) {
     const fullStars = Math.floor(rating);
@@ -36,17 +39,30 @@ function StarRating({ rating, className, reviewCount }: { rating: number, classN
 
 export default function GarageDetailsPage() {
     const params = useParams();
-    const { garageId } = params;
+    const { garageId } = params as { garageId: string };
+    const { firestore } = useFirebase();
 
-    const garage = mockGarages.find((g) => g.id === garageId);
+    const vendorRef = useMemoFirebase(
+      () => (firestore && garageId ? doc(firestore, 'vendors', garageId) : null),
+      [firestore, garageId]
+    );
+    const { data: vendor, isLoading } = useDoc<Vendor>(vendorRef);
 
-    if (!garage) {
+    if (isLoading) {
+        return (
+            <div className="flex h-64 w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        )
+    }
+
+    if (!vendor) {
         notFound();
     }
 
-    const image = PlaceHolderImages.find((img) => img.id === garage.imageId);
-    const garageServices = mockVendorServices.filter(vs => garage.services.includes(vs.name));
-    // Showing all mock reviews as an example
+    const image = PlaceHolderImages.find((img) => img.id === vendor.imageId);
+    // TODO: Migrate services and reviews to Firestore subcollections
+    const garageServices = mockVendorServices.filter(vs => vendor.services.includes(vs.name));
     const garageReviews = mockReviews.slice(0,3);
 
     return (
@@ -62,7 +78,7 @@ export default function GarageDetailsPage() {
                 {image && (
                     <Image
                         src={image.imageUrl}
-                        alt={garage.name}
+                        alt={vendor.name}
                         width={1200}
                         height={400}
                         className="w-full h-48 md:h-64 object-cover"
@@ -72,14 +88,14 @@ export default function GarageDetailsPage() {
                 <CardHeader>
                     <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
                         <div>
-                            <h1 className="text-3xl font-bold font-headline">{garage.name}</h1>
+                            <h1 className="text-3xl font-bold font-headline">{vendor.name}</h1>
                             <div className="flex items-center gap-2 text-muted-foreground mt-1">
                                 <MapPin className="h-4 w-4 shrink-0" />
-                                <span>{garage.address}</span>
+                                <span>{vendor.address}</span>
                             </div>
                         </div>
                         <div className="shrink-0">
-                             <StarRating rating={garage.rating} reviewCount={garage.reviewCount}/>
+                             <StarRating rating={vendor.rating} reviewCount={vendor.reviewCount}/>
                         </div>
                     </div>
                 </CardHeader>
@@ -101,7 +117,7 @@ export default function GarageDetailsPage() {
                                         </div>
                                     </div>
                                     <Button asChild className="w-full sm:w-auto shrink-0">
-                                        <Link href={`/dashboard/book?garageId=${garage.id}&service=${encodeURIComponent(service.name)}`}>
+                                        <Link href={`/dashboard/book?garageId=${vendor.id}&service=${encodeURIComponent(service.name)}`}>
                                             <Wrench className="mr-2 h-4 w-4"/>Book Now
                                         </Link>
                                     </Button>

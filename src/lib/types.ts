@@ -50,18 +50,28 @@ export type Booking = {
     updatedAt: Timestamp;
 };
 
-
-export type Garage = {
-    id: string;
+export type Vendor = {
+    id:string;
     name: string;
+    type: 'Garage' | 'Parts Store' | 'Both';
+    description?: string;
     address: string;
+    city: string;
+    country: string;
+    phoneNumber: string;
+    email: string;
+    websiteUrl?: string;
+    latitude: number;
+    longitude: number;
+    status: 'Pending Approval' | 'Approved' | 'Rejected' | 'Active' | 'Inactive';
     rating: number;
     reviewCount: number;
     services: string[];
     imageId: string;
-    lat: number;
-    lng: number;
+    createdAt: any;
+    updatedAt: any;
 };
+
 
 export type User = {
     id: string;

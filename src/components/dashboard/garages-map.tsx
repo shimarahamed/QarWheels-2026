@@ -1,6 +1,5 @@
 'use client';
 
-import { mockGarages } from '@/lib/data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
 import { MapPin } from 'lucide-react';
@@ -9,7 +8,9 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@/components/ui/tooltip";
+import { Skeleton } from '../ui/skeleton';
+import type { Vendor } from '@/lib/types';
 
 // A bounding box to roughly map our mock coordinates to the image
 const BBOX = {
@@ -19,13 +20,17 @@ const BBOX = {
     maxLat: 25.35,
 }
 
-export function GaragesMap() {
+export function GaragesMap({ vendors, isLoading }: { vendors: Vendor[] | null, isLoading: boolean }) {
     const mapImage = PlaceHolderImages.find(img => img.id === 'doha-map');
 
     const getPosition = (lat: number, lng: number) => {
         const x = ((lng - BBOX.minLng) / (BBOX.maxLng - BBOX.minLng)) * 100;
         const y = ((BBOX.maxLat - lat) / (BBOX.maxLat - BBOX.minLat)) * 100;
         return { top: `${y}%`, left: `${x}%` };
+    }
+
+    if (isLoading) {
+        return <Skeleton className="w-full h-[400px] lg:h-full rounded-2xl" />;
     }
 
     return (
@@ -40,10 +45,10 @@ export function GaragesMap() {
                  />
             )}
             <TooltipProvider>
-                {mockGarages.map(garage => {
-                    const position = getPosition(garage.lat, garage.lng);
+                {vendors?.map(vendor => {
+                    const position = getPosition(vendor.latitude, vendor.longitude);
                     return (
-                        <Tooltip key={garage.id}>
+                        <Tooltip key={vendor.id}>
                             <TooltipTrigger asChild>
                                 <div 
                                     className="absolute -translate-x-1/2 -translate-y-full transition-transform hover:scale-110"
@@ -53,8 +58,8 @@ export function GaragesMap() {
                                 </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p className="font-semibold">{garage.name}</p>
-                                <p className="text-sm text-muted-foreground">{garage.address}</p>
+                                <p className="font-semibold">{vendor.name}</p>
+                                <p className="text-sm text-muted-foreground">{vendor.address}</p>
                             </TooltipContent>
                         </Tooltip>
                     )

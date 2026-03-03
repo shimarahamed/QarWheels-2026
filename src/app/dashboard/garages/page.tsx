@@ -1,7 +1,8 @@
+'use client';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { mockGarages } from '@/lib/data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import { Search, Star, MapPin, List, Map as MapIcon } from 'lucide-react';
@@ -11,6 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import { GaragesMap } from '@/components/dashboard/garages-map';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import type { Vendor } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useSeedVendors } from '@/hooks/use-seed-vendors';
 
 
 function StarRating({ rating, className }: { rating: number, className?: string }) {
@@ -31,48 +37,79 @@ function StarRating({ rating, className }: { rating: number, className?: string 
     );
 }
 
-function GarageList() {
+function GarageList({ vendors, isLoading }: { vendors: Vendor[] | null, isLoading: boolean }) {
+    if (isLoading) {
+        return (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-1">
+                {[...Array(3)].map((_, i) => (
+                    <Card key={i} className="flex flex-col group overflow-hidden">
+                        <Skeleton className="w-full aspect-video" />
+                        <CardHeader><Skeleton className="h-6 w-3/4" /></CardHeader>
+                        <CardContent className="space-y-2">
+                             <Skeleton className="h-4 w-1/2" />
+                             <Skeleton className="h-4 w-full" />
+                        </CardContent>
+                        <CardFooter><Skeleton className="h-10 w-full" /></CardFooter>
+                    </Card>
+                ))}
+            </div>
+        )
+    }
+
+    if (!vendors || vendors.length === 0) {
+        return (
+             <div className="text-center text-muted-foreground py-12">
+                <Search className="mx-auto h-12 w-12 mb-4" />
+                <p>No approved garages found.</p>
+            </div>
+        )
+    }
+
     return (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-1">
-            {mockGarages.map((garage) => {
-                const image = PlaceHolderImages.find((img) => img.id === garage.imageId);
+            {vendors.map((vendor) => {
+                const image = PlaceHolderImages.find((img) => img.id === vendor.imageId);
                 return (
-                    <Card key={garage.id} className="flex flex-col group overflow-hidden transition-shadow duration-300 hover:shadow-lg hover:border-primary">
-                        <div className="overflow-hidden rounded-t-lg">
-                            {image && (
-                                <Image
-                                    src={image.imageUrl}
-                                    alt={garage.name}
-                                    width={400}
-                                    height={225}
-                                    className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
-                                    data-ai-hint={image.imageHint}
-                                />
-                            )}
-                        </div>
+                    <Card key={vendor.id} className="flex flex-col group overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-primary">
+                        <Link href={`/dashboard/garages/${vendor.id}`} className="block">
+                            <div className="overflow-hidden rounded-t-lg">
+                                {image && (
+                                    <Image
+                                        src={image.imageUrl}
+                                        alt={vendor.name}
+                                        width={400}
+                                        height={225}
+                                        className="w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
+                                        data-ai-hint={image.imageHint}
+                                    />
+                                )}
+                            </div>
+                        </Link>
                         <CardHeader>
-                            <CardTitle>{garage.name}</CardTitle>
+                            <CardTitle>
+                                <Link href={`/dashboard/garages/${vendor.id}`}>{vendor.name}</Link>
+                            </CardTitle>
                             <div className="flex items-center gap-2">
-                                <StarRating rating={garage.rating} />
-                                <span className="text-sm text-muted-foreground">({garage.reviewCount} reviews)</span>
+                                <StarRating rating={vendor.rating} />
+                                <span className="text-sm text-muted-foreground">({vendor.reviewCount} reviews)</span>
                             </div>
                             <CardDescription className="flex items-start gap-2 pt-2">
                                 <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-                                <span>{garage.address}</span>
+                                <span>{vendor.address}</span>
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex-grow">
                             <h4 className="font-semibold mb-2 text-sm">Services include:</h4>
                              <div className="flex flex-wrap gap-2">
-                                {garage.services.slice(0, 3).map(service => (
+                                {vendor.services.slice(0, 3).map(service => (
                                     <Badge key={service} variant="secondary">{service}</Badge>
                                 ))}
-                                {garage.services.length > 3 && <Badge variant="outline">+{garage.services.length - 3} more</Badge>}
+                                {vendor.services.length > 3 && <Badge variant="outline">+{vendor.services.length - 3} more</Badge>}
                             </div>
                         </CardContent>
                         <CardFooter>
                             <Button asChild className="w-full">
-                                <Link href={`/dashboard/garages/${garage.id}`}>View Profile & Book</Link>
+                                <Link href={`/dashboard/garages/${vendor.id}`}>View Profile & Book</Link>
                             </Button>
                         </CardFooter>
                     </Card>
@@ -83,6 +120,18 @@ function GarageList() {
 }
 
 export default function GaragesPage() {
+  const isSeeding = useSeedVendors(); // Seed the database on first load
+  const { firestore } = useFirebase();
+
+  // Security rules require filtering by 'Approved' status for public access
+  const vendorsQuery = useMemoFirebase(
+    () => (firestore ? query(collection(firestore, 'vendors'), where('status', '==', 'Approved')) : null),
+    [firestore]
+  );
+  const { data: vendors, isLoading: isLoadingVendors } = useCollection<Vendor>(vendorsQuery);
+  
+  const isLoading = isSeeding || isLoadingVendors;
+
   return (
     <div className="space-y-8">
         <header>
@@ -100,10 +149,10 @@ export default function GaragesPage() {
         {/* Desktop View */}
         <div className="hidden lg:grid grid-cols-5 gap-8" style={{height: 'calc(100vh - 280px)'}}>
             <ScrollArea className="col-span-2 h-full pr-4 -mr-4">
-               <GarageList />
+               <GarageList vendors={vendors} isLoading={isLoading} />
             </ScrollArea>
             <div className="col-span-3 h-full">
-                <GaragesMap />
+                <GaragesMap vendors={vendors} isLoading={isLoading} />
             </div>
         </div>
 
@@ -115,10 +164,10 @@ export default function GaragesPage() {
                     <TabsTrigger value="map"><MapIcon className="mr-2 h-4 w-4" />Map View</TabsTrigger>
                 </TabsList>
                 <TabsContent value="list" className="mt-6">
-                    <GarageList />
+                    <GarageList vendors={vendors} isLoading={isLoading} />
                 </TabsContent>
                 <TabsContent value="map" className="mt-6">
-                    <GaragesMap />
+                    <GaragesMap vendors={vendors} isLoading={isLoading} />
                 </TabsContent>
             </Tabs>
         </div>
