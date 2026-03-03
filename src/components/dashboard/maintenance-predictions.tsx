@@ -136,7 +136,7 @@ export function MaintenancePredictions() {
                       </FormControl>
                       <SelectContent>
                         {cars?.map((car) => (
-                          <SelectItem key={car.vin} value={car.vin}>
+                          <SelectItem key={car.id} value={car.vin}>
                             {car.year} {car.make} {car.model}
                           </SelectItem>
                         ))}
