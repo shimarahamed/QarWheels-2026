@@ -13,7 +13,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Booking, Car as CarType } from "@/lib/types";
+import { Booking, Car as CarType, WithId } from "@/lib/types";
 import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
@@ -28,14 +28,14 @@ export default function BookingDetailsPage() {
       () => (bookingId ? doc(firestore, 'bookings', bookingId) : null),
       [firestore, bookingId]
     );
-    const { data: booking, isLoading: isLoadingBooking } = useDoc<Booking>(bookingRef);
+    const { data: booking, isLoading: isLoadingBooking } = useDoc<WithId<Booking>>(bookingRef);
     
     // We need to fetch the car associated with this booking
     const carRef = useMemoFirebase(
       () => (user && booking?.carId ? doc(firestore, 'users', user.uid, 'cars', booking.carId) : null),
       [firestore, user, booking?.carId]
     );
-    const { data: car, isLoading: isLoadingCar } = useDoc<CarType>(carRef);
+    const { data: car, isLoading: isLoadingCar } = useDoc<WithId<CarType>>(carRef);
     
     if (isLoadingBooking || isLoadingCar) {
       return (
@@ -159,5 +159,3 @@ export default function BookingDetailsPage() {
         </div>
     );
 }
-
-    

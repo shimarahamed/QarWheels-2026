@@ -32,7 +32,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from 'firebase/firestore';
-import type { Car } from "@/lib/types";
+import type { Car, WithId } from "@/lib/types";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 export default function CarDetailsPage() {
@@ -44,7 +44,7 @@ export default function CarDetailsPage() {
     () => (user && carId ? doc(firestore, 'users', user.uid, 'cars', carId) : null),
     [firestore, user, carId]
   );
-  const { data: car, isLoading } = useDoc<Car>(carRef);
+  const { data: car, isLoading } = useDoc<WithId<Car>>(carRef);
   
   if (isLoading) {
     return (

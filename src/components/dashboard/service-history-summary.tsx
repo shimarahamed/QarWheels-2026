@@ -5,7 +5,7 @@ import { summarizeServiceHistory } from "@/lib/actions";
 import type { SummarizeServiceHistoryOutput } from "@/ai/flows/summarize-service-history";
 import { Loader2, Sparkles, Terminal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Car } from "@/lib/types";
+import type { Car, WithId } from "@/lib/types";
 import {
   Card,
   CardContent,
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-export function ServiceHistorySummary({ car }: { car: Car }) {
+export function ServiceHistorySummary({ car }: { car: WithId<Car> }) {
   const [summary, setSummary] = useState<SummarizeServiceHistoryOutput | null>(
     null
   );

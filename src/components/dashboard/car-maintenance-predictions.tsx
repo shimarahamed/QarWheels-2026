@@ -5,7 +5,7 @@ import { getMaintenancePredictions } from "@/lib/actions";
 import type { PredictiveMaintenanceOutput } from "@/ai/flows/predictive-maintenance-suggestions";
 import { Loader2, Sparkles, Wrench } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Car } from "@/lib/types";
+import type { Car, WithId } from "@/lib/types";
 import {
   Card,
   CardContent,
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-export function CarMaintenancePredictions({ car }: { car: Car }) {
+export function CarMaintenancePredictions({ car }: { car: WithId<Car> }) {
   const [prediction, setPrediction] =
     useState<PredictiveMaintenanceOutput | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,7 +29,7 @@ export function CarMaintenancePredictions({ car }: { car: Car }) {
       try {
         const result = await getMaintenancePredictions({
           vin: car.vin,
-          mileage: car.mileage,
+          mileage: car.currentMileage,
           serviceHistory: JSON.stringify(car.serviceHistory),
           qatarClimate: `Hot and arid desert climate. Summer (May-Sep) temperatures average 42°C, can exceed 50°C. High humidity along the coast. Winter (Dec-Feb) is milder, around 23°C. Sand and dust storms are common.`,
         });

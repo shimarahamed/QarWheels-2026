@@ -1,6 +1,8 @@
 'use client';
 import { Timestamp } from "firebase/firestore";
 
+export type WithId<T> = T & { id: string };
+
 export type ServiceRecord = {
     date: string;
     service: string;
@@ -29,7 +31,7 @@ export type Car = {
     imageUrl?: string;
     createdAt: any; // serverTimestamp
     updatedAt: any; // serverTimestamp
-    serviceHistory: ServiceRecord[];
+    serviceHistory: WithId<ServiceRecord>[];
     // This was the old field, replacing with currentMileage
     mileage?: number; 
     imageId?: string;

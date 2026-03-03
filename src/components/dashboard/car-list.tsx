@@ -1,7 +1,7 @@
 'use client';
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import type { Car } from "@/lib/types";
+import type { Car, WithId } from "@/lib/types";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Image from "next/image";
@@ -30,7 +30,7 @@ export function CarList() {
     () => (user ? collection(firestore, 'users', user.uid, 'cars') : null),
     [firestore, user]
   );
-  const { data: cars, isLoading } = useCollection<Car>(carsCollection);
+  const { data: cars, isLoading } = useCollection<WithId<Car>>(carsCollection);
   
   if (isLoading) {
     return (

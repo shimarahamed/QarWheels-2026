@@ -1,7 +1,7 @@
 'use client';
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import type { Car } from "@/lib/types";
+import type { Car, WithId } from "@/lib/types";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import {
   Accordion,
@@ -38,7 +38,7 @@ export default function ServiceHistoryPage() {
     () => (user ? collection(firestore, 'users', user.uid, 'cars') : null),
     [firestore, user]
   );
-  const { data: cars, isLoading } = useCollection<Car>(carsCollection);
+  const { data: cars, isLoading } = useCollection<WithId<Car>>(carsCollection);
 
   if (isLoading) {
     return (
@@ -60,7 +60,7 @@ export default function ServiceHistoryPage() {
       {cars && cars.length > 0 ? (
         <Accordion type="single" collapsible className="w-full space-y-4">
           {cars.map((car) => {
-            const image = PlaceHolderImages.find((img) => img.id === car.imageId) || PlaceHolderImages[0];
+            const image = PlaceHolderImages.find((img) => car.imageId === car.imageId) || PlaceHolderImages[0];
             return (
               <AccordionItem value={car.id} key={car.id} className="border-b-0 rounded-lg bg-card border shadow-sm overflow-hidden transition-shadow hover:shadow-lg hover:border-primary">
                 <AccordionTrigger className="p-6 hover:no-underline">

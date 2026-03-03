@@ -13,13 +13,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Car, Calendar, Wrench, CircleDollarSign, PlusCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { Booking } from "@/lib/types";
+import { Booking, WithId } from "@/lib/types";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where, Timestamp } from "firebase/firestore";
 import type { Car as CarType } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 
-function BookingCard({ booking, car }: { booking: Booking, car?: CarType }) {
+function BookingCard({ booking, car }: { booking: WithId<Booking>, car?: WithId<CarType> }) {
   const getStatusVariant = (status: Booking["status"]) => {
     switch (status) {
       case "Confirmed":
@@ -79,7 +79,7 @@ function BookingCard({ booking, car }: { booking: Booking, car?: CarType }) {
   );
 }
 
-function BookingList({ bookings, cars, isLoading }: { bookings: Booking[] | null, cars: CarType[] | null, isLoading: boolean }) {
+function BookingList({ bookings, cars, isLoading }: { bookings: WithId<Booking>[] | null, cars: WithId<CarType>[] | null, isLoading: boolean }) {
   if (isLoading) {
     return (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -124,13 +124,13 @@ export default function BookingsPage() {
     () => (user ? collection(firestore, 'users', user.uid, 'cars') : null),
     [firestore, user]
   );
-  const { data: cars } = useCollection<CarType>(carsCollection);
+  const { data: cars } = useCollection<WithId<CarType>>(carsCollection);
 
   const bookingsQuery = useMemoFirebase(
     () => (user ? query(collection(firestore, 'bookings'), where('userId', '==', user.uid)) : null),
     [firestore, user]
   );
-  const { data: bookings, isLoading: isLoadingBookings } = useCollection<Booking>(bookingsQuery);
+  const { data: bookings, isLoading: isLoadingBookings } = useCollection<WithId<Booking>>(bookingsQuery);
 
   const now = new Date();
   
@@ -173,5 +173,3 @@ export default function BookingsPage() {
     </div>
   );
 }
-
-    

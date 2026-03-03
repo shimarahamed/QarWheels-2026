@@ -27,7 +27,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase";
 import { collection, serverTimestamp } from 'firebase/firestore';
-import type { Car as CarType } from "@/lib/types";
+import type { Car as CarType, WithId } from "@/lib/types";
 
 const availableTimeSlots = [
   '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
@@ -50,7 +50,7 @@ function BookingWizard() {
     () => (user ? collection(firestore, 'users', user.uid, 'cars') : null),
     [firestore, user]
   );
-  const { data: cars, isLoading: isLoadingCars } = useCollection<CarType>(carsCollection);
+  const { data: cars, isLoading: isLoadingCars } = useCollection<WithId<CarType>>(carsCollection);
 
   const garageId = searchParams.get('garageId');
   const serviceName = searchParams.get('service');
@@ -344,5 +344,3 @@ export default function BookPage() {
         </Suspense>
     )
 }
-
-    

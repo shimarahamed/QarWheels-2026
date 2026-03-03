@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
-import type { Vendor } from '@/lib/types';
+import type { Vendor, WithId } from '@/lib/types';
 
 
 function StarRating({ rating, className, reviewCount }: { rating: number, className?: string, reviewCount?: number }) {
@@ -46,7 +46,7 @@ export default function GarageDetailsPage() {
       () => (firestore && garageId ? doc(firestore, 'vendors', garageId) : null),
       [firestore, garageId]
     );
-    const { data: vendor, isLoading } = useDoc<Vendor>(vendorRef);
+    const { data: vendor, isLoading } = useDoc<WithId<Vendor>>(vendorRef);
 
     if (isLoading) {
         return (

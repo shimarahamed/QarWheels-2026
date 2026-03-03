@@ -36,7 +36,7 @@ import { Loader2, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import type { Car } from "@/lib/types";
+import type { Car, WithId } from "@/lib/types";
 
 const formSchema = z.object({
   vin: z.string().min(1, "Please select a car."),
@@ -55,7 +55,7 @@ export function MaintenancePredictions() {
     () => (user ? collection(firestore, 'users', user.uid, 'cars') : null),
     [firestore, user]
   );
-  const { data: cars, isLoading: isLoadingCars } = useCollection<Car>(carsCollection);
+  const { data: cars, isLoading: isLoadingCars } = useCollection<WithId<Car>>(carsCollection);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

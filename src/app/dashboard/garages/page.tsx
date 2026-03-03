@@ -14,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { Vendor } from '@/lib/types';
+import type { Vendor, WithId } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSeedVendors } from '@/hooks/use-seed-vendors';
 
@@ -37,7 +37,7 @@ function StarRating({ rating, className }: { rating: number, className?: string 
     );
 }
 
-function GarageList({ vendors, isLoading }: { vendors: Vendor[] | null, isLoading: boolean }) {
+function GarageList({ vendors, isLoading }: { vendors: WithId<Vendor>[] | null, isLoading: boolean }) {
     if (isLoading) {
         return (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-1">
@@ -128,7 +128,7 @@ export default function GaragesPage() {
     () => (firestore ? query(collection(firestore, 'vendors'), where('status', '==', 'Approved')) : null),
     [firestore]
   );
-  const { data: vendors, isLoading: isLoadingVendors } = useCollection<Vendor>(vendorsQuery);
+  const { data: vendors, isLoading: isLoadingVendors } = useCollection<WithId<Vendor>>(vendorsQuery);
   
   const isLoading = isSeeding || isLoadingVendors;
 
