@@ -25,6 +25,9 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Logo } from "../logo";
+import { useFirebase } from "@/firebase";
+import { useVendor } from "./vendor-provider";
+import { Skeleton } from "../ui/skeleton";
 
 const navItems = [
   { href: "/vendor/dashboard", icon: <LayoutDashboard />, label: "Overview" },
@@ -41,14 +44,24 @@ const navItems = [
 
 export function VendorSidebar() {
   const pathname = usePathname();
+  const { auth, user } = useFirebase();
+  const { vendor, isLoading } = useVendor();
 
   return (
     <>
       <SidebarHeader className="border-b border-sidebar-border">
         <Logo />
-        <p className="text-sm text-sidebar-foreground/80 pt-1 group-data-[collapsible=icon]:hidden">
-            Precision Auto Qatar
-        </p>
+        {isLoading && (
+          <div className="space-y-2 group-data-[collapsible=icon]:hidden">
+            <Skeleton className="h-4 w-32" />
+          </div>
+        )}
+        {vendor && (
+            <p className="text-sm text-sidebar-foreground/80 pt-1 group-data-[collapsible=icon]:hidden truncate">
+                {vendor.name}
+            </p>
+        )}
+        
       </SidebarHeader>
       <SidebarContent className="p-2">
         <SidebarMenu>
@@ -72,22 +85,22 @@ export function VendorSidebar() {
         <div className="p-2 rounded-md hover:bg-sidebar-accent">
             <div className="flex items-center gap-3">
                 <Avatar className="h-9 w-9">
-                    <AvatarImage src="https://api.dicebear.com/8.x/initials/svg?seed=Vendor%20Admin" alt="Vendor Admin" />
-                    <AvatarFallback>VA</AvatarFallback>
+                    <AvatarImage src={`https://api.dicebear.com/8.x/initials/svg?seed=${user?.displayName || 'User'}`} alt={user?.displayName || 'User'} />
+                    <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-                    <span className="text-sm font-semibold">Vendor Admin</span>
-                    <span className="text-xs text-muted-foreground">admin@precisionauto.qa</span>
+                <div className="flex flex-col group-data-[collapsible=icon]:hidden overflow-hidden">
+                    <span className="text-sm font-semibold truncate">{user?.displayName || "Vendor Admin"}</span>
+                    <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
                 </div>
             </div>
         </div>
-        <Button asChild variant="ghost" className="w-full justify-start gap-2">
-            <Link href="/">
-                <LogOut />
-                <span className="group-data-[collapsible=icon]:hidden">Logout</span>
-            </Link>
+        <Button onClick={() => auth.signOut()} variant="ghost" className="w-full justify-start gap-2">
+            <LogOut />
+            <span className="group-data-[collapsible=icon]:hidden">Logout</span>
         </Button>
       </SidebarFooter>
     </>
   );
 }
+
+  

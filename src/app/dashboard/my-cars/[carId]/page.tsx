@@ -30,10 +30,70 @@ import { ServiceHistorySummary } from "@/components/dashboard/service-history-su
 import Link from "next/link";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
-import { doc } from 'firebase/firestore';
-import type { Car, WithId } from "@/lib/types";
+import { useFirebase, useDoc, useCollection, useMemoFirebase } from "@/firebase";
+import { collection, doc } from 'firebase/firestore';
+import type { Car, ServiceRecord, WithId } from "@/lib/types";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
+
+function ServiceHistoryList({ carId }: { carId: string }) {
+    const { firestore, user } = useFirebase();
+    
+    const serviceHistoryRef = useMemoFirebase(() => 
+        user ? collection(firestore, `users/${user.uid}/cars/${carId}/serviceRecords`) : null
+    , [firestore, user, carId]);
+    
+    const { data: serviceHistory, isLoading } = useCollection<WithId<ServiceRecord>>(serviceHistoryRef);
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+        )
+    }
+
+    if (!serviceHistory || serviceHistory.length === 0) {
+        return (
+            <div className="text-center text-muted-foreground py-12 px-8 rounded-lg bg-muted/50">
+                <History className="mx-auto h-12 w-12 mb-4 text-primary/50" />
+                <h3 className="font-semibold text-lg">No History Found</h3>
+                <p>No service history has been recorded for this vehicle yet.</p>
+            </div>
+        );
+    }
+    
+    // Sort by date descending
+    const sortedHistory = [...serviceHistory].sort((a, b) => new Date(b.serviceDate).getTime() - new Date(a.serviceDate).getTime());
+
+    return (
+        <div className="overflow-x-auto">
+            <Table>
+            <TableHeader>
+                <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Service</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Cost</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {sortedHistory.map((record) => (
+                <TableRow key={record.id}>
+                    <TableCell className="font-medium whitespace-nowrap">
+                    {format(new Date(record.serviceDate), "PPP")}
+                    </TableCell>
+                    <TableCell>{record.serviceType}</TableCell>
+                    <TableCell>{record.serviceDescription}</TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                    QAR {record.cost.toFixed(2)}
+                    </TableCell>
+                </TableRow>
+                ))}
+            </TableBody>
+            </Table>
+        </div>
+    );
+}
 
 export default function CarDetailsPage() {
   const params = useParams();
@@ -58,7 +118,7 @@ export default function CarDetailsPage() {
     notFound();
   }
 
-  const image = PlaceHolderImages.find((img) => car.make.toLowerCase().includes(img.imageHint.split(' ')[1])) || PlaceHolderImages[1];
+  const image = car.imageId ? PlaceHolderImages.find((img) => img.id === car.imageId) : (PlaceHolderImages.find((img) => car.make.toLowerCase().includes(img.imageHint.split(' ')[1])) || PlaceHolderImages[1]);
 
   return (
     <div className="space-y-6">
@@ -137,40 +197,7 @@ export default function CarDetailsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {car.serviceHistory && car.serviceHistory.length > 0 ? (
-                <div className="overflow-x-auto">
-                    <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Service</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead className="text-right">Cost</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {car.serviceHistory.map((record) => (
-                        <TableRow key={record.id}>
-                            <TableCell className="font-medium whitespace-nowrap">
-                            {format(new Date(record.serviceDate), "PPP")}
-                            </TableCell>
-                            <TableCell>{record.serviceType}</TableCell>
-                            <TableCell>{record.serviceDescription}</TableCell>
-                            <TableCell className="text-right whitespace-nowrap">
-                            QAR {record.cost.toFixed(2)}
-                            </TableCell>
-                        </TableRow>
-                        ))}
-                    </TableBody>
-                    </Table>
-                </div>
-              ) : (
-                <div className="text-center text-muted-foreground py-12 px-8 rounded-lg bg-muted/50">
-                  <History className="mx-auto h-12 w-12 mb-4 text-primary/50" />
-                  <h3 className="font-semibold text-lg">No History Found</h3>
-                  <p>No service history has been recorded for this vehicle yet.</p>
-                </div>
-              )}
+              <ServiceHistoryList carId={car.id} />
             </CardContent>
           </Card>
         </div>
@@ -182,3 +209,5 @@ export default function CarDetailsPage() {
     </div>
   );
 }
+
+  

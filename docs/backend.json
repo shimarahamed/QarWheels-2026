@@ -6,10 +6,6 @@
       "type": "object",
       "description": "Represents a user registered on the QarWheels platform, holding their basic profile information.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the UserProfile entity."
-        },
         "email": {
           "type": "string",
           "description": "The user's email address, used for communication and potentially login. (Relationship: UserProfile 1:N Car)",
@@ -39,7 +35,6 @@
         }
       },
       "required": [
-        "id",
         "email",
         "firstName",
         "lastName",
@@ -53,10 +48,6 @@
       "type": "object",
       "description": "Represents a vehicle owned by a user, including its core details, VIN information, and current status.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Car entity."
-        },
         "userId": {
           "type": "string",
           "description": "Reference to the UserProfile who owns this car. (Relationship: UserProfile 1:N Car)"
@@ -120,7 +111,6 @@
         }
       },
       "required": [
-        "id",
         "userId",
         "vin",
         "make",
@@ -138,9 +128,9 @@
       "type": "object",
       "description": "Represents a service provider or parts store registered on the QarWheels platform, including their location and approval status.",
       "properties": {
-        "id": {
+        "ownerId": {
           "type": "string",
-          "description": "Unique identifier for the Vendor entity."
+          "description": "The UID of the user who owns and manages this vendor profile."
         },
         "name": {
           "type": "string",
@@ -200,13 +190,6 @@
           "type": "number",
           "description": "The total number of reviews received."
         },
-        "services": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "A list of services offered by the vendor."
-        },
         "imageId": {
           "type": "string",
           "description": "Reference to an image placeholder ID."
@@ -223,7 +206,7 @@
         }
       },
       "required": [
-        "id",
+        "ownerId",
         "name",
         "type",
         "address",
@@ -232,9 +215,6 @@
         "phoneNumber",
         "email",
         "status",
-        "rating",
-        "reviewCount",
-        "services",
         "createdAt",
         "updatedAt"
       ]
@@ -245,10 +225,6 @@
       "type": "object",
       "description": "Details of a historical service performed on a specific car, including vendor information and invoice links.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the ServiceRecord entity."
-        },
         "carId": {
           "type": "string",
           "description": "Reference to the Car that received the service. (Relationship: Car 1:N ServiceRecord)"
@@ -299,12 +275,12 @@
         }
       },
       "required": [
-        "id",
         "carId",
         "vendorId",
         "serviceType",
         "serviceDate",
         "mileageAtService",
+        "cost",
         "createdAt",
         "updatedAt"
       ]
@@ -315,10 +291,6 @@
       "type": "object",
       "description": "An AI-generated prediction for future car maintenance needs, linked to a specific car.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the ServicePrediction entity."
-        },
         "carId": {
           "type": "string",
           "description": "Reference to the Car for which the prediction was made. (Relationship: Car 1:N ServicePrediction)"
@@ -365,7 +337,6 @@
         }
       },
       "required": [
-        "id",
         "carId",
         "predictedServiceType",
         "predictedDueDate",
@@ -383,9 +354,6 @@
       "type": "object",
       "description": "Represents a service appointment made by a user with a vendor.",
       "properties": {
-        "id": {
-          "type": "string"
-        },
         "userId": {
           "type": "string",
           "description": "ID of the user who made the booking."
@@ -445,6 +413,72 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "Service": {
+      "title": "Service",
+      "type": "object",
+      "description": "Represents a single service offered by a vendor.",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "duration": { "type": "number", "description": "Duration in minutes." }
+      },
+      "required": ["name", "description", "price", "duration"]
+    },
+    "InventoryItem": {
+      "title": "InventoryItem",
+      "type": "object",
+      "description": "Represents a single item in a vendor's inventory.",
+      "properties": {
+        "name": { "type": "string" },
+        "sku": { "type": "string" },
+        "stock": { "type": "number" },
+        "price": { "type": "number" },
+        "supplier": { "type": "string" }
+      },
+      "required": ["name", "sku", "stock", "price", "supplier"]
+    },
+    "StaffMember": {
+      "title": "StaffMember",
+      "type": "object",
+      "description": "Represents a staff member at a vendor's establishment.",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["Technician", "Service Advisor", "Admin"] },
+        "status": { "type": "string", "enum": ["Active", "Inactive"] }
+      },
+      "required": ["name", "email", "role", "status"]
+    },
+    "Promotion": {
+      "title": "Promotion",
+      "type": "object",
+      "description": "Represents a promotional offer from a vendor.",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "code": { "type": "string" },
+        "discount": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["Active", "Expired", "Scheduled"] }
+      },
+      "required": ["title", "code", "discount", "startDate", "endDate", "status"]
+    },
+    "Review": {
+      "title": "Review",
+      "type": "object",
+      "description": "Represents a customer review for a vendor.",
+      "properties": {
+        "userId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "service": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "customerName", "rating", "comment", "date"]
     }
   },
   "auth": {
@@ -458,75 +492,102 @@
       {
         "path": "/users/{userId}",
         "definition": {
-          "entityName": "UserProfile",
           "schema": {
             "$ref": "#/backend/entities/UserProfile"
           },
-          "description": "Stores individual user profiles. Access is restricted to the user whose ID matches '{userId}'. The 'id' field within the document must match the '{userId}' path parameter for data integrity."
+          "description": "Stores individual user profiles. Access is restricted to the user whose ID matches '{userId}'."
         }
       },
       {
         "path": "/users/{userId}/cars/{carId}",
         "definition": {
-          "entityName": "Car",
           "schema": {
             "$ref": "#/backend/entities/Car"
           },
-          "description": "Stores details for each car owned by a user. This is a subcollection of a user's profile. Includes denormalized 'userId' field for authorization independence, ensuring the car belongs to the user defined by the path."
+          "description": "Stores details for each car owned by a user. This is a subcollection of a user's profile."
         }
       },
       {
         "path": "/users/{userId}/cars/{carId}/serviceRecords/{serviceRecordId}",
         "definition": {
-          "entityName": "ServiceRecord",
           "schema": {
             "$ref": "#/backend/entities/ServiceRecord"
           },
-          "description": "Contains historical service records for a specific car. Nested under a user's car, ensuring ownership is tied to the user and car. Includes denormalized 'carId' for authorization independence within the subcollection context."
+          "description": "Contains historical service records for a specific car. Nested under a user's car."
         }
       },
       {
         "path": "/users/{userId}/cars/{carId}/servicePredictions/{servicePredictionId}",
         "definition": {
-          "entityName": "ServicePrediction",
           "schema": {
             "$ref": "#/backend/entities/ServicePrediction"
           },
-          "description": "Stores AI-generated service predictions for a specific car. Nested under a user's car. Includes denormalized 'carId' for authorization independence within the subcollection context."
+          "description": "Stores AI-generated service predictions for a specific car. Nested under a user's car."
         }
       },
       {
         "path": "/vendors/{vendorId}",
         "definition": {
-          "entityName": "Vendor",
           "schema": {
             "$ref": "#/backend/entities/Vendor"
           },
-          "description": "Stores information about service providers and parts stores. Includes 'ownerId' (denormalized user ID of the vendor registrant) for vendor-specific access and a 'status' field ('Approved', 'Pending Approval') for controlling public visibility. Public users can only read 'Approved' vendors, requiring explicit client-side query filtering enforced by security rules. Admins can manage all vendors regardless of status."
+          "description": "Stores information about service providers and parts stores. Public users can only read 'Approved' vendors."
+        }
+      },
+       {
+        "path": "/vendors/{vendorId}/services/{serviceId}",
+        "definition": {
+          "schema": { "$ref": "#/backend/entities/Service" },
+          "description": "Services offered by a specific vendor."
+        }
+      },
+      {
+        "path": "/vendors/{vendorId}/inventory/{itemId}",
+        "definition": {
+          "schema": { "$ref": "#/backend/entities/InventoryItem" },
+          "description": "Inventory items for a specific vendor."
+        }
+      },
+      {
+        "path": "/vendors/{vendorId}/staff/{staffId}",
+        "definition": {
+          "schema": { "$ref": "#/backend/entities/StaffMember" },
+           "description": "Staff members of a specific vendor."
+        }
+      },
+      {
+        "path": "/vendors/{vendorId}/promotions/{promotionId}",
+        "definition": {
+          "schema": { "$ref": "#/backend/entities/Promotion" },
+          "description": "Promotions for a specific vendor."
+        }
+      },
+      {
+        "path": "/vendors/{vendorId}/reviews/{reviewId}",
+        "definition": {
+          "schema": { "$ref": "#/backend/entities/Review" },
+          "description": "Customer reviews for a specific vendor."
         }
       },
       {
         "path": "/roles_admin/{adminId}",
         "definition": {
-          "entityName": "AdminRole",
           "schema": {
             "$ref": "#/backend/entities/UserProfile"
           },
-          "description": "A collection used for Database Access Control (DBAC). The existence of a document at this path where '{adminId}' matches a user's UID grants administrative privileges to that user. Document content can be minimal or empty."
+          "description": "A collection used for Database Access Control (DBAC). The existence of a document at this path where '{adminId}' matches a user's UID grants administrative privileges to that user."
         }
       },
       {
         "path": "/bookings/{bookingId}",
         "definition": {
-          "entityName": "Booking",
           "schema": {
             "$ref": "#/backend/entities/Booking"
           },
-          "description": "Stores all service bookings. Access is granted to the user who owns the booking or an admin."
+          "description": "Stores all service bookings. Access is granted to the user who owns the booking, the vendor of the booking, or an admin."
         }
       }
-    ],
-    "reasoning": "The recommended Firestore data structure for QarWheels prioritizes Authorization Independence, Structural Segregation, and consistent Access Modeling to ensure security, scalability, and debuggability. All user-specific data (profiles, cars, service records, and service predictions) are nested under a top-level `/users/{userId}` collection. This path-based ownership makes security rules extremely simple and atomic: access to any document within a user's branch can be authorized by checking `request.auth.uid == userId` from the path. This eliminates the need for `get()` calls to parent documents, thus ensuring Authorization Independence.\n\nFor `Car` documents, the `userId` is explicitly denormalized into the document, reinforcing ownership and allowing for future flexibility if `Car` documents were ever to be queried or moved to a top-level collection. Similarly, `ServiceRecord` and `ServicePrediction` documents contain `carId`, linking them directly to their parent car, while their parent `userId` is derived from the path.\n\nVendor data, which has both public and private/admin-managed states, is handled within a single `/vendors/{vendorId}` collection. To achieve QAPs (Rules are not Filters) for public listing, each `Vendor` document includes an `ownerId` (the user who registered the vendor) for management by the vendor themselves, and a `status` field. Public read access will require client queries to explicitly filter for `status == 'Approved'`, with security rules enforcing this query constraint. This ensures that a `list` operation will only ever return approved vendors, satisfying the QAP principle without requiring the rules to act as filters. Admin roles are managed via a dedicated `/roles_admin/{adminId}` collection, using the 'existence over content' pattern for DBAC.\n\nOverall, this design supports robust `list` operations by structuring data hierarchically for user-owned content and by using explicit status fields and rule-enforced query parameters for shared, global data. Authorization is explicit, self-contained within the document or its immediate path, and avoids complex hierarchical lookups."
+    ]
   }
 }
-    
+  

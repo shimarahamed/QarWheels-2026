@@ -4,13 +4,17 @@ import { Timestamp } from "firebase/firestore";
 export type WithId<T> = T & { id: string };
 
 export type ServiceRecord = {
+    carId: string;
+    vendorId: string;
     serviceType: string;
     serviceDescription: string;
-    serviceDate: string;
+    serviceDate: string; // ISO String
     mileageAtService: number;
     cost: number;
     invoiceUrl?: string;
     notes?: string;
+    createdAt: any; // serverTimestamp
+    updatedAt: any; // serverTimestamp
 };
 
 export type Car = {
@@ -28,9 +32,6 @@ export type Car = {
     imageUrl?: string;
     createdAt: any; // serverTimestamp
     updatedAt: any; // serverTimestamp
-    serviceHistory: WithId<ServiceRecord>[];
-    // This was the old field, replacing with currentMileage
-    mileage?: number; 
     imageId?: string;
 };
 
@@ -43,11 +44,12 @@ export type Booking = {
     bookingDate: Timestamp | string; // Firestore returns Timestamp, but we send string
     status: 'Confirmed' | 'Completed' | 'Cancelled';
     cost?: number;
-    createdAt: Timestamp;
-    updatedAt: Timestamp;
+    createdAt: any;
+    updatedAt: any;
 };
 
 export type Vendor = {
+    ownerId: string;
     name: string;
     type: 'Garage' | 'Parts Store' | 'Both';
     description?: string;
@@ -59,11 +61,10 @@ export type Vendor = {
     websiteUrl?: string;
     latitude: number;
     longitude: number;
-    status: 'Pending Approval' | 'Approved' | 'Rejected' | 'Active' | 'Inactive';
-    rating: number;
-    reviewCount: number;
-    services: string[];
-    imageId: string;
+    status: 'Pending Approval' | 'Approved' | 'Rejected';
+    rating?: number;
+    reviewCount?: number;
+    imageId?: string;
     createdAt: any;
     updatedAt: any;
 };
@@ -76,3 +77,48 @@ export type UserProfile = {
     createdAt: any; // serverTimestamp
     updatedAt: any; // serverTimestamp
 };
+
+// VENDOR-SPECIFIC TYPES
+
+export type Service = {
+    name: string;
+    description: string;
+    price: number;
+    duration: number; // in minutes
+};
+
+export type InventoryItem = {
+    name: string;
+    sku: string;
+    stock: number;
+    price: number;
+    supplier: string;
+};
+
+export type StaffMember = {
+    name: string;
+    email: string;
+    role: 'Technician' | 'Service Advisor' | 'Admin';
+    status: 'Active' | 'Inactive';
+};
+
+export type Promotion = {
+    title: string;
+    description: string;
+    code: string;
+    discount: string;
+    startDate: string; // ISO String
+    endDate: string; // ISO String
+    status: 'Active' | 'Expired' | 'Scheduled';
+};
+
+export type Review = {
+    userId: string;
+    customerName: string; // Denormalized for easy display
+    rating: number;
+    comment: string;
+    service: string;
+    date: string; // ISO String
+};
+
+  

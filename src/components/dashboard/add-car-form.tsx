@@ -35,6 +35,7 @@ type CarDetails = VinDetailsOutput & { vin: string };
 
 export function AddCarForm() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [carDetails, setCarDetails] = useState<CarDetails | null>(null);
   const { toast } = useToast()
   const router = useRouter();
@@ -65,7 +66,7 @@ export function AddCarForm() {
     }
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (!carDetails || !user || !firestore) {
         toast({
             variant: "destructive",
@@ -74,9 +75,11 @@ export function AddCarForm() {
         });
         return;
     }
+    
+    setIsConfirming(true);
 
     const carsCollectionRef = collection(firestore, 'users', user.uid, 'cars');
-    const newCar: Car = {
+    const newCarData: Omit<Car, 'id'> = {
       userId: user.uid,
       vin: carDetails.vin,
       make: carDetails.make,
@@ -86,8 +89,6 @@ export function AddCarForm() {
       lastMileageUpdateDate: new Date().toISOString(),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      serviceHistory: [],
-      // Optional fields initialized
       licensePlate: '',
       color: '',
       engineType: '',
@@ -95,14 +96,18 @@ export function AddCarForm() {
       imageUrl: '',
     };
     
-    addDocumentNonBlocking(carsCollectionRef, newCar);
-
-    toast({
-      title: "Car Added!",
-      description: `${carDetails.year} ${carDetails.make} ${carDetails.model} has been added to your garage.`,
-    });
-    
-    router.push("/dashboard/my-cars");
+    try {
+        await addDocumentNonBlocking(carsCollectionRef, newCarData);
+        toast({
+        title: "Car Added!",
+        description: `${carDetails.year} ${carDetails.make} ${carDetails.model} has been added to your garage.`,
+        });
+        router.push("/dashboard/my-cars");
+    } catch (e) {
+        // This will be handled by the global error handler
+    } finally {
+        setIsConfirming(false);
+    }
   }
 
   function handleReset() {
@@ -137,13 +142,13 @@ export function AddCarForm() {
             <p className="font-semibold font-mono text-sm">{carDetails.vin}</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 pt-4">
-            <Button onClick={handleConfirm} className="w-full" disabled={isUserLoading || !user}>
-              {isUserLoading ? (
+            <Button onClick={handleConfirm} className="w-full" disabled={isUserLoading || !user || isConfirming}>
+              {(isUserLoading || isConfirming) ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <CarIcon className="mr-2 h-4 w-4" />
               )}
-              {isUserLoading ? "Authenticating..." : "Confirm & Add to My Cars"}
+              {isUserLoading ? "Authenticating..." : isConfirming ? "Adding Car..." : "Confirm & Add to My Cars"}
             </Button>
             <Button onClick={handleReset} variant="outline" className="w-full">
               Cancel
@@ -182,3 +187,5 @@ export function AddCarForm() {
     </Form>
   )
 }
+
+  

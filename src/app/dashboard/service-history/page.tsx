@@ -1,7 +1,7 @@
 'use client';
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import type { Car, WithId } from "@/lib/types";
+import { collection, collectionGroup, query } from "firebase/firestore";
+import type { Car, ServiceRecord, WithId } from "@/lib/types";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import {
   Accordion,
@@ -30,15 +30,32 @@ import Image from "next/image";
 import { ServiceHistorySummary } from "@/components/dashboard/service-history-summary";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useMemo } from "react";
 
 
 export default function ServiceHistoryPage() {
   const { firestore, user } = useFirebase();
-  const carsCollection = useMemoFirebase(
+
+  const carsCollectionRef = useMemoFirebase(
     () => (user ? collection(firestore, 'users', user.uid, 'cars') : null),
     [firestore, user]
   );
-  const { data: cars, isLoading } = useCollection<WithId<Car>>(carsCollection);
+  const { data: cars, isLoading: isLoadingCars } = useCollection<WithId<Car>>(carsCollectionRef);
+
+  const allServiceRecordsRef = useMemoFirebase(
+    () => (user ? query(collectionGroup(firestore, 'serviceRecords')) : null),
+    [firestore, user]
+  );
+  const { data: allServiceRecords, isLoading: isLoadingRecords } = useCollection<WithId<ServiceRecord>>(allServiceRecordsRef);
+
+  // Filter service records to only include those for the current user's cars
+  const userCarIds = useMemo(() => new Set(cars?.map(c => c.id)), [cars]);
+  const userSeviceHistory = useMemo(() => 
+    allServiceRecords?.filter(record => userCarIds.has(record.carId)) || [],
+    [allServiceRecords, userCarIds]
+  );
+  
+  const isLoading = isLoadingCars || isLoadingRecords;
 
   if (isLoading) {
     return (
@@ -60,7 +77,9 @@ export default function ServiceHistoryPage() {
       {cars && cars.length > 0 ? (
         <Accordion type="single" collapsible className="w-full space-y-4">
           {cars.map((car) => {
-            const image = PlaceHolderImages.find((img) => car.imageId === car.imageId) || PlaceHolderImages[0];
+            const image = car.imageId ? PlaceHolderImages.find((img) => img.id === car.imageId) : (PlaceHolderImages.find((img) => car.make.toLowerCase().includes(img.imageHint.split(' ')[1])) || PlaceHolderImages[1]);
+            const carServiceHistory = userSeviceHistory.filter(record => record.carId === car.id);
+
             return (
               <AccordionItem value={car.id} key={car.id} className="border-b-0 rounded-lg bg-card border shadow-sm overflow-hidden transition-shadow hover:shadow-lg hover:border-primary">
                 <AccordionTrigger className="p-6 hover:no-underline">
@@ -84,7 +103,7 @@ export default function ServiceHistoryPage() {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="p-6 pt-0">
-                    {car.serviceHistory && car.serviceHistory.length > 0 ? (
+                    {carServiceHistory && carServiceHistory.length > 0 ? (
                         <div className="grid lg:grid-cols-3 gap-6 items-start">
                             <div className="lg:col-span-2">
                                  <Card>
@@ -103,7 +122,7 @@ export default function ServiceHistoryPage() {
                                             </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                            {car.serviceHistory
+                                            {carServiceHistory
                                                 .sort((a, b) => new Date(b.serviceDate).getTime() - new Date(a.serviceDate).getTime())
                                                 .map((record) => (
                                                 <TableRow key={record.id}>
@@ -130,15 +149,15 @@ export default function ServiceHistoryPage() {
                                     <CardContent className="space-y-4 text-sm">
                                         <div className="flex justify-between items-center">
                                             <span className="text-muted-foreground">Total Services</span>
-                                            <span className="font-bold">{car.serviceHistory.length}</span>
+                                            <span className="font-bold">{carServiceHistory.length}</span>
                                         </div>
                                          <div className="flex justify-between items-center">
                                             <span className="text-muted-foreground">Total Spent</span>
-                                            <span className="font-bold">QAR {car.serviceHistory.reduce((acc, s) => acc + s.cost, 0).toFixed(2)}</span>
+                                            <span className="font-bold">QAR {carServiceHistory.reduce((acc, s) => acc + s.cost, 0).toFixed(2)}</span>
                                         </div>
                                     </CardContent>
                                  </Card>
-                                <ServiceHistorySummary car={car} />
+                                <ServiceHistorySummary car={car} serviceHistory={carServiceHistory} />
                             </div>
                         </div>
                     ) : (
@@ -168,3 +187,5 @@ export default function ServiceHistoryPage() {
     </div>
   );
 }
+
+  

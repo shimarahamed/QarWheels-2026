@@ -1,11 +1,11 @@
 'use client';
-
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
-import { Search, Star, MapPin, List, Map as MapIcon } from 'lucide-react';
+import { Search, Star, MapPin, List, Map as MapIcon, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,6 @@ import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { Vendor, WithId } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useSeedVendors } from '@/hooks/use-seed-vendors';
 
 
 function StarRating({ rating, className }: { rating: number, className?: string }) {
@@ -61,6 +60,7 @@ function GarageList({ vendors, isLoading }: { vendors: WithId<Vendor>[] | null, 
              <div className="text-center text-muted-foreground py-12">
                 <Search className="mx-auto h-12 w-12 mb-4" />
                 <p>No approved garages found.</p>
+                <p className="text-xs mt-2">The database might be seeding. Please wait a moment and refresh.</p>
             </div>
         )
     }
@@ -90,22 +90,19 @@ function GarageList({ vendors, isLoading }: { vendors: WithId<Vendor>[] | null, 
                                 <Link href={`/dashboard/garages/${vendor.id}`}>{vendor.name}</Link>
                             </CardTitle>
                             <div className="flex items-center gap-2">
-                                <StarRating rating={vendor.rating} />
-                                <span className="text-sm text-muted-foreground">({vendor.reviewCount} reviews)</span>
+                                <StarRating rating={vendor.rating || 0} />
+                                <span className="text-sm text-muted-foreground">({vendor.reviewCount || 0} reviews)</span>
                             </div>
                             <CardDescription className="flex items-start gap-2 pt-2">
                                 <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
                                 <span>{vendor.address}</span>
                             </CardDescription>
                         </CardHeader>
+                        {/* 
+                        We can't show services here anymore as it's a subcollection. 
+                        This could be fetched separately if needed, but for now we remove it for performance.
+                        */}
                         <CardContent className="flex-grow">
-                            <h4 className="font-semibold mb-2 text-sm">Services include:</h4>
-                             <div className="flex flex-wrap gap-2">
-                                {vendor.services.slice(0, 3).map(service => (
-                                    <Badge key={service} variant="secondary">{service}</Badge>
-                                ))}
-                                {vendor.services.length > 3 && <Badge variant="outline">+{vendor.services.length - 3} more</Badge>}
-                            </div>
                         </CardContent>
                         <CardFooter>
                             <Button asChild className="w-full">
@@ -120,18 +117,25 @@ function GarageList({ vendors, isLoading }: { vendors: WithId<Vendor>[] | null, 
 }
 
 export default function GaragesPage() {
-  const isSeeding = useSeedVendors(); // Seed the database on first load
   const { firestore } = useFirebase();
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Security rules require filtering by 'Approved' status for public access
   const vendorsQuery = useMemoFirebase(
     () => (firestore ? query(collection(firestore, 'vendors'), where('status', '==', 'Approved')) : null),
     [firestore]
   );
-  const { data: vendors, isLoading: isLoadingVendors } = useCollection<WithId<Vendor>>(vendorsQuery);
-  
-  const isLoading = isSeeding || isLoadingVendors;
+  const { data: vendors, isLoading } = useCollection<WithId<Vendor>>(vendorsQuery);
 
+  const filteredVendors = useMemoFirebase(() => {
+    if (!vendors) return null;
+    if (!searchTerm) return vendors;
+    return vendors.filter(vendor => 
+        vendor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        vendor.address.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [vendors, searchTerm]);
+  
   return (
     <div className="space-y-8">
         <header>
@@ -143,16 +147,21 @@ export default function GaragesPage() {
 
         <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input placeholder="Search by name, service, or location..." className="pl-10" />
+            <Input 
+                placeholder="Search by name or location..." 
+                className="pl-10" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
         </div>
 
         {/* Desktop View */}
         <div className="hidden lg:grid grid-cols-5 gap-8" style={{height: 'calc(100vh - 280px)'}}>
             <ScrollArea className="col-span-2 h-full pr-4 -mr-4">
-               <GarageList vendors={vendors} isLoading={isLoading} />
+               <GarageList vendors={filteredVendors} isLoading={isLoading} />
             </ScrollArea>
             <div className="col-span-3 h-full">
-                <GaragesMap vendors={vendors} isLoading={isLoading} />
+                <GaragesMap vendors={filteredVendors} isLoading={isLoading} />
             </div>
         </div>
 
@@ -164,10 +173,12 @@ export default function GaragesPage() {
                     <TabsTrigger value="map"><MapIcon className="mr-2 h-4 w-4" />Map View</TabsTrigger>
                 </TabsList>
                 <TabsContent value="list" className="mt-6">
-                    <GarageList vendors={vendors} isLoading={isLoading} />
+                    <GarageList vendors={filteredVendors} isLoading={isLoading} />
                 </TabsContent>
                 <TabsContent value="map" className="mt-6">
-                    <GaragesMap vendors={vendors} isLoading={isLoading} />
+                     <div className="h-[400px]">
+                        <GaragesMap vendors={filteredVendors} isLoading={isLoading} />
+                     </div>
                 </TabsContent>
             </Tabs>
         </div>
