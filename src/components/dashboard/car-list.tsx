@@ -8,6 +8,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Car as CarIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 function CarCardSkeleton() {
   return (
