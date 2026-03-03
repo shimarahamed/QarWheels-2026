@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Card,
   CardContent,
@@ -7,9 +9,7 @@ import {
 } from "@/components/ui/card";
 import {
   DollarSign,
-  Users,
   Wrench,
-  CalendarCheck,
   Star,
   FileText,
 } from "lucide-react";
@@ -21,37 +21,54 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { mockVendorBookings, mockAnalyticsData } from "@/lib/vendor-data";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { OverviewChart } from "@/components/vendor/overview-chart";
+import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { useVendor } from "@/components/vendor/vendor-provider";
+import { collection, query, where, Timestamp } from "firebase/firestore";
+import type { Booking, WithId } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function VendorDashboard() {
-  const upcomingBookings = mockVendorBookings
-    .filter((b) => b.status === "Upcoming")
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  const { firestore } = useFirebase();
+  const { vendor, isLoading: isLoadingVendor } = useVendor();
+
+  const bookingsQuery = useMemoFirebase(
+    () => (vendor ? query(collection(firestore, 'bookings'), where('vendorId', '==', vendor.id)) : null),
+    [firestore, vendor]
+  );
+  const { data: bookings, isLoading: isLoadingBookings } = useCollection<WithId<Booking>>(bookingsQuery);
+
+  const isLoading = isLoadingVendor || isLoadingBookings;
+
+  const upcomingBookings = bookings
+    ?.filter((b) => b.status === "Confirmed" && (b.bookingDate instanceof Timestamp ? b.bookingDate.toDate() : new Date(b.bookingDate)) >= new Date())
+    .sort((a, b) => (a.bookingDate instanceof Timestamp ? a.bookingDate.toDate() : new Date(a.bookingDate)).getTime() - (b.bookingDate instanceof Timestamp ? b.bookingDate.toDate() : new Date(b.bookingDate)).getTime())
     .slice(0, 5);
 
-  const todayRevenue = mockVendorBookings
-    .filter(
+  const todayRevenue = bookings
+    ?.filter(
       (b) =>
         b.status === "Completed" &&
-        new Date(b.date).toDateString() === new Date().toDateString()
+        new Date(b.bookingDate instanceof Timestamp ? b.bookingDate.toDate() : new Date(b.bookingDate)).toDateString() === new Date().toDateString()
     )
-    .reduce((sum, b) => sum + b.cost, 0);
+    .reduce((sum, b) => sum + (b.cost || 0), 0) || 0;
 
-  const inProgressCount = mockVendorBookings.filter(
-    (b) => b.status === "In Progress"
-  ).length;
-
+  const inProgressCount = bookings?.filter(
+    (b) => b.status === "Confirmed" // Using "Confirmed" as a proxy for active jobs
+  ).length || 0;
+  
+  const shopRating = vendor?.rating || 0;
+  const pendingQuotes = 0; // Placeholder as this is not in the data model yet
 
   return (
     <div className="space-y-8">
       <header>
         <h1 className="text-3xl font-bold font-headline">Workshop Command Center</h1>
         <p className="text-muted-foreground">
-          Welcome to your dashboard, Precision Auto Qatar.
+          Welcome to your dashboard, {isLoading ? <Skeleton className="h-5 w-48 inline-block" /> : vendor?.name}.
         </p>
       </header>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -63,7 +80,7 @@ export default function VendorDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">QAR {todayRevenue.toFixed(2)}</div>
+            {isLoading ? <Skeleton className="h-8 w-32" /> : <div className="text-2xl font-bold">QAR {todayRevenue.toFixed(2)}</div>}
             <p className="text-xs text-muted-foreground">
               Based on completed jobs today
             </p>
@@ -75,9 +92,9 @@ export default function VendorDashboard() {
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+{inProgressCount}</div>
+            {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">+{inProgressCount}</div>}
             <p className="text-xs text-muted-foreground">
-              Vehicles currently in the garage
+              Confirmed upcoming jobs
             </p>
           </CardContent>
         </Card>
@@ -87,9 +104,9 @@ export default function VendorDashboard() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+{mockAnalyticsData.pendingQuotes}</div>
+            <div className="text-2xl font-bold">+{pendingQuotes}</div>
             <p className="text-xs text-muted-foreground">
-              New RFQs to respond to
+              Feature coming soon
             </p>
           </CardContent>
         </Card>
@@ -99,9 +116,9 @@ export default function VendorDashboard() {
             <Star className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockAnalyticsData.shopRating}</div>
+             {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{shopRating.toFixed(1)}</div>}
             <p className="text-xs text-muted-foreground">
-              Based on all customer reviews
+              Based on customer reviews
             </p>
           </CardContent>
         </Card>
@@ -111,6 +128,9 @@ export default function VendorDashboard() {
         <Card className="lg:col-span-4">
           <CardHeader>
             <CardTitle>Revenue Overview</CardTitle>
+             <CardDescription>
+              A summary of your revenue over the last 6 months. (Mock Data)
+            </CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
             <OverviewChart timeRange="last_6_months" />
@@ -131,31 +151,39 @@ export default function VendorDashboard() {
             </Button>
           </CardHeader>
           <CardContent>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Service</TableHead>
-                        <TableHead>Date</TableHead>
-                    </TableRow>
-                </TableHeader>
-              <TableBody>
-                {upcomingBookings.map((booking) => (
-                  <TableRow key={booking.id}>
-                    <TableCell>
-                      <div className="font-medium">{booking.customerName}</div>
-                      <div className="hidden text-sm text-muted-foreground md:inline">
-                        {booking.carModel}
-                      </div>
-                    </TableCell>
-                    <TableCell>{booking.service}</TableCell>
-                    <TableCell>
-                      {format(new Date(booking.date), "EEE, MMM d @ h:mm a")}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            {isLoading ? (
+                <div className="space-y-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                </div>
+            ) : upcomingBookings && upcomingBookings.length > 0 ? (
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Customer</TableHead>
+                            <TableHead>Service</TableHead>
+                            <TableHead>Date</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                  <TableBody>
+                    {upcomingBookings.map((booking) => (
+                      <TableRow key={booking.id}>
+                        <TableCell>
+                           {/* TODO: Fetch customer name from user profile based on userId */}
+                           <div className="font-medium text-xs font-mono">{booking.userId}</div>
+                        </TableCell>
+                        <TableCell>{booking.serviceName}</TableCell>
+                        <TableCell>
+                          {format(booking.bookingDate instanceof Timestamp ? booking.bookingDate.toDate() : new Date(booking.bookingDate), "EEE, MMM d @ h:mm a")}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+            ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">No upcoming bookings.</p>
+            )}
           </CardContent>
         </Card>
       </div>

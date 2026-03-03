@@ -1,8 +1,23 @@
 "use client"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 import { useState, useEffect } from 'react';
-import { mockAnalyticsData } from "@/lib/vendor-data"
 import { Skeleton } from "@/components/ui/skeleton";
+
+// MOCK DATA is now local to this component until live data is piped in.
+const mockRevenue = [
+    { month: "Jan", total: Math.floor(Math.random() * 5000) + 1000 },
+    { month: "Feb", total: Math.floor(Math.random() * 5000) + 1000 },
+    { month: "Mar", total: Math.floor(Math.random() * 5000) + 1000 },
+    { month: "Apr", total: Math.floor(Math.random() * 5000) + 1000 },
+    { month: "May", total: Math.floor(Math.random() * 5000) + 1000 },
+    { month: "Jun", total: Math.floor(Math.random() * 5000) + 1000 },
+    { month: "Jul", total: Math.floor(Math.random() * 5000) + 1000 },
+    { month: "Aug", total: Math.floor(Math.random() * 5000) + 1000 },
+    { month: "Sep", total: Math.floor(Math.random() * 5000) + 1000 },
+    { month: "Oct", total: Math.floor(Math.random() * 5000) + 1000 },
+    { month: "Nov", total: Math.floor(Math.random() * 5000) + 1000 },
+    { month: "Dec", total: Math.floor(Math.random() * 5000) + 1000 },
+]
 
 export function OverviewChart({ timeRange }: { timeRange?: string }) {
     const [data, setData] = useState<any[]>([]);
@@ -11,12 +26,12 @@ export function OverviewChart({ timeRange }: { timeRange?: string }) {
     useEffect(() => {
         setLoading(true);
         // Simulate fetching data based on the time range
-        let filteredData = mockAnalyticsData.revenue;
+        let filteredData = mockRevenue;
         if (timeRange === 'last_30_days') {
             // For this mock data, "last 30 days" will be the most recent month
-            filteredData = mockAnalyticsData.revenue.slice(-1);
+            filteredData = mockRevenue.slice(-1);
         } else if (timeRange === 'last_6_months') {
-            filteredData = mockAnalyticsData.revenue.slice(-6);
+            filteredData = mockRevenue.slice(-6);
         }
         setData(filteredData);
         setLoading(false);
