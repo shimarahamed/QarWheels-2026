@@ -24,7 +24,9 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Logo } from "../logo";
 import { Input } from "../ui/input";
-import { useFirebase } from "@/firebase";
+import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
+import type { UserProfile } from "@/lib/types";
+import { doc } from "firebase/firestore";
 
 const navItems = [
   { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard" },
@@ -37,13 +39,21 @@ const navItems = [
 
 export function DashboardSidebar() {
   const pathname = usePathname();
-  const { auth, user } = useFirebase();
+  const { auth, user, firestore } = useFirebase();
+
+  const userProfileRef = useMemoFirebase(
+    () => (user && !user.isAnonymous ? doc(firestore, 'users', user.uid) : null),
+    [firestore, user]
+  );
+  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
+
 
   const handleLogout = () => {
     auth.signOut();
   };
 
-  const userName = user?.isAnonymous ? "Anonymous User" : user?.email || "User";
+  const displayName = userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : user?.isAnonymous ? "Anonymous User" : user?.email || "User";
+  const displayEmail = userProfile?.email || user?.email || 'Guest';
 
   return (
     <>
@@ -78,12 +88,12 @@ export function DashboardSidebar() {
             <Link href="/dashboard/profile" className="p-2 rounded-md hover:bg-accent -mx-2">
                 <div className="flex items-center gap-3">
                     <Avatar className="h-9 w-9">
-                        <AvatarImage src={user.photoURL || `https://api.dicebear.com/8.x/initials/svg?seed=${userName}`} alt={userName} />
-                        <AvatarFallback>{userName.substring(0, 2)}</AvatarFallback>
+                        <AvatarImage src={user.photoURL || `https://api.dicebear.com/8.x/initials/svg?seed=${displayName}`} alt={displayName} />
+                        <AvatarFallback>{displayName.substring(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col overflow-hidden">
-                        <span className="text-sm font-semibold truncate">{userName}</span>
-                        <span className="text-xs text-muted-foreground truncate">{user.uid}</span>
+                        <span className="text-sm font-semibold truncate">{displayName}</span>
+                        <span className="text-xs text-muted-foreground truncate">{user.isAnonymous ? 'Guest Account' : displayEmail}</span>
                     </div>
                 </div>
             </Link>

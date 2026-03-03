@@ -72,18 +72,12 @@ export type Vendor = {
     updatedAt: any;
 };
 
-
-export type User = {
+export type UserProfile = {
     id: string;
-    name: string;
     email: string;
-    phone: string;
-    avatarUrl: string;
-    notificationPreferences: {
-        bookingConfirmations: boolean;
-        serviceReminders: boolean;
-        promotionalOffers: boolean;
-    };
+    firstName: string;
+    lastName: string;
+    phoneNumber?: string;
+    createdAt: any; // serverTimestamp
+    updatedAt: any; // serverTimestamp
 };
-
-    
