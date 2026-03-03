@@ -73,21 +73,6 @@ service cloud.firestore {
     }
 
     /**
-     * Validates that the UserProfile document being created has an 'id' field
-     * that matches the document's ID in the path.
-     */
-    function hasValidUserProfileDataOnCreate(userId) {
-      return request.resource.data.id == userId;
-    }
-
-    /**
-     * Enforces immutability of the UserProfile's 'id' field during an update.
-     */
-    function hasValidUserProfileDataOnUpdate() {
-      return request.resource.data.id == resource.data.id;
-    }
-
-    /**
      * Validates relational integrity on Car creation. Ensures the car's 'userId'
      * field matches the path parameter.
      */
@@ -145,8 +130,8 @@ service cloud.firestore {
      */
     match /users/{userId} {
       allow get, list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && hasValidUserProfileDataOnCreate(userId);
-      allow update: if isExistingOwner(userId) && hasValidUserProfileDataOnUpdate();
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
 
       /**
