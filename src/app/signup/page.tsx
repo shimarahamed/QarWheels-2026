@@ -68,7 +68,6 @@ export default function SignupPage() {
             if (newUser) {
                 const userProfileRef = doc(firestore, "users", newUser.uid);
                 const userProfileData = {
-                    id: newUser.uid,
                     email: values.email,
                     firstName: values.firstName,
                     lastName: values.lastName,

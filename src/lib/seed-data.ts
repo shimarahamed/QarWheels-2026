@@ -2,7 +2,7 @@ import type { Vendor } from './types';
 
 // This data is used to seed the database if the vendors collection is empty.
 // It is transformed to match the Vendor schema in backend.json.
-export const seedVendors: Omit<Vendor, 'id' | 'createdAt' | 'updatedAt'>[] = [
+export const seedVendors: Omit<Vendor, 'createdAt' | 'updatedAt'>[] = [
   {
     name: "Precision Auto Qatar",
     address: "Street 10, Industrial Area, Doha",

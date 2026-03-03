@@ -1,7 +1,7 @@
+'use client';
 import { Timestamp } from "firebase/firestore";
 
 export type ServiceRecord = {
-    id: string;
     date: string;
     service: string;
     description: string;
@@ -15,7 +15,6 @@ export type ServiceRecord = {
 };
 
 export type Car = {
-    id: string;
     userId: string;
     vin: string;
     make: string;
@@ -37,7 +36,6 @@ export type Car = {
 };
 
 export type Booking = {
-    id: string;
     userId: string;
     vendorId: string;
     vendorName: string;
@@ -51,7 +49,6 @@ export type Booking = {
 };
 
 export type Vendor = {
-    id:string;
     name: string;
     type: 'Garage' | 'Parts Store' | 'Both';
     description?: string;
@@ -73,7 +70,6 @@ export type Vendor = {
 };
 
 export type UserProfile = {
-    id: string;
     email: string;
     firstName: string;
     lastName: string;

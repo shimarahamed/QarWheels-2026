@@ -76,7 +76,7 @@ export function AddCarForm() {
     }
 
     const carsCollectionRef = collection(firestore, 'users', user.uid, 'cars');
-    const newCar: Omit<Car, 'id'> = {
+    const newCar: Car = {
       userId: user.uid,
       vin: carDetails.vin,
       make: carDetails.make,
