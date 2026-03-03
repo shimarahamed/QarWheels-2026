@@ -76,6 +76,7 @@ export default function CarDetailsPage() {
           {car.year} {car.make} {car.model}
         </h1>
         <p className="text-muted-foreground font-mono">{car.vin}</p>
+        <p className="text-xs text-muted-foreground/70 font-mono">Ref: {car.id}</p>
       </header>
 
       <div className="grid lg:grid-cols-3 gap-8 items-start">
