@@ -23,7 +23,7 @@ export type Car = {
     color?: string;
     engineType?: string;
     currentMileage: number;
-    lastMileageUpdateDate?: string;
+    lastMileageUpdateDate: string;
     purchaseDate?: string;
     imageUrl?: string;
     createdAt: any; // serverTimestamp

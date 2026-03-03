@@ -38,7 +38,7 @@ export function AddCarForm() {
   const [carDetails, setCarDetails] = useState<CarDetails | null>(null);
   const { toast } = useToast()
   const router = useRouter();
-  const { firestore, user } = useFirebase();
+  const { firestore, user, isUserLoading } = useFirebase();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -83,6 +83,7 @@ export function AddCarForm() {
       model: carDetails.model,
       year: carDetails.year,
       currentMileage: 0,
+      lastMileageUpdateDate: new Date().toISOString(),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       serviceHistory: [],
@@ -136,9 +137,13 @@ export function AddCarForm() {
             <p className="font-semibold font-mono text-sm">{carDetails.vin}</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 pt-4">
-            <Button onClick={handleConfirm} className="w-full">
-              <CarIcon className="mr-2 h-4 w-4" />
-              Confirm & Add to My Cars
+            <Button onClick={handleConfirm} className="w-full" disabled={isUserLoading || !user}>
+              {isUserLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CarIcon className="mr-2 h-4 w-4" />
+              )}
+              {isUserLoading ? "Authenticating..." : "Confirm & Add to My Cars"}
             </Button>
             <Button onClick={handleReset} variant="outline" className="w-full">
               Cancel
