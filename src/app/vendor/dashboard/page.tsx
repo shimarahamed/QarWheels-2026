@@ -92,9 +92,9 @@ export default function VendorDashboard() {
     <div className="space-y-8">
       <header>
         <h1 className="text-3xl font-bold font-headline">Workshop Command Center</h1>
-        <p className="text-muted-foreground">
+        <div className="text-muted-foreground">
           Welcome to your dashboard, {isLoading ? <Skeleton className="h-5 w-48 inline-block" /> : vendor?.name}.
-        </p>
+        </div>
       </header>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
