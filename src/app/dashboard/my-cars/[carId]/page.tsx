@@ -151,7 +151,7 @@ export default function CarDetailsPage() {
   const isLoading = isUserLoading || isLoadingCar || isLoadingHistory;
   const error = carError || historyError;
   
-  if (isLoading && !car && !error) { // Show full page loader only on initial load without an error
+  if (isLoading) {
     return (
         <div className="flex h-64 w-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -174,7 +174,7 @@ export default function CarDetailsPage() {
     );
   }
 
-  if (!isLoading && !car) {
+  if (!car) {
       return (
         <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
@@ -184,16 +184,6 @@ export default function CarDetailsPage() {
             </AlertDescription>
         </Alert>
       );
-  }
-  
-  if (!car) {
-    // This case handles the brief moment between isLoading becoming false and the car object being fully available.
-    // A simple loader is sufficient here.
-    return (
-        <div className="flex h-64 w-full items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-    )
   }
 
   const image = car.imageId ? PlaceHolderImages.find((img) => img.id === car.imageId) : (PlaceHolderImages.find((img) => car.make.toLowerCase().includes(img.imageHint.split(' ')[1])) || PlaceHolderImages[1]);

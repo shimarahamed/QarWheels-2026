@@ -80,7 +80,7 @@ export default function GarageDetailsPage() {
     const isLoading = isUserLoading || isLoadingGarage || isLoadingServices || isLoadingReviews;
     const error = garageError || servicesError || reviewsError;
 
-    if (isLoading && !error) {
+    if (isLoading) {
         return (
              <div className="space-y-6">
                 <Skeleton className="h-9 w-40" />
@@ -114,7 +114,15 @@ export default function GarageDetailsPage() {
     }
 
     if (!garage) {
-        notFound();
+        return (
+            <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Garage Not Found</AlertTitle>
+                <AlertDescription>
+                   The garage you are looking for could not be found. It may have been deleted or the link may be incorrect.
+                </AlertDescription>
+            </Alert>
+        );
     }
     
     const image = garage.imageId ? PlaceHolderImages.find(p => p.id === garage.imageId) : PlaceHolderImages.find(p => p.id === 'garage-interior');
