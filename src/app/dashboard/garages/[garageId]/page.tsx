@@ -3,7 +3,7 @@ import { notFound, useParams } from 'next/navigation';
 import { useFirebase, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import type { Vendor, Service, Review, WithId } from '@/lib/types';
-import { Star, MapPin, Phone, Globe, Wrench, MessageSquare, Loader2, ArrowLeft, Frown } from 'lucide-react';
+import { Star, MapPin, Phone, Globe, Wrench, MessageSquare, Loader2, ArrowLeft, AlertTriangle } from 'lucide-react';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,29 +14,34 @@ import Link from 'next/link';
 import { format, isValid } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
-function StarRating({ rating, className }: { rating: number, className?: string }) {
+function StarRating({ rating, reviewCount, className }: { rating: number, reviewCount?: number, className?: string }) {
     const fullStars = Math.floor(rating);
     const halfStar = rating % 1 >= 0.5;
     const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
 
     return (
-        <div className={cn("flex items-center gap-0.5", className)}>
-            {[...Array(fullStars)].map((_, i) => (
-                <Star key={`full-${i}`} className="h-5 w-5 fill-amber-400 text-amber-400" />
-            ))}
-            {halfStar && <Star key="half" className="h-5 w-5 fill-amber-200 text-amber-400" />}
-            {[...Array(emptyStars)].map((_, i) => (
-                <Star key={`empty-${i}`} className="h-5 w-5 fill-gray-200 text-gray-300" />
-            ))}
+        <div className={cn("flex items-center gap-x-2", className)}>
+            <div className="flex items-center gap-0.5">
+                {[...Array(fullStars)].map((_, i) => (
+                    <Star key={`full-${i}`} className="h-5 w-5 fill-amber-400 text-amber-400" />
+                ))}
+                {halfStar && <Star key="half" className="h-5 w-5 fill-amber-200 text-amber-400" />}
+                {[...Array(emptyStars)].map((_, i) => (
+                    <Star key={`empty-${i}`} className="h-5 w-5 fill-gray-200 text-gray-300" />
+                ))}
+            </div>
+             {reviewCount !== undefined && <span className='text-sm text-muted-foreground'>({reviewCount} reviews)</span>}
         </div>
     );
 }
 
 function ReviewItem({ review }: { review: WithId<Review> }) {
-  const reviewDate = review.date ? new Date(review.date) : null;
-  const isDateValid = reviewDate && isValid(reviewDate);
+  // Validate date before formatting
+  const isDateValid = review.date && isValid(new Date(review.date));
+  const reviewDate = isDateValid ? new Date(review.date) : null;
 
   return (
     <div className="text-sm">
@@ -45,12 +50,12 @@ function ReviewItem({ review }: { review: WithId<Review> }) {
         <StarRating rating={review.rating} />
       </div>
       <p className="text-muted-foreground italic">&quot;{review.comment}&quot;</p>
-      {isDateValid ? (
+      {reviewDate ? (
         <p className="text-xs text-muted-foreground/70 mt-1">
           {format(reviewDate, 'PPP')}
         </p>
       ) : (
-        <p className="text-xs text-muted-foreground/70 mt-1">
+         <p className="text-xs text-muted-foreground/70 mt-1">
           Date not available
         </p>
       )}
@@ -68,13 +73,14 @@ export default function GarageDetailsPage() {
     const servicesRef = useMemoFirebase(() => garageId ? collection(firestore, 'vendors', garageId, 'services') : null, [firestore, garageId]);
     const reviewsRef = useMemoFirebase(() => garageId ? collection(firestore, 'vendors', garageId, 'reviews') : null, [firestore, garageId]);
 
-    const { data: garage, isLoading: isLoadingGarage } = useDoc<WithId<Vendor>>(garageRef);
-    const { data: services, isLoading: isLoadingServices } = useCollection<WithId<Service>>(servicesRef);
-    const { data: reviews, isLoading: isLoadingReviews } = useCollection<WithId<Review>>(reviewsRef);
+    const { data: garage, isLoading: isLoadingGarage, error: garageError } = useDoc<WithId<Vendor>>(garageRef);
+    const { data: services, isLoading: isLoadingServices, error: servicesError } = useCollection<WithId<Service>>(servicesRef);
+    const { data: reviews, isLoading: isLoadingReviews, error: reviewsError } = useCollection<WithId<Review>>(reviewsRef);
     
     const isLoading = isUserLoading || isLoadingGarage || isLoadingServices || isLoadingReviews;
+    const error = garageError || servicesError || reviewsError;
 
-    if (isLoading) {
+    if (isLoading && !error) {
         return (
              <div className="space-y-6">
                 <Skeleton className="h-9 w-40" />
@@ -90,6 +96,21 @@ export default function GarageDetailsPage() {
                  </div>
             </div>
         )
+    }
+    
+    if (error) {
+        return (
+             <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Failed to Load Garage Details</AlertTitle>
+                <AlertDescription>
+                    <p>There was an error fetching the data for this garage. It might be a temporary issue or a problem with permissions.</p>
+                     <pre className="mt-4 whitespace-pre-wrap font-mono text-xs bg-destructive-foreground/10 p-2 rounded">
+                        {error.message}
+                    </pre>
+                </AlertDescription>
+            </Alert>
+        );
     }
 
     if (!garage) {
@@ -123,10 +144,7 @@ export default function GarageDetailsPage() {
                             <CardTitle>{garage.name}</CardTitle>
                             <CardDescription>{garage.description}</CardDescription>
                              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 text-sm text-muted-foreground">
-                                <div className="flex items-center gap-2">
-                                    <StarRating rating={garage.rating || 0} />
-                                    <span>({garage.reviewCount || 0} reviews)</span>
-                                </div>
+                                <StarRating rating={garage.rating || 0} reviewCount={garage.reviewCount || 0} />
                                 <div className="flex items-center gap-2">
                                     <MapPin className="h-4 w-4 text-primary" />
                                     <span>{garage.address}</span>
@@ -201,7 +219,7 @@ export default function GarageDetailsPage() {
                         <CardContent>
                              {reviews && reviews.length > 0 ? (
                                 <div className="space-y-4 max-h-96 overflow-y-auto pr-2 no-scrollbar">
-                                    {reviews.map(review => (
+                                    {reviews.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(review => (
                                        <ReviewItem key={review.id} review={review} />
                                     ))}
                                 </div>

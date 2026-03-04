@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   History,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -24,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { notFound, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { CarMaintenancePredictions } from "@/components/dashboard/car-maintenance-predictions";
 import { ServiceHistorySummary } from "@/components/dashboard/service-history-summary";
 import Link from "next/link";
@@ -35,6 +36,7 @@ import { collection, doc } from 'firebase/firestore';
 import type { Car, ServiceRecord, WithId } from "@/lib/types";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 
 function ServiceHistoryList({ serviceHistory, isLoading }: { serviceHistory: WithId<ServiceRecord>[] | null, isLoading: boolean }) {
@@ -66,7 +68,7 @@ function ServiceHistoryList({ serviceHistory, isLoading }: { serviceHistory: Wit
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-center text-muted-foreground py-12 px-8 rounded-lg bg-muted/50">
+                    <div className="text-center text-muted-foreground py-12 px-8 rounded-lg border bg-card">
                         <History className="mx-auto h-12 w-12 mb-4 text-primary/50" />
                         <h3 className="font-semibold text-lg">No History Found</h3>
                         <p>No service history has been recorded for this vehicle yet.</p>
@@ -138,17 +140,18 @@ export default function CarDetailsPage() {
     () => (user && carId ? doc(firestore, 'users', user.uid, 'cars', carId) : null),
     [firestore, user, carId]
   );
-  const { data: car, isLoading: isLoadingCar } = useDoc<WithId<Car>>(carRef);
+  const { data: car, isLoading: isLoadingCar, error: carError } = useDoc<WithId<Car>>(carRef);
   
   const serviceHistoryRef = useMemoFirebase(() => 
     user && carId ? collection(firestore, `users/${user.uid}/cars/${carId}/serviceRecords`) : null,
     [firestore, user, carId]
   );
-  const { data: serviceHistory, isLoading: isLoadingHistory } = useCollection<WithId<ServiceRecord>>(serviceHistoryRef);
+  const { data: serviceHistory, isLoading: isLoadingHistory, error: historyError } = useCollection<WithId<ServiceRecord>>(serviceHistoryRef);
 
   const isLoading = isUserLoading || isLoadingCar || isLoadingHistory;
+  const error = carError || historyError;
   
-  if (isLoading && !car) { // Show full page loader only on initial load
+  if (isLoading && !car && !error) { // Show full page loader only on initial load without an error
     return (
         <div className="flex h-64 w-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -156,8 +159,41 @@ export default function CarDetailsPage() {
     )
   }
 
+  if (error) {
+    return (
+        <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Failed to Load Car Details</AlertTitle>
+            <AlertDescription>
+                <p>There was an error fetching the data for this vehicle. This might be a temporary issue or a problem with permissions.</p>
+                <pre className="mt-4 whitespace-pre-wrap font-mono text-xs bg-destructive-foreground/10 p-2 rounded">
+                    {error.message}
+                </pre>
+            </AlertDescription>
+        </Alert>
+    );
+  }
+
+  if (!isLoading && !car) {
+      return (
+        <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Car Not Found</AlertTitle>
+            <AlertDescription>
+               The vehicle you are looking for could not be found. It may have been deleted or the link may be incorrect.
+            </AlertDescription>
+        </Alert>
+      );
+  }
+  
   if (!car) {
-    notFound();
+    // This case handles the brief moment between isLoading becoming false and the car object being fully available.
+    // A simple loader is sufficient here.
+    return (
+        <div className="flex h-64 w-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    )
   }
 
   const image = car.imageId ? PlaceHolderImages.find((img) => img.id === car.imageId) : (PlaceHolderImages.find((img) => car.make.toLowerCase().includes(img.imageHint.split(' ')[1])) || PlaceHolderImages[1]);

@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { MapPin } from 'lucide-react';
 import Link from 'next/link';
 
-export function GaragesMap({ vendors }: { vendors: WithId<Vendor>[] }) {
+export function GaragesMap({ vendors }: { vendors: WithId<Vendor>[] | null }) {
     const mapImage = PlaceHolderImages.find(p => p.id === 'doha-map');
 
     // This is a simplified placeholder for a real map.
@@ -24,7 +24,7 @@ export function GaragesMap({ vendors }: { vendors: WithId<Vendor>[] }) {
     }
     
     return (
-        <Card className="overflow-hidden relative aspect-[16/7]">
+        <Card className="overflow-hidden relative aspect-[16/7] bg-muted">
             {mapImage && (
                 <Image 
                     src={mapImage.imageUrl}
@@ -36,7 +36,7 @@ export function GaragesMap({ vendors }: { vendors: WithId<Vendor>[] }) {
             )}
             <div className="absolute inset-0 bg-black/30" />
 
-            {vendors.slice(0, 5).map((vendor, index) => (
+            {vendors && vendors.slice(0, 5).map((vendor, index) => (
                 <Link key={vendor.id} href={`/dashboard/garages/${vendor.id}`}>
                     <div 
                         className="absolute transform -translate-x-1/2 -translate-y-1/2 group"
