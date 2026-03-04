@@ -98,15 +98,15 @@ function ServiceHistoryList({ carId }: { carId: string }) {
 export default function CarDetailsPage() {
   const params = useParams();
   const carId = params.carId as string;
-  const { firestore, user } = useFirebase();
+  const { firestore, user, isUserLoading } = useFirebase();
 
   const carRef = useMemoFirebase(
     () => (user && carId ? doc(firestore, 'users', user.uid, 'cars', carId) : null),
     [firestore, user, carId]
   );
-  const { data: car, isLoading } = useDoc<WithId<Car>>(carRef);
+  const { data: car, isLoading: isLoadingCar } = useDoc<WithId<Car>>(carRef);
   
-  if (isLoading) {
+  if (isUserLoading || isLoadingCar) {
     return (
         <div className="flex h-64 w-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -209,5 +209,3 @@ export default function CarDetailsPage() {
     </div>
   );
 }
-
-  

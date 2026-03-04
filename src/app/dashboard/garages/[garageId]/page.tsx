@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { cn } from '@/lib/utils';
 import { Star, MapPin, ArrowLeft, Wrench, Clock, CircleDollarSign, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { useFirebase, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection } from 'firebase/firestore';
 import type { Vendor, Service, Review, WithId } from '@/lib/types';
@@ -89,11 +89,13 @@ function ReviewsList({ reviews }: { reviews: WithId<Review>[] | null }) {
         <div className="space-y-4">
             {reviews.map(review => {
                     let reviewDateStr = 'Date not available';
-                    if (review.date && typeof review.date === 'string') {
-                        const reviewDate = new Date(review.date);
-                        if (!isNaN(reviewDate.getTime())) {
+                    try {
+                        if (review.date && typeof review.date === 'string') {
+                            const reviewDate = parseISO(review.date);
                             reviewDateStr = format(reviewDate, 'PPP');
                         }
+                    } catch (e) {
+                        // Keep fallback
                     }
                     return (
                         <Card key={review.id}>
@@ -127,7 +129,7 @@ function ReviewsList({ reviews }: { reviews: WithId<Review>[] | null }) {
 export default function GarageDetailsPage() {
     const params = useParams();
     const { garageId } = params as { garageId: string };
-    const { firestore } = useFirebase();
+    const { firestore, isUserLoading } = useFirebase();
 
     // Centralized data fetching
     const vendorRef = useMemoFirebase(() => (firestore && garageId ? doc(firestore, 'vendors', garageId) : null), [firestore, garageId]);
@@ -138,8 +140,8 @@ export default function GarageDetailsPage() {
     const { data: services, isLoading: isLoadingServices } = useCollection<WithId<Service>>(servicesRef);
     const { data: reviews, isLoading: isLoadingReviews } = useCollection<WithId<Review>>(reviewsRef);
     
-    // Unified loading state
-    const isLoading = isLoadingVendor || isLoadingServices || isLoadingReviews;
+    // Unified loading state that includes the authentication check
+    const isLoading = isLoadingVendor || isLoadingServices || isLoadingReviews || isUserLoading;
 
     if (isLoading) {
         return (

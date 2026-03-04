@@ -22,7 +22,7 @@ import { doc, Timestamp } from "firebase/firestore";
 export default function BookingDetailsPage() {
     const params = useParams();
     const { bookingId } = params as { bookingId: string };
-    const { firestore, user } = useFirebase();
+    const { firestore, user, isUserLoading } = useFirebase();
 
     const bookingRef = useMemoFirebase(
       () => (bookingId ? doc(firestore, 'bookings', bookingId) : null),
@@ -37,7 +37,7 @@ export default function BookingDetailsPage() {
     );
     const { data: car, isLoading: isLoadingCar } = useDoc<WithId<CarType>>(carRef);
     
-    if (isLoadingBooking || isLoadingCar) {
+    if (isUserLoading || isLoadingBooking || isLoadingCar) {
       return (
         <div className="flex h-64 w-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
