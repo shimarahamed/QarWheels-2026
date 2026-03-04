@@ -10,7 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Skeleton } from '../ui/skeleton';
-import type { Vendor } from '@/lib/types';
+import type { Vendor, WithId } from '@/lib/types';
 
 // A bounding box to roughly map our mock coordinates to the image
 const BBOX = {
@@ -20,7 +20,7 @@ const BBOX = {
     maxLat: 25.35,
 }
 
-export function GaragesMap({ vendors, isLoading }: { vendors: Vendor[] | null, isLoading: boolean }) {
+export function GaragesMap({ vendors, isLoading }: { vendors: WithId<Vendor>[] | null, isLoading: boolean }) {
     const mapImage = PlaceHolderImages.find(img => img.id === 'doha-map');
 
     const getPosition = (lat: number, lng: number) => {
@@ -46,6 +46,7 @@ export function GaragesMap({ vendors, isLoading }: { vendors: Vendor[] | null, i
             )}
             <TooltipProvider>
                 {vendors?.map(vendor => {
+                    if (!vendor.latitude || !vendor.longitude) return null;
                     const position = getPosition(vendor.latitude, vendor.longitude);
                     return (
                         <Tooltip key={vendor.id}>

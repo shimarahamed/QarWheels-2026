@@ -75,7 +75,7 @@ function ServicesList({vendorId}: {vendorId: string}) {
                             </div>
                         </div>
                         <Button asChild className="w-full sm:w-auto shrink-0">
-                            <Link href={`/dashboard/book?garageId=${vendorId}&service=${encodeURIComponent(service.name)}`}>
+                            <Link href={`/dashboard/book?garageId=${vendorId}&service=${encodeURIComponent(service.name)}&price=${service.price}`}>
                                 <Wrench className="mr-2 h-4 w-4"/>Book Now
                             </Link>
                         </Button>
