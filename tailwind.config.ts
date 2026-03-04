@@ -47,8 +47,6 @@ export default {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
-        'tech-accent': 'hsl(var(--tech-accent))',
-        success: 'hsl(var(--success))',
         chart: {
           '1': 'hsl(var(--chart-1))',
           '2': 'hsl(var(--chart-2))',
@@ -68,11 +66,10 @@ export default {
         },
       },
       borderRadius: {
-        '2xl': 'calc(var(--radius) * 1.5)',
-        xl: 'calc(var(--radius) * 1.25)',
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 4px)',
-        sm: 'calc(var(--radius) - 8px)',
+        xl: `calc(var(--radius) + 4px)`,
+        lg: `var(--radius)`,
+        md: `calc(var(--radius) - 2px)`,
+        sm: 'calc(var(--radius) - 4px)',
       },
       keyframes: {
         'accordion-down': {
@@ -91,21 +88,10 @@ export default {
             height: '0',
           },
         },
-        'pulse-colors': {
-          '0%, 100%': { 
-            backgroundColor: 'hsl(var(--primary))', 
-            boxShadow: '0 0 5px hsl(var(--primary)), 0 0 10px hsl(var(--primary))'
-          },
-          '50%': { 
-            backgroundColor: 'hsl(var(--tech-accent))', 
-            boxShadow: '0 0 20px hsl(var(--tech-accent)), 0 0 30px hsl(var(--tech-accent))'
-          },
-        }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
-        'pulse-colors': 'pulse-colors 4s infinite ease-in-out',
       },
     },
   },

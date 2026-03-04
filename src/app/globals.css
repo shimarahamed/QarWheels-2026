@@ -14,48 +14,43 @@
 
 @layer base {
   :root {
-    --background: 220 20% 98%; /* Lighter, cooler background */
-    --foreground: 224 71% 4%; /* Dark blue-black for text */
-    
-    /* Glass theme for cards */
-    --card: 0 0% 100%; /* Solid white, opacity controlled in component */
-    --card-foreground: 224 71% 4%;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
 
-    --popover: 0 0% 100% / 0.8; /* More opaque for readability */
-    --popover-foreground: 224 71% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
 
-    --primary: 343 64% 38%; /* Preserved Maroon */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 343 64% 38%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 15% 95%;
-    --secondary-foreground: 224 71% 15%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 215.4 16.3% 46.9%;
 
-    --muted: 220 15% 95%;
-    --muted-foreground: 224 20% 45%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
     
-    --accent: 220 15% 92%;
-    --accent-foreground: 224 71% 10%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 20% 90%; /* Softer border */
-    --input: 220 20% 90%;
-    --ring: 343 64% 38%; /* Maroon ring */
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 343 64% 38%;
 
-    --radius: 0.75rem;
-
-    /* New colors from the 2026 paradigm */
-    --tech-accent: 200 100% 50%; /* Neon Blue */
-    --success: 140 80% 45%; /* Bio Green */
+    --radius: 0.5rem;
     
     --chart-1: 343 64% 38%;
     --chart-2: 200 100% 50%;
     --chart-3: 149 100% 45%;
     --chart-4: 40 100% 50%;
     --chart-5: 343 64% 58%;
-
-    /* Sidebar remains dark for contrast */
+    
+    /* Sidebar uses the main theme for simplicity */
     --sidebar-background: 224 71% 8%;
     --sidebar-foreground: 220 20% 98%;
     --sidebar-primary: 343 64% 45%;
@@ -73,14 +68,6 @@
   }
   body {
     @apply bg-background text-foreground;
-    /* Adding a subtle mesh gradient for the liquid glass effect */
-    background-image: radial-gradient(at 27% 37%, hsla(var(--primary), 0.1) 0px, transparent 50%),
-                      radial-gradient(at 97% 21%, hsla(var(--tech-accent), 0.1) 0px, transparent 50%),
-                      radial-gradient(at 52% 99%, hsla(var(--primary), 0.15) 0px, transparent 50%),
-                      radial-gradient(at 10% 29%, hsla(var(--success), 0.1) 0px, transparent 50%),
-                      radial-gradient(at 97% 96%, hsla(var(--tech-accent), 0.1) 0px, transparent 50%),
-                      radial-gradient(at 33% 50%, hsla(var(--primary), 0.1) 0px, transparent 50%),
-                      radial-gradient(at 79% 53%, hsla(var(--success), 0.1) 0px, transparent 50%);
     background-attachment: fixed;
   }
 }
