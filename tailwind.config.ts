@@ -94,18 +94,18 @@ export default {
         'pulse-colors': {
           '0%, 100%': { 
             backgroundColor: 'hsl(var(--primary))', 
-            boxShadow: '0 0 0 0 hsl(var(--primary) / 0.7)' 
+            boxShadow: '0 0 5px hsl(var(--primary)), 0 0 10px hsl(var(--primary))'
           },
           '50%': { 
             backgroundColor: 'hsl(var(--tech-accent))', 
-            boxShadow: '0 0 40px 10px transparent'
+            boxShadow: '0 0 20px hsl(var(--tech-accent)), 0 0 30px hsl(var(--tech-accent))'
           },
         }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
-        'pulse-colors': 'pulse-colors 4s infinite',
+        'pulse-colors': 'pulse-colors 4s infinite ease-in-out',
       },
     },
   },
