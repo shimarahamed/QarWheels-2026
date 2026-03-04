@@ -1,6 +1,5 @@
 'use client';
-import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useMemo } from "react";
 import {
     Card,
     CardContent,
@@ -17,142 +16,104 @@ import {
     TableRow,
   } from "@/components/ui/table";
   import { Button } from "@/components/ui/button";
-  import { MoreHorizontal, Car, Calendar, Edit, Mail, Phone, PlusCircle, Trash2 } from "lucide-react";
-  import { mockVendorCustomers, VendorCustomer } from "@/lib/vendor-data";
+  import { MoreHorizontal, Mail, Phone, Loader2 } from "lucide-react";
   import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuLabel,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu";
   import { format } from "date-fns";
-  import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-  } from "@/components/ui/dialog";
-    import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-  import { Input } from "@/components/ui/input";
-  import { Label } from "@/components/ui/label";
-  import { useToast } from "@/hooks/use-toast";
+  import { useFirebase, useCollection, useDoc, useMemoFirebase } from "@/firebase";
+  import { useVendor } from "@/components/vendor/vendor-provider";
+  import { collection, query, where, doc, Timestamp } from "firebase/firestore";
+  import type { Booking, WithId, UserProfile, Car as CarType } from "@/lib/types";
+  import { Skeleton } from "@/components/ui/skeleton";
 
 
-function CustomerForm({ customer, onSave, onCancel }: { customer?: VendorCustomer | null, onSave: (data: VendorCustomer) => void, onCancel: () => void }) {
-    const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorCustomer>({
-        defaultValues: customer || {},
-    });
+function CustomerRow({ userId }: { userId: string }) {
+    const { firestore } = useFirebase();
 
-    useState(() => {
-        if (customer) {
-            reset(customer);
-        }
-    }, [customer, reset]);
+    const userRef = useMemoFirebase(
+        () => doc(firestore, 'users', userId),
+        [firestore, userId]
+    );
+    const { data: user, isLoading: isLoadingUser } = useDoc<UserProfile>(userRef);
 
-    const onSubmit = (data: VendorCustomer) => {
-        onSave(data);
-    };
+    const firstBookingQuery = useMemoFirebase(
+        () => query(collection(firestore, 'bookings'), where('userId', '==', userId)),
+        [firestore, userId]
+    )
+    const { data: bookings, isLoading: isLoadingBookings } = useCollection<WithId<Booking>>(firstBookingQuery);
+
+    const firstVisit = useMemo(() => {
+        if (!bookings || bookings.length === 0) return null;
+        return bookings.reduce((earliest, current) => {
+            const currentDate = current.bookingDate instanceof Timestamp ? current.bookingDate.toDate() : new Date(current.bookingDate);
+            const earliestDate = earliest.bookingDate instanceof Timestamp ? earliest.bookingDate.toDate() : new Date(earliest.bookingDate);
+            return currentDate < earliestDate ? current : earliest;
+        }).bookingDate;
+    }, [bookings]);
+
+    if (isLoadingUser || isLoadingBookings) {
+        return (
+            <TableRow>
+                <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-48" /></TableCell>
+                <TableCell className="hidden sm:table-cell"><Skeleton className="h-5 w-24" /></TableCell>
+                <TableCell><Skeleton className="h-5 w-8" /></TableCell>
+                <TableCell className="text-right"><Skeleton className="h-8 w-8" /></TableCell>
+            </TableRow>
+        )
+    }
+
+    if (!user) return null; // or show some fallback
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
-             <div className="space-y-2">
-                <Label htmlFor="name">Customer Name</Label>
-                <Input id="name" {...register("name", { required: "Name is required" })} />
-                {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input id="phone" {...register("phone", { required: "Phone is required" })} />
-                    {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" {...register("email", { required: "Email is required" })} />
-                    {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
-                </div>
-            </div>
-             <div className="space-y-2">
-                <Label htmlFor="vehicleCount">Vehicle Count</Label>
-                <Input id="vehicleCount" type="number" {...register("vehicleCount", { required: "Vehicle count is required", valueAsNumber: true })} />
-                {errors.vehicleCount && <p className="text-sm text-destructive">{errors.vehicleCount.message}</p>}
-            </div>
-             <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
-                <Button type="submit">Save Customer</Button>
-            </div>
-        </form>
-    );
+        <TableRow>
+            <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
+            <TableCell className="hidden md:table-cell">
+                <div>{user.phoneNumber || 'N/A'}</div>
+                <div className="text-sm text-muted-foreground">{user.email}</div>
+            </TableCell>
+            <TableCell className="hidden sm:table-cell">{firstVisit ? format(firstVisit instanceof Timestamp ? firstVisit.toDate() : new Date(firstVisit), "PPP") : 'N/A'}</TableCell>
+            <TableCell>{bookings?.length || 0}</TableCell>
+            <TableCell className="text-right">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Toggle menu</span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem disabled>View Booking History</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </TableCell>
+        </TableRow>
+    )
 }
 
 export default function VendorCustomersPage() {
-    const [customers, setCustomers] = useState(mockVendorCustomers);
-    const [isFormOpen, setIsFormOpen] = useState(false);
-    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-    const [selectedCustomer, setSelectedCustomer] = useState<VendorCustomer | null>(null);
-    const { toast } = useToast();
+    const { firestore } = useFirebase();
+    const { vendor, isLoading: isLoadingVendor } = useVendor();
 
+    const bookingsQuery = useMemoFirebase(
+        () => (vendor ? query(collection(firestore, 'bookings'), where('vendorId', '==', vendor.id)) : null),
+        [firestore, vendor]
+    );
+    const { data: bookings, isLoading: isLoadingBookings } = useCollection<WithId<Booking>>(bookingsQuery);
 
-    const handleRowClick = (customer: VendorCustomer) => {
-        setSelectedCustomer(customer);
-        setIsFormOpen(true);
-    };
+    const uniqueCustomerIds = useMemo(() => {
+        if (!bookings) return [];
+        const userIds = bookings.map(b => b.userId);
+        return [...new Set(userIds)];
+    }, [bookings]);
 
-    const handleAddNewClick = () => {
-        setSelectedCustomer(null);
-        setIsFormOpen(true);
-    };
-    
-    const handleDeleteClick = (customer: VendorCustomer) => {
-        setSelectedCustomer(customer);
-        setIsDeleteConfirmOpen(true);
-    };
-
-    const handleSaveCustomer = (data: VendorCustomer) => {
-      let message = "";
-      if (selectedCustomer && selectedCustomer.id) {
-        // Update
-        setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? {...data, id: selectedCustomer.id, firstVisit: selectedCustomer.firstVisit} : c));
-        message = `${data.name}'s profile has been updated.`;
-      } else {
-        // Create
-        const newCustomer = { ...data, id: `vc-${Date.now()}`, firstVisit: new Date().toISOString() };
-        setCustomers(prev => [newCustomer, ...prev]);
-        message = `${data.name} has been added as a new customer.`;
-      }
-      
-      toast({
-            title: selectedCustomer ? "Customer Updated" : "Customer Added",
-            description: message,
-      });
-
-      setIsFormOpen(false);
-      setSelectedCustomer(null);
-    }
-
-    const handleDeleteConfirm = () => {
-        if (!selectedCustomer) return;
-        setCustomers(prev => prev.filter(c => c.id !== selectedCustomer.id));
-        toast({
-            title: "Customer Deleted",
-            description: `The profile for ${selectedCustomer.name} has been deleted.`,
-            variant: "destructive"
-        });
-        setIsDeleteConfirmOpen(false);
-        setSelectedCustomer(null);
-    }
+    const isLoading = isLoadingVendor || isLoadingBookings;
 
     return (
       <div className="space-y-8">
@@ -160,18 +121,14 @@ export default function VendorCustomersPage() {
           <div>
             <h1 className="text-3xl font-bold font-headline">Customer Directory</h1>
             <p className="text-muted-foreground">
-                View, add, and manage your client information.
+                A list of all clients who have booked a service with you.
             </p>
           </div>
-          <Button onClick={handleAddNewClick}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add New Customer
-          </Button>
         </header>
         <Card>
             <CardHeader>
                 <CardTitle>Your Customers</CardTitle>
-                <CardDescription>A list of clients who have visited Precision Auto Qatar.</CardDescription>
+                <CardDescription>This list is automatically generated from your booking history.</CardDescription>
             </CardHeader>
           <CardContent>
             <Table>
@@ -180,77 +137,36 @@ export default function VendorCustomersPage() {
                   <TableHead>Name</TableHead>
                   <TableHead className="hidden md:table-cell">Contact</TableHead>
                   <TableHead className="hidden sm:table-cell">First Visit</TableHead>
-                  <TableHead>Vehicles</TableHead>
+                  <TableHead>Bookings</TableHead>
                   <TableHead className="text-right">
                     Actions
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {customers.map((customer) => (
-                  <TableRow key={customer.id} onClick={() => handleRowClick(customer)} className="cursor-pointer">
-                    <TableCell className="font-medium">{customer.name}</TableCell>
-                    <TableCell className="hidden md:table-cell">
-                        <div>{customer.phone}</div>
-                        <div className="text-sm text-muted-foreground">{customer.email}</div>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">{format(new Date(customer.firstVisit), "PPP")}</TableCell>
-                    <TableCell>{customer.vehicleCount}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                              <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Toggle menu</span>
-                              </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem onSelect={() => handleRowClick(customer)}>
-                                <Edit className="mr-2 h-4 w-4" /> View & Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>View Booking History</DropdownMenuItem>
-                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onSelect={() => handleDeleteClick(customer)} className="text-destructive focus:text-destructive">
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete
-                              </DropdownMenuItem>
-                          </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
+                {isLoading && (
+                    [...Array(3)].map((_, i) => (
+                        <TableRow key={i}>
+                             <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                            <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-48" /></TableCell>
+                            <TableCell className="hidden sm:table-cell"><Skeleton className="h-5 w-24" /></TableCell>
+                            <TableCell><Skeleton className="h-5 w-8" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-8 w-8" /></TableCell>
+                        </TableRow>
+                    ))
+                )}
+                {!isLoading && uniqueCustomerIds.map((userId) => (
+                  <CustomerRow key={userId} userId={userId} />
                 ))}
               </TableBody>
             </Table>
+            {!isLoading && uniqueCustomerIds.length === 0 && (
+                <div className="text-center text-muted-foreground p-8">
+                    <p>No customer history yet. Your customers will appear here after they make their first booking.</p>
+                </div>
+            )}
           </CardContent>
         </Card>
-
-        <Dialog open={isFormOpen} onOpenChange={(open) => { if(!open) setSelectedCustomer(null); setIsFormOpen(open)}}>
-            <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                    <DialogTitle>{selectedCustomer ? 'Edit Customer Profile' : 'Add New Customer'}</DialogTitle>
-                    <DialogDescription>
-                       {selectedCustomer ? `Editing details for ${selectedCustomer.name}` : 'Enter the details for the new customer.'}
-                    </DialogDescription>
-                </DialogHeader>
-                <CustomerForm customer={selectedCustomer} onSave={handleSaveCustomer} onCancel={() => setIsFormOpen(false)} />
-            </DialogContent>
-        </Dialog>
-        
-        <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-             <AlertDialogContent>
-                <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the profile for <span className="font-bold">{selectedCustomer?.name}</span>.
-                </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteConfirm}>Continue</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-
       </div>
     );
   }
