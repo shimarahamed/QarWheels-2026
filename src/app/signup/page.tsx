@@ -24,7 +24,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useFirebase, setDocumentNonBlocking } from "@/firebase";
+import { useFirebase, safeSetDoc } from "@/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, serverTimestamp } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
@@ -75,7 +75,7 @@ export default function SignupPage() {
                     updatedAt: serverTimestamp(),
                 };
                 
-                setDocumentNonBlocking(userProfileRef, userProfileData, { merge: false });
+                safeSetDoc(userProfileRef, userProfileData, { merge: false });
 
                 toast({
                     title: "Account Created!",

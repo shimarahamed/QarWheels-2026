@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { useFirebase, useCollection, useMemoFirebase, safeAddDoc } from '@/firebase';
 import { collection, query, where, serverTimestamp } from 'firebase/firestore';
 import type { Vendor, WithId } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
@@ -69,13 +69,15 @@ function CreateVendorForm() {
 
         try {
             const vendorsCollection = collection(firestore, 'vendors');
-            await addDocumentNonBlocking(vendorsCollection, newVendorData);
-            // The parent `VendorProvider` will detect the new vendor via its
-            // `useCollection` hook and automatically transition to the dashboard.
+            // The useCollection hook in VendorProvider will automatically pick up the new vendor.
+            // We don't need to manually set state here.
+            await safeAddDoc(vendorsCollection, newVendorData);
+            
             toast({
                 title: "Profile Created!",
                 description: "Your garage profile is ready. Loading dashboard...",
             });
+             // The form remains in a submitting state while the provider re-renders.
         } catch (e: any) {
             console.error(e);
             toast({
@@ -138,16 +140,8 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   );
   
   const { data: vendors, isLoading: isLoadingVendor } = useCollection<WithId<Vendor>>(vendorQuery);
-  const [vendor, setVendor] = useState<WithId<Vendor> | null>(null);
-
-  useEffect(() => {
-    if (vendors && vendors.length > 0) {
-        setVendor(vendors[0]);
-    } else if (vendors) { // vendors is not undefined, but empty
-        setVendor(null);
-    }
-  }, [vendors]);
-
+  
+  const vendor = (vendors && vendors.length > 0) ? vendors[0] : null;
   const isLoading = isUserLoading || isLoadingVendor;
 
   if (isLoading) {
@@ -159,10 +153,12 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   }
 
   if (!user) {
-      // This can happen briefly during logout or if auth fails
+      // This state is hit after logout or if auth fails.
+      // The redirect is handled by the main FirebaseProvider,
+      // so we just show a loader to prevent flashing content.
       return (
          <div className="flex h-screen w-full items-center justify-center">
-            <p>Authenticating...</p>
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       )
   }

@@ -5,6 +5,7 @@ import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
+import { useRouter, usePathname } from 'next/navigation';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -61,6 +62,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   firestore,
   auth,
 }) => {
+  const router = useRouter();
+  const pathname = usePathname();
   const [userAuthState, setUserAuthState] = useState<UserAuthState>({
     user: null,
     isUserLoading: true, // Start loading until first auth event
@@ -74,12 +77,18 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       return;
     }
 
-    setUserAuthState({ user: null, isUserLoading: true, userError: null }); // Reset on auth instance change
-
     const unsubscribe = onAuthStateChanged(
       auth,
       (firebaseUser) => { // Auth state determined
         setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
+        if (!firebaseUser) {
+            // If user logs out, redirect them to the login page
+            // This prevents protected routes from flashing or showing error states.
+            const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/vendor');
+            if (isProtectedRoute) {
+                router.replace('/login');
+            }
+        }
       },
       (error) => { // Auth listener error
         console.error("FirebaseProvider: onAuthStateChanged error:", error);
@@ -87,7 +96,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       }
     );
     return () => unsubscribe(); // Cleanup
-  }, [auth]); // Depends on the auth instance
+  }, [auth, pathname, router]);
 
   // Memoize the context value
   const contextValue = useMemo((): FirebaseContextState => {

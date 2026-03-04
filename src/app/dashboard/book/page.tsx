@@ -2,8 +2,6 @@
 
 import { useState, useMemo, Suspense, Fragment } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { mockGarages } from '@/lib/data';
-import { mockVendorServices } from '@/lib/vendor-data';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,9 +23,9 @@ import { ArrowLeft, Car, Calendar as CalendarIcon, Clock, Wrench, CheckCircle, B
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase";
-import { collection, serverTimestamp } from 'firebase/firestore';
-import type { Car as CarType, WithId } from "@/lib/types";
+import { useFirebase, useCollection, useMemoFirebase, safeAddDoc, useDoc } from "@/firebase";
+import { collection, serverTimestamp, doc } from 'firebase/firestore';
+import type { Car as CarType, Vendor, WithId } from "@/lib/types";
 
 const availableTimeSlots = [
   '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
@@ -54,9 +52,13 @@ function BookingWizard() {
 
   const garageId = searchParams.get('garageId');
   const serviceName = searchParams.get('service');
-
-  const garage = useMemo(() => mockGarages.find(g => g.id === garageId), [garageId]);
-  const service = useMemo(() => mockVendorServices.find(s => s.name === serviceName), [serviceName]);
+  
+  const vendorRef = useMemoFirebase(() => garageId ? doc(firestore, 'vendors', garageId) : null, [firestore, garageId]);
+  const { data: garage, isLoading: isLoadingGarage } = useDoc<WithId<Vendor>>(vendorRef);
+  
+  // For now, service details are passed via URL params. In a real app, this might also be fetched.
+  const servicePrice = searchParams.get('price');
+  const service = useMemo(() => ({ name: serviceName, price: Number(servicePrice) }), [serviceName, servicePrice]);
 
   const [step, setStep] = useState(1);
   const [selectedCarId, setSelectedCarId] = useState<string | null>(null);
@@ -65,7 +67,11 @@ function BookingWizard() {
   const [isBooking, setIsBooking] = useState(false);
   const [bookingDetails, setBookingDetails] = useState<any>(null);
 
-  if (!garage || !service) {
+  if (isLoadingGarage) {
+    return <div className="flex h-64 w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
+  }
+
+  if (!garage || !service || !service.name || !service.price) {
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold">Booking information not found.</h2>
@@ -77,7 +83,7 @@ function BookingWizard() {
     );
   }
 
-  const handleBookingConfirm = () => {
+  const handleBookingConfirm = async () => {
     if (!firestore || !user || !selectedCarId || !selectedDate || !selectedTime) {
       toast({
         variant: "destructive",
@@ -118,27 +124,25 @@ function BookingWizard() {
 
     const bookingsCollectionRef = collection(firestore, 'bookings');
     
-    addDocumentNonBlocking(bookingsCollectionRef, newBooking)
-      .then((docRef) => {
-        setBookingDetails({ ...newBooking, id: docRef.id });
-        toast({
-            title: "Booking Confirmed!",
-            description: "Your appointment has been successfully scheduled.",
-        });
-        setStep(4); // Move to success step
-      })
-      .catch((err) => {
-         console.error("Booking failed: ", err);
-         // The global error handler will catch permission errors, but we can handle others here.
-         toast({
-            variant: "destructive",
-            title: "Booking Failed",
-            description: "Could not save your appointment. Please try again.",
-        });
-      })
-      .finally(() => {
-        setIsBooking(false);
+    try {
+      const docRef = await safeAddDoc(bookingsCollectionRef, newBooking);
+      setBookingDetails({ ...newBooking, id: docRef.id });
+      toast({
+          title: "Booking Confirmed!",
+          description: "Your appointment has been successfully scheduled.",
       });
+      setStep(4); // Move to success step
+    } catch (err) {
+       console.error("Booking failed: ", err);
+       // The global error handler will catch permission errors, but we can handle others here.
+       toast({
+          variant: "destructive",
+          title: "Booking Failed",
+          description: "Could not save your appointment. Please try again.",
+      });
+    } finally {
+      setIsBooking(false);
+    }
   };
 
   const selectedCar = cars?.find(c => c.id === selectedCarId);
@@ -339,7 +343,7 @@ function BookingWizard() {
 
 export default function BookPage() {
     return (
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<div className="flex h-64 w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
             <BookingWizard />
         </Suspense>
     )

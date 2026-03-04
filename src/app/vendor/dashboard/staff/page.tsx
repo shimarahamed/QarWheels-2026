@@ -52,7 +52,7 @@ import {
   import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
   import { useToast } from "@/hooks/use-toast";
   import { useVendor } from "@/components/vendor/vendor-provider";
-  import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+  import { useFirebase, useCollection, useMemoFirebase, safeAddDoc, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
   import { collection, doc } from "firebase/firestore";
   import type { StaffMember, WithId } from "@/lib/types";
   import { Skeleton } from "@/components/ui/skeleton";
@@ -174,11 +174,11 @@ export default function VendorStaffPage() {
         if (selectedStaff) {
             // Update
             const staffDocRef = doc(firestore, 'vendors', vendor.id, 'staff', selectedStaff.id);
-            updateDocumentNonBlocking(staffDocRef, data);
+            safeUpdateDoc(staffDocRef, data);
             toast({ title: "Staff Member Updated", description: `${data.name}'s profile has been updated.`});
         } else {
             // Create
-            addDocumentNonBlocking(staffRef, data);
+            safeAddDoc(staffRef, data);
             toast({ title: "Staff Member Added", description: `${data.name} has been added to the team.` });
         }
         setIsSubmitting(false);
@@ -189,7 +189,7 @@ export default function VendorStaffPage() {
     const handleDeleteConfirm = () => {
         if (!selectedStaff || !vendor) return;
         const staffDocRef = doc(firestore, 'vendors', vendor.id, 'staff', selectedStaff.id);
-        deleteDocumentNonBlocking(staffDocRef);
+        safeDeleteDoc(staffDocRef);
         toast({
             title: "Staff Member Removed",
             description: `${selectedStaff.name} has been removed from the team.`,
@@ -319,4 +319,3 @@ export default function VendorStaffPage() {
       </div>
     );
   }
-  

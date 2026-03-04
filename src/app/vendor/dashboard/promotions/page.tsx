@@ -38,7 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useVendor } from "@/components/vendor/vendor-provider";
-import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+import { useFirebase, useCollection, useMemoFirebase, safeAddDoc, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
 import { collection, doc } from "firebase/firestore";
 import type { Promotion, WithId } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -203,11 +203,11 @@ export default function VendorPromotionsPage() {
         if (selectedPromotion) {
             // Update
             const promoDocRef = doc(firestore, 'vendors', vendor.id, 'promotions', selectedPromotion.id);
-            updateDocumentNonBlocking(promoDocRef, data);
+            safeUpdateDoc(promoDocRef, data);
             toast({ title: "Promotion Updated", description: `"${data.title}" has been updated.`});
         } else {
             // Create
-            addDocumentNonBlocking(promotionsRef, data);
+            safeAddDoc(promotionsRef, data);
             toast({ title: "Promotion Created", description: `"${data.title}" has been created.` });
         }
         setIsSubmitting(false);
@@ -218,7 +218,7 @@ export default function VendorPromotionsPage() {
     const handleDeleteConfirm = () => {
         if (!selectedPromotion || !vendor) return;
         const promoDocRef = doc(firestore, 'vendors', vendor.id, 'promotions', selectedPromotion.id);
-        deleteDocumentNonBlocking(promoDocRef);
+        safeDeleteDoc(promoDocRef);
         toast({
             title: "Promotion Deleted",
             description: `The promotion "${selectedPromotion.title}" has been deleted.`,
@@ -323,4 +323,3 @@ export default function VendorPromotionsPage() {
       </div>
     );
   }
-  

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useVendor } from "@/components/vendor/vendor-provider";
-import { useFirebase, updateDocumentNonBlocking } from "@/firebase";
+import { useFirebase, safeUpdateDoc } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
@@ -53,7 +53,7 @@ export default function VendorSettingsPage() {
     setIsSubmitting(true);
     
     const vendorDocRef = doc(firestore, 'vendors', vendor.id);
-    updateDocumentNonBlocking(vendorDocRef, data);
+    safeUpdateDoc(vendorDocRef, data);
     
     toast({
       title: "Settings Saved",

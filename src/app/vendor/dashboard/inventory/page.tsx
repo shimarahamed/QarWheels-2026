@@ -49,7 +49,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useVendor } from "@/components/vendor/vendor-provider";
-import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+import { useFirebase, useCollection, useMemoFirebase, safeAddDoc, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
 import { collection, doc } from "firebase/firestore";
 import type { InventoryItem, WithId } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -149,11 +149,11 @@ export default function VendorInventoryPage() {
         if (selectedItem) {
             // Update
             const itemDocRef = doc(firestore, 'vendors', vendor.id, 'inventory', selectedItem.id);
-            updateDocumentNonBlocking(itemDocRef, data);
+            safeUpdateDoc(itemDocRef, data);
             toast({ title: "Item Updated", description: `"${data.name}" has been updated.`});
         } else {
             // Create
-            addDocumentNonBlocking(inventoryRef, data);
+            safeAddDoc(inventoryRef, data);
             toast({ title: "Item Added", description: `"${data.name}" has been added to inventory.` });
         }
         setIsSubmitting(false);
@@ -164,7 +164,7 @@ export default function VendorInventoryPage() {
      const handleDeleteConfirm = () => {
         if (!selectedItem || !vendor) return;
         const itemDocRef = doc(firestore, 'vendors', vendor.id, 'inventory', selectedItem.id);
-        deleteDocumentNonBlocking(itemDocRef);
+        safeDeleteDoc(itemDocRef);
         toast({
             title: "Item Deleted",
             description: `The item "${selectedItem.name}" has been deleted from inventory.`,
@@ -291,4 +291,3 @@ export default function VendorInventoryPage() {
       </div>
     );
   }
-  

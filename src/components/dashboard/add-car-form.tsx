@@ -22,7 +22,7 @@ import { Car as CarIcon, Loader2, Wand2 } from "lucide-react"
 import { getVinDetails } from "@/lib/actions"
 import type { VinDetailsOutput } from "@/ai/flows/get-vin-details"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useFirebase, addDocumentNonBlocking } from "@/firebase"
+import { useFirebase, safeAddDoc } from "@/firebase"
 import type { Car } from "@/lib/types"
 
 const formSchema = z.object({
@@ -97,7 +97,7 @@ export function AddCarForm() {
     };
     
     try {
-        await addDocumentNonBlocking(carsCollectionRef, newCarData);
+        await safeAddDoc(carsCollectionRef, newCarData);
         toast({
         title: "Car Added!",
         description: `${carDetails.year} ${carDetails.make} ${carDetails.model} has been added to your garage.`,
@@ -187,5 +187,3 @@ export function AddCarForm() {
     </Form>
   )
 }
-
-  

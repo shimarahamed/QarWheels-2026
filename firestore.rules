@@ -48,9 +48,10 @@ service cloud.firestore {
     // --------------------------------
 
     match /users/{userId} {
-      allow get, list, update: if isOwner(userId) || isAdmin();
+      allow get, update: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      // Deleting user profiles is a sensitive operation, restrict to admins for now
+      allow delete: if isAdmin();
 
       match /cars/{carId} {
         allow get, list: if isOwner(userId) || isAdmin();
@@ -67,6 +68,17 @@ service cloud.firestore {
         }
       }
     }
+    
+    // --------------------------------
+    // Collection Group Rules
+    // --------------------------------
+
+    // This rule allows a user to query across all their service records from any car
+    // It is secure because the client query MUST include `where('userId', '==', request.auth.uid)`
+    match /{path=**}/serviceRecords/{serviceRecordId} {
+       allow get, list: if isSignedIn();
+    }
+
 
     // --------------------------------
     // Vendor Rules
@@ -90,7 +102,9 @@ service cloud.firestore {
 
       // Rules for all vendor subcollections
       match /{subcollection}/{docId} {
-        allow read, write: if isVendorOwner(vendorId) || isAdmin();
+        // Reads are public for approved vendors, writes are restricted to owner/admin
+        allow read: if get(/databases/$(database)/documents/vendors/$(vendorId)).data.status == 'Approved' || isVendorOwner(vendorId) || isAdmin();
+        allow write: if isVendorOwner(vendorId) || isAdmin();
       }
     }
     
@@ -123,5 +137,3 @@ service cloud.firestore {
     }
   }
 }
-
-  

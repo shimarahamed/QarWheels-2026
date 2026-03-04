@@ -25,11 +25,36 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { OverviewChart } from "@/components/vendor/overview-chart";
-import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirebase, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { useVendor } from "@/components/vendor/vendor-provider";
-import { collection, query, where, Timestamp } from "firebase/firestore";
-import type { Booking, WithId } from "@/lib/types";
+import { collection, query, where, Timestamp, doc } from "firebase/firestore";
+import type { Booking, UserProfile, WithId } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
+
+function UpcomingBookingRow({ booking }: { booking: WithId<Booking> }) {
+    const { firestore } = useFirebase();
+
+    const userRef = useMemoFirebase(
+      () => (booking.userId ? doc(firestore, 'users', booking.userId) : null),
+      [firestore, booking.userId]
+    );
+    const { data: customer, isLoading } = useDoc<UserProfile>(userRef);
+
+    return (
+        <TableRow key={booking.id}>
+            <TableCell>
+                {isLoading ? <Skeleton className="h-5 w-24" /> : (
+                    <div className="font-medium">{customer ? `${customer.firstName} ${customer.lastName}` : 'Customer'}</div>
+                )}
+            </TableCell>
+            <TableCell>{booking.serviceName}</TableCell>
+            <TableCell>
+                {format(booking.bookingDate instanceof Timestamp ? booking.bookingDate.toDate() : new Date(booking.bookingDate), "EEE, MMM d @ h:mm a")}
+            </TableCell>
+        </TableRow>
+    )
+}
+
 
 export default function VendorDashboard() {
   const { firestore } = useFirebase();
@@ -168,16 +193,7 @@ export default function VendorDashboard() {
                     </TableHeader>
                   <TableBody>
                     {upcomingBookings.map((booking) => (
-                      <TableRow key={booking.id}>
-                        <TableCell>
-                           {/* TODO: Fetch customer name from user profile based on userId */}
-                           <div className="font-medium text-xs font-mono">{booking.userId}</div>
-                        </TableCell>
-                        <TableCell>{booking.serviceName}</TableCell>
-                        <TableCell>
-                          {format(booking.bookingDate instanceof Timestamp ? booking.bookingDate.toDate() : new Date(booking.bookingDate), "EEE, MMM d @ h:mm a")}
-                        </TableCell>
-                      </TableRow>
+                      <UpcomingBookingRow key={booking.id} booking={booking} />
                     ))}
                   </TableBody>
                 </Table>

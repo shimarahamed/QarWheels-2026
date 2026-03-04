@@ -50,7 +50,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useVendor } from "@/components/vendor/vendor-provider";
-import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+import { useFirebase, useCollection, useMemoFirebase, safeAddDoc, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
 import { collection, doc } from "firebase/firestore";
 import type { Service, WithId } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -146,11 +146,11 @@ export default function VendorServicesPage() {
     if (selectedService) {
         // Update
         const serviceDocRef = doc(firestore, 'vendors', vendor.id, 'services', selectedService.id);
-        updateDocumentNonBlocking(serviceDocRef, data);
+        safeUpdateDoc(serviceDocRef, data);
         toast({ title: "Service Updated", description: `"${data.name}" has been updated.` });
     } else {
         // Create
-        addDocumentNonBlocking(servicesRef, data);
+        safeAddDoc(servicesRef, data);
         toast({ title: "Service Added", description: `"${data.name}" has been added.` });
     }
     setIsSubmitting(false);
@@ -161,7 +161,7 @@ export default function VendorServicesPage() {
   const handleDeleteConfirm = () => {
     if (!selectedService || !vendor) return;
     const serviceDocRef = doc(firestore, 'vendors', vendor.id, 'services', selectedService.id);
-    deleteDocumentNonBlocking(serviceDocRef);
+    safeDeleteDoc(serviceDocRef);
     toast({
         title: "Service Deleted",
         description: `The service "${selectedService.name}" has been deleted.`,

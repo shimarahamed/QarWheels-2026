@@ -5,7 +5,7 @@ import { getMaintenancePredictions } from "@/lib/actions";
 import type { PredictiveMaintenanceOutput } from "@/ai/flows/predictive-maintenance-suggestions";
 import { Loader2, Sparkles, Wrench } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Car, WithId } from "@/lib/types";
+import type { Car, ServiceRecord, WithId } from "@/lib/types";
 import {
   Card,
   CardContent,
@@ -15,22 +15,33 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
 
 export function CarMaintenancePredictions({ car }: { car: WithId<Car> }) {
   const [prediction, setPrediction] =
     useState<PredictiveMaintenanceOutput | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const { firestore, user } = useFirebase();
+
+  const serviceHistoryRef = useMemoFirebase(() => 
+    user ? collection(firestore, `users/${user.uid}/cars/${car.id}/serviceRecords`) : null
+  , [firestore, user, car.id]);
+  const { data: serviceHistory, isLoading: isLoadingHistory } = useCollection<WithId<ServiceRecord>>(serviceHistoryRef);
 
   useEffect(() => {
     async function fetchPredictions() {
+      if (isLoadingHistory) {
+        return;
+      }
       setIsLoading(true);
       setPrediction(null);
       try {
         const result = await getMaintenancePredictions({
           vin: car.vin,
           mileage: car.currentMileage,
-          serviceHistory: JSON.stringify(car.serviceHistory),
+          serviceHistory: JSON.stringify(serviceHistory || []),
           qatarClimate: `Hot and arid desert climate. Summer (May-Sep) temperatures average 42°C, can exceed 50°C. High humidity along the coast. Winter (Dec-Feb) is milder, around 23°C. Sand and dust storms are common.`,
         });
         setPrediction(result);
@@ -48,7 +59,9 @@ export function CarMaintenancePredictions({ car }: { car: WithId<Car> }) {
     }
 
     fetchPredictions();
-  }, [car, toast]);
+  }, [car, toast, serviceHistory, isLoadingHistory]);
+
+  const componentIsLoading = isLoading || isLoadingHistory;
 
   return (
     <Card className="min-h-[300px] flex flex-col">
@@ -62,14 +75,14 @@ export function CarMaintenancePredictions({ car }: { car: WithId<Car> }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-grow flex items-center justify-center">
-        {isLoading && (
+        {componentIsLoading && (
           <div className="flex flex-col items-center gap-2 text-muted-foreground text-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="font-semibold mt-2">Our AI is analyzing your data...</p>
             <p className="text-xs">This might take a moment.</p>
           </div>
         )}
-        {!isLoading && !prediction && (
+        {!componentIsLoading && !prediction && (
           <div className="text-center text-muted-foreground p-8">
             <Wrench className="mx-auto h-12 w-12 mb-4 text-primary/50" />
              <h3 className="font-semibold text-lg">Unable to Forecast</h3>
