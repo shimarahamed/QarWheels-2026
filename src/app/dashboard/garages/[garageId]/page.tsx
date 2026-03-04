@@ -36,20 +36,7 @@ function StarRating({ rating, className, reviewCount }: { rating: number, classN
     );
 }
 
-function ServicesList({vendorId}: {vendorId: string}) {
-    const { firestore } = useFirebase();
-    const servicesRef = useMemoFirebase(() => collection(firestore, 'vendors', vendorId, 'services'), [firestore, vendorId]);
-    const { data: services, isLoading } = useCollection<WithId<Service>>(servicesRef);
-
-    if (isLoading) {
-        return (
-            <div className="space-y-4">
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-24 w-full" />
-            </div>
-        )
-    }
-
+function ServicesList({ services, vendorId }: { services: WithId<Service>[] | null, vendorId: string }) {
     if (!services || services.length === 0) {
         return (
             <Card>
@@ -86,20 +73,7 @@ function ServicesList({vendorId}: {vendorId: string}) {
     )
 }
 
-function ReviewsList({vendorId}: {vendorId: string}) {
-    const { firestore } = useFirebase();
-    const reviewsRef = useMemoFirebase(() => collection(firestore, 'vendors', vendorId, 'reviews'), [firestore, vendorId]);
-    const { data: reviews, isLoading } = useCollection<WithId<Review>>(reviewsRef);
-    
-    if (isLoading) {
-        return (
-            <div className="space-y-4">
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
-            </div>
-        )
-    }
-
+function ReviewsList({ reviews }: { reviews: WithId<Review>[] | null }) {
     if (!reviews || reviews.length === 0) {
          return (
             <Card>
@@ -114,7 +88,13 @@ function ReviewsList({vendorId}: {vendorId: string}) {
     return (
         <div className="space-y-4">
             {reviews.map(review => {
-                    const reviewDate = review.date ? new Date(review.date) : null;
+                    let reviewDateStr = 'Date not available';
+                    if (review.date && typeof review.date === 'string') {
+                        const reviewDate = new Date(review.date);
+                        if (!isNaN(reviewDate.getTime())) {
+                            reviewDateStr = format(reviewDate, 'PPP');
+                        }
+                    }
                     return (
                         <Card key={review.id}>
                         <CardHeader>
@@ -134,7 +114,7 @@ function ReviewsList({vendorId}: {vendorId: string}) {
                         </CardContent>
                         <CardFooter className="text-xs text-muted-foreground justify-between">
                             <span>{review.service}</span>
-                            <span>{reviewDate && !isNaN(reviewDate.getTime()) ? format(reviewDate, 'PPP') : 'Date not available'}</span>
+                            <span>{reviewDateStr}</span>
                         </CardFooter>
                     </Card>
                     )
@@ -149,16 +129,22 @@ export default function GarageDetailsPage() {
     const { garageId } = params as { garageId: string };
     const { firestore } = useFirebase();
 
-    const vendorRef = useMemoFirebase(
-      () => (firestore && garageId ? doc(firestore, 'vendors', garageId) : null),
-      [firestore, garageId]
-    );
-    const { data: vendor, isLoading } = useDoc<WithId<Vendor>>(vendorRef);
+    // Centralized data fetching
+    const vendorRef = useMemoFirebase(() => (firestore && garageId ? doc(firestore, 'vendors', garageId) : null), [firestore, garageId]);
+    const servicesRef = useMemoFirebase(() => (firestore && garageId ? collection(firestore, 'vendors', garageId, 'services') : null), [firestore, garageId]);
+    const reviewsRef = useMemoFirebase(() => (firestore && garageId ? collection(firestore, 'vendors', garageId, 'reviews') : null), [firestore, garageId]);
+
+    const { data: vendor, isLoading: isLoadingVendor } = useDoc<WithId<Vendor>>(vendorRef);
+    const { data: services, isLoading: isLoadingServices } = useCollection<WithId<Service>>(servicesRef);
+    const { data: reviews, isLoading: isLoadingReviews } = useCollection<WithId<Review>>(reviewsRef);
+    
+    // Unified loading state
+    const isLoading = isLoadingVendor || isLoadingServices || isLoadingReviews;
 
     if (isLoading) {
         return (
-            <div className="flex h-64 w-full items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="flex h-screen w-full items-center justify-center -my-8">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
             </div>
         )
     }
@@ -208,11 +194,11 @@ export default function GarageDetailsPage() {
             <div className="grid lg:grid-cols-3 gap-8 items-start">
                 <div className="lg:col-span-2 space-y-6">
                     <h2 className="text-2xl font-bold font-headline">Available Services</h2>
-                    <ServicesList vendorId={vendor.id} />
+                    <ServicesList services={services} vendorId={vendor.id} />
                 </div>
                 <div className="lg:col-span-1 space-y-6">
                      <h2 className="text-2xl font-bold font-headline">Customer Reviews</h2>
-                     <ReviewsList vendorId={vendor.id} />
+                     <ReviewsList reviews={reviews} />
                 </div>
             </div>
 
