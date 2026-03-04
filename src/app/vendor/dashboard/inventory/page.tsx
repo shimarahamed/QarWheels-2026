@@ -17,8 +17,7 @@ import {
     TableRow,
   } from "@/components/ui/table";
   import { Button } from "@/components/ui/button";
-  import { MoreHorizontal, PlusCircle, Edit, Trash2 } from "lucide-react";
-  import { mockInventory, VendorInventoryItem } from "@/lib/vendor-data";
+  import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, Package } from "lucide-react";
   import {
     DropdownMenu,
     DropdownMenuContent,
@@ -49,65 +48,86 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useVendor } from "@/components/vendor/vendor-provider";
+import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+import { collection, doc } from "firebase/firestore";
+import type { InventoryItem, WithId } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
-function InventoryForm({ item, onSave, onCancel }: { item?: VendorInventoryItem | null, onSave: (data: VendorInventoryItem) => void, onCancel: () => void }) {
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorInventoryItem>({
-    defaultValues: item || {},
+const inventorySchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  sku: z.string().min(1, "SKU is required"),
+  stock: z.coerce.number().min(0, "Stock cannot be negative"),
+  price: z.coerce.number().min(0, "Price cannot be negative"),
+  supplier: z.string().min(1, "Supplier is required"),
+});
+
+
+function InventoryForm({ item, onSave, onCancel, isSubmitting }: { item?: WithId<InventoryItem> | null, onSave: (data: z.infer<typeof inventorySchema>) => void, onCancel: () => void, isSubmitting: boolean }) {
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<z.infer<typeof inventorySchema>>({
+    resolver: zodResolver(inventorySchema),
+    defaultValues: item || { name: '', sku: '', stock: 0, price: 0, supplier: '' },
   });
 
   useEffect(() => {
     reset(item || { name: '', sku: '', stock: 0, price: 0, supplier: '' });
   }, [item, reset]);
 
-  const onSubmit = (data: VendorInventoryItem) => {
-    onSave(data);
-  };
-
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
+    <form onSubmit={handleSubmit(onSave)} className="space-y-4 pt-4">
       <div className="space-y-2">
         <Label htmlFor="name">Item Name</Label>
-        <Input id="name" {...register("name", { required: "Name is required" })} />
+        <Input id="name" {...register("name")} />
         {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
       </div>
       <div className="space-y-2">
         <Label htmlFor="sku">SKU</Label>
-        <Input id="sku" {...register("sku", { required: "SKU is required" })} />
+        <Input id="sku" {...register("sku")} />
         {errors.sku && <p className="text-sm text-destructive">{errors.sku.message}</p>}
       </div>
       <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="stock">Stock</Label>
-            <Input id="stock" type="number" {...register("stock", { required: "Stock is required", valueAsNumber: true, min: 0 })} />
+            <Input id="stock" type="number" {...register("stock")} />
             {errors.stock && <p className="text-sm text-destructive">{errors.stock.message}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="price">Price (QAR)</Label>
-            <Input id="price" type="number" step="0.01" {...register("price", { required: "Price is required", valueAsNumber: true, min: 0 })} />
+            <Input id="price" type="number" step="0.01" {...register("price")} />
             {errors.price && <p className="text-sm text-destructive">{errors.price.message}</p>}
           </div>
       </div>
       <div className="space-y-2">
         <Label htmlFor="supplier">Supplier</Label>
-        <Input id="supplier" {...register("supplier", { required: "Supplier is required" })} />
+        <Input id="supplier" {...register("supplier")} />
         {errors.supplier && <p className="text-sm text-destructive">{errors.supplier.message}</p>}
       </div>
       <DialogFooter>
-          <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button type="submit">Save Item</Button>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Cancel</Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+          Save Item
+        </Button>
       </DialogFooter>
     </form>
   );
 }
 
 export default function VendorInventoryPage() {
-    const [inventory, setInventory] = useState(mockInventory);
+    const { firestore } = useFirebase();
+    const { vendor } = useVendor();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-    const [selectedItem, setSelectedItem] = useState<VendorInventoryItem | null>(null);
+    const [selectedItem, setSelectedItem] = useState<WithId<InventoryItem> | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
 
-    const handleRowClick = (item: VendorInventoryItem) => {
+    const inventoryRef = useMemoFirebase(() => vendor ? collection(firestore, 'vendors', vendor.id, 'inventory') : null, [firestore, vendor]);
+    const { data: inventory, isLoading } = useCollection<WithId<InventoryItem>>(inventoryRef);
+
+    const handleRowClick = (item: WithId<InventoryItem>) => {
         setSelectedItem(item);
         setIsFormOpen(true);
     };
@@ -117,34 +137,34 @@ export default function VendorInventoryPage() {
         setIsFormOpen(true);
     };
 
-    const handleDeleteClick = (item: VendorInventoryItem) => {
+    const handleDeleteClick = (e: React.MouseEvent, item: WithId<InventoryItem>) => {
+        e.stopPropagation();
         setSelectedItem(item);
         setIsDeleteConfirmOpen(true);
     };
 
-    const handleSaveItem = (data: VendorInventoryItem) => {
-        let message = "";
-        if (selectedItem && selectedItem.id) {
+    const handleSaveItem = (data: z.infer<typeof inventorySchema>) => {
+        if (!vendor || !inventoryRef) return;
+        setIsSubmitting(true);
+        if (selectedItem) {
             // Update
-            setInventory(prev => prev.map(item => item.id === selectedItem.id ? {...data, id: selectedItem.id } : item));
-            message = `"${data.name}" has been updated.`;
+            const itemDocRef = doc(firestore, 'vendors', vendor.id, 'inventory', selectedItem.id);
+            updateDocumentNonBlocking(itemDocRef, data);
+            toast({ title: "Item Updated", description: `"${data.name}" has been updated.`});
         } else {
             // Create
-            const newItem = { ...data, id: `inv-${Date.now()}` };
-            setInventory(prev => [newItem, ...prev]);
-            message = `"${data.name}" has been added to inventory.`;
+            addDocumentNonBlocking(inventoryRef, data);
+            toast({ title: "Item Added", description: `"${data.name}" has been added to inventory.` });
         }
-        toast({
-            title: selectedItem ? "Item Updated" : "Item Added",
-            description: message,
-        });
+        setIsSubmitting(false);
         setIsFormOpen(false);
         setSelectedItem(null);
     }
 
      const handleDeleteConfirm = () => {
-        if (!selectedItem) return;
-        setInventory(prev => prev.filter(item => item.id !== selectedItem.id));
+        if (!selectedItem || !vendor) return;
+        const itemDocRef = doc(firestore, 'vendors', vendor.id, 'inventory', selectedItem.id);
+        deleteDocumentNonBlocking(itemDocRef);
         toast({
             title: "Item Deleted",
             description: `The item "${selectedItem.name}" has been deleted from inventory.`,
@@ -188,7 +208,17 @@ export default function VendorInventoryPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {inventory.map((item) => (
+                {isLoading && [...Array(3)].map((_, i) => (
+                    <TableRow key={i}>
+                        <TableCell><Skeleton className="h-5 w-32"/></TableCell>
+                        <TableCell className="hidden sm:table-cell"><Skeleton className="h-5 w-24"/></TableCell>
+                        <TableCell><Skeleton className="h-6 w-24 rounded-full"/></TableCell>
+                        <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-28"/></TableCell>
+                        <TableCell className="hidden md:table-cell text-right"><Skeleton className="h-5 w-16"/></TableCell>
+                        <TableCell className="text-right"><Skeleton className="h-8 w-8"/></TableCell>
+                    </TableRow>
+                ))}
+                {!isLoading && inventory && inventory.map((item) => (
                   <TableRow key={item.id} onClick={() => handleRowClick(item)} className="cursor-pointer">
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell className="hidden sm:table-cell font-mono text-xs">{item.sku}</TableCell>
@@ -213,7 +243,7 @@ export default function VendorInventoryPage() {
                                 <Edit className="mr-2 h-4 w-4" /> Adjust Stock/Edit
                                 </DropdownMenuItem>
                                <DropdownMenuSeparator />
-                              <DropdownMenuItem onSelect={() => handleDeleteClick(item)} className="text-destructive focus:text-destructive">
+                              <DropdownMenuItem onSelect={(e) => handleDeleteClick(e, item)} className="text-destructive focus:text-destructive">
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                               </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -223,6 +253,12 @@ export default function VendorInventoryPage() {
                 ))}
               </TableBody>
             </Table>
+            {!isLoading && (!inventory || inventory.length === 0) && (
+              <div className="text-center text-muted-foreground p-8">
+                <Package className="h-10 w-10 mx-auto mb-2 text-primary/50" />
+                <p>Your inventory is empty.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
         
@@ -234,7 +270,7 @@ export default function VendorInventoryPage() {
                         {selectedItem ? 'Update the details for this item.' : 'Add a new item to your inventory.'}
                     </DialogDescription>
                 </DialogHeader>
-                <InventoryForm item={selectedItem} onSave={handleSaveItem} onCancel={() => setIsFormOpen(false)} />
+                <InventoryForm item={selectedItem} onSave={handleSaveItem} onCancel={() => setIsFormOpen(false)} isSubmitting={isSubmitting} />
             </DialogContent>
         </Dialog>
 

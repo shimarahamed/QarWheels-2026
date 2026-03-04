@@ -18,8 +18,7 @@ import {
     TableRow,
   } from "@/components/ui/table";
   import { Button } from "@/components/ui/button";
-  import { MoreHorizontal, PlusCircle, Edit, Trash2 } from "lucide-react";
-  import { mockStaff, VendorStaffMember } from "@/lib/vendor-data";
+  import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, Users } from "lucide-react";
   import {
     DropdownMenu,
     DropdownMenuContent,
@@ -52,10 +51,25 @@ import {
   import { Label } from "@/components/ui/label";
   import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
   import { useToast } from "@/hooks/use-toast";
+  import { useVendor } from "@/components/vendor/vendor-provider";
+  import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+  import { collection, doc } from "firebase/firestore";
+  import type { StaffMember, WithId } from "@/lib/types";
+  import { Skeleton } from "@/components/ui/skeleton";
+  import { zodResolver } from "@hookform/resolvers/zod";
+  import * as z from "zod";
+
+const staffSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("A valid email is required"),
+  role: z.enum(["Technician", "Service Advisor", "Admin"]),
+  status: z.enum(["Active", "Inactive"]),
+});
 
 
-function StaffForm({ staffMember, onSave, onCancel }: { staffMember?: VendorStaffMember | null, onSave: (data: VendorStaffMember) => void, onCancel: () => void }) {
-  const { register, handleSubmit, control, formState: { errors }, reset } = useForm<VendorStaffMember>({
+function StaffForm({ staffMember, onSave, onCancel, isSubmitting }: { staffMember?: WithId<StaffMember> | null, onSave: (data: z.infer<typeof staffSchema>) => void, onCancel: () => void, isSubmitting: boolean }) {
+  const { register, handleSubmit, control, formState: { errors }, reset } = useForm<z.infer<typeof staffSchema>>({
+    resolver: zodResolver(staffSchema),
     defaultValues: staffMember || { role: 'Technician', status: 'Active' },
   });
 
@@ -63,20 +77,16 @@ function StaffForm({ staffMember, onSave, onCancel }: { staffMember?: VendorStaf
       reset(staffMember || { name: '', email: '', role: 'Technician', status: 'Active' });
   }, [staffMember, reset]);
 
-  const onSubmit = (data: VendorStaffMember) => {
-    onSave(data);
-  };
-
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
+    <form onSubmit={handleSubmit(onSave)} className="space-y-4 pt-4">
       <div className="space-y-2">
         <Label htmlFor="name">Staff Name</Label>
-        <Input id="name" {...register("name", { required: "Name is required" })} />
+        <Input id="name" {...register("name")} />
         {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
       </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email Address</Label>
-        <Input id="email" type="email" {...register("email", { required: "Email is required" })} />
+        <Input id="email" type="email" {...register("email")} />
         {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
       </div>
       <div className="grid grid-cols-2 gap-4">
@@ -119,8 +129,11 @@ function StaffForm({ staffMember, onSave, onCancel }: { staffMember?: VendorStaf
         </div>
       </div>
       <DialogFooter>
-          <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button type="submit">Save Changes</Button>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Cancel</Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+            Save Changes
+          </Button>
       </DialogFooter>
     </form>
   );
@@ -128,13 +141,18 @@ function StaffForm({ staffMember, onSave, onCancel }: { staffMember?: VendorStaf
 
 
 export default function VendorStaffPage() {
-    const [staff, setStaff] = useState(mockStaff);
+    const { firestore } = useFirebase();
+    const { vendor } = useVendor();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-    const [selectedStaff, setSelectedStaff] = useState<VendorStaffMember | null>(null);
+    const [selectedStaff, setSelectedStaff] = useState<WithId<StaffMember> | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
 
-    const handleRowClick = (staffMember: VendorStaffMember) => {
+    const staffRef = useMemoFirebase(() => vendor ? collection(firestore, 'vendors', vendor.id, 'staff') : null, [firestore, vendor]);
+    const { data: staff, isLoading } = useCollection<WithId<StaffMember>>(staffRef);
+
+    const handleRowClick = (staffMember: WithId<StaffMember>) => {
         setSelectedStaff(staffMember);
         setIsFormOpen(true);
     };
@@ -144,34 +162,34 @@ export default function VendorStaffPage() {
         setIsFormOpen(true);
     };
 
-    const handleDeleteClick = (staffMember: VendorStaffMember) => {
+    const handleDeleteClick = (e: React.MouseEvent, staffMember: WithId<StaffMember>) => {
+        e.stopPropagation();
         setSelectedStaff(staffMember);
         setIsDeleteConfirmOpen(true);
     };
     
-    const handleSaveStaff = (data: VendorStaffMember) => {
-        let message = "";
-        if (selectedStaff && selectedStaff.id) {
+    const handleSaveStaff = (data: z.infer<typeof staffSchema>) => {
+        if (!vendor || !staffRef) return;
+        setIsSubmitting(true);
+        if (selectedStaff) {
             // Update
-            setStaff(prev => prev.map(s => s.id === selectedStaff.id ? {...data, id: selectedStaff.id} : s));
-            message = `${data.name}'s profile has been updated.`;
+            const staffDocRef = doc(firestore, 'vendors', vendor.id, 'staff', selectedStaff.id);
+            updateDocumentNonBlocking(staffDocRef, data);
+            toast({ title: "Staff Member Updated", description: `${data.name}'s profile has been updated.`});
         } else {
             // Create
-            const newStaff = { ...data, id: `staff-${Date.now()}` };
-            setStaff(prev => [newStaff, ...prev]);
-            message = `${data.name} has been added to the team.`;
+            addDocumentNonBlocking(staffRef, data);
+            toast({ title: "Staff Member Added", description: `${data.name} has been added to the team.` });
         }
-         toast({
-            title: selectedStaff ? "Staff Member Updated" : "Staff Member Added",
-            description: message,
-        });
+        setIsSubmitting(false);
         setIsFormOpen(false);
         setSelectedStaff(null);
     }
     
     const handleDeleteConfirm = () => {
-        if (!selectedStaff) return;
-        setStaff(prev => prev.filter(s => s.id !== selectedStaff.id));
+        if (!selectedStaff || !vendor) return;
+        const staffDocRef = doc(firestore, 'vendors', vendor.id, 'staff', selectedStaff.id);
+        deleteDocumentNonBlocking(staffDocRef);
         toast({
             title: "Staff Member Removed",
             description: `${selectedStaff.name} has been removed from the team.`,
@@ -199,7 +217,7 @@ export default function VendorStaffPage() {
         <Card>
             <CardHeader>
                 <CardTitle>Your Team</CardTitle>
-                <CardDescription>A list of all staff members at Precision Auto Qatar.</CardDescription>
+                <CardDescription>A list of all staff members at {vendor?.name}.</CardDescription>
             </CardHeader>
           <CardContent>
             <Table>
@@ -212,7 +230,15 @@ export default function VendorStaffPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {staff.map((staffMember) => (
+                {isLoading && [...Array(3)].map((_, i) => (
+                    <TableRow key={i}>
+                        <TableCell><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><Skeleton className="h-5 w-32" /></div></TableCell>
+                        <TableCell className="hidden sm:table-cell"><Skeleton className="h-5 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                        <TableCell className="text-right"><Skeleton className="h-8 w-8" /></TableCell>
+                    </TableRow>
+                ))}
+                {!isLoading && staff && staff.map((staffMember) => (
                   <TableRow key={staffMember.id} onClick={() => handleRowClick(staffMember)} className="cursor-pointer">
                     <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
@@ -243,9 +269,9 @@ export default function VendorStaffPage() {
                               <DropdownMenuItem onSelect={() => handleRowClick(staffMember)}>
                                 <Edit className="mr-2 h-4 w-4" /> Edit Profile
                               </DropdownMenuItem>
-                              <DropdownMenuItem>Reset Password</DropdownMenuItem>
+                              <DropdownMenuItem disabled>Reset Password</DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onSelect={() => handleDeleteClick(staffMember)} className="text-destructive focus:text-destructive">
+                              <DropdownMenuItem onSelect={(e) => handleDeleteClick(e, staffMember)} className="text-destructive focus:text-destructive">
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                                </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -255,6 +281,12 @@ export default function VendorStaffPage() {
                 ))}
               </TableBody>
             </Table>
+            {!isLoading && (!staff || staff.length === 0) && (
+                <div className="text-center text-muted-foreground p-8">
+                    <Users className="h-10 w-10 mx-auto mb-2 text-primary/50" />
+                    <p>No staff members have been added yet.</p>
+                </div>
+            )}
           </CardContent>
         </Card>
 
@@ -266,7 +298,7 @@ export default function VendorStaffPage() {
                         {selectedStaff ? `Update the details for ${selectedStaff.name}.` : 'Fill in the details for the new staff member.'}
                     </DialogDescription>
                 </DialogHeader>
-                <StaffForm staffMember={selectedStaff} onSave={handleSaveStaff} onCancel={() => setIsFormOpen(false)} />
+                <StaffForm staffMember={selectedStaff} onSave={handleSaveStaff} onCancel={() => setIsFormOpen(false)} isSubmitting={isSubmitting} />
             </DialogContent>
         </Dialog>
 

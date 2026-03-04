@@ -44,54 +44,67 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, PlusCircle, Edit, Trash2 } from "lucide-react";
-import { mockVendorServices, VendorService } from "@/lib/vendor-data";
+import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, Wrench } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useVendor } from "@/components/vendor/vendor-provider";
+import { useFirebase, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+import { collection, doc } from "firebase/firestore";
+import type { Service, WithId } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from 'zod';
 
 
-function ServiceForm({ service, onSave, onCancel }: { service?: VendorService | null, onSave: (data: VendorService) => void, onCancel: () => void }) {
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorService>({
-    defaultValues: service || {},
+const serviceSchema = z.object({
+    name: z.string().min(1, "Name is required"),
+    description: z.string().min(1, "Description is required"),
+    duration: z.coerce.number().min(1, "Duration must be positive"),
+    price: z.coerce.number().min(0, "Price must be positive"),
+});
+
+function ServiceForm({ service, onSave, onCancel, isSubmitting }: { service?: WithId<Service> | null, onSave: (data: z.infer<typeof serviceSchema>) => void, onCancel: () => void, isSubmitting: boolean }) {
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<z.infer<typeof serviceSchema>>({
+    resolver: zodResolver(serviceSchema),
+    defaultValues: service || { name: '', description: '', price: 0, duration: 0 },
   });
 
   useEffect(() => {
       reset(service || {name: '', description: '', price: 0, duration: 0});
   }, [service, reset]);
 
-  const onSubmit = (data: VendorService) => {
-    onSave(data);
-  };
-
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
+    <form onSubmit={handleSubmit(onSave)} className="space-y-4 pt-4">
       <div className="space-y-2">
         <Label htmlFor="name">Service Name</Label>
-        <Input id="name" {...register("name", { required: "Name is required" })} />
+        <Input id="name" {...register("name")} />
         {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
       </div>
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
-        <Textarea id="description" {...register("description", { required: "Description is required" })} />
+        <Textarea id="description" {...register("description")} />
         {errors.description && <p className="text-sm text-destructive">{errors.description.message}</p>}
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="duration">Duration (mins)</Label>
-          <Input id="duration" type="number" {...register("duration", { required: "Duration is required", valueAsNumber: true })} />
+          <Input id="duration" type="number" {...register("duration")} />
           {errors.duration && <p className="text-sm text-destructive">{errors.duration.message}</p>}
         </div>
         <div className="space-y-2">
           <Label htmlFor="price">Price (QAR)</Label>
-          <Input id="price" type="number" step="0.01" {...register("price", { required: "Price is required", valueAsNumber: true })} />
+          <Input id="price" type="number" step="0.01" {...register("price")} />
           {errors.price && <p className="text-sm text-destructive">{errors.price.message}</p>}
         </div>
       </div>
       <DialogFooter>
-          <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button type="submit">Save Service</Button>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Cancel</Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+            Save Service
+          </Button>
       </DialogFooter>
     </form>
   );
@@ -99,13 +112,18 @@ function ServiceForm({ service, onSave, onCancel }: { service?: VendorService | 
 
 
 export default function VendorServicesPage() {
-  const [services, setServices] = useState(mockVendorServices);
+  const { firestore } = useFirebase();
+  const { vendor } = useVendor();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [selectedService, setSelectedService] = useState<VendorService | null>(null);
+  const [selectedService, setSelectedService] = useState<WithId<Service> | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const handleRowClick = (service: VendorService) => {
+  const servicesRef = useMemoFirebase(() => vendor ? collection(firestore, 'vendors', vendor.id, 'services') : null, [firestore, vendor]);
+  const { data: services, isLoading } = useCollection<WithId<Service>>(servicesRef);
+
+  const handleRowClick = (service: WithId<Service>) => {
     setSelectedService(service);
     setIsFormOpen(true);
   };
@@ -115,29 +133,35 @@ export default function VendorServicesPage() {
     setIsFormOpen(true);
   };
 
-  const handleDeleteClick = (service: VendorService) => {
+  const handleDeleteClick = (e: React.MouseEvent, service: WithId<Service>) => {
+    e.stopPropagation();
     setSelectedService(service);
     setIsDeleteConfirmOpen(true);
   };
 
-  const handleSaveService = (data: VendorService) => {
-    if (selectedService && selectedService.id) {
+  const handleSaveService = (data: z.infer<typeof serviceSchema>) => {
+    if (!vendor || !servicesRef) return;
+    setIsSubmitting(true);
+
+    if (selectedService) {
         // Update
-        setServices(prev => prev.map(s => s.id === selectedService.id ? {...data, id: selectedService.id} : s));
+        const serviceDocRef = doc(firestore, 'vendors', vendor.id, 'services', selectedService.id);
+        updateDocumentNonBlocking(serviceDocRef, data);
         toast({ title: "Service Updated", description: `"${data.name}" has been updated.` });
     } else {
         // Create
-        const newService = { ...data, id: `vs-${Date.now()}` };
-        setServices(prev => [newService, ...prev]);
+        addDocumentNonBlocking(servicesRef, data);
         toast({ title: "Service Added", description: `"${data.name}" has been added.` });
     }
+    setIsSubmitting(false);
     setIsFormOpen(false);
     setSelectedService(null);
   }
   
   const handleDeleteConfirm = () => {
-    if (!selectedService) return;
-    setServices(prev => prev.filter(s => s.id !== selectedService.id));
+    if (!selectedService || !vendor) return;
+    const serviceDocRef = doc(firestore, 'vendors', vendor.id, 'services', selectedService.id);
+    deleteDocumentNonBlocking(serviceDocRef);
     toast({
         title: "Service Deleted",
         description: `The service "${selectedService.name}" has been deleted.`,
@@ -164,7 +188,7 @@ export default function VendorServicesPage() {
       <Card>
           <CardHeader>
               <CardTitle>Your Services</CardTitle>
-              <CardDescription>A list of services provided by Precision Auto Qatar.</CardDescription>
+              <CardDescription>A list of services provided by {vendor?.name}.</CardDescription>
           </CardHeader>
         <CardContent>
           <Table>
@@ -179,7 +203,15 @@ export default function VendorServicesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {services.map((service) => (
+              {isLoading && [...Array(3)].map((_, i) => (
+                <TableRow key={i}>
+                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                    <TableCell className="hidden sm:table-cell"><Skeleton className="h-5 w-20" /></TableCell>
+                    <TableCell className="hidden md:table-cell text-right"><Skeleton className="h-5 w-16" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-8 w-8" /></TableCell>
+                </TableRow>
+              ))}
+              {!isLoading && services && services.map((service) => (
                 <TableRow key={service.id} onClick={() => handleRowClick(service)} className="cursor-pointer">
                   <TableCell className="font-medium">{service.name}</TableCell>
                   <TableCell className="hidden sm:table-cell">{service.duration}</TableCell>
@@ -198,7 +230,7 @@ export default function VendorServicesPage() {
                                 <Edit className="mr-2 h-4 w-4" /> Edit
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onSelect={() => handleDeleteClick(service)} className="text-destructive focus:text-destructive">
+                            <DropdownMenuItem onSelect={(e) => handleDeleteClick(e, service)} className="text-destructive focus:text-destructive">
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                             </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -208,6 +240,12 @@ export default function VendorServicesPage() {
               ))}
             </TableBody>
           </Table>
+           {!isLoading && (!services || services.length === 0) && (
+              <div className="text-center text-muted-foreground p-8">
+                <Wrench className="h-10 w-10 mx-auto mb-2 text-primary/50" />
+                <p>You haven't added any services yet.</p>
+              </div>
+            )}
         </CardContent>
       </Card>
 
@@ -219,7 +257,7 @@ export default function VendorServicesPage() {
                        {selectedService ? 'Make changes to the service details below.' : 'Fill in the details for the new service.'}
                     </DialogDescription>
                 </DialogHeader>
-                <ServiceForm service={selectedService} onSave={handleSaveService} onCancel={() => setIsFormOpen(false)} />
+                <ServiceForm service={selectedService} onSave={handleSaveService} onCancel={() => setIsFormOpen(false)} isSubmitting={isSubmitting} />
             </DialogContent>
         </Dialog>
       
@@ -240,4 +278,3 @@ export default function VendorServicesPage() {
     </div>
   );
 }
-  
