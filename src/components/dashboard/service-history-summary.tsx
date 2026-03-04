@@ -15,30 +15,19 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
 
-export function ServiceHistorySummary({ car }: { car: WithId<Car> }) {
-  const { firestore, user } = useFirebase();
+export function ServiceHistorySummary({ car, serviceHistory }: { car: WithId<Car>, serviceHistory: WithId<ServiceRecord>[] | null }) {
   const [summary, setSummary] = useState<SummarizeServiceHistoryOutput | null>(
     null
   );
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-
-  const serviceHistoryRef = useMemoFirebase(() => 
-    user ? collection(firestore, `users/${user.uid}/cars/${car.id}/serviceRecords`) : null,
-    [firestore, user, car.id]
-  );
-  const { data: serviceHistory, isLoading: isLoadingHistory } = useCollection<WithId<ServiceRecord>>(serviceHistoryRef);
 
   useEffect(() => {
     async function fetchSummary() {
-      if (isLoadingHistory) {
-        return;
-      }
       if (!serviceHistory || serviceHistory.length === 0) {
         setIsLoading(false);
+        setSummary(null);
         return;
       }
       setIsLoading(true);
@@ -66,9 +55,7 @@ export function ServiceHistorySummary({ car }: { car: WithId<Car> }) {
     
     fetchSummary();
 
-  }, [car, toast, serviceHistory, isLoadingHistory]);
-
-  const componentIsLoading = isLoading || isLoadingHistory;
+  }, [car, toast, serviceHistory]);
 
   return (
     <Card className="flex flex-col">
@@ -82,20 +69,20 @@ export function ServiceHistorySummary({ car }: { car: WithId<Car> }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-grow">
-        {componentIsLoading && (
+        {isLoading && (
           <div className="flex items-center gap-3 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
             <p className="font-semibold">Analyzing service history...</p>
           </div>
         )}
-        {!componentIsLoading && (!serviceHistory || serviceHistory.length === 0) && (
+        {!isLoading && (!serviceHistory || serviceHistory.length === 0) && (
             <div className="text-center text-muted-foreground py-8 px-4 rounded-lg bg-muted/50">
                 <Terminal className="mx-auto h-12 w-12 mb-4 text-primary/50" />
                 <h3 className="font-semibold text-lg">No History to Analyze</h3>
                 <p>Add service records to enable AI analysis.</p>
             </div>
         )}
-         {!componentIsLoading && !summary && serviceHistory && serviceHistory.length > 0 && (
+         {!isLoading && !summary && serviceHistory && serviceHistory.length > 0 && (
           <p className="text-muted-foreground">Could not load summary.</p>
         )}
         {summary && (

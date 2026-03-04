@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Link from 'next/link';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
@@ -34,14 +34,39 @@ function StarRating({ rating, className }: { rating: number, className?: string 
     );
 }
 
+function ReviewItem({ review }: { review: WithId<Review> }) {
+  const reviewDate = review.date ? new Date(review.date) : null;
+  const isDateValid = reviewDate && isValid(reviewDate);
+
+  return (
+    <div className="text-sm">
+      <div className="flex justify-between items-center mb-1">
+        <p className="font-semibold">{review.customerName}</p>
+        <StarRating rating={review.rating} />
+      </div>
+      <p className="text-muted-foreground italic">&quot;{review.comment}&quot;</p>
+      {isDateValid ? (
+        <p className="text-xs text-muted-foreground/70 mt-1">
+          {format(reviewDate, 'PPP')}
+        </p>
+      ) : (
+        <p className="text-xs text-muted-foreground/70 mt-1">
+          Date not available
+        </p>
+      )}
+    </div>
+  );
+}
+
+
 export default function GarageDetailsPage() {
     const params = useParams();
     const garageId = params.garageId as string;
     const { firestore, isUserLoading } = useFirebase();
 
-    const garageRef = useMemoFirebase(() => doc(firestore, 'vendors', garageId), [firestore, garageId]);
-    const servicesRef = useMemoFirebase(() => collection(firestore, 'vendors', garageId, 'services'), [firestore, garageId]);
-    const reviewsRef = useMemoFirebase(() => collection(firestore, 'vendors', garageId, 'reviews'), [firestore, garageId]);
+    const garageRef = useMemoFirebase(() => garageId ? doc(firestore, 'vendors', garageId) : null, [firestore, garageId]);
+    const servicesRef = useMemoFirebase(() => garageId ? collection(firestore, 'vendors', garageId, 'services') : null, [firestore, garageId]);
+    const reviewsRef = useMemoFirebase(() => garageId ? collection(firestore, 'vendors', garageId, 'reviews') : null, [firestore, garageId]);
 
     const { data: garage, isLoading: isLoadingGarage } = useDoc<WithId<Vendor>>(garageRef);
     const { data: services, isLoading: isLoadingServices } = useCollection<WithId<Service>>(servicesRef);
@@ -177,14 +202,7 @@ export default function GarageDetailsPage() {
                              {reviews && reviews.length > 0 ? (
                                 <div className="space-y-4 max-h-96 overflow-y-auto pr-2 no-scrollbar">
                                     {reviews.map(review => (
-                                        <div key={review.id} className="text-sm">
-                                            <div className="flex justify-between items-center mb-1">
-                                                <p className="font-semibold">{review.customerName}</p>
-                                                <StarRating rating={review.rating} />
-                                            </div>
-                                            <p className="text-muted-foreground italic">&quot;{review.comment}&quot;</p>
-                                            <p className="text-xs text-muted-foreground/70 mt-1">{format(new Date(review.date), 'PPP')}</p>
-                                        </div>
+                                       <ReviewItem key={review.id} review={review} />
                                     ))}
                                 </div>
                             ) : (

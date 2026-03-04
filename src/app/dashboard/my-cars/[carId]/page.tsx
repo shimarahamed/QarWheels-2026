@@ -28,70 +28,104 @@ import { notFound, useParams } from "next/navigation";
 import { CarMaintenancePredictions } from "@/components/dashboard/car-maintenance-predictions";
 import { ServiceHistorySummary } from "@/components/dashboard/service-history-summary";
 import Link from "next/link";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useFirebase, useDoc, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, doc } from 'firebase/firestore';
 import type { Car, ServiceRecord, WithId } from "@/lib/types";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { Skeleton } from "@/components/ui/skeleton";
 
-function ServiceHistoryList({ carId }: { carId: string }) {
-    const { firestore, user } = useFirebase();
-    
-    const serviceHistoryRef = useMemoFirebase(() => 
-        user ? collection(firestore, `users/${user.uid}/cars/${carId}/serviceRecords`) : null
-    , [firestore, user, carId]);
-    
-    const { data: serviceHistory, isLoading } = useCollection<WithId<ServiceRecord>>(serviceHistoryRef);
 
+function ServiceHistoryList({ serviceHistory, isLoading }: { serviceHistory: WithId<ServiceRecord>[] | null, isLoading: boolean }) {
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center p-8">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            </div>
+             <Card>
+                <CardHeader>
+                    <Skeleton className="h-6 w-32"/>
+                    <Skeleton className="h-4 w-48 mt-2"/>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-4">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                </CardContent>
+             </Card>
         )
     }
 
     if (!serviceHistory || serviceHistory.length === 0) {
         return (
-            <div className="text-center text-muted-foreground py-12 px-8 rounded-lg bg-muted/50">
-                <History className="mx-auto h-12 w-12 mb-4 text-primary/50" />
-                <h3 className="font-semibold text-lg">No History Found</h3>
-                <p>No service history has been recorded for this vehicle yet.</p>
-            </div>
+             <Card>
+                <CardHeader>
+                    <CardTitle>Service History</CardTitle>
+                    <CardDescription>
+                        A log of all maintenance performed on this vehicle.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-center text-muted-foreground py-12 px-8 rounded-lg bg-muted/50">
+                        <History className="mx-auto h-12 w-12 mb-4 text-primary/50" />
+                        <h3 className="font-semibold text-lg">No History Found</h3>
+                        <p>No service history has been recorded for this vehicle yet.</p>
+                    </div>
+                </CardContent>
+             </Card>
         );
     }
     
     // Sort by date descending
-    const sortedHistory = [...serviceHistory].sort((a, b) => new Date(b.serviceDate).getTime() - new Date(a.serviceDate).getTime());
+    const sortedHistory = [...serviceHistory].sort((a, b) => {
+        const dateA = new Date(a.serviceDate);
+        const dateB = new Date(b.serviceDate);
+        if (!isValid(dateA)) return 1;
+        if (!isValid(dateB)) return -1;
+        return dateB.getTime() - dateA.getTime();
+    });
 
     return (
-        <div className="overflow-x-auto">
-            <Table>
-            <TableHeader>
-                <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Service</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Cost</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {sortedHistory.map((record) => (
-                <TableRow key={record.id}>
-                    <TableCell className="font-medium whitespace-nowrap">
-                    {format(new Date(record.serviceDate), "PPP")}
-                    </TableCell>
-                    <TableCell>{record.serviceType}</TableCell>
-                    <TableCell>{record.serviceDescription}</TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
-                    QAR {record.cost.toFixed(2)}
-                    </TableCell>
-                </TableRow>
-                ))}
-            </TableBody>
-            </Table>
-        </div>
+        <Card>
+            <CardHeader>
+              <CardTitle>Service History</CardTitle>
+              <CardDescription>
+                A log of all maintenance performed on this vehicle.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="overflow-x-auto">
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Service</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="text-right">Cost</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedHistory.map((record) => {
+                            const recordDate = new Date(record.serviceDate);
+                            const isDateValid = isValid(recordDate);
+                            return (
+                                <TableRow key={record.id}>
+                                    <TableCell className="font-medium whitespace-nowrap">
+                                    {isDateValid ? format(recordDate, "PPP") : 'Invalid Date'}
+                                    </TableCell>
+                                    <TableCell>{record.serviceType}</TableCell>
+                                    <TableCell>{record.serviceDescription}</TableCell>
+                                    <TableCell className="text-right whitespace-nowrap">
+                                    QAR {record.cost.toFixed(2)}
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        })}
+                    </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -106,7 +140,15 @@ export default function CarDetailsPage() {
   );
   const { data: car, isLoading: isLoadingCar } = useDoc<WithId<Car>>(carRef);
   
-  if (isUserLoading || isLoadingCar) {
+  const serviceHistoryRef = useMemoFirebase(() => 
+    user && carId ? collection(firestore, `users/${user.uid}/cars/${carId}/serviceRecords`) : null,
+    [firestore, user, carId]
+  );
+  const { data: serviceHistory, isLoading: isLoadingHistory } = useCollection<WithId<ServiceRecord>>(serviceHistoryRef);
+
+  const isLoading = isUserLoading || isLoadingCar || isLoadingHistory;
+  
+  if (isLoading && !car) { // Show full page loader only on initial load
     return (
         <div className="flex h-64 w-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -188,21 +230,12 @@ export default function CarDetailsPage() {
               </div>
             </CardContent>
           </Card>
+          
+          <ServiceHistoryList serviceHistory={serviceHistory} isLoading={isLoading} />
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Service History</CardTitle>
-              <CardDescription>
-                A log of all maintenance performed on this vehicle.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ServiceHistoryList carId={car.id} />
-            </CardContent>
-          </Card>
         </div>
         <div className="lg:col-span-1 space-y-8">
-          <ServiceHistorySummary car={car} />
+          <ServiceHistorySummary car={car} serviceHistory={serviceHistory} />
           <CarMaintenancePredictions car={car} />
         </div>
       </div>
