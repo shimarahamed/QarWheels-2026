@@ -35,9 +35,6 @@ export function LandingPage() {
           <Logo />
         </Link>
         <nav className="ml-auto flex gap-2 sm:gap-4">
-          <Button asChild variant="ghost">
-            <Link href="/vendor/login">For Garages</Link>
-          </Button>
           <Button asChild variant="outline" className="hidden sm:inline-flex">
             <Link href="/login">Login</Link>
           </Button>
@@ -105,73 +102,15 @@ export function LandingPage() {
                 </BentoCard>
                  <BentoCard className="lg:col-span-2">
                     <Feature 
-                        icon={<Search size={32} />}
-                        title="Trusted Garage Network"
-                        description="Discover and book appointments with Qatar's top-rated, certified garages. Compare real-time quotes, read reviews, and find the right specialist for your car."
-                    />
-                </BentoCard>
-                <BentoCard className="lg:col-span-2">
-                    <Feature 
                         icon={<ShieldCheck size={32} />}
                         title="Digital Service Passport"
                         description="Every service, every part, every invoice—digitized and stored securely. Your car’s complete history, accessible anytime, anywhere."
-                    />
-                </BentoCard>
-                 <BentoCard className="lg:col-span-1">
-                    <Feature 
-                        icon={<Wrench size={32} />}
-                        title="AI-Powered Summaries"
-                        description="Can't make sense of a long service record? Our AI reads your car's history and gives you a clear, concise summary of what's been done and what to watch out for."
                     />
                 </BentoCard>
             </div>
           </div>
         </section>
         
-        {/* For Vendors Section */}
-        <section id="vendors" className="w-full py-12 md:py-24 lg:py-32">
-            <div className="container px-4 md:px-6 grid md:grid-cols-2 gap-10 items-center">
-                 <div className="relative group">
-                    {vendorImage && 
-                        <Image
-                        src={vendorImage.imageUrl}
-                        alt="Modern auto garage"
-                        width={1200}
-                        height={800}
-                        className="rounded-2xl shadow-2xl shadow-black/20"
-                        data-ai-hint="auto repair"
-                        />
-                    }
-                </div>
-                <div className="flex flex-col items-start space-y-6">
-                    <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm font-medium">For Garage Owners</div>
-                    <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">Supercharge Your Workshop</h2>
-                    <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                        Join the QarWheels network to connect with new customers, streamline your bookings, and manage your entire workshop from one powerful dashboard.
-                    </p>
-                    <ul className="grid gap-4">
-                        <li className="flex items-center gap-3">
-                            <Building className="h-5 w-5 text-primary" />
-                            <span>Fill your service bays with qualified leads.</span>
-                        </li>
-                        <li className="flex items-center gap-3">
-                            <CalendarDays className="h-5 w-5 text-primary" />
-                            <span>Manage bookings, staff, and inventory seamlessly.</span>
-                        </li>
-                         <li className="flex items-center gap-3">
-                            <Users className="h-5 w-5 text-primary" />
-                            <span>Build your reputation with verified customer reviews.</span>
-                        </li>
-                    </ul>
-                    <Button asChild size="lg" variant="outline">
-                        <Link href="/vendor/login">
-                            Learn More About the Vendor Portal
-                        </Link>
-                    </Button>
-                </div>
-            </div>
-        </section>
-
         {/* Final CTA */}
         <section className="w-full py-20 md:py-32">
              <div className="container px-4 md:px-6">

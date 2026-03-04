@@ -31,7 +31,6 @@ import { doc } from "firebase/firestore";
 const navItems = [
   { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard" },
   { href: "/dashboard/my-cars", icon: <Car />, label: "My Cars" },
-  { href: "/dashboard/garages", icon: <Wrench />, label: "Garages" },
   { href: "/dashboard/bookings", icon: <Book />, label: "Bookings" },
   { href: "/dashboard/service-history", icon: <History />, label: "Service History" },
   { href: "/dashboard/profile", icon: <UserIcon />, label: "Profile" },

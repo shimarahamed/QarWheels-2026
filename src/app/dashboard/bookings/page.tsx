@@ -150,12 +150,6 @@ export default function BookingsPage() {
             Manage your upcoming and past service appointments.
             </p>
         </div>
-        <Button asChild>
-            <Link href="/dashboard/garages">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Book New Service
-            </Link>
-        </Button>
       </header>
 
       <Tabs defaultValue="upcoming">
