@@ -82,11 +82,15 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       (firebaseUser) => { // Auth state determined
         setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
         if (!firebaseUser) {
-            // If user logs out, redirect them to the login page
+            // If user logs out, redirect them to the appropriate login page
             // This prevents protected routes from flashing or showing error states.
-            const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/vendor');
-            if (isProtectedRoute) {
+            const isUserDashboard = pathname.startsWith('/dashboard');
+            const isVendorDashboard = pathname.startsWith('/vendor');
+
+            if (isUserDashboard) {
                 router.replace('/login');
+            } else if (isVendorDashboard) {
+                router.replace('/vendor/login');
             }
         }
       },

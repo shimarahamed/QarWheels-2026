@@ -119,7 +119,7 @@ export function LandingPage() {
                     </Link>
                 </Button>
                  <Button asChild variant="secondary" size="lg">
-                    <Link href="/vendor/dashboard">
+                    <Link href="/vendor/login">
                       I'm a Garage Vendor
                     </Link>
                   </Button>
