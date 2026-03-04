@@ -1,6 +1,6 @@
 'use client';
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, collectionGroup, query } from "firebase/firestore";
+import { collection, collectionGroup, query, where } from "firebase/firestore";
 import type { Car, ServiceRecord, WithId } from "@/lib/types";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import {
@@ -42,19 +42,12 @@ export default function ServiceHistoryPage() {
   );
   const { data: cars, isLoading: isLoadingCars } = useCollection<WithId<Car>>(carsCollectionRef);
 
-  const allServiceRecordsRef = useMemoFirebase(
-    () => (user ? query(collectionGroup(firestore, 'serviceRecords')) : null),
+  const userServiceRecordsQuery = useMemoFirebase(
+    () => (user ? query(collectionGroup(firestore, 'serviceRecords'), where('userId', '==', user.uid)) : null),
     [firestore, user]
   );
-  const { data: allServiceRecords, isLoading: isLoadingRecords } = useCollection<WithId<ServiceRecord>>(allServiceRecordsRef);
+  const { data: userSeviceHistory, isLoading: isLoadingRecords } = useCollection<WithId<ServiceRecord>>(userServiceRecordsQuery);
 
-  // Filter service records to only include those for the current user's cars
-  const userCarIds = useMemo(() => new Set(cars?.map(c => c.id)), [cars]);
-  const userSeviceHistory = useMemo(() => 
-    allServiceRecords?.filter(record => userCarIds.has(record.carId)) || [],
-    [allServiceRecords, userCarIds]
-  );
-  
   const isLoading = isLoadingCars || isLoadingRecords;
 
   if (isLoading) {
@@ -78,7 +71,7 @@ export default function ServiceHistoryPage() {
         <Accordion type="single" collapsible className="w-full space-y-4">
           {cars.map((car) => {
             const image = car.imageId ? PlaceHolderImages.find((img) => img.id === car.imageId) : (PlaceHolderImages.find((img) => car.make.toLowerCase().includes(img.imageHint.split(' ')[1])) || PlaceHolderImages[1]);
-            const carServiceHistory = userSeviceHistory.filter(record => record.carId === car.id);
+            const carServiceHistory = userSeviceHistory?.filter(record => record.carId === car.id) || [];
 
             return (
               <AccordionItem value={car.id} key={car.id} className="border-b-0 rounded-lg bg-card border shadow-sm overflow-hidden transition-shadow hover:shadow-lg hover:border-primary">
@@ -187,5 +180,3 @@ export default function ServiceHistoryPage() {
     </div>
   );
 }
-
-  

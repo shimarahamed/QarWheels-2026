@@ -76,7 +76,7 @@ service cloud.firestore {
     // This rule allows a user to query across all their service records from any car
     // It is secure because the client query MUST include `where('userId', '==', request.auth.uid)`
     match /{path=**}/serviceRecords/{serviceRecordId} {
-       allow get, list: if isSignedIn();
+       allow get, list: if isSignedIn() && request.query.get('userId') == request.auth.uid;
     }
 
 
@@ -90,9 +90,9 @@ service cloud.firestore {
     }
 
     match /vendors/{vendorId} {
-      // Allow any signed-in user to read/list vendor profiles.
-      // The client is responsible for filtering for 'Approved' status.
-      allow get, list: if isSignedIn();
+      // Allow any signed-in user to read/list vendor profiles that are approved.
+      allow get: if isSignedIn() && resource.data.status == 'Approved';
+      allow list: if isSignedIn(); // Client must filter by 'status == "Approved"'
       
       // Only signed-in users can create a vendor profile, and they must be the owner
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;

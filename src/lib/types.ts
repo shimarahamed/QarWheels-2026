@@ -4,6 +4,7 @@ import { Timestamp } from "firebase/firestore";
 export type WithId<T> = T & { id: string };
 
 export type ServiceRecord = {
+    userId: string;
     carId: string;
     vendorId: string;
     serviceType: string;
