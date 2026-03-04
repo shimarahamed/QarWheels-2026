@@ -12,12 +12,12 @@ import {
 import {
   LayoutDashboard,
   Car,
-  Wrench,
   Book,
   History,
   LogOut,
   Search,
   User as UserIcon,
+  Building,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ import { doc } from "firebase/firestore";
 const navItems = [
   { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard" },
   { href: "/dashboard/my-cars", icon: <Car />, label: "My Cars" },
+  { href: "/dashboard/garages", icon: <Building />, label: "Garages" },
   { href: "/dashboard/bookings", icon: <Book />, label: "Bookings" },
   { href: "/dashboard/service-history", icon: <History />, label: "Service History" },
   { href: "/dashboard/profile", icon: <UserIcon />, label: "Profile" },
