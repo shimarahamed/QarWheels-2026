@@ -36,7 +36,7 @@ const newVendorSchema = z.object({
   email: z.string().email("Please enter a valid email"),
 });
 
-function CreateVendorForm({ onVendorCreated }: { onVendorCreated: (vendor: WithId<Vendor>) => void }) {
+function CreateVendorForm() {
     const { firestore, user } = useFirebase();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
@@ -63,17 +63,18 @@ function CreateVendorForm({ onVendorCreated }: { onVendorCreated: (vendor: WithI
             longitude: 51.5310, // Default lng for Doha
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
+            reviewCount: 0,
+            rating: 0,
         };
 
         try {
             const vendorsCollection = collection(firestore, 'vendors');
-            const docRef = await addDocumentNonBlocking(vendorsCollection, newVendorData);
-            // The addDocumentNonBlocking returns a promise that resolves with the docRef,
-            // so we can use it to get the ID.
-            onVendorCreated({ ...newVendorData, id: docRef.id });
+            await addDocumentNonBlocking(vendorsCollection, newVendorData);
+            // The parent `VendorProvider` will detect the new vendor via its
+            // `useCollection` hook and automatically transition to the dashboard.
             toast({
                 title: "Profile Created!",
-                description: "Your garage profile has been created and is pending approval."
+                description: "Your garage profile is ready. Loading dashboard...",
             });
         } catch (e: any) {
             console.error(e);
@@ -82,8 +83,7 @@ function CreateVendorForm({ onVendorCreated }: { onVendorCreated: (vendor: WithI
                 description: "Could not create profile. Please try again.",
                 variant: "destructive"
             });
-        } finally {
-            setIsSubmitting(false);
+            setIsSubmitting(false); // Only stop submitting on error
         }
     }
     
@@ -158,8 +158,17 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  if (!user) {
+      // This can happen briefly during logout or if auth fails
+      return (
+         <div className="flex h-screen w-full items-center justify-center">
+            <p>Authenticating...</p>
+        </div>
+      )
+  }
+
   if (!vendor) {
-    return <CreateVendorForm onVendorCreated={(newVendor) => setVendor(newVendor)} />;
+    return <CreateVendorForm />;
   }
   
   return (
@@ -168,5 +177,3 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     </VendorContext.Provider>
   );
 }
-
-  
