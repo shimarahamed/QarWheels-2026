@@ -92,7 +92,6 @@ service cloud.firestore {
     match /vendors/{vendorId} {
       // Allow any signed-in user to read/list vendor profiles.
       // The client is responsible for filtering for 'Approved' status.
-      // This simplifies the rule to prevent complex `get()` calls from failing.
       allow get, list: if isSignedIn();
       
       // Only signed-in users can create a vendor profile, and they must be the owner
@@ -101,13 +100,33 @@ service cloud.firestore {
       // Only the vendor owner or an admin can update/delete
       allow update, delete: if isVendorOwner(vendorId) || isAdmin();
 
-      // Rules for all vendor subcollections
-      match /{subcollection}/{docId} {
-        // Reads are public for signed-in users. This is necessary for users to see services, reviews, etc.
-        // The client must only show subcollection data for approved vendors.
-        allow read: if isSignedIn();
-        // Writes are restricted to owner/admin
-        allow write: if isVendorOwner(vendorId) || isAdmin();
+      // --- Explicit Sub-collection Rules for Stability ---
+      
+      match /services/{serviceId} {
+        allow get, list: if isSignedIn();
+        allow create, update, delete: if isVendorOwner(vendorId) || isAdmin();
+      }
+      
+      match /reviews/{reviewId} {
+        allow get, list: if isSignedIn();
+        // Allow any signed in user to create a review.
+        allow create: if isSignedIn();
+        allow update, delete: if isOwner(resource.data.userId) || isVendorOwner(vendorId) || isAdmin();
+      }
+
+      match /inventory/{itemId} {
+        allow get, list: if isSignedIn();
+        allow create, update, delete: if isVendorOwner(vendorId) || isAdmin();
+      }
+
+      match /staff/{staffId} {
+        allow get, list: if isSignedIn();
+        allow create, update, delete: if isVendorOwner(vendorId) || isAdmin();
+      }
+
+      match /promotions/{promotionId} {
+        allow get, list: if isSignedIn();
+        allow create, update, delete: if isVendorOwner(vendorId) || isAdmin();
       }
     }
     
