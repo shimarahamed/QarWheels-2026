@@ -71,7 +71,7 @@ function BookingWizard() {
     return <div className="flex h-64 w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
   }
 
-  if (!garage || !service || !service.name || !service.price) {
+  if (!garage || garage.status !== 'Approved' || !service || !service.name || !service.price) {
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold">Booking information not found.</h2>

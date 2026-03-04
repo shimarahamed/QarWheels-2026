@@ -149,7 +149,7 @@ export default function GarageDetailsPage() {
         )
     }
 
-    if (!vendor) {
+    if (!vendor || vendor.status !== 'Approved') {
         notFound();
     }
 

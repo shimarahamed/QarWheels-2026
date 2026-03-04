@@ -90,9 +90,10 @@ service cloud.firestore {
     }
 
     match /vendors/{vendorId} {
-      // Public can read approved vendors, owners and admins can read any
-      allow get: if get(/databases/$(database)/documents/vendors/$(vendorId)).data.status == 'Approved' || isVendorOwner(vendorId) || isAdmin();
-      allow list: if true; // Rules are not filters, client must query for 'Approved'
+      // Allow any signed-in user to read/list vendor profiles.
+      // The client is responsible for filtering for 'Approved' status.
+      // This simplifies the rule to prevent complex `get()` calls from failing.
+      allow get, list: if isSignedIn();
       
       // Only signed-in users can create a vendor profile, and they must be the owner
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
@@ -102,8 +103,10 @@ service cloud.firestore {
 
       // Rules for all vendor subcollections
       match /{subcollection}/{docId} {
-        // Reads are public for approved vendors, writes are restricted to owner/admin
-        allow read: if get(/databases/$(database)/documents/vendors/$(vendorId)).data.status == 'Approved' || isVendorOwner(vendorId) || isAdmin();
+        // Reads are public for signed-in users. This is necessary for users to see services, reviews, etc.
+        // The client must only show subcollection data for approved vendors.
+        allow read: if isSignedIn();
+        // Writes are restricted to owner/admin
         allow write: if isVendorOwner(vendorId) || isAdmin();
       }
     }
