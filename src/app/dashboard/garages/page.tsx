@@ -17,20 +17,23 @@ import type { Vendor, WithId } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 
-function StarRating({ rating, className }: { rating: number, className?: string }) {
+function StarRating({ rating, className, reviewCount }: { rating: number, className?: string, reviewCount?: number }) {
     const fullStars = Math.floor(rating);
     const halfStar = rating % 1 !== 0;
     const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
 
     return (
-        <div className={cn("flex items-center gap-0.5", className)}>
-            {[...Array(fullStars)].map((_, i) => (
-                <Star key={`full-${i}`} className="h-4 w-4 fill-amber-400 text-amber-400" />
-            ))}
-            {halfStar && <Star key="half" className="h-4 w-4 fill-amber-200 text-amber-400" />}
-            {[...Array(emptyStars)].map((_, i) => (
-                <Star key={`empty-${i}`} className="h-4 w-4 fill-gray-200 text-gray-300" />
-            ))}
+        <div className="flex items-center gap-2">
+            <div className={cn("flex items-center gap-0.5", className)}>
+                {[...Array(fullStars)].map((_, i) => (
+                    <Star key={`full-${i}`} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                ))}
+                {halfStar && <Star key="half" className="h-4 w-4 fill-amber-200 text-amber-400" />}
+                {[...Array(emptyStars)].map((_, i) => (
+                    <Star key={`empty-${i}`} className="h-4 w-4 fill-gray-200 text-gray-300" />
+                ))}
+            </div>
+             {reviewCount !== undefined && <span className="text-sm text-muted-foreground">({reviewCount} reviews)</span>}
         </div>
     );
 }
@@ -88,10 +91,7 @@ function GarageList({ vendors, isLoading }: { vendors: WithId<Vendor>[] | null, 
                             <CardTitle>
                                 <Link href={`/dashboard/garages/${vendor.id}`}>{vendor.name}</Link>
                             </CardTitle>
-                            <div className="flex items-center gap-2">
-                                <StarRating rating={vendor.rating || 0} />
-                                <span className="text-sm text-muted-foreground">({vendor.reviewCount || 0} reviews)</span>
-                            </div>
+                            <StarRating rating={vendor.rating || 0} reviewCount={vendor.reviewCount || 0} />
                             <CardDescription className="flex items-start gap-2 pt-2">
                                 <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
                                 <span>{vendor.address}</span>

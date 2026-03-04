@@ -113,29 +113,32 @@ function ReviewsList({vendorId}: {vendorId: string}) {
 
     return (
         <div className="space-y-4">
-            {reviews.map(review => (
-                    <Card key={review.id}>
-                    <CardHeader>
-                        <div className="flex items-center gap-3">
-                            <Avatar>
-                                <AvatarImage src={`https://api.dicebear.com/8.x/initials/svg?seed=${review.customerName}`} />
-                                <AvatarFallback>{review.customerName.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <p className="font-semibold text-sm">{review.customerName}</p>
-                                <StarRating rating={review.rating} />
+            {reviews.map(review => {
+                    const reviewDate = review.date ? new Date(review.date) : null;
+                    return (
+                        <Card key={review.id}>
+                        <CardHeader>
+                            <div className="flex items-center gap-3">
+                                <Avatar>
+                                    <AvatarImage src={`https://api.dicebear.com/8.x/initials/svg?seed=${review.customerName}`} />
+                                    <AvatarFallback>{review.customerName.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="font-semibold text-sm">{review.customerName}</p>
+                                    <StarRating rating={review.rating} />
+                                </div>
                             </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground italic">&quot;{review.comment}&quot;</p>
-                    </CardContent>
-                    <CardFooter className="text-xs text-muted-foreground justify-between">
-                        <span>{review.service}</span>
-                        <span>{format(new Date(review.date), 'PPP')}</span>
-                    </CardFooter>
-                </Card>
-            ))}
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground italic">&quot;{review.comment}&quot;</p>
+                        </CardContent>
+                        <CardFooter className="text-xs text-muted-foreground justify-between">
+                            <span>{review.service}</span>
+                            <span>{reviewDate && !isNaN(reviewDate.getTime()) ? format(reviewDate, 'PPP') : 'Date not available'}</span>
+                        </CardFooter>
+                    </Card>
+                    )
+                })}
         </div>
     )
 }
