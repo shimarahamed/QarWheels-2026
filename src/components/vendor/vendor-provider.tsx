@@ -58,7 +58,7 @@ function CreateVendorForm() {
             type: 'Garage',
             city: 'Doha',
             country: 'Qatar',
-            status: 'Pending Approval',
+            status: 'Approved',
             latitude: 25.2854, // Default lat for Doha
             longitude: 51.5310, // Default lng for Doha
             createdAt: serverTimestamp(),

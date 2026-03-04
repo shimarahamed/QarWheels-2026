@@ -94,7 +94,7 @@ export default function VendorSignupPage() {
                     type: 'Garage',
                     city: 'Doha',
                     country: 'Qatar',
-                    status: 'Pending Approval',
+                    status: 'Approved',
                     latitude: 25.2854,
                     longitude: 51.5310,
                     createdAt: serverTimestamp(),
