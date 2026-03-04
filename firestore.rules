@@ -91,7 +91,7 @@ service cloud.firestore {
 
     match /vendors/{vendorId} {
       // Public can read approved vendors, owners and admins can read any
-      allow get: if resource.data.status == 'Approved' || isVendorOwner(vendorId) || isAdmin();
+      allow get: if get(/databases/$(database)/documents/vendors/$(vendorId)).data.status == 'Approved' || isVendorOwner(vendorId) || isAdmin();
       allow list: if true; // Rules are not filters, client must query for 'Approved'
       
       // Only signed-in users can create a vendor profile, and they must be the owner
