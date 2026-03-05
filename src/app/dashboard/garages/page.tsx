@@ -10,8 +10,13 @@ import { Star, MapPin, Search, Frown } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { GaragesMap } from '@/components/dashboard/garages-map';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import dynamic from 'next/dynamic';
+
+const GaragesMap = dynamic(() => import('@/components/dashboard/garages-map').then(mod => mod.GaragesMap), {
+    ssr: false,
+    loading: () => <Skeleton className="aspect-[16/7] w-full" />,
+});
 
 function GarageCard({ garage }: { garage: WithId<Vendor> }) {
   const image = garage.imageId ? PlaceHolderImages.find(p => p.id === garage.imageId) : PlaceHolderImages.find(p => p.id === 'garage-exterior');
