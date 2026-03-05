@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
+import { createContext, useContext, ReactNode, useState, useEffect, useMemo } from 'react';
 import { useFirebase, useCollection, useMemoFirebase, safeAddDoc } from '@/firebase';
 import { collection, query, where, serverTimestamp } from 'firebase/firestore';
 import type { Vendor, WithId } from '@/lib/types';
@@ -144,6 +144,8 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   const vendor = (vendors && vendors.length > 0) ? vendors[0] : null;
   const isLoading = isUserLoading || isLoadingVendor;
 
+  const value = useMemo(() => ({ vendor, isLoading }), [vendor, isLoading]);
+
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -168,7 +170,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   }
   
   return (
-    <VendorContext.Provider value={{ vendor, isLoading: isLoadingVendor }}>
+    <VendorContext.Provider value={value}>
       {children}
     </VendorContext.Provider>
   );

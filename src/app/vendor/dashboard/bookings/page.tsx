@@ -32,9 +32,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useFirebase, useCollection, useDoc, useMemoFirebase } from "@/firebase";
+import { useFirebase, useCollection, useDoc, useMemoFirebase, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
 import { useVendor } from "@/components/vendor/vendor-provider";
-import { collection, query, where, doc, updateDoc, deleteDoc, Timestamp } from "firebase/firestore";
+import { collection, query, where, doc, Timestamp, serverTimestamp } from "firebase/firestore";
 import type { Booking, WithId, UserProfile, Car as CarType } from "@/lib/types";
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -272,9 +272,10 @@ export default function VendorBookingsPage() {
         const bookingRef = doc(firestore, 'bookings', selectedBooking.id);
         
         try {
-            await updateDoc(bookingRef, {
+            await safeUpdateDoc(bookingRef, {
                 status: data.status,
                 cost: data.cost,
+                updatedAt: serverTimestamp(),
             });
             toast({
                 title: "Booking Updated",
@@ -300,7 +301,7 @@ export default function VendorBookingsPage() {
         const bookingRef = doc(firestore, 'bookings', selectedBooking.id);
 
         try {
-            await deleteDoc(bookingRef);
+            await safeDeleteDoc(bookingRef);
             toast({
                 title: "Booking Deleted",
                 description: `The booking has been deleted.`,

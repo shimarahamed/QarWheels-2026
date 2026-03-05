@@ -15,10 +15,11 @@ import {FirestorePermissionError} from '@/firebase/errors';
 
 /**
  * Initiates a setDoc operation, automatically handling permission errors.
- * This is "fire-and-forget" and does not block for the write to complete on the server.
+ * Returns a promise that resolves on success.
  */
-export function safeSetDoc(docRef: DocumentReference, data: any, options: SetOptions) {
-  setDoc(docRef, data, options).catch(error => {
+export function safeSetDoc(docRef: DocumentReference, data: any, options: SetOptions): Promise<void> {
+  const promise = setDoc(docRef, data, options);
+  promise.catch(error => {
     errorEmitter.emit(
       'permission-error',
       new FirestorePermissionError({
@@ -27,7 +28,8 @@ export function safeSetDoc(docRef: DocumentReference, data: any, options: SetOpt
         requestResourceData: data,
       })
     )
-  })
+  });
+  return promise;
 }
 
 
@@ -53,11 +55,11 @@ export function safeAddDoc(colRef: CollectionReference, data: any): Promise<Docu
 
 /**
  * Initiates an updateDoc operation, automatically handling permission errors.
- * This is "fire-and-forget" and does not block for the write to complete on the server.
+ * Returns a promise that resolves on success.
  */
-export function safeUpdateDoc(docRef: DocumentReference, data: any) {
-  updateDoc(docRef, data)
-    .catch(error => {
+export function safeUpdateDoc(docRef: DocumentReference, data: any): Promise<void> {
+  const promise = updateDoc(docRef, data);
+  promise.catch(error => {
       errorEmitter.emit(
         'permission-error',
         new FirestorePermissionError({
@@ -67,16 +69,17 @@ export function safeUpdateDoc(docRef: DocumentReference, data: any) {
         })
       )
     });
+  return promise;
 }
 
 
 /**
  * Initiates a deleteDoc operation, automatically handling permission errors.
- * This is "fire-and-forget" and does not block for the write to complete on the server.
+ * Returns a promise that resolves on success.
  */
-export function safeDeleteDoc(docRef: DocumentReference) {
-  deleteDoc(docRef)
-    .catch(error => {
+export function safeDeleteDoc(docRef: DocumentReference): Promise<void> {
+  const promise = deleteDoc(docRef);
+  promise.catch(error => {
       errorEmitter.emit(
         'permission-error',
         new FirestorePermissionError({
@@ -85,4 +88,5 @@ export function safeDeleteDoc(docRef: DocumentReference) {
         })
       )
     });
+  return promise;
 }
