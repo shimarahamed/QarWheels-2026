@@ -82,22 +82,26 @@ export function VendorSidebar() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="p-2 border-t mt-auto border-sidebar-border space-y-2">
-        <div className="p-2 rounded-md hover:bg-sidebar-accent">
-            <div className="flex items-center gap-3">
-                <Avatar className="h-9 w-9">
-                    <AvatarImage src={`https://api.dicebear.com/8.x/initials/svg?seed=${user?.displayName || 'User'}`} alt={user?.displayName || 'User'} />
-                    <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col group-data-[collapsible=icon]:hidden overflow-hidden">
-                    <span className="text-sm font-semibold truncate">{user?.displayName || "Vendor Admin"}</span>
-                    <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
+        {user && (
+          <>
+            <Link href="/dashboard/profile" className="p-2 rounded-md hover:bg-sidebar-accent -mx-2">
+                <div className="flex items-center gap-3">
+                    <Avatar className="h-9 w-9">
+                        <AvatarImage src={user.photoURL || `https://api.dicebear.com/8.x/initials/svg?seed=${user?.displayName || 'User'}`} alt={user?.displayName || 'User'} />
+                        <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                    </Avatar>
+                     <div className="flex flex-col group-data-[collapsible=icon]:hidden overflow-hidden">
+                        <span className="text-sm font-semibold truncate">{user?.displayName || "Vendor Admin"}</span>
+                        <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
+                    </div>
                 </div>
-            </div>
-        </div>
-        <Button onClick={() => auth.signOut()} variant="ghost" className="w-full justify-start gap-2">
-            <LogOut />
-            <span className="group-data-[collapsible=icon]:hidden">Logout</span>
-        </Button>
+            </Link>
+            <Button onClick={() => auth.signOut()} variant="ghost" className="w-full justify-start gap-2">
+                <LogOut />
+                <span className="group-data-[collapsible=icon]:hidden">Logout</span>
+            </Button>
+          </>
+        )}
       </SidebarFooter>
     </>
   );

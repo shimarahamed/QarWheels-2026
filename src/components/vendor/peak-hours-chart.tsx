@@ -3,6 +3,7 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recha
 import { useState, useEffect } from 'react';
 import { mockAnalyticsData } from "@/lib/vendor-data"
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartTooltipContent } from "../ui/chart";
 
 export function PeakHoursChart({ timeRange }: { timeRange: string }) {
     const [data, setData] = useState<any[]>([]);
@@ -42,13 +43,8 @@ export function PeakHoursChart({ timeRange }: { timeRange: string }) {
           tickFormatter={(value) => `${value}`}
         />
         <Tooltip
-            contentStyle={{
-                background: "hsl(var(--background))",
-                border: "1px solid hsl(var(--border))",
-            }}
-            labelStyle={{
-                fontWeight: "bold",
-            }}
+            cursorStyle={{fill: "hsl(var(--accent))", opacity: 0.5}}
+            content={<ChartTooltipContent indicator="dot" />}
         />
         <Bar dataKey="bookings" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
       </BarChart>

@@ -3,6 +3,7 @@ import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Ca
 import { useState, useEffect } from 'react';
 import { mockAnalyticsData } from "@/lib/vendor-data"
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartTooltipContent } from "../ui/chart";
 
 export function RetentionChart({ timeRange }: { timeRange: string }) {
     const [data, setData] = useState<any[]>([]);
@@ -13,7 +14,7 @@ export function RetentionChart({ timeRange }: { timeRange: string }) {
         // Simulate fetching data based on the time range
         let filteredData = mockAnalyticsData.retention;
         if (timeRange === 'last_30_days') {
-            filteredData = mockAnalyticsData.retention.slice(-1);
+            filteredData = mockAnalyticsData.retention.slice(-2);
         } else if (timeRange === 'last_6_months') {
             filteredData = mockAnalyticsData.retention.slice(-6);
         }
@@ -44,10 +45,7 @@ export function RetentionChart({ timeRange }: { timeRange: string }) {
           tickFormatter={(value) => `${value}`}
         />
         <Tooltip
-            contentStyle={{
-                background: "hsl(var(--background))",
-                border: "1px solid hsl(var(--border))",
-            }}
+            content={<ChartTooltipContent indicator="dot" />}
         />
         <Legend wrapperStyle={{fontSize: "0.8rem"}} />
         <Line type="monotone" dataKey="new" name="New Customers" stroke="hsl(var(--chart-1))" strokeWidth={2} />

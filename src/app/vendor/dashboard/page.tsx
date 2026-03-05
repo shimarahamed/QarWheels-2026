@@ -12,6 +12,7 @@ import {
   Wrench,
   Star,
   FileText,
+  Users,
 } from "lucide-react";
 import {
   Table,
@@ -47,9 +48,14 @@ function UpcomingBookingRow({ booking }: { booking: WithId<Booking> }) {
                     <div className="font-medium">{customer ? `${customer.firstName} ${customer.lastName}` : 'Customer'}</div>
                 )}
             </TableCell>
-            <TableCell>{booking.serviceName}</TableCell>
-            <TableCell>
+            <TableCell className="hidden sm:table-cell">{booking.serviceName}</TableCell>
+            <TableCell className="hidden md:table-cell">
                 {format(booking.bookingDate instanceof Timestamp ? booking.bookingDate.toDate() : new Date(booking.bookingDate), "EEE, MMM d @ h:mm a")}
+            </TableCell>
+             <TableCell className="text-right">
+                <Button asChild variant="outline" size="sm">
+                    <Link href={`/vendor/dashboard/bookings`}>View</Link>
+                </Button>
             </TableCell>
         </TableRow>
     )
@@ -73,20 +79,19 @@ export default function VendorDashboard() {
     .sort((a, b) => (a.bookingDate instanceof Timestamp ? a.bookingDate.toDate() : new Date(a.bookingDate)).getTime() - (b.bookingDate instanceof Timestamp ? b.bookingDate.toDate() : new Date(b.bookingDate)).getTime())
     .slice(0, 5);
 
-  const todayRevenue = bookings
-    ?.filter(
-      (b) =>
-        b.status === "Completed" &&
-        new Date(b.bookingDate instanceof Timestamp ? b.bookingDate.toDate() : new Date(b.bookingDate)).toDateString() === new Date().toDateString()
-    )
+  const totalRevenue = bookings
+    ?.filter((b) => b.status === "Completed")
     .reduce((sum, b) => sum + (b.cost || 0), 0) || 0;
-
-  const inProgressCount = bookings?.filter(
-    (b) => b.status === "Confirmed" // Using "Confirmed" as a proxy for active jobs
-  ).length || 0;
+  
+  const totalCompletedJobs = bookings?.filter(b => b.status === 'Completed').length || 0;
   
   const shopRating = vendor?.rating || 0;
-  const pendingQuotes = 0; // Placeholder as this is not in the data model yet
+
+  const uniqueCustomerIds = useMemo(() => {
+    if (!bookings) return [];
+    const userIds = bookings.map(b => b.userId);
+    return [...new Set(userIds)];
+  }, [bookings]);
 
   return (
     <div className="space-y-8">
@@ -100,38 +105,38 @@ export default function VendorDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Today's Revenue
+              Total Revenue
             </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-32" /> : <div className="text-2xl font-bold">QAR {todayRevenue.toFixed(2)}</div>}
+            {isLoading ? <Skeleton className="h-8 w-32" /> : <div className="text-2xl font-bold">QAR {totalRevenue.toFixed(2)}</div>}
             <p className="text-xs text-muted-foreground">
-              Based on completed jobs today
+              From all completed jobs
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
+            <CardTitle className="text-sm font-medium">Completed Jobs</CardTitle>
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">+{inProgressCount}</div>}
+            {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{totalCompletedJobs}</div>}
             <p className="text-xs text-muted-foreground">
-              Confirmed upcoming jobs
+              Total services rendered
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Quotes</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+{pendingQuotes}</div>
+             {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{uniqueCustomerIds.length}</div>}
             <p className="text-xs text-muted-foreground">
-              Feature coming soon
+              Unique clients served
             </p>
           </CardContent>
         </Card>
@@ -141,9 +146,9 @@ export default function VendorDashboard() {
             <Star className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-             {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{shopRating.toFixed(1)}</div>}
+             {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{shopRating.toFixed(1)} / 5.0</div>}
             <p className="text-xs text-muted-foreground">
-              Based on customer reviews
+              Based on {vendor?.reviewCount || 0} reviews
             </p>
           </CardContent>
         </Card>
@@ -187,8 +192,9 @@ export default function VendorDashboard() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Customer</TableHead>
-                            <TableHead>Service</TableHead>
-                            <TableHead>Date</TableHead>
+                            <TableHead className="hidden sm:table-cell">Service</TableHead>
+                            <TableHead className="hidden md:table-cell">Date</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
                         </TableRow>
                     </TableHeader>
                   <TableBody>

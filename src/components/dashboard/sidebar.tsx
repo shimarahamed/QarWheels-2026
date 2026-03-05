@@ -15,7 +15,6 @@ import {
   Book,
   History,
   LogOut,
-  Search,
   User as UserIcon,
   Building,
 } from "lucide-react";
@@ -23,7 +22,6 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Logo } from "../logo";
-import { Input } from "../ui/input";
 import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
 import type { UserProfile } from "@/lib/types";
 import { doc } from "firebase/firestore";
@@ -57,12 +55,8 @@ export function DashboardSidebar() {
 
   return (
     <>
-      <SidebarHeader className="border-b">
+      <SidebarHeader className="border-b border-sidebar-border">
         <Logo />
-        <div className="relative">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search..." className="pl-8" />
-        </div>
       </SidebarHeader>
       <SidebarContent className="p-2">
         <SidebarMenu>
@@ -82,16 +76,16 @@ export function DashboardSidebar() {
           ))}
         </SidebarMenu>
       </SidebarContent>
-      <SidebarFooter className="p-2 border-t mt-auto space-y-2">
+      <SidebarFooter className="p-2 border-t mt-auto border-sidebar-border space-y-2">
         {user && (
           <>
-            <Link href="/dashboard/profile" className="p-2 rounded-md hover:bg-accent -mx-2">
+            <Link href="/dashboard/profile" className="p-2 rounded-md hover:bg-sidebar-accent -mx-2">
                 <div className="flex items-center gap-3">
                     <Avatar className="h-9 w-9">
                         <AvatarImage src={user.photoURL || `https://api.dicebear.com/8.x/initials/svg?seed=${displayName}`} alt={displayName} />
                         <AvatarFallback>{displayName.substring(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
-                    <div className="flex flex-col overflow-hidden">
+                    <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
                         <span className="text-sm font-semibold truncate">{displayName}</span>
                         <span className="text-xs text-muted-foreground truncate">{user.isAnonymous ? 'Guest Account' : displayEmail}</span>
                     </div>
@@ -99,7 +93,7 @@ export function DashboardSidebar() {
             </Link>
             <Button onClick={handleLogout} variant="ghost" className="w-full justify-start gap-2">
               <LogOut />
-              <span>Logout</span>
+              <span className="group-data-[collapsible=icon]:hidden">Logout</span>
             </Button>
           </>
         )}
