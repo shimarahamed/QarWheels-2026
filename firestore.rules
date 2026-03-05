@@ -75,17 +75,13 @@ service cloud.firestore {
     // This is the authoritative rule for ALL access to serviceRecords.
     // It secures reads and writes for both individual documents and collection-wide queries.
     match /{path=**}/serviceRecords/{serviceRecordId} {
-       // A user can get a single record if their UID matches the record's userId field.
-       allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
-       
-       // A user can query the serviceRecords collection if they are signed in.
-       // This is secure because Firestore's backend enforces that any such query
-       // MUST include a `where('userId', '==', request.auth.uid)` clause.
-       allow list: if isSignedIn();
+       // A user can get a single record or query records if their UID matches the record's userId field.
+       // For 'list', the client query MUST include a `where('userId', '==', request.auth.uid)` clause.
+       allow get, list: if request.auth.uid == resource.data.userId;
 
        // A user can create/update/delete a record if their UID matches the userId in the record's data.
        // This ensures users can only write to their own records.
-       allow write: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+       allow write: if request.auth.uid == request.resource.data.userId;
     }
 
 
