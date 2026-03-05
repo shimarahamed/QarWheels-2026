@@ -138,8 +138,10 @@ export default function BookingsPage() {
     (b) => new Date(b.bookingDate instanceof Timestamp ? b.bookingDate.toDate() : b.bookingDate) >= now && b.status === "Confirmed"
   ).sort((a,b) => new Date(a.bookingDate instanceof Timestamp ? a.bookingDate.toDate() : a.bookingDate).getTime() - new Date(b.bookingDate instanceof Timestamp ? b.bookingDate.toDate() : b.bookingDate).getTime());
 
-  const pastBookings = bookings?.filter((b) => new Date(b.bookingDate instanceof Timestamp ? b.bookingDate.toDate() : b.bookingDate) < now)
+  const upcomingIds = new Set(upcomingBookings?.map(b => b.id));
+  const pastBookings = bookings?.filter((b) => !upcomingIds.has(b.id))
   .sort((a,b) => new Date(b.bookingDate instanceof Timestamp ? b.bookingDate.toDate() : b.bookingDate).getTime() - new Date(a.bookingDate instanceof Timestamp ? a.bookingDate.toDate() : a.bookingDate).getTime());
+
 
   return (
     <div className="space-y-8">
