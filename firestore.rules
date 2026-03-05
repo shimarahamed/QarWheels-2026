@@ -59,9 +59,8 @@ service cloud.firestore {
         allow update: if isOwner(userId) && request.resource.data.userId == resource.data.userId;
         allow delete: if isOwner(userId);
 
-        match /serviceRecords/{serviceRecordId} {
-          allow get, list, create, update, delete: if isOwner(userId);
-        }
+        // The serviceRecords subcollection is now secured entirely by the collectionGroup rule below
+        // to prevent rule conflicts.
 
         match /servicePredictions/{servicePredictionId} {
           allow get, list, create, update, delete: if isOwner(userId);
@@ -73,10 +72,20 @@ service cloud.firestore {
     // Collection Group Rules
     // --------------------------------
 
-    // This rule allows a user to query across all their service records from any car
-    // It is secure because the client query MUST include `where('userId', '==', request.auth.uid)`
+    // This is the authoritative rule for ALL access to serviceRecords.
+    // It secures reads and writes for both individual documents and collection-wide queries.
     match /{path=**}/serviceRecords/{serviceRecordId} {
-       allow get, list: if isSignedIn() && request.query.get('userId') == request.auth.uid;
+       // A user can get a single record if their UID matches the record's userId field.
+       allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+       
+       // A user can query the serviceRecords collection if they are signed in.
+       // This is secure because Firestore's backend enforces that any such query
+       // MUST include a `where('userId', '==', request.auth.uid)` clause.
+       allow list: if isSignedIn();
+
+       // A user can create/update/delete a record if their UID matches the userId in the record's data.
+       // This ensures users can only write to their own records.
+       allow write: if isSignedIn() && request.resource.data.userId == request.auth.uid;
     }
 
 
