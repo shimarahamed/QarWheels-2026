@@ -1,5 +1,20 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { Toaster } from '@/components/ui/toaster';
+import { DM_Sans, Outfit } from 'next/font/google';
+
+const body = DM_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-body',
+});
+
+const headline = Outfit({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-headline',
+});
 
 export const metadata: Metadata = {
   title: 'QarWheels',
@@ -12,9 +27,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${body.variable} ${headline.variable}`} suppressHydrationWarning>
       <body>
-        {children}
+        <FirebaseClientProvider>
+          {children}
+        </FirebaseClientProvider>
+        <Toaster />
       </body>
     </html>
   );
