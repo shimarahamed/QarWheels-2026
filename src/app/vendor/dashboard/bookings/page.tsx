@@ -336,66 +336,66 @@ export default function VendorBookingsPage() {
         View and manage all your customer appointments.
         </p>
       </header>
-        <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-            <Card>
-                <CardContent className="p-0">
-                <Tabs defaultValue="upcoming">
-                    <div className="p-4 border-b">
-                        <div className="overflow-x-auto no-scrollbar">
-                             <TabsList className="inline-grid w-full grid-cols-4 min-w-[500px]">
-                                <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-                                <TabsTrigger value="completed">Completed</TabsTrigger>
-                                <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
-                                <TabsTrigger value="all">All</TabsTrigger>
-                            </TabsList>
-                        </div>
-                    </div>
-                    <TabsContent value="upcoming" className="p-1 sm:p-4">
-                        <BookingsTable bookings={upcoming} onEditClick={handleEditClick} onDeleteClick={handleDeleteClick} isLoading={isLoading} />
-                    </TabsContent>
-                    <TabsContent value="completed" className="p-1 sm:p-4">
-                        <BookingsTable bookings={completed} onEditClick={handleEditClick} onDeleteClick={handleDeleteClick} isLoading={isLoading} />
-                    </TabsContent>
-                    <TabsContent value="cancelled" className="p-1 sm:p-4">
-                        <BookingsTable bookings={cancelled} onEditClick={handleEditClick} onDeleteClick={handleDeleteClick} isLoading={isLoading} />
-                    </TabsContent>
-                    <TabsContent value="all" className="p-1 sm:p-4">
-                        <BookingsTable bookings={all} onEditClick={handleEditClick} onDeleteClick={handleDeleteClick} isLoading={isLoading} />
-                    </TabsContent>
-                </Tabs>
-                </CardContent>
-            </Card>
+      <Card>
+          <CardContent className="p-0">
+          <Tabs defaultValue="upcoming">
+              <div className="p-4 border-b">
+                  <div className="overflow-x-auto no-scrollbar">
+                        <TabsList className="inline-grid w-full grid-cols-4 min-w-[500px]">
+                          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+                          <TabsTrigger value="completed">Completed</TabsTrigger>
+                          <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+                          <TabsTrigger value="all">All</TabsTrigger>
+                      </TabsList>
+                  </div>
+              </div>
+              <TabsContent value="upcoming" className="p-1 sm:p-4">
+                  <BookingsTable bookings={upcoming} onEditClick={handleEditClick} onDeleteClick={handleDeleteClick} isLoading={isLoading} />
+              </TabsContent>
+              <TabsContent value="completed" className="p-1 sm:p-4">
+                  <BookingsTable bookings={completed} onEditClick={handleEditClick} onDeleteClick={handleDeleteClick} isLoading={isLoading} />
+              </TabsContent>
+              <TabsContent value="cancelled" className="p-1 sm:p-4">
+                  <BookingsTable bookings={cancelled} onEditClick={handleEditClick} onDeleteClick={handleDeleteClick} isLoading={isLoading} />
+              </TabsContent>
+              <TabsContent value="all" className="p-1 sm:p-4">
+                  <BookingsTable bookings={all} onEditClick={handleEditClick} onDeleteClick={handleDeleteClick} isLoading={isLoading} />
+              </TabsContent>
+          </Tabs>
+          </CardContent>
+      </Card>
 
-            <Dialog open={isFormOpen} onOpenChange={(open) => { if(!open) setSelectedBooking(null); setIsFormOpen(open);}}>
-                <DialogContent className="sm:max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Update Booking</DialogTitle>
-                        {selectedBooking && (
-                            <DialogDescription>
-                                Update the status and cost for the booking on {format(selectedBooking.bookingDate instanceof Timestamp ? selectedBooking.bookingDate.toDate() : new Date(selectedBooking.bookingDate), "PPP")}.
-                            </DialogDescription>
-                        )}
-                    </DialogHeader>
-                    {selectedBooking && <EditBookingForm booking={selectedBooking} onSave={handleSaveBooking} onCancel={() => setIsFormOpen(false)} isSubmitting={isSubmitting} />}
-                </DialogContent>
-            </Dialog>
+      <Dialog open={isFormOpen} onOpenChange={(open) => { if(!open) setSelectedBooking(null); setIsFormOpen(open);}}>
+          <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                  <DialogTitle>Update Booking</DialogTitle>
+                  {selectedBooking && (
+                      <DialogDescription>
+                          Update the status and cost for the booking on {format(selectedBooking.bookingDate instanceof Timestamp ? selectedBooking.bookingDate.toDate() : new Date(selectedBooking.bookingDate), "PPP")}.
+                      </DialogDescription>
+                  )}
+              </DialogHeader>
+              {selectedBooking && <EditBookingForm booking={selectedBooking} onSave={handleSaveBooking} onCancel={() => setIsFormOpen(false)} isSubmitting={isSubmitting} />}
+          </DialogContent>
+      </Dialog>
 
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the booking.
-                </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteConfirm} disabled={isSubmitting}>
-                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Continue
-                </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete the booking.
+              </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+              <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteConfirm} disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Continue
+              </AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
