@@ -34,6 +34,8 @@ export type Car = {
     createdAt: any; // serverTimestamp
     updatedAt: any; // serverTimestamp
     imageId?: string;
+    // This field is deprecated and will be removed.
+    serviceHistory?: any[];
 };
 
 export type Booking = {
@@ -42,7 +44,7 @@ export type Booking = {
     vendorName: string;
     carId: string;
     serviceName: string;
-    bookingDate: Timestamp | string; // Firestore returns Timestamp, but we send string
+    bookingDate: Timestamp | Date | string; // Accomodate various date types
     status: 'Confirmed' | 'Completed' | 'Cancelled';
     cost?: number;
     createdAt: any;

@@ -6,53 +6,108 @@
 
 @layer base {
   :root {
-    --theme-bg: #F5F7FA;
-    --theme-surface: #FFFFFF;
-    --theme-surface2: #F0F4F8;
-    --theme-border: #E2E8F0;
-    --theme-text: #0F1F2E;
-    --theme-text2: #4A5568;
-    --theme-text3: #94A3B8;
-    --theme-primary: #0B3C5D;
-    --theme-accent: #00B4D8;
-    --theme-accentLight: #E0F7FB;
-    --theme-success: #22C55E;
-    --theme-warning: #F59E0B;
-    --theme-danger: #EF4444;
-    --theme-navBg: #FFFFFF;
-    --theme-navBorder: #E2E8F0;
-    --theme-inputBg: #F8FAFC;
-    --theme-cardHover: #F8FAFC;
-  }
+    --background: 220 13% 97%;
+    --foreground: 215 39% 12%;
 
+    --card: 0 0% 100%;
+    --card-foreground: 215 39% 12%;
+ 
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 39% 12%;
+ 
+    --primary: 206 79% 20%;
+    --primary-foreground: 0 0% 100%;
+ 
+    --secondary: 215 28% 95%;
+    --secondary-foreground: 215 39% 12%;
+ 
+    --muted: 215 28% 95%;
+    --muted-foreground: 215 20% 45%;
+ 
+    --accent: 190 100% 42%;
+    --accent-foreground: 0 0% 100%;
+ 
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 20% 89%;
+    --input: 214 20% 89%;
+    --ring: 206 79% 20%;
+ 
+    --radius: 0.75rem;
+
+    --chart-1: 206 79% 20%;
+    --chart-2: 190 100% 42%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 349 83% 60%;
+    --chart-5: 262 74% 56%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 39% 12%;
+    --sidebar-border: 214 20% 89%;
+    --sidebar-ring: 206 79% 20%;
+    --sidebar-primary: 206 79% 20%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 28% 95%;
+    --sidebar-accent-foreground: 215 39% 12%;
+  }
+ 
   .dark {
-    --theme-bg: #080E1A;
-    --theme-surface: #0F1825;
-    --theme-surface2: #162132;
-    --theme-border: rgba(255,255,255,0.08);
-    --theme-text: #F0F4F8;
-    --theme-text2: #94A3B8;
-    --theme-text3: #4A5568;
-    --theme-primary: #00B4D8;
-    --theme-accent: #00B4D8;
-    --theme-accentLight: rgba(0,180,216,0.12);
-    --theme-success: #4ade80;
-    --theme-warning: #F59E0B;
-    --theme-danger: #FF4444;
-    --theme-navBg: #0F1825;
-    --theme-navBorder: rgba(255,255,255,0.06);
-    --theme-inputBg: rgba(255,255,255,0.05);
-    --theme-cardHover: rgba(255,255,255,0.04);
+    --background: 215 39% 12%;
+    --foreground: 210 40% 98%;
+ 
+    --card: 216 33% 15%;
+    --card-foreground: 210 40% 98%;
+ 
+    --popover: 216 33% 15%;
+    --popover-foreground: 210 40% 98%;
+ 
+    --primary: 190 100% 42%;
+    --primary-foreground: 215 39% 12%;
+ 
+    --secondary: 217 33% 20%;
+    --secondary-foreground: 210 40% 98%;
+ 
+    --muted: 217 33% 20%;
+    --muted-foreground: 215 20% 65%;
+ 
+    --accent: 217 33% 20%;
+    --accent-foreground: 210 40% 98%;
+ 
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+ 
+    --border: 217 33% 20%;
+    --input: 217 33% 20%;
+    --ring: 190 100% 42%;
+
+    --chart-1: 190 100% 42%;
+    --chart-2: 206 79% 20%;
+
+    --sidebar-background: 216 33% 15%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 20%;
+    --sidebar-ring: 190 100% 42%;
+    --sidebar-primary: 190 100% 42%;
+    --sidebar-primary-foreground: 215 39% 12%;
+    --sidebar-accent: 217 33% 20%;
+    --sidebar-accent-foreground: 210 40% 98%;
   }
 }
-
-body {
-  font-family: 'Outfit', 'DM Sans', 'Segoe UI', sans-serif;
-  background-color: var(--theme-bg);
-  color: var(--theme-text);
-  transition: background 0.3s, color 0.3s;
+ 
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
 }
-
-* {
-  box-sizing: border-box;
 }
