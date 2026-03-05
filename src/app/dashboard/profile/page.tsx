@@ -18,7 +18,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Camera, Loader2 } from 'lucide-react';
-import { useFirebase, useDoc, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { useFirebase, useDoc, useMemoFirebase, safeUpdateDoc } from '@/firebase';
 import { doc, serverTimestamp } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -93,7 +93,7 @@ export default function ProfilePage() {
         updatedAt: serverTimestamp(),
     };
 
-    updateDocumentNonBlocking(userProfileRef, updatedData);
+    safeUpdateDoc(userProfileRef, updatedData);
     
     toast({
       title: 'Profile Updated',
