@@ -1,6 +1,8 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { DM_Sans, Outfit } from 'next/font/google';
+import { FirebaseClientProvider } from '@/firebase';
+import { Toaster } from '@/components/ui/toaster';
 
 const fontBody = DM_Sans({
   subsets: ['latin'],
@@ -27,7 +29,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${fontBody.variable} ${fontHeadline.variable}`} suppressHydrationWarning>
       <body>
+        <FirebaseClientProvider>
           {children}
+        </FirebaseClientProvider>
+        <Toaster />
       </body>
     </html>
   );
