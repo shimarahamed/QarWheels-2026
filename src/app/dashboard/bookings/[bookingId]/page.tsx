@@ -8,8 +8,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowLeft, Calendar, Car, CircleDollarSign, Wrench, Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { ArrowLeft, Calendar, Car, CircleDollarSign, Wrench, Loader2, AlertTriangle } from "lucide-react";
+import { format, isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -28,37 +29,69 @@ export default function BookingDetailsPage() {
       () => (bookingId ? doc(firestore, 'bookings', bookingId) : null),
       [firestore, bookingId]
     );
-    const { data: booking, isLoading: isLoadingBooking } = useDoc<WithId<Booking>>(bookingRef);
+    const { data: booking, isLoading: isLoadingBooking, error: bookingError } = useDoc<WithId<Booking>>(bookingRef);
     
-    // We need to fetch the car associated with this booking
     const carRef = useMemoFirebase(
       () => (user && booking?.carId ? doc(firestore, 'users', user.uid, 'cars', booking.carId) : null),
       [firestore, user, booking?.carId]
     );
-    const { data: car, isLoading: isLoadingCar } = useDoc<WithId<CarType>>(carRef);
+    const { data: car, isLoading: isLoadingCar, error: carError } = useDoc<WithId<CarType>>(carRef);
     
-    if (isUserLoading || isLoadingBooking || isLoadingCar) {
+    const isLoading = isUserLoading || isLoadingBooking || isLoadingCar;
+    const error = bookingError || carError;
+
+    if (isLoading) {
       return (
         <div className="flex h-64 w-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-    )
+      )
+    }
+
+    if (error) {
+        return (
+            <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Failed to Load Booking Details</AlertTitle>
+                <AlertDescription>
+                    <p>There was an error fetching the data for this booking. This might be a temporary issue or a problem with permissions.</p>
+                     <pre className="mt-4 whitespace-pre-wrap font-mono text-xs bg-destructive-foreground/10 p-2 rounded">
+                        {error.message}
+                    </pre>
+                </AlertDescription>
+            </Alert>
+        );
     }
 
     if (!booking) {
-        notFound();
+        return (
+             <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Booking Not Found</AlertTitle>
+                <AlertDescription>
+                   The booking you are looking for could not be found. It may have been deleted or the link may be incorrect.
+                </AlertDescription>
+            </Alert>
+        );
     }
     
-    // Security check: ensure the booking belongs to the current user
+    // Security check: ensure the booking belongs to the current user.
+    // This is a legitimate use case for a 404, as we don't want to leak that the booking exists.
     if (user && booking.userId !== user.uid) {
         notFound();
     }
 
     const image = car ? (PlaceHolderImages.find((img) => car.make.toLowerCase().includes(img.imageHint.split(' ')[1])) || PlaceHolderImages[1]) : null;
 
-    const bookingDate = booking.bookingDate instanceof Timestamp 
-        ? booking.bookingDate.toDate() 
-        : new Date(booking.bookingDate);
+    const getBookingDate = () => {
+        if (!booking.bookingDate) return null;
+        const date = booking.bookingDate instanceof Timestamp 
+            ? booking.bookingDate.toDate() 
+            : new Date(booking.bookingDate);
+        return isValid(date) ? date : null;
+    }
+
+    const bookingDate = getBookingDate();
 
     const getStatusVariant = (status: Booking["status"]) => {
         switch (status) {
@@ -118,7 +151,7 @@ export default function BookingDetailsPage() {
                             </div>
                             <div>
                                 <p className="text-muted-foreground">Date & Time</p>
-                                <p className="font-semibold">{format(bookingDate, "PPP, p")}</p>
+                                <p className="font-semibold">{bookingDate ? format(bookingDate, "PPP, p") : 'Date not available'}</p>
                             </div>
                         </div>
                          {booking.cost && (
