@@ -1,6 +1,6 @@
 'use client';
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, collectionGroup, query, where } from "firebase/firestore";
+import { collection } from "firebase/firestore";
 import type { Car, ServiceRecord, WithId } from "@/lib/types";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import {
@@ -30,7 +30,93 @@ import Image from "next/image";
 import { ServiceHistorySummary } from "@/components/dashboard/service-history-summary";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useMemo } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function CarServiceHistory({ car }: { car: WithId<Car> }) {
+  const { firestore, user } = useFirebase();
+  const serviceHistoryRef = useMemoFirebase(() => 
+    user ? collection(firestore, `users/${user.uid}/cars/${car.id}/serviceRecords`) : null,
+    [firestore, user, car.id]
+  );
+  const { data: carServiceHistory, isLoading } = useCollection<WithId<ServiceRecord>>(serviceHistoryRef);
+  
+  if (isLoading) {
+    return (
+      <div className="p-6">
+        <Skeleton className="h-40 w-full" />
+      </div>
+    );
+  }
+
+  return (
+    <AccordionContent className="p-6 pt-0">
+        {carServiceHistory && carServiceHistory.length > 0 ? (
+            <div className="grid lg:grid-cols-3 gap-6 items-start">
+                <div className="lg:col-span-2">
+                      <Card>
+                        <CardHeader>
+                            <CardTitle>Service Log</CardTitle>
+                            <CardDescription>A record of all maintenance performed on this vehicle.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Service</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead className="text-right">Cost</TableHead>
+                                </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                {carServiceHistory
+                                    .sort((a, b) => new Date(b.serviceDate).getTime() - new Date(a.serviceDate).getTime())
+                                    .map((record) => (
+                                    <TableRow key={record.id}>
+                                        <TableCell className="font-medium whitespace-nowrap">
+                                        {format(new Date(record.serviceDate), "PPP")}
+                                        </TableCell>
+                                        <TableCell>{record.serviceType}</TableCell>
+                                        <TableCell>{record.serviceDescription}</TableCell>
+                                        <TableCell className="text-right whitespace-nowrap">
+                                        QAR {record.cost.toFixed(2)}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </div>
+                <div className="lg:col-span-1 space-y-6">
+                      <Card>
+                        <CardHeader>
+                            <CardTitle>Summary</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4 text-sm">
+                            <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Total Services</span>
+                                <span className="font-bold">{carServiceHistory.length}</span>
+                            </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Total Spent</span>
+                                <span className="font-bold">QAR {carServiceHistory.reduce((acc, s) => acc + s.cost, 0).toFixed(2)}</span>
+                            </div>
+                        </CardContent>
+                      </Card>
+                    <ServiceHistorySummary car={car} serviceHistory={carServiceHistory} />
+                </div>
+            </div>
+        ) : (
+        <div className="text-center text-muted-foreground py-12 px-8 rounded-lg bg-muted/50">
+          <History className="mx-auto h-12 w-12 mb-4 text-primary/50" />
+          <h3 className="font-semibold text-lg">No History Found</h3>
+          <p>No service history has been recorded for this vehicle yet.</p>
+        </div>
+        )}
+    </AccordionContent>
+  );
+}
 
 
 export default function ServiceHistoryPage() {
@@ -42,15 +128,7 @@ export default function ServiceHistoryPage() {
   );
   const { data: cars, isLoading: isLoadingCars } = useCollection<WithId<Car>>(carsCollectionRef);
 
-  const userServiceRecordsQuery = useMemoFirebase(
-    () => (user ? query(collectionGroup(firestore, 'serviceRecords'), where('userId', '==', user.uid)) : null),
-    [firestore, user]
-  );
-  const { data: userSeviceHistory, isLoading: isLoadingRecords } = useCollection<WithId<ServiceRecord>>(userServiceRecordsQuery);
-
-  const isLoading = isLoadingCars || isLoadingRecords;
-
-  if (isLoading) {
+  if (isLoadingCars) {
     return (
         <div className="flex h-64 w-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -71,8 +149,7 @@ export default function ServiceHistoryPage() {
         <Accordion type="single" collapsible className="w-full space-y-4">
           {cars.map((car) => {
             const image = car.imageId ? PlaceHolderImages.find((img) => img.id === car.imageId) : (PlaceHolderImages.find((img) => car.make.toLowerCase().includes(img.imageHint.split(' ')[1])) || PlaceHolderImages[1]);
-            const carServiceHistory = userSeviceHistory?.filter(record => record.carId === car.id) || [];
-
+            
             return (
               <AccordionItem value={car.id} key={car.id} className="border-b-0 rounded-lg bg-card border shadow-sm overflow-hidden transition-shadow hover:shadow-lg hover:border-primary">
                 <AccordionTrigger className="p-6 hover:no-underline">
@@ -95,72 +172,7 @@ export default function ServiceHistoryPage() {
                     </div>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="p-6 pt-0">
-                    {carServiceHistory && carServiceHistory.length > 0 ? (
-                        <div className="grid lg:grid-cols-3 gap-6 items-start">
-                            <div className="lg:col-span-2">
-                                 <Card>
-                                    <CardHeader>
-                                        <CardTitle>Service Log</CardTitle>
-                                        <CardDescription>A record of all maintenance performed on this vehicle.</CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <Table>
-                                            <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Date</TableHead>
-                                                <TableHead>Service</TableHead>
-                                                <TableHead>Description</TableHead>
-                                                <TableHead className="text-right">Cost</TableHead>
-                                            </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                            {carServiceHistory
-                                                .sort((a, b) => new Date(b.serviceDate).getTime() - new Date(a.serviceDate).getTime())
-                                                .map((record) => (
-                                                <TableRow key={record.id}>
-                                                    <TableCell className="font-medium whitespace-nowrap">
-                                                    {format(new Date(record.serviceDate), "PPP")}
-                                                    </TableCell>
-                                                    <TableCell>{record.serviceType}</TableCell>
-                                                    <TableCell>{record.serviceDescription}</TableCell>
-                                                    <TableCell className="text-right whitespace-nowrap">
-                                                    QAR {record.cost.toFixed(2)}
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                            </TableBody>
-                                        </Table>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                            <div className="lg:col-span-1 space-y-6">
-                                 <Card>
-                                    <CardHeader>
-                                        <CardTitle>Summary</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4 text-sm">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-muted-foreground">Total Services</span>
-                                            <span className="font-bold">{carServiceHistory.length}</span>
-                                        </div>
-                                         <div className="flex justify-between items-center">
-                                            <span className="text-muted-foreground">Total Spent</span>
-                                            <span className="font-bold">QAR {carServiceHistory.reduce((acc, s) => acc + s.cost, 0).toFixed(2)}</span>
-                                        </div>
-                                    </CardContent>
-                                 </Card>
-                                <ServiceHistorySummary car={car} serviceHistory={carServiceHistory} />
-                            </div>
-                        </div>
-                    ) : (
-                    <div className="text-center text-muted-foreground py-12 px-8 rounded-lg bg-muted/50">
-                      <History className="mx-auto h-12 w-12 mb-4 text-primary/50" />
-                      <h3 className="font-semibold text-lg">No History Found</h3>
-                      <p>No service history has been recorded for this vehicle yet.</p>
-                    </div>
-                    )}
-                </AccordionContent>
+                <CarServiceHistory car={car} />
               </AccordionItem>
             )
           })}
