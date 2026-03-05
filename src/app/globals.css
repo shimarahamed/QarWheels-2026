@@ -1,73 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer utilities {
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .no-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
-  }
-}
-
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 222.2 84% 4.9%;
+    --theme-bg: #F5F7FA;
+    --theme-surface: #FFFFFF;
+    --theme-surface2: #F0F4F8;
+    --theme-border: #E2E8F0;
+    --theme-text: #0F1F2E;
+    --theme-text2: #4A5568;
+    --theme-text3: #94A3B8;
+    --theme-primary: #0B3C5D;
+    --theme-accent: #00B4D8;
+    --theme-accentLight: #E0F7FB;
+    --theme-success: #22C55E;
+    --theme-warning: #F59E0B;
+    --theme-danger: #EF4444;
+    --theme-navBg: #FFFFFF;
+    --theme-navBorder: #E2E8F0;
+    --theme-inputBg: #F8FAFC;
+    --theme-cardHover: #F8FAFC;
+  }
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 343 76% 42%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 215.4 16.3% 46.9%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    
-    --accent: 180 80% 45%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 343 76% 42%;
-
-    --radius: 0.75rem;
-    
-    --chart-1: 343 76% 42%;
-    --chart-2: 180 80% 45%;
-    --chart-3: 40 100% 50%;
-    --chart-4: 200 100% 50%;
-    --chart-5: 343 76% 62%;
-    
-    /* Sidebar custom theme */
-    --sidebar-background: 224 71% 8%;
-    --sidebar-foreground: 220 20% 98%;
-    --sidebar-primary: 343 64% 45%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 224 71% 12%;
-    --sidebar-accent-foreground: 220 20% 98%;
-    --sidebar-border: 224 71% 15%;
-    --sidebar-ring: 343 64% 45%;
+  .dark {
+    --theme-bg: #080E1A;
+    --theme-surface: #0F1825;
+    --theme-surface2: #162132;
+    --theme-border: rgba(255,255,255,0.08);
+    --theme-text: #F0F4F8;
+    --theme-text2: #94A3B8;
+    --theme-text3: #4A5568;
+    --theme-primary: #00B4D8;
+    --theme-accent: #00B4D8;
+    --theme-accentLight: rgba(0,180,216,0.12);
+    --theme-success: #4ade80;
+    --theme-warning: #F59E0B;
+    --theme-danger: #FF4444;
+    --theme-navBg: #0F1825;
+    --theme-navBorder: rgba(255,255,255,0.06);
+    --theme-inputBg: rgba(255,255,255,0.05);
+    --theme-cardHover: rgba(255,255,255,0.04);
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-    background-attachment: fixed;
-  }
+body {
+  font-family: 'Outfit', 'DM Sans', 'Segoe UI', sans-serif;
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+  transition: background 0.3s, color 0.3s;
+}
+
+* {
+  box-sizing: border-box;
 }

@@ -1,31 +1,4 @@
-import { SidebarProvider, Sidebar, SidebarTrigger } from "@/components/ui/sidebar";
-import { DashboardSidebar } from "@/components/dashboard/sidebar";
-import { Logo } from "@/components/logo";
-import Link from "next/link";
-
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <SidebarProvider>
-      <div className="md:flex min-h-screen bg-background">
-        <Sidebar>
-          <DashboardSidebar />
-        </Sidebar>
-        <div className="flex-1 min-w-0">
-            <header className="flex items-center justify-between h-16 px-4 border-b md:hidden sticky top-0 bg-background z-30">
-                <Link href="/dashboard">
-                    <Logo />
-                </Link>
-                <SidebarTrigger />
-            </header>
-            <main className="p-4 sm:p-6 lg:p-8">
-                {children}
-            </main>
-        </div>
-      </div>
-    </SidebarProvider>
-  );
+// This layout is obsolete. The new application root is in src/app/page.tsx.
+export default function ObsoleteLayout({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }
