@@ -1,54 +1,109 @@
 'use client';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF } from '@react-google-maps/api';
+import { useState } from 'react';
 import type { Vendor, WithId } from '@/lib/types';
-import Image from 'next/image';
-import { Card } from '@/components/ui/card';
-import { MapPin } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Star } from 'lucide-react';
+
+const containerStyle = {
+  width: '100%',
+  height: '100%',
+};
+
+// Center of Doha, Qatar
+const center = {
+  lat: 25.2854,
+  lng: 51.5310,
+};
+
+const mapOptions = {
+    disableDefaultUI: true,
+    zoomControl: true,
+    clickableIcons: false,
+    // A neutral, modern map style to fit the theme
+    styles: [
+        {
+            "featureType": "poi.business",
+            "stylers": [ { "visibility": "off" } ]
+        },
+        {
+            "featureType": "road",
+            "elementType": "labels.icon",
+            "stylers": [ { "visibility": "off" } ]
+        },
+        {
+            "featureType": "transit",
+            "stylers": [ { "visibility": "off" } ]
+        }
+    ]
+};
 
 export function GaragesMap({ vendors }: { vendors: WithId<Vendor>[] | null }) {
-    const mapImage = PlaceHolderImages.find(p => p.id === 'doha-map');
+    const { isLoaded, loadError } = useJsApiLoader({
+        id: 'google-map-script',
+        googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
+    });
 
-    // This is a simplified placeholder for a real map.
-    // In a real app, you'd use a library like react-leaflet or @react-google-maps/api
-    // to render an interactive map and calculate pin positions from lat/lng.
-    const getPinPosition = (index: number) => {
-        const positions = [
-            { top: '20%', left: '30%' },
-            { top: '50%', left: '50%' },
-            { top: '35%', left: '65%' },
-            { top: '65%', left: '25%' },
-            { top: '75%', left: '70%' },
-        ];
-        return positions[index % positions.length];
+    const [selectedVendor, setSelectedVendor] = useState<WithId<Vendor> | null>(null);
+
+    if (loadError) {
+        return (
+            <Card className="aspect-[16/7] flex items-center justify-center">
+                <CardContent className="p-4 text-center text-destructive">
+                    <p className="font-semibold">Error loading map.</p>
+                    <p className="text-sm">Please ensure your Google Maps API key is correct and the Maps JavaScript API is enabled.</p>
+                </CardContent>
+            </Card>
+        );
     }
-    
+
+    if (!isLoaded) {
+        return <Skeleton className="aspect-[16/7] w-full" />;
+    }
+
     return (
         <Card className="overflow-hidden relative aspect-[16/7] bg-muted">
-            {mapImage && (
-                <Image 
-                    src={mapImage.imageUrl}
-                    alt="Map of Doha"
-                    fill
-                    className="object-cover"
-                    data-ai-hint={mapImage.imageHint}
-                />
-            )}
-            <div className="absolute inset-0 bg-black/30" />
+            <GoogleMap
+                mapContainerStyle={containerStyle}
+                center={center}
+                zoom={11}
+                options={mapOptions}
+            >
+                {vendors?.map(vendor => (
+                    <MarkerF
+                        key={vendor.id}
+                        position={{ lat: vendor.latitude, lng: vendor.longitude }}
+                        onClick={() => setSelectedVendor(vendor)}
+                        title={vendor.name}
+                    />
+                ))}
 
-            {vendors && vendors.slice(0, 5).map((vendor, index) => (
-                <Link key={vendor.id} href={`/dashboard/garages/${vendor.id}`}>
-                    <div 
-                        className="absolute transform -translate-x-1/2 -translate-y-1/2 group"
-                        style={getPinPosition(index)}
+                {selectedVendor && (
+                    <InfoWindowF
+                        position={{ lat: selectedVendor.latitude, lng: selectedVendor.longitude }}
+                        onCloseClick={() => setSelectedVendor(null)}
+                        options={{ pixelOffset: new window.google.maps.Size(0, -30) }}
                     >
-                        <MapPin className="h-10 w-10 text-primary-foreground drop-shadow-lg fill-primary group-hover:scale-125 transition-transform" />
-                        <div className="absolute bottom-full mb-2 w-max max-w-xs p-2 bg-primary-foreground text-primary rounded-md text-xs font-bold shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap -translate-x-1/2 left-1/2">
-                            {vendor.name}
+                        <div className="p-1 w-64">
+                            <h4 className="font-bold text-base font-headline">{selectedVendor.name}</h4>
+                            <p className="text-sm text-muted-foreground line-clamp-1">{selectedVendor.address}</p>
+                            <div className="flex items-center gap-1 text-sm mt-1">
+                                <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
+                                <span>{selectedVendor.rating?.toFixed(1) || 'N/A'}</span>
+                                <span className="text-muted-foreground">({selectedVendor.reviewCount || 0} reviews)</span>
+                            </div>
+                            <Button asChild size="sm" className="mt-3 w-full">
+                                <Link href={`/dashboard/garages/${selectedVendor.id}`}>
+                                    View Garage Details
+                                </Link>
+                            </Button>
                         </div>
-                    </div>
-                </Link>
-            ))}
+                    </InfoWindowF>
+                )}
+            </GoogleMap>
         </Card>
     );
 }
