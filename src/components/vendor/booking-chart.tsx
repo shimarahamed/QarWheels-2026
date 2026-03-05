@@ -3,7 +3,15 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recha
 import { useState, useEffect } from 'react';
 import { mockAnalyticsData } from "@/lib/vendor-data"
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChartTooltipContent } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+
+const chartConfig = {
+    count: {
+        label: "Bookings",
+        color: "hsl(var(--primary))",
+    },
+} satisfies ChartConfig;
+
 
 export function BookingChart({ timeRange }: { timeRange: string }) {
     const [data, setData] = useState<any[]>([]);
@@ -27,28 +35,30 @@ export function BookingChart({ timeRange }: { timeRange: string }) {
 
 
   return (
-    <ResponsiveContainer width="100%" height={350}>
-      <BarChart data={data}>
-        <XAxis
-          dataKey="service"
-          stroke="hsl(var(--muted-foreground))"
-          fontSize={12}
-          tickLine={false}
-          axisLine={false}
-        />
-        <YAxis
-          stroke="hsl(var(--muted-foreground))"
-          fontSize={12}
-          tickLine={false}
-          axisLine={false}
-          tickFormatter={(value) => `${value}`}
-        />
-        <Tooltip
-            cursorStyle={{fill: "hsl(var(--accent))", opacity: 0.5}}
-            content={<ChartTooltipContent indicator="dot" />}
-        />
-        <Bar dataKey="count" radius={[4, 4, 0, 0]} fill="hsl(var(--primary))" />
-      </BarChart>
-    </ResponsiveContainer>
+    <ChartContainer config={chartConfig} className="h-[350px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart accessibilityLayer data={data}>
+            <XAxis
+            dataKey="service"
+            stroke="hsl(var(--muted-foreground))"
+            fontSize={12}
+            tickLine={false}
+            axisLine={false}
+            />
+            <YAxis
+            stroke="hsl(var(--muted-foreground))"
+            fontSize={12}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(value) => `${value}`}
+            />
+            <Tooltip
+                cursor={false}
+                content={<ChartTooltipContent indicator="dot" />}
+            />
+            <Bar dataKey="count" fill="var(--color-count)" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartContainer>
   )
 }

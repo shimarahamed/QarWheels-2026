@@ -3,7 +3,19 @@ import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Ca
 import { useState, useEffect } from 'react';
 import { mockAnalyticsData } from "@/lib/vendor-data"
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChartTooltipContent } from "../ui/chart";
+import { ChartContainer, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from "../ui/chart";
+
+const chartConfig = {
+    new: {
+        label: "New Customers",
+        color: "hsl(var(--chart-1))",
+    },
+    returning: {
+        label: "Returning Customers",
+        color: "hsl(var(--chart-2))",
+    },
+} satisfies ChartConfig;
+
 
 export function RetentionChart({ timeRange }: { timeRange: string }) {
     const [data, setData] = useState<any[]>([]);
@@ -27,30 +39,33 @@ export function RetentionChart({ timeRange }: { timeRange: string }) {
     }
 
   return (
-    <ResponsiveContainer width="100%" height={350}>
-      <LineChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-        <XAxis
-          dataKey="month"
-          stroke="hsl(var(--muted-foreground))"
-          fontSize={12}
-          tickLine={false}
-          axisLine={false}
-        />
-        <YAxis
-          stroke="hsl(var(--muted-foreground))"
-          fontSize={12}
-          tickLine={false}
-          axisLine={false}
-          tickFormatter={(value) => `${value}`}
-        />
-        <Tooltip
-            content={<ChartTooltipContent indicator="dot" />}
-        />
-        <Legend wrapperStyle={{fontSize: "0.8rem"}} />
-        <Line type="monotone" dataKey="new" name="New Customers" stroke="hsl(var(--chart-1))" strokeWidth={2} />
-        <Line type="monotone" dataKey="returning" name="Returning Customers" stroke="hsl(var(--chart-2))" strokeWidth={2} />
-      </LineChart>
-    </ResponsiveContainer>
+    <ChartContainer config={chartConfig} className="h-[350px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+            <LineChart accessibilityLayer data={data}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                dataKey="month"
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+                />
+                <YAxis
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(value) => `${value}`}
+                />
+                <Tooltip
+                    cursor={false}
+                    content={<ChartTooltipContent indicator="dot" />}
+                />
+                <ChartLegend content={<ChartLegendContent />} />
+                <Line dataKey="new" type="natural" stroke="var(--color-new)" strokeWidth={2} dot={false} />
+                <Line dataKey="returning" type="natural" stroke="var(--color-returning)" strokeWidth={2} dot={false} />
+            </LineChart>
+        </ResponsiveContainer>
+    </ChartContainer>
   )
 }
