@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,46 +6,48 @@
 
 @layer base {
   :root {
-    --background: 220 13% 97%;
-    --foreground: 215 39% 12%;
+    --background: 220 13% 97%; /* #F5F7FA */
+    --foreground: 215 39% 12%; /* #0F1F2E */
 
-    --card: 0 0% 100%;
+    --card: 0 0% 100%; /* #FFFFFF */
     --card-foreground: 215 39% 12%;
  
     --popover: 0 0% 100%;
     --popover-foreground: 215 39% 12%;
  
-    --primary: 206 79% 20%;
+    --primary: 206 79% 20%; /* #0B3C5D */
     --primary-foreground: 0 0% 100%;
  
-    --secondary: 215 28% 95%;
+    --secondary: 215 28% 95%; /* #F0F4F8 */
     --secondary-foreground: 215 39% 12%;
  
     --muted: 215 28% 95%;
-    --muted-foreground: 215 20% 45%;
+    --muted-foreground: 215 20% 45%; /* #4A5568 */
  
-    --accent: 190 100% 42%;
+    --accent: 190 100% 42%; /* #00B4D8 */
     --accent-foreground: 0 0% 100%;
  
-    --destructive: 0 84% 60%;
+    --destructive: 0 84% 60%; /* #EF4444 */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 20% 89%;
+    --border: 214 20% 89%; /* #E2E8F0 */
     --input: 214 20% 89%;
-    --ring: 206 79% 20%;
+    --ring: 190 100% 42%;
  
     --radius: 0.75rem;
 
+    /* Charts */
     --chart-1: 206 79% 20%;
     --chart-2: 190 100% 42%;
     --chart-3: 38 92% 50%;
     --chart-4: 349 83% 60%;
     --chart-5: 262 74% 56%;
 
+    /* Sidebar */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 215 39% 12%;
     --sidebar-border: 214 20% 89%;
-    --sidebar-ring: 206 79% 20%;
+    --sidebar-ring: 190 100% 42%;
     --sidebar-primary: 206 79% 20%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 215 28% 95%;
@@ -53,40 +55,42 @@
   }
  
   .dark {
-    --background: 215 39% 12%;
-    --foreground: 210 40% 98%;
+    --background: 215 39% 12%; /* #080E1A */
+    --foreground: 210 40% 98%; /* #F0F4F8 */
  
-    --card: 216 33% 15%;
+    --card: 216 33% 15%; /* #0F1825 */
     --card-foreground: 210 40% 98%;
  
     --popover: 216 33% 15%;
     --popover-foreground: 210 40% 98%;
  
-    --primary: 190 100% 42%;
+    --primary: 190 100% 42%; /* #00B4D8 */
     --primary-foreground: 215 39% 12%;
  
-    --secondary: 217 33% 20%;
+    --secondary: 217 33% 20%; /* #162132 */
     --secondary-foreground: 210 40% 98%;
  
     --muted: 217 33% 20%;
-    --muted-foreground: 215 20% 65%;
+    --muted-foreground: 215 20% 65%; /* #94A3B8 */
  
-    --accent: 217 33% 20%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 190 100% 42%;
+    --accent-foreground: 215 39% 12%;
  
-    --destructive: 0 63% 31%;
+    --destructive: 0 63% 31%; /* #991B1B */
     --destructive-foreground: 210 40% 98%;
  
-    --border: 217 33% 20%;
-    --input: 217 33% 20%;
+    --border: 217 33% 25%; /* rgba(255,255,255,0.08) */
+    --input: 217 33% 25%;
     --ring: 190 100% 42%;
 
+    /* Charts */
     --chart-1: 190 100% 42%;
     --chart-2: 206 79% 20%;
 
+    /* Sidebar */
     --sidebar-background: 216 33% 15%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 20%;
+    --sidebar-border: 217 33% 25%;
     --sidebar-ring: 190 100% 42%;
     --sidebar-primary: 190 100% 42%;
     --sidebar-primary-foreground: 215 39% 12%;
@@ -109,5 +113,5 @@
   .no-scrollbar {
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
-}
+  }
 }

@@ -1,4 +1,3 @@
-// This file is obsolete. The new application root is in src/app/page.tsx.
 'use client';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,9 +29,9 @@ export default function LandingPage() {
     const heroImage = PlaceHolderImages.find(p => p.id === 'hero-image');
 
     return (
-        <div className="flex flex-col min-h-screen">
+        <div className="flex flex-col min-h-screen bg-background">
             <header className="container mx-auto px-4 h-20 flex items-center justify-between">
-                <Logo hideText={true} />
+                <Logo />
                 <div className="flex items-center gap-2">
                      <Button variant="ghost" asChild>
                         <Link href="/vendor/login">Vendor Portal</Link>
@@ -55,7 +54,7 @@ export default function LandingPage() {
                             data-ai-hint={heroImage.imageHint}
                         />
                     )}
-                    <div className="absolute inset-0 bg-black/50" />
+                    <div className="absolute inset-0 bg-black/60" />
                     <div className="relative container mx-auto px-4">
                         <h1 className="text-4xl md:text-6xl font-bold font-headline">
                             Intelligent Car Management
@@ -66,7 +65,7 @@ export default function LandingPage() {
                         <div className="mt-8 flex justify-center gap-4">
                             <Button size="lg" asChild>
                                 <Link href="/signup">
-                                    Get Started <ArrowRight className="ml-2 h-5 w-5"/>
+                                    Get Started Free <ArrowRight className="ml-2 h-5 w-5"/>
                                 </Link>
                             </Button>
                         </div>
@@ -84,7 +83,7 @@ export default function LandingPage() {
                         </div>
                         <div className="mt-12 grid md:grid-cols-3 gap-8">
                             {features.map((feature, i) => (
-                                <Card key={i}>
+                                <Card key={i} className="hover:border-primary/50 hover:shadow-lg transition-all">
                                     <CardHeader>
                                         <div className="p-3 bg-primary/10 rounded-lg w-min mb-4">
                                             {feature.icon}
@@ -100,7 +99,7 @@ export default function LandingPage() {
                     </div>
                 </section>
             </main>
-             <footer className="py-8 bg-muted">
+             <footer className="py-8 bg-muted border-t">
                 <div className="container mx-auto px-4 text-center text-muted-foreground text-sm">
                     <p>&copy; {new Date().getFullYear()} QarWheels. All rights reserved.</p>
                 </div>

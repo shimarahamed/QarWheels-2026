@@ -30,16 +30,15 @@ import { useVendor } from "./vendor-provider";
 import { Skeleton } from "../ui/skeleton";
 
 const navItems = [
-  { href: "/vendor/dashboard", icon: <LayoutDashboard />, label: "Overview" },
-  { href: "/vendor/dashboard/bookings", icon: <Book />, label: "Bookings" },
-  { href: "/vendor/dashboard/customers", icon: <Users />, label: "Customers" },
-  { href: "/vendor/dashboard/services", icon: <Wrench />, label: "Services" },
-  { href: "/vendor/dashboard/inventory", icon: <Package />, label: "Inventory" },
-  { href: "/vendor/dashboard/staff", icon: <Users />, label: "Staff" },
-  { href: "/vendor/dashboard/promotions", icon: <Percent />, label: "Promotions" },
-  { href: "/vendor/dashboard/reviews", icon: <Star />, label: "Reviews" },
-  { href: "/vendor/dashboard/analytics", icon: <AreaChart />, label: "Analytics" },
-  { href: "/vendor/dashboard/settings", icon: <Settings />, label: "Settings" },
+  { href: "/vendor/dashboard", icon: <LayoutDashboard size={20} />, label: "Overview" },
+  { href: "/vendor/dashboard/bookings", icon: <Book size={20} />, label: "Bookings" },
+  { href: "/vendor/dashboard/customers", icon: <Users size={20}/>, label: "Customers" },
+  { href: "/vendor/dashboard/services", icon: <Wrench size={20}/>, label: "Services" },
+  { href: "/vendor/dashboard/inventory", icon: <Package size={20}/>, label: "Inventory" },
+  { href: "/vendor/dashboard/staff", icon: <Users size={20}/>, label: "Staff" },
+  { href: "/vendor/dashboard/promotions", icon: <Percent size={20}/>, label: "Promotions" },
+  { href: "/vendor/dashboard/reviews", icon: <Star size={20}/>, label: "Reviews" },
+  { href: "/vendor/dashboard/analytics", icon: <AreaChart size={20}/>, label: "Analytics" },
 ];
 
 export function VendorSidebar() {
@@ -49,7 +48,7 @@ export function VendorSidebar() {
 
   return (
     <>
-      <SidebarHeader className="border-b border-sidebar-border">
+      <SidebarHeader className="border-b border-sidebar-border h-20">
         <Logo />
         {isLoading && (
           <div className="space-y-2 group-data-[collapsible=icon]:hidden">
@@ -63,30 +62,42 @@ export function VendorSidebar() {
         )}
         
       </SidebarHeader>
-      <SidebarContent className="p-2">
+      <SidebarContent className="p-4">
         <SidebarMenu>
           {navItems.map((item) => (
             <SidebarMenuItem key={item.href}>
                <SidebarMenuButton
                   asChild
+                  size="lg"
                   isActive={item.href === '/vendor/dashboard' ? pathname === item.href : pathname.startsWith(item.href)}
                   tooltip={{ children: item.label }}
                 >
                   <Link href={item.href}>
                     {item.icon}
-                    <span>{item.label}</span>
+                    <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                   </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
       </SidebarContent>
-      <SidebarFooter className="p-2 border-t mt-auto border-sidebar-border space-y-2">
+      <SidebarFooter className="p-4 border-t mt-auto border-sidebar-border space-y-2">
         {user && (
           <>
-            <Link href="/dashboard/profile" className="p-2 rounded-md hover:bg-sidebar-accent -mx-2">
+             <SidebarMenu>
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild size="lg" tooltip={{children: "Settings"}} isActive={pathname.startsWith("/vendor/dashboard/settings")}>
+                         <Link href="/vendor/dashboard/settings">
+                            <Settings size={20}/>
+                             <span className="group-data-[collapsible=icon]:hidden">Settings</span>
+                         </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </SidebarMenu>
+
+            <div className="p-2 rounded-md group-data-[collapsible=icon]:p-0">
                 <div className="flex items-center gap-3">
-                    <Avatar className="h-9 w-9">
+                     <Avatar className="h-10 w-10 border-2 border-primary/50">
                         <AvatarImage src={user.photoURL || `https://api.dicebear.com/8.x/initials/svg?seed=${user?.displayName || 'User'}`} alt={user?.displayName || 'User'} />
                         <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                     </Avatar>
@@ -95,9 +106,10 @@ export function VendorSidebar() {
                         <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
                     </div>
                 </div>
-            </Link>
-            <Button onClick={() => auth.signOut()} variant="ghost" className="w-full justify-start gap-2">
-                <LogOut />
+            </div>
+            
+            <Button onClick={() => auth.signOut()} variant="ghost" className="w-full justify-start gap-3 p-2 h-auto text-muted-foreground hover:text-foreground">
+                <LogOut size={20} />
                 <span className="group-data-[collapsible=icon]:hidden">Logout</span>
             </Button>
           </>

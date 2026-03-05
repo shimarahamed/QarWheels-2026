@@ -1,4 +1,3 @@
-// This file is obsolete. The new application root is in src/app/page.tsx.
 'use client';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -15,7 +14,6 @@ import {
     signInWithEmailAndPassword,
     signInAnonymously
 } from 'firebase/auth';
-import { useRouter } from 'next/navigation';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -30,14 +28,13 @@ const signupSchema = z.object({
 type AuthFormProps = {
   type: 'login' | 'signup';
   userType: 'customer' | 'vendor';
-  onResult: () => void;
+  onResult?: () => void;
 };
 
 export function AuthForm({ type, userType, onResult }: AuthFormProps) {
   const { auth } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const router = useRouter();
   
   const schema = type === 'login' ? loginSchema : signupSchema;
 
@@ -54,7 +51,6 @@ export function AuthForm({ type, userType, onResult }: AuthFormProps) {
         } else {
             await createUserWithEmailAndPassword(auth, values.email, values.password);
         }
-        // onAuthStateChanged in FirebaseProvider will handle the redirect
         toast({
             title: type === 'login' ? 'Login Successful' : 'Signup Successful',
             description: 'Redirecting to your dashboard...',
@@ -124,11 +120,11 @@ export function AuthForm({ type, userType, onResult }: AuthFormProps) {
                         <span className="w-full border-t" />
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-background px-2 text-muted-foreground">Or continue as</span>
+                        <span className="bg-card px-2 text-muted-foreground">Or continue as</span>
                     </div>
                 </div>
-                 <Button variant="secondary" className="w-full" onClick={handleAnonymousSignIn} disabled={isSubmitting}>
-                    Guest
+                 <Button variant="outline" className="w-full" onClick={handleAnonymousSignIn} disabled={isSubmitting}>
+                    Sign in as Guest
                 </Button>
             </>
         )}
