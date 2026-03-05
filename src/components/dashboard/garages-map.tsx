@@ -7,32 +7,29 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Star } from 'lucide-react';
 import React, { useEffect } from 'react';
-import { type LatLngExpression } from 'leaflet'; // Import only the type
 
-// Define the map center using the imported type.
-// This is safe for server components because type imports are erased at compile time.
-const center: LatLngExpression = [25.2854, 51.5310]; // Center of Doha, Qatar
+// Define the map center. The type will be inferred and is compatible with MapContainer.
+const center: [number, number] = [25.2854, 51.5310]; // Center of Doha, Qatar
 
 export function GaragesMap({ vendors }: { vendors: WithId<Vendor>[] | null }) {
     
+    // This effect runs only on the client. It dynamically imports Leaflet to
+    // fix a common issue with marker icons not appearing correctly in Next.js.
     useEffect(() => {
-        // This effect runs only on the client, ensuring that the `window` object is available.
-        // We dynamically import the Leaflet library here to prevent it from being bundled on the server.
         (async () => {
-            const L = (await import('leaflet')).default;
-            
-            // This is a well-known workaround for a common issue where Leaflet's default icon
-            // paths are not resolved correctly by modern bundlers like Webpack or Turbopack.
-            // By deleting the internal `_getIconUrl` method and then merging our own options,
-            // we force Leaflet to use the provided full URLs for the marker icons.
-            // @ts-ignore
-            delete L.Icon.Default.prototype._getIconUrl;
+            try {
+                const L = (await import('leaflet')).default;
+                // @ts-ignore
+                delete L.Icon.Default.prototype._getIconUrl;
 
-            L.Icon.Default.mergeOptions({
-                iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-                iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-                shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png"
-            });
+                L.Icon.Default.mergeOptions({
+                    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+                    iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+                    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png"
+                });
+            } catch (e) {
+                console.error("Leaflet CSS and icon fix failed:", e)
+            }
         })();
     }, []);
 
@@ -45,8 +42,6 @@ export function GaragesMap({ vendors }: { vendors: WithId<Vendor>[] | null }) {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 {vendors?.map(vendor => (
-                    // The Marker component from react-leaflet will now correctly use the default icon
-                    // thanks to the fix applied in the useEffect hook.
                     <Marker key={vendor.id} position={[vendor.latitude, vendor.longitude]}>
                         <Popup>
                             <div className="p-1 w-64">
