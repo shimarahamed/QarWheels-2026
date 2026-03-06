@@ -54,10 +54,11 @@ export function GaragesMap({ vendors }: { vendors: WithId<Vendor>[] | null }) {
         <Card className="overflow-hidden relative aspect-[16/7] bg-muted">
             {/* Only render the MapContainer if we are on the client */}
             {isClient ? (
-                <MapContainer 
-                    center={center} 
-                    zoom={11} 
+                <MapContainer
+                    center={center}
+                    zoom={11}
                     style={{ height: '100%', width: '100%' }}
+                    placeholder={<Skeleton className="h-full w-full" />}
                 >
                     <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
