@@ -2,18 +2,15 @@
 
 import dynamic from 'next/dynamic';
 import type { Vendor, WithId } from '@/lib/types';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
 
-// This component is a wrapper that dynamically imports the actual map component.
-// 1. It prevents the map code (which needs a `window` object) from running on the server.
-// 2. It shows a loading skeleton while the heavy map component loads.
+// Dynamically import the map component, but without a loading skeleton here.
+// The inner component will handle its own loading/placeholder state via the `placeholder` prop.
 const GaragesMapInner = dynamic(
   () =>
     import('./garages-map-inner').then((mod) => mod.GaragesMapInner),
   {
-    ssr: false, // Ensure this component only runs on the client
-    loading: () => <Skeleton className="h-full w-full" />,
+    ssr: false, // This is crucial to prevent server-side rendering of the map
   }
 );
 

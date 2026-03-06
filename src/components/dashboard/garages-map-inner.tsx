@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Star } from 'lucide-react';
 import { useEffect } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // This is needed to fix an issue with Leaflet's default icon not showing up in Next.js
 const markerIcon = new L.Icon({
@@ -48,6 +49,7 @@ export function GaragesMapInner({ vendors }: { vendors: WithId<Vendor>[] | null 
             center={center}
             zoom={11}
             style={{ height: '100%', width: '100%' }}
+            placeholder={<Skeleton className="h-full w-full" />}
         >
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
