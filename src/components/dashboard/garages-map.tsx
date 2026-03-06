@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Star } from 'lucide-react';
 import React, { useEffect } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // This is needed to fix an issue with Leaflet's default icon not showing up in Next.js
 const markerIcon = new L.Icon({
@@ -29,7 +30,7 @@ const RecenterAutomatically = ({vendors}: {vendors: WithId<Vendor>[] | null}) =>
         if (vendors && vendors.length > 0) {
             const validVendors = vendors.filter(v => v.latitude && v.longitude);
             if (validVendors.length > 0) {
-                const bounds = L.latLngBounds(validVendors.map(v => [v.latitude, v.longitude]));
+                const bounds = L.latLngBounds(validVendors.map(v => [v.latitude!, v.longitude!]));
                 if (bounds.isValid()) {
                     map.fitBounds(bounds, { padding: [50, 50] });
                 }
@@ -45,7 +46,12 @@ export function GaragesMap({ vendors }: { vendors: WithId<Vendor>[] | null }) {
     
     return (
         <Card className="overflow-hidden relative aspect-[16/7] bg-muted">
-            <MapContainer center={center} zoom={11} style={{ height: '100%', width: '100%' }}>
+            <MapContainer 
+                center={center} 
+                zoom={11} 
+                style={{ height: '100%', width: '100%' }}
+                placeholder={<Skeleton className="h-full w-full" />}
+            >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
