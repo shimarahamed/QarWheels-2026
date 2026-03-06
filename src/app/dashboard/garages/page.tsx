@@ -6,11 +6,17 @@ import type { Vendor, WithId } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Star, MapPin, Search, Frown, Map } from 'lucide-react';
+import { Star, MapPin, Search, Frown } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import dynamic from 'next/dynamic';
+
+const GaragesMap = dynamic(() => import('@/components/dashboard/garages-map').then(mod => mod.GaragesMap), {
+  ssr: false,
+  loading: () => <Skeleton className="aspect-[16/7] w-full" />,
+});
+
 
 function GarageCard({ garage }: { garage: WithId<Vendor> }) {
   const image = garage.imageId ? PlaceHolderImages.find(p => p.id === garage.imageId) : PlaceHolderImages.find(p => p.id === 'garage-exterior');
@@ -84,13 +90,7 @@ export default function GaragesPage() {
                 </div>
             </div>
             
-            <Card>
-                <CardContent className="p-12 text-center text-muted-foreground">
-                    <Map className="h-12 w-12 mx-auto mb-4 text-primary/50"/>
-                    <p className="font-semibold">Map view is temporarily unavailable</p>
-                    <p>Please browse the list of garages below.</p>
-                </CardContent>
-            </Card>
+            <GaragesMap vendors={filteredVendors} />
 
             <div>
                 <h2 className="text-2xl font-bold font-headline mb-4">{searchTerm ? "Search Results" : "All Garages"}</h2>
