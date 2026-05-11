@@ -65,7 +65,7 @@ Service History:
 Qatar Climate:
 {{{qatarClimate}}}
 
-Based on this information, what are the predicted upcoming maintenance needs for this car?  Include a confidence level.
+Based on this information, what are the predicted upcoming maintenance needs for this car? Include a confidence level. Ensure the response is detailed and specific to the car's age and mileage.
 `,
 });
 
@@ -77,8 +77,11 @@ const predictMaintenanceFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    if (!output) {
-      throw new Error("The AI model failed to produce a valid prediction output.");
+    if (!output || !output.predictedMaintenanceNeeds) {
+      return {
+        predictedMaintenanceNeeds: "Maintenance prediction is unavailable for this vehicle at the moment. Please ensure your mileage and service history are up to date.",
+        confidenceLevel: "N/A"
+      };
     }
     return output;
   }

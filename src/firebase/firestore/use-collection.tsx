@@ -41,16 +41,6 @@ export interface InternalQuery extends Query<DocumentData> {
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
  * Handles nullable references/queries.
- * 
- *
- * IMPORTANT! YOU MUST MEMOIZE the inputted memoizedTargetRefOrQuery or BAD THINGS WILL HAPPEN
- * use useMemo to memoize it per React guidence.  Also make sure that it's dependencies are stable
- * references
- *  
- * @template T Optional type for document data. Defaults to any.
- * @param {CollectionReference<DocumentData> | Query<DocumentData> | null | undefined} targetRefOrQuery -
- * The Firestore CollectionReference or Query. Waits if null/undefined.
- * @returns {UseCollectionResult<T>} Object with data, isLoading, error.
  */
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: CollectionReference<DocumentData> | Query<DocumentData> | null | undefined,
@@ -73,7 +63,6 @@ export function useCollection<T = any>(
     setIsLoading(true);
     setError(null);
 
-    // Directly use memoizedTargetRefOrQuery as it's assumed to be the final query
     const unsubscribe = onSnapshot(
       memoizedTargetRefOrQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
@@ -86,33 +75,37 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        // If the error is genuinely about permissions, use the custom error.
         if (error.code === 'permission-denied') {
             const internalQuery = memoizedTargetRefOrQuery as unknown as InternalQuery;
-            const path: string =
-              memoizedTargetRefOrQuery.type === 'collection'
-                ? (memoizedTargetRefOrQuery as CollectionReference).path
-                : internalQuery._query.path.canonicalString() || `(collectionGroup: ${internalQuery._query.collectionGroup})`
+            let path = '(unknown path)';
+            
+            try {
+                if (memoizedTargetRefOrQuery.type === 'collection') {
+                    path = (memoizedTargetRefOrQuery as CollectionReference).path;
+                } else if (internalQuery._query) {
+                    path = internalQuery._query.path?.canonicalString() || `(collectionGroup: ${internalQuery._query.collectionGroup})`;
+                }
+            } catch (e) {
+                console.warn("Failed to resolve path for error reporting", e);
+            }
     
             const contextualError = new FirestorePermissionError({
               operation: 'list',
               path,
-            })
+            });
     
-            setError(contextualError)
-            // trigger global error propagation
+            setError(contextualError);
             errorEmitter.emit('permission-error', contextualError);
         } else {
-            // For all other errors (like missing index), use the original error.
             setError(error);
         }
-        setData(null)
-        setIsLoading(false)
+        setData(null);
+        setIsLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
+  }, [memoizedTargetRefOrQuery]);
   
   return { data, isLoading, error };
 }
