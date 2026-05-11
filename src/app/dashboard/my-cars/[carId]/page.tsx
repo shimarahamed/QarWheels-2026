@@ -33,6 +33,7 @@ import { MileageUpdate } from "@/components/dashboard/mileage-update";
 import Link from "next/link";
 import { format, isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useFirebase, useDoc, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, doc } from 'firebase/firestore';
 import type { Car, ServiceRecord, WithId } from "@/lib/types";
@@ -55,7 +56,7 @@ function ServiceHistoryList({ carId, serviceHistory, isLoading }: { carId: strin
     }
 
     return (
-        <Card shadow-sm>
+        <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Digital Service Passport</CardTitle>
