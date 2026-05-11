@@ -102,54 +102,54 @@ export default function VendorDashboard() {
           Welcome to your dashboard, {isLoading ? <Skeleton className="h-5 w-48 inline-block" /> : vendor?.name}.
         </div>
       </header>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-[10px] sm:text-sm font-medium">
               Total Revenue
             </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-32" /> : <div className="text-2xl font-bold">QAR {totalRevenue.toFixed(2)}</div>}
-            <p className="text-xs text-muted-foreground">
-              From all completed jobs
+          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+            {isLoading ? <Skeleton className="h-6 w-20 sm:h-8 sm:w-32" /> : <div className="text-lg sm:text-2xl font-bold">QAR {totalRevenue.toFixed(0)}</div>}
+            <p className="text-[10px] sm:text-xs text-muted-foreground">
+              Total completed
             </p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed Jobs</CardTitle>
-            <Wrench className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-[10px] sm:text-sm font-medium">Completed Jobs</CardTitle>
+            <Wrench className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{totalCompletedJobs}</div>}
-            <p className="text-xs text-muted-foreground">
-              Total services rendered
+          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+            {isLoading ? <Skeleton className="h-6 w-12 sm:h-8 sm:w-16" /> : <div className="text-lg sm:text-2xl font-bold">{totalCompletedJobs}</div>}
+            <p className="text-[10px] sm:text-xs text-muted-foreground">
+              Services rendered
             </p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-[10px] sm:text-sm font-medium">Total Customers</CardTitle>
+            <Users className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-             {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{uniqueCustomerIds.length}</div>}
-            <p className="text-xs text-muted-foreground">
-              Unique clients served
+          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+             {isLoading ? <Skeleton className="h-6 w-12 sm:h-8 sm:w-16" /> : <div className="text-lg sm:text-2xl font-bold">{uniqueCustomerIds.length}</div>}
+            <p className="text-[10px] sm:text-xs text-muted-foreground">
+              Clients served
             </p>
           </CardContent>
         </Card>
          <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Shop Rating</CardTitle>
-            <Star className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-[10px] sm:text-sm font-medium">Shop Rating</CardTitle>
+            <Star className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-             {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{shopRating.toFixed(1)} / 5.0</div>}
-            <p className="text-xs text-muted-foreground">
-              Based on {vendor?.reviewCount || 0} reviews
+          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+             {isLoading ? <Skeleton className="h-6 w-12 sm:h-8 sm:w-16" /> : <div className="text-lg sm:text-2xl font-bold">{shopRating.toFixed(1)}</div>}
+            <p className="text-[10px] sm:text-xs text-muted-foreground">
+              From {vendor?.reviewCount || 0} revs
             </p>
           </CardContent>
         </Card>
