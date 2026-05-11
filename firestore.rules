@@ -36,6 +36,11 @@ service cloud.firestore {
       }
     }
 
+    // Collection Group rules for serviceRecords (needed for dashboard stats)
+    match /{path=**}/serviceRecords/{recordId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.userId) || isAdmin());
+    }
+
     // Vendors
     match /vendors/{vendorId} {
       allow read: if (resource.data.status == 'Approved') || isVendorOwner(vendorId) || isAdmin();

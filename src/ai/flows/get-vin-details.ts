@@ -31,12 +31,6 @@ const getVinDataFromApi = ai.defineTool(
         outputSchema: VinDetailsOutputSchema,
     },
     async ({ vin }) => {
-        // In a real application, you would use fetch() to call the external API
-        // with an API key from your environment variables.
-        // e.g., const response = await fetch(`https://api.db.vin/v1/${vin}?apiKey=${process.env.DB_VIN_API_KEY}`);
-        // const data = await response.json();
-        // return data;
-
         // For this demo, we'll return mock data to simulate the API call.
         console.log(`[Tool] Simulating API call for VIN: ${vin}`);
         if (vin.toUpperCase().startsWith('JN1')) {
@@ -64,7 +58,6 @@ const getVinDetailsFlow = ai.defineFlow(
     const response = await ai.generate({
         prompt: `A user wants to know the details for the VIN: ${input.vin}. Use the getVinDataFromApi tool to fetch this information.`,
         tools: [getVinDataFromApi],
-        model: 'googleai/gemini-2.5-flash',
     });
 
     const toolResponse = response.toolRequest?.tool.output;

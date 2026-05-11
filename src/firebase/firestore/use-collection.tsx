@@ -33,7 +33,8 @@ export interface InternalQuery extends Query<DocumentData> {
     path: {
       canonicalString(): string;
       toString(): string;
-    }
+    };
+    collectionGroup?: string;
   }
 }
 
@@ -87,10 +88,11 @@ export function useCollection<T = any>(
       (error: FirestoreError) => {
         // If the error is genuinely about permissions, use the custom error.
         if (error.code === 'permission-denied') {
+            const internalQuery = memoizedTargetRefOrQuery as unknown as InternalQuery;
             const path: string =
               memoizedTargetRefOrQuery.type === 'collection'
                 ? (memoizedTargetRefOrQuery as CollectionReference).path
-                : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
+                : internalQuery._query.path.canonicalString() || `(collectionGroup: ${internalQuery._query.collectionGroup})`
     
             const contextualError = new FirestorePermissionError({
               operation: 'list',
