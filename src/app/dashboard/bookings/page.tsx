@@ -155,9 +155,9 @@ export default function BookingsPage() {
       </header>
 
       <Tabs defaultValue="upcoming">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-          <TabsTrigger value="past">History</TabsTrigger>
+        <TabsList className="grid w-full max-w-sm grid-cols-2">
+          <TabsTrigger value="upcoming" className="text-xs sm:text-sm">Upcoming</TabsTrigger>
+          <TabsTrigger value="past" className="text-xs sm:text-sm">History</TabsTrigger>
         </TabsList>
         <TabsContent value="upcoming" className="mt-6">
           <BookingList bookings={upcomingBookings} cars={cars} isLoading={isLoadingBookings} />

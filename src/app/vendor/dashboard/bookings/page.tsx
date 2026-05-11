@@ -340,13 +340,13 @@ export default function VendorBookingsPage() {
       <Card>
           <CardContent className="p-0">
           <Tabs defaultValue="upcoming">
-              <div className="p-4 border-b">
+              <div className="p-2 sm:p-4 border-b">
                   <div className="overflow-x-auto no-scrollbar">
-                        <TabsList className="inline-grid w-full grid-cols-4 min-w-[500px]">
-                          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-                          <TabsTrigger value="completed">Completed</TabsTrigger>
-                          <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
-                          <TabsTrigger value="all">All</TabsTrigger>
+                        <TabsList className="inline-grid w-full grid-cols-4 min-w-[320px] sm:min-w-[500px]">
+                          <TabsTrigger value="upcoming" className="text-[10px] sm:text-sm px-1 sm:px-3">Upcoming</TabsTrigger>
+                          <TabsTrigger value="completed" className="text-[10px] sm:text-sm px-1 sm:px-3">Completed</TabsTrigger>
+                          <TabsTrigger value="cancelled" className="text-[10px] sm:text-sm px-1 sm:px-3">Cancelled</TabsTrigger>
+                          <TabsTrigger value="all" className="text-[10px] sm:text-sm px-1 sm:px-3">All</TabsTrigger>
                       </TabsList>
                   </div>
               </div>
