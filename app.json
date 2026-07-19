@@ -24,7 +24,7 @@
       }
     },
     "android": {
-      "package": "com.qarwheels.app",
+      "package": "qarwheel.com",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
