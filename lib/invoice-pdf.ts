@@ -2,6 +2,38 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import type { VendorInvoice } from '@/lib/vendor-data';
 
+type InvoiceTheme = 'light' | 'dark';
+
+interface ThemePalette {
+  bg: string;
+  surface: string;
+  border: string;
+  text: string;
+  textSub: string;
+  muted: string;
+  tableHead: string;
+}
+
+const LIGHT_PALETTE: ThemePalette = {
+  bg:        '#FFFFFF',
+  surface:   '#F8FAFC',
+  border:    '#E2E8F0',
+  text:      '#0B0F14',
+  textSub:   '#334155',
+  muted:     '#6F7A86',
+  tableHead: '#F1F5F9',
+};
+
+const DARK_PALETTE: ThemePalette = {
+  bg:        '#0B0F14',
+  surface:   '#141920',
+  border:    '#252D38',
+  text:      '#F0F4F8',
+  textSub:   '#C8D0DC',
+  muted:     '#6F7A86',
+  tableHead: '#1A2130',
+};
+
 function typeColor(type: string): string {
   const map: Record<string, string> = {
     service: '#3B82F6',
@@ -11,7 +43,8 @@ function typeColor(type: string): string {
   return map[type] ?? '#E31E24';
 }
 
-function buildInvoiceHtml(invoice: VendorInvoice, businessName = 'QSpeedy Auto Garage'): string {
+function buildInvoiceHtml(invoice: VendorInvoice, businessName = 'QSpeedy Auto Garage', theme: InvoiceTheme = 'light'): string {
+  const p = theme === 'dark' ? DARK_PALETTE : LIGHT_PALETTE;
   const invoiceNum = invoice.id.replace('inv_', '').toUpperCase();
 
   const lineItemRows = invoice.lineItems
@@ -41,54 +74,54 @@ function buildInvoiceHtml(invoice: VendorInvoice, businessName = 'QSpeedy Auto G
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, Helvetica, Arial, sans-serif; background: #fff; color: #0B0F14; font-size: 13px; padding: 0; }
+  body { font-family: -apple-system, Helvetica, Arial, sans-serif; background: ${p.bg}; color: ${p.text}; font-size: 13px; padding: 0; }
   .page { max-width: 680px; margin: 0 auto; padding: 40px 36px; }
 
   /* Header */
   .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
   .logo-block .business { font-size: 22px; font-weight: 900; color: #E31E24; letter-spacing: -0.5px; }
-  .logo-block .tagline { font-size: 11px; color: #6F7A86; margin-top: 2px; }
+  .logo-block .tagline { font-size: 11px; color: ${p.muted}; margin-top: 2px; }
   .invoice-meta { text-align: right; }
-  .invoice-meta .inv-title { font-size: 26px; font-weight: 900; color: #0B0F14; letter-spacing: -1px; }
+  .invoice-meta .inv-title { font-size: 26px; font-weight: 900; color: ${p.text}; letter-spacing: -1px; }
   .invoice-meta .inv-num { font-size: 13px; font-weight: 700; color: #E31E24; margin-top: 4px; }
 
   /* Info strip */
-  .info-strip { display: flex; gap: 0; border: 1px solid #E2E8F0; border-radius: 10px; overflow: hidden; margin-bottom: 28px; }
-  .info-cell { flex: 1; padding: 14px 16px; border-right: 1px solid #E2E8F0; }
+  .info-strip { display: flex; gap: 0; border: 1px solid ${p.border}; border-radius: 10px; overflow: hidden; margin-bottom: 28px; background: ${p.surface}; }
+  .info-cell { flex: 1; padding: 14px 16px; border-right: 1px solid ${p.border}; }
   .info-cell:last-child { border-right: none; }
-  .info-cell .label { font-size: 10px; font-weight: 700; color: #6F7A86; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-  .info-cell .value { font-size: 13px; font-weight: 700; color: #0B0F14; }
-  .info-cell .sub { font-size: 11px; color: #6F7A86; margin-top: 2px; }
+  .info-cell .label { font-size: 10px; font-weight: 700; color: ${p.muted}; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .info-cell .value { font-size: 13px; font-weight: 700; color: ${p.text}; }
+  .info-cell .sub { font-size: 11px; color: ${p.muted}; margin-top: 2px; }
 
   /* Status badge */
   .status-paid    { background: #dcfce7; color: #16a34a; }
   .status-sent    { background: #dbeafe; color: #1d4ed8; }
-  .status-draft   { background: #f1f5f9; color: #475569; }
+  .status-draft   { background: ${p.surface}; color: ${p.muted}; }
   .status-overdue { background: #fee2e2; color: #dc2626; }
   .status-badge { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 900; text-transform: uppercase; }
 
   /* Table */
   table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-  thead tr { background: #f8fafc; }
-  thead th { padding: 10px 12px; text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #6F7A86; }
+  thead tr { background: ${p.tableHead}; }
+  thead th { padding: 10px 12px; text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: ${p.muted}; }
   thead th.num { text-align: right; }
-  tbody tr { border-bottom: 1px solid #f1f5f9; }
-  tbody td { padding: 12px; font-size: 13px; color: #334155; vertical-align: top; }
+  tbody tr { border-bottom: 1px solid ${p.border}; }
+  tbody td { padding: 12px; font-size: 13px; color: ${p.textSub}; vertical-align: top; }
   td.num { text-align: right; white-space: nowrap; }
-  td.bold { font-weight: 800; color: #0B0F14; }
+  td.bold { font-weight: 800; color: ${p.text}; }
   .type-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; margin-right: 6px; vertical-align: middle; }
 
   /* Summary */
   .summary { margin-left: auto; width: 260px; }
-  .summary-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: #6F7A86; }
-  .summary-row.total { border-top: 2px solid #E2E8F0; margin-top: 6px; padding-top: 10px; }
-  .summary-row.total span:first-child { font-size: 15px; font-weight: 900; color: #0B0F14; }
+  .summary-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: ${p.muted}; }
+  .summary-row.total { border-top: 2px solid ${p.border}; margin-top: 6px; padding-top: 10px; }
+  .summary-row.total span:first-child { font-size: 15px; font-weight: 900; color: ${p.text}; }
   .summary-row.total span:last-child  { font-size: 17px; font-weight: 900; color: #E31E24; }
 
   /* Footer */
-  .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: flex-end; }
-  .footer .note { font-size: 11px; color: #6F7A86; max-width: 340px; line-height: 1.5; }
-  .footer .powered { font-size: 10px; color: #A8B0BA; text-align: right; }
+  .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid ${p.border}; display: flex; justify-content: space-between; align-items: flex-end; }
+  .footer .note { font-size: 11px; color: ${p.muted}; max-width: 340px; line-height: 1.5; }
+  .footer .powered { font-size: 10px; color: ${p.muted}; text-align: right; }
   .footer .powered strong { color: #E31E24; }
 
   /* Watermark for paid */
@@ -168,8 +201,8 @@ function buildInvoiceHtml(invoice: VendorInvoice, businessName = 'QSpeedy Auto G
 </html>`;
 }
 
-export async function exportInvoicePdf(invoice: VendorInvoice, businessName?: string): Promise<void> {
-  const html = buildInvoiceHtml(invoice, businessName);
+export async function exportInvoicePdf(invoice: VendorInvoice, businessName?: string, theme: InvoiceTheme = 'light'): Promise<void> {
+  const html = buildInvoiceHtml(invoice, businessName, theme);
   const { uri } = await Print.printToFileAsync({ html, base64: false });
   const invoiceNum = invoice.id.replace('inv_', '').toUpperCase();
   const canShare = await Sharing.isAvailableAsync();
@@ -182,7 +215,7 @@ export async function exportInvoicePdf(invoice: VendorInvoice, businessName?: st
   }
 }
 
-export async function printInvoice(invoice: VendorInvoice, businessName?: string): Promise<void> {
-  const html = buildInvoiceHtml(invoice, businessName);
+export async function printInvoice(invoice: VendorInvoice, businessName?: string, theme: InvoiceTheme = 'light'): Promise<void> {
+  const html = buildInvoiceHtml(invoice, businessName, theme);
   await Print.printAsync({ html });
 }

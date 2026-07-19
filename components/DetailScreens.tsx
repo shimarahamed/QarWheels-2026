@@ -47,22 +47,23 @@ function Page({ title, children, rightAction }: {
   children: React.ReactNode;
   rightAction?: React.ReactNode;
 }) {
+  const c = useQarColors();
   const router = useRouter();
   return (
-    <SafeAreaView style={ds.safeArea} edges={['top']}>
+    <SafeAreaView style={[ds.safeArea, { backgroundColor: c.background }]} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Nav bar */}
-      <View style={ds.navbar}>
-        <AnimatedPressable style={ds.backBtn} onPress={() => router.back()} hitSlop={8} scaleValue={0.96}>
-          <Icon name="chevron-back" size={20} color={colors.text} />
+      <View style={[ds.navbar, { backgroundColor: c.background, borderBottomColor: c.border }]}>
+        <AnimatedPressable style={[ds.backBtn, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.back()} hitSlop={8} scaleValue={0.96}>
+          <Icon name="chevron-back" size={20} color={c.text} />
         </AnimatedPressable>
-        <Text style={ds.navTitle} numberOfLines={1}>{title}</Text>
-        <View style={ds.backBtn}>{rightAction ?? null}</View>
+        <Text style={[ds.navTitle, { color: c.text }]} numberOfLines={1}>{title}</Text>
+        <View style={[ds.backBtn, { backgroundColor: c.surface, borderColor: c.border }]}>{rightAction ?? null}</View>
       </View>
 
       <ScrollView
-        style={ds.screen}
+        style={[ds.screen, { backgroundColor: c.background }]}
         contentContainerStyle={ds.content}
         showsVerticalScrollIndicator={false}
       >
@@ -78,8 +79,9 @@ function Page({ title, children, rightAction }: {
 function PrimaryBtn({ label, onPress, icon }: {
   label: string; onPress: () => void; icon?: IoniconsName;
 }) {
+  const c = useQarColors();
   return (
-    <AnimatedPressable style={ds.primaryBtn} onPress={onPress} scaleValue={0.96}>
+    <AnimatedPressable style={[ds.primaryBtn, { backgroundColor: c.primary }]} onPress={onPress} scaleValue={0.96}>
       {icon && <Icon name={icon} size={18} color="#fff" />}
       <Text style={ds.primaryBtnText}>{label}</Text>
     </AnimatedPressable>
@@ -90,30 +92,32 @@ function PrimaryBtn({ label, onPress, icon }: {
 function InfoRow({ icon, label, value, valueColor }: {
   icon: IoniconsName; label: string; value: string; valueColor?: string;
 }) {
+  const c = useQarColors();
   return (
     <View style={ds.infoRow}>
       <View style={ds.infoIcon}>
-        <Icon name={icon} size={15} color={colors.muted} />
+        <Icon name={icon} size={15} color={c.muted} />
       </View>
-      <Text style={ds.infoLabel}>{label}</Text>
-      <Text style={[ds.infoValue, valueColor ? { color: valueColor } : undefined]}>{value}</Text>
+      <Text style={[ds.infoLabel, { color: c.muted }]}>{label}</Text>
+      <Text style={[ds.infoValue, { color: c.text }, valueColor ? { color: valueColor } : undefined]}>{value}</Text>
     </View>
   );
 }
 
 // ── Mini garage row ───────────────────────────────────────────────
 function GarageMini({ id, name, detail }: { id: string; name: string; detail: string }) {
+  const c = useQarColors();
   const router = useRouter();
   const garage = findGarage(id);
 
   return (
-    <AnimatedPressable style={ds.miniCard} onPress={() => router.push(route(`/garage/${id}`))} scaleValue={0.98}>
-      <Image source={{ uri: garage.imageUrl }} style={ds.miniThumb} resizeMode="cover" />
+    <AnimatedPressable style={[ds.miniCard, { borderTopColor: c.border }]} onPress={() => router.push(route(`/garage/${id}`))} scaleValue={0.98}>
+      <Image source={{ uri: garage.imageUrl }} style={[ds.miniThumb, { backgroundColor: c.surfaceAlt }]} resizeMode="cover" />
       <View style={ds.miniBody}>
-        <Text style={ds.miniName}>{name}</Text>
-        <Text style={ds.miniDetail}>{detail}</Text>
+        <Text style={[ds.miniName, { color: c.text }]}>{name}</Text>
+        <Text style={[ds.miniDetail, { color: c.muted }]}>{detail}</Text>
       </View>
-      <Icon name="chevron-forward" size={16} color={colors.muted} />
+      <Icon name="chevron-forward" size={16} color={c.muted} />
     </AnimatedPressable>
   );
 }
@@ -128,13 +132,14 @@ function ActionRow({ icon, label, iconBg, iconColor, onPress, dangerous, noBorde
   dangerous?: boolean;
   noBorderTop?: boolean;
 }) {
+  const c = useQarColors();
   return (
-    <AnimatedPressable style={[ds.actionRow, noBorderTop && { borderTopWidth: 0 }]} onPress={() => { void tap(); onPress(); }} scaleValue={0.98}>
+    <AnimatedPressable style={[ds.actionRow, { borderTopColor: c.border }, noBorderTop && { borderTopWidth: 0 }]} onPress={() => { void tap(); onPress(); }} scaleValue={0.98}>
       <View style={[ds.actionIcon, { backgroundColor: iconBg }]}>
         <Icon name={icon} size={17} color={iconColor} />
       </View>
-      <Text style={[ds.actionLabel, dangerous && { color: colors.danger }]}>{label}</Text>
-      <Icon name="chevron-forward" size={16} color={dangerous ? colors.danger : colors.muted} />
+      <Text style={[ds.actionLabel, { color: dangerous ? c.danger : c.text }]}>{label}</Text>
+      <Icon name="chevron-forward" size={16} color={dangerous ? c.danger : c.muted} />
     </AnimatedPressable>
   );
 }
@@ -143,6 +148,7 @@ function ActionRow({ icon, label, iconBg, iconColor, onPress, dangerous, noBorde
 // GARAGE DETAIL
 // ═══════════════════════════════════════════════════════════════
 export function GarageDetailScreen() {
+  const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const garage = findGarage(id);
@@ -172,89 +178,89 @@ export function GarageDetailScreen() {
         {/* Status overlay */}
         <View style={ds.heroStatusRow}>
           <View style={ds.openBadge}>
-            <View style={[ds.openDot, !garage.openNow && { backgroundColor: colors.warning }]} />
+            <View style={[ds.openDot, !garage.openNow && { backgroundColor: c.warning }]} />
             <Text style={ds.openText}>{garage.openNow ? 'Open now' : `Next ${garage.availability}`}</Text>
           </View>
           <View style={ds.heroRatingBadge}>
-            <Icon name="star" size={12} color={colors.gold} />
+            <Icon name="star" size={12} color={c.gold} />
             <Text style={ds.heroRatingText}>{garage.rating}</Text>
           </View>
         </View>
       </View>
 
       {/* Summary card */}
-      <View style={ds.card}>
-        <Text style={ds.eyebrow}>{garage.type}</Text>
-        <Text style={ds.cardTitle}>{garage.name}</Text>
+      <View style={[ds.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <Text style={[ds.eyebrow, { color: c.primary }]}>{garage.type}</Text>
+        <Text style={[ds.cardTitle, { color: c.text }]}>{garage.name}</Text>
 
         <View style={ds.factChips}>
-          <View style={ds.factChip}>
-            <Icon name="location" size={13} color={colors.muted} />
-            <Text style={ds.factChipText}>{garage.distanceKm.toFixed(1)} km · {garage.area}</Text>
+          <View style={[ds.factChip, { backgroundColor: c.surfaceAlt }]}>
+            <Icon name="location" size={13} color={c.muted} />
+            <Text style={[ds.factChipText, { color: c.textSecondary }]}>{garage.distanceKm.toFixed(1)} km · {garage.area}</Text>
           </View>
-          <View style={ds.factChip}>
-            <Icon name="time-outline" size={13} color={colors.muted} />
-            <Text style={ds.factChipText}>{garage.responseTime} response</Text>
+          <View style={[ds.factChip, { backgroundColor: c.surfaceAlt }]}>
+            <Icon name="time-outline" size={13} color={c.muted} />
+            <Text style={[ds.factChipText, { color: c.textSecondary }]}>{garage.responseTime} response</Text>
           </View>
-          <View style={ds.factChip}>
-            <Icon name="pricetag-outline" size={13} color={colors.primary} />
-            <Text style={[ds.factChipText, { color: colors.primary, fontWeight: '700' }]}>
+          <View style={[ds.factChip, { backgroundColor: c.surfaceAlt }]}>
+            <Icon name="pricetag-outline" size={13} color={c.primary} />
+            <Text style={[ds.factChipText, { color: c.primary, fontWeight: '700' }]}>
               From {garage.startingPrice}
             </Text>
           </View>
-          <View style={ds.factChip}>
-            <Icon name="calendar-outline" size={13} color={colors.success} />
-            <Text style={[ds.factChipText, { color: colors.success, fontWeight: '800' }]}>
+          <View style={[ds.factChip, { backgroundColor: c.surfaceAlt }]}>
+            <Icon name="calendar-outline" size={13} color={c.success} />
+            <Text style={[ds.factChipText, { color: c.success, fontWeight: '800' }]}>
               {garage.availability === 'Now' ? 'Instant booking' : `${garage.availability} slots`}
             </Text>
           </View>
         </View>
 
-        <InfoRow icon="star" label="Rating" value={`${garage.rating} · ${garage.reviews} reviews`} valueColor={colors.gold} />
+        <InfoRow icon="star" label="Rating" value={`${garage.rating} · ${garage.reviews} reviews`} valueColor={c.gold} />
         <InfoRow icon="chatbubble-ellipses-outline" label="Reviews" value={`${garage.reviews} verified`} />
         <InfoRow icon="car-outline" label="Category" value={garage.category} />
-        <InfoRow icon="shield-checkmark-outline" label="Warranty" value={garage.warranty} valueColor={colors.success} />
+        <InfoRow icon="shield-checkmark-outline" label="Warranty" value={garage.warranty} valueColor={c.success} />
         <InfoRow icon="navigate-outline" label="Pickup" value={garage.pickupAvailable ? 'Pickup and drop-off available' : 'Drop-off booking'} />
 
         <View style={ds.tagRow}>
           {garage.tags.map((tag) => (
-            <View key={tag} style={ds.tagPill}>
-              <Text style={ds.tagText}>{tag}</Text>
+            <View key={tag} style={[ds.tagPill, { backgroundColor: c.primaryLight }]}>
+              <Text style={[ds.tagText, { color: c.primary }]}>{tag}</Text>
             </View>
           ))}
         </View>
       </View>
 
-      <View style={ds.discoveryMetrics}>
+      <View style={[ds.discoveryMetrics, { backgroundColor: c.surface, borderColor: c.border }]}>
         {[
-          { label: 'Distance', value: `${garage.distanceKm.toFixed(1)} km`, icon: 'navigate-outline' as IoniconsName, color: colors.primary },
-          { label: 'From', value: garage.startingPrice, icon: 'pricetag-outline' as IoniconsName, color: colors.primary },
-          { label: 'Rating', value: `${garage.rating}/5`, icon: 'star-outline' as IoniconsName, color: colors.gold },
+          { label: 'Distance', value: `${garage.distanceKm.toFixed(1)} km`, icon: 'navigate-outline' as IoniconsName, color: c.primary },
+          { label: 'From', value: garage.startingPrice, icon: 'pricetag-outline' as IoniconsName, color: c.primary },
+          { label: 'Rating', value: `${garage.rating}/5`, icon: 'star-outline' as IoniconsName, color: c.gold },
         ].map((metric) => (
           <View key={metric.label} style={ds.discoveryMetric}>
             <Icon name={metric.icon} size={18} color={metric.color} />
-            <Text style={ds.discoveryMetricValue}>{metric.value}</Text>
-            <Text style={ds.discoveryMetricLabel}>{metric.label}</Text>
+            <Text style={[ds.discoveryMetricValue, { color: c.text }]}>{metric.value}</Text>
+            <Text style={[ds.discoveryMetricLabel, { color: c.muted }]}>{metric.label}</Text>
           </View>
         ))}
       </View>
 
       {/* Quick actions */}
-      <View style={ds.garageActionCard}>
+      <View style={[ds.garageActionCard, { backgroundColor: c.surface, borderColor: c.border }]}>
         <View style={ds.garageActionHeader}>
           <View style={{ flex: 1, gap: 3 }}>
-            <Text style={ds.sectionTitle}>Book with confidence</Text>
-            <Text style={ds.garageActionMeta}>{garage.responseTime} average response · {garage.warranty}</Text>
+            <Text style={[ds.sectionTitle, { color: c.text }]}>Book with confidence</Text>
+            <Text style={[ds.garageActionMeta, { color: c.muted }]}>{garage.responseTime} average response · {garage.warranty}</Text>
           </View>
           <View style={ds.garageActionPrice}>
-            <Text style={ds.garageActionPriceLabel}>From</Text>
-            <Text style={ds.garageActionPriceValue}>{garage.startingPrice}</Text>
+            <Text style={[ds.garageActionPriceLabel, { color: c.muted }]}>From</Text>
+            <Text style={[ds.garageActionPriceValue, { color: c.primary }]}>{garage.startingPrice}</Text>
           </View>
         </View>
 
-        <AnimatedPressable style={ds.garagePrimaryAction} onPress={handleBook} scaleValue={0.98}>
+        <AnimatedPressable style={[ds.garagePrimaryAction, { backgroundColor: c.primary }]} onPress={handleBook} scaleValue={0.98}>
           <View style={ds.garagePrimaryIcon}>
-            <Icon name="calendar" size={18} color={colors.primary} />
+            <Icon name="calendar" size={18} color={c.primary} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={ds.garagePrimaryTitle}>Book service</Text>
@@ -264,13 +270,13 @@ export function GarageDetailScreen() {
         </AnimatedPressable>
 
         <View style={ds.garageContactGrid}>
-          <Pressable style={ds.garageContactButton} onPress={() => router.push(route(`/chat/${garage.id}`))}>
-            <Icon name="chatbubble-ellipses-outline" size={17} color={colors.primary} />
-            <Text style={ds.garageContactText}>Message</Text>
+          <Pressable style={[ds.garageContactButton, { borderColor: c.primaryMid, backgroundColor: c.primaryLight }]} onPress={() => router.push(route(`/chat/${garage.id}`))}>
+            <Icon name="chatbubble-ellipses-outline" size={17} color={c.primary} />
+            <Text style={[ds.garageContactText, { color: c.primary }]}>Message</Text>
           </Pressable>
-          <Pressable style={ds.garageContactButton} onPress={() => router.push('/map')}>
-            <Icon name="navigate-outline" size={17} color={colors.primary} />
-            <Text style={ds.garageContactText}>Directions</Text>
+          <Pressable style={[ds.garageContactButton, { borderColor: c.primaryMid, backgroundColor: c.primaryLight }]} onPress={() => router.push('/map')}>
+            <Icon name="navigate-outline" size={17} color={c.primary} />
+            <Text style={[ds.garageContactText, { color: c.primary }]}>Directions</Text>
           </Pressable>
         </View>
 
@@ -282,32 +288,32 @@ export function GarageDetailScreen() {
             { label: 'Photos', icon: 'images-outline' as IoniconsName, onPress: () => router.push(route(`/garage-photos/${garage.id}`)) },
             { label: isFav ? 'Saved' : 'Save', icon: isFav ? 'heart' as IoniconsName : 'heart-outline' as IoniconsName, onPress: () => { void tap(); toggleFav(garage.id); } },
           ].map((item) => (
-            <Pressable key={item.label} style={ds.garageUtilityButton} onPress={item.onPress}>
-              <Icon name={item.icon} size={16} color={item.label === 'Saved' ? colors.danger : colors.textSecondary} />
-              <Text style={[ds.garageUtilityText, item.label === 'Saved' && { color: colors.danger }]}>{item.label}</Text>
+            <Pressable key={item.label} style={[ds.garageUtilityButton, { borderColor: c.border, backgroundColor: c.surfaceAlt }]} onPress={item.onPress}>
+              <Icon name={item.icon} size={16} color={item.label === 'Saved' ? c.danger : c.textSecondary} />
+              <Text style={[ds.garageUtilityText, { color: c.textSecondary }, item.label === 'Saved' && { color: c.danger }]}>{item.label}</Text>
             </Pressable>
           ))}
         </View>
       </View>
 
       {/* Services preview */}
-      <View style={ds.card}>
+      <View style={[ds.card, { backgroundColor: c.surface, borderColor: c.border }]}>
         <View style={ds.sectionHeaderRow}>
-          <Text style={ds.sectionTitle}>Bookable services</Text>
-          <Text style={ds.sectionMeta}>{visibleServices.length} available</Text>
+          <Text style={[ds.sectionTitle, { color: c.text }]}>Bookable services</Text>
+          <Text style={[ds.sectionMeta, { color: c.muted }]}>{visibleServices.length} available</Text>
         </View>
         {visibleServices.map((svc, i, arr) => (
-          <Pressable key={svc.id} style={[ds.svcRow, i < arr.length - 1 && ds.svcRowBorder]} onPress={() => router.push(route(`/service/${svc.id}`))}>
+          <Pressable key={svc.id} style={[ds.svcRow, i < arr.length - 1 && [ds.svcRowBorder, { borderBottomColor: c.border }]]} onPress={() => router.push(route(`/service/${svc.id}`))}>
             <View style={ds.svcLeft}>
-              <Icon name="checkmark-circle" size={16} color={colors.success} />
+              <Icon name="checkmark-circle" size={16} color={c.success} />
               <View style={{ flex: 1 }}>
-                <Text style={ds.svcName}>{svc.title}</Text>
-                <Text style={ds.svcMeta}>{svc.duration ?? '45 min'} · {svc.availability} · {svc.warranty ?? garage.warranty}</Text>
+                <Text style={[ds.svcName, { color: c.text }]}>{svc.title}</Text>
+                <Text style={[ds.svcMeta, { color: c.muted }]}>{svc.duration ?? '45 min'} · {svc.availability} · {svc.warranty ?? garage.warranty}</Text>
               </View>
             </View>
             <View style={ds.svcPriceWrap}>
-              <Text style={ds.svcPrice}>{svc.price}</Text>
-              <Pressable style={ds.svcBookPill} onPress={() => router.push(route(`/checkout/${svc.id}`))}>
+              <Text style={[ds.svcPrice, { color: c.primary }]}>{svc.price}</Text>
+              <Pressable style={[ds.svcBookPill, { backgroundColor: c.primary }]} onPress={() => router.push(route(`/checkout/${svc.id}`))}>
                 <Text style={ds.svcBookText}>Book</Text>
               </Pressable>
             </View>
@@ -324,6 +330,7 @@ export function GarageDetailScreen() {
 // CATEGORY DETAIL
 // ═══════════════════════════════════════════════════════════════
 export function CategoryDetailScreen() {
+  const c = useQarColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const category = findCategory(id);
   const cc = categoryColors[id] ?? categoryColors.default;
@@ -341,14 +348,14 @@ export function CategoryDetailScreen() {
           <Icon name="construct" size={28} color={cc.icon} />
         </View>
         <View>
-          <Text style={ds.eyebrow}>Service category</Text>
+          <Text style={[ds.eyebrow, { color: c.primary }]}>Service category</Text>
           <Text style={[ds.cardTitle, { color: cc.text }]}>{category.label}</Text>
           <Text style={[ds.cardMeta, { color: cc.icon }]}>{category.count} providers in Qatar</Text>
         </View>
       </View>
 
-      <View style={ds.card}>
-        <Text style={ds.sectionTitle}>Available garages</Text>
+      <View style={[ds.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <Text style={[ds.sectionTitle, { color: c.text }]}>Available garages</Text>
         {list.map((g) => (
           <GarageMini key={g.id} id={g.id} name={g.name} detail={`⭐ ${g.rating} · ${g.area}`} />
         ))}
@@ -361,39 +368,40 @@ export function CategoryDetailScreen() {
 // JOB / SERVICE DETAIL
 // ═══════════════════════════════════════════════════════════════
 export function JobDetailScreen() {
+  const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const job = findJob(id);
 
   return (
     <Page title="Service details">
-      <View style={ds.card}>
+      <View style={[ds.card, { backgroundColor: c.surface, borderColor: c.border }]}>
         <View style={ds.jobHeroRow}>
-          <View style={[ds.jobHeroIcon, { backgroundColor: colors.primaryLight }]}>
-            <Icon name="construct" size={24} color={colors.primary} />
+          <View style={[ds.jobHeroIcon, { backgroundColor: c.primaryLight }]}>
+            <Icon name="construct" size={24} color={c.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={ds.eyebrow}>Popular job</Text>
-            <Text style={ds.cardTitle}>{job.title}</Text>
+            <Text style={[ds.eyebrow, { color: c.primary }]}>Popular job</Text>
+            <Text style={[ds.cardTitle, { color: c.text }]}>{job.title}</Text>
           </View>
         </View>
-        <InfoRow icon="pricetag-outline" label="Starting from" value={job.price} valueColor={colors.primary} />
+        <InfoRow icon="pricetag-outline" label="Starting from" value={job.price} valueColor={c.primary} />
         <InfoRow icon="time-outline"    label="Earliest slot" value={job.availability} />
         <InfoRow icon="business-outline" label="Providers"   value={`${garages.length} garages available`} />
       </View>
 
-      <View style={ds.card}>
-        <Text style={ds.sectionTitle}>What's included</Text>
+      <View style={[ds.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <Text style={[ds.sectionTitle, { color: c.text }]}>What's included</Text>
         {['Inspection and diagnosis', 'Genuine parts or OEM equivalent', 'Digital service record', '30-day service guarantee'].map((item) => (
           <View key={item} style={ds.includedRow}>
-            <Icon name="checkmark-circle" size={16} color={colors.success} />
-            <Text style={ds.includedText}>{item}</Text>
+            <Icon name="checkmark-circle" size={16} color={c.success} />
+            <Text style={[ds.includedText, { color: c.textSecondary }]}>{item}</Text>
           </View>
         ))}
       </View>
 
-      <View style={ds.card}>
-        <Text style={ds.sectionTitle}>Recommended garages</Text>
+      <View style={[ds.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <Text style={[ds.sectionTitle, { color: c.text }]}>Recommended garages</Text>
         {garages.slice(0, 3).map((g) => (
           <GarageMini key={g.id} id={g.id} name={g.name} detail={`${g.startingPrice} · ${g.responseTime}`} />
         ))}
@@ -441,7 +449,7 @@ export function CarDetailScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={cds.content} showsVerticalScrollIndicator={false} style={{ backgroundColor: c.background }}>
+      <ScrollView contentContainerStyle={cds.content} showsVerticalScrollIndicator={false} style={{ backgroundColor: c.background, paddingTop: 60 }}>
         <MotionScreen>
 
           {/* ── Identity hero ── */}
@@ -663,28 +671,28 @@ export function BookingDetailScreen() {
                 <View style={[bds.statusDot, { backgroundColor: sc.dot }]} />
                 <Text style={[bds.statusLabel, { color: sc.text }]}>{getBookingStatusLabel(booking.status)}</Text>
               </View>
-              <Text style={[bds.heroService, { color: c.text }]}>{booking.service}</Text>
-              <Text style={[bds.heroGarage, { color: c.textSecondary }]}>{booking.garage}</Text>
+              <Text style={[bds.heroService, { color: c.text }]}>{booking.service || 'Service'}</Text>
+              <Text style={[bds.heroGarage, { color: c.textSecondary }]}>{booking.garage || 'Garage'}</Text>
               <Text style={[bds.heroStatusDesc, { color: c.muted }]}>{getBookingStatusDescription(booking.status)}</Text>
               <View style={bds.chipsRow}>
                 <View style={[bds.chip, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                   <Icon name="time-outline" size={13} color={c.muted} />
-                  <Text style={[bds.chipText, { color: c.textSecondary }]}>{booking.date}</Text>
+                  <Text style={[bds.chipText, { color: c.textSecondary }]}>{typeof booking.date === 'string' ? booking.date : ''}</Text>
                 </View>
                 <View style={[bds.chip, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                   <Icon name="car-outline" size={13} color={c.muted} />
-                  <Text style={[bds.chipText, { color: c.textSecondary }]}>{booking.vehicle}</Text>
+                  <Text style={[bds.chipText, { color: c.textSecondary }]}>{booking.vehicle || '—'}</Text>
                 </View>
                 {booking.totalAmount ? (
                   <View style={[bds.chip, { backgroundColor: c.primaryLight, borderColor: c.primaryMid }]}>
                     <Icon name="wallet-outline" size={13} color={c.primary} />
-                    <Text style={[bds.chipText, { color: c.primary }]}>QAR {booking.totalAmount}</Text>
+                    <Text style={[bds.chipText, { color: c.primary }]}>QAR {String(booking.totalAmount)}</Text>
                   </View>
                 ) : null}
                 {booking.paymentMethod ? (
                   <View style={[bds.chip, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                     <Icon name="card-outline" size={13} color={c.muted} />
-                    <Text style={[bds.chipText, { color: c.textSecondary }]}>{booking.paymentMethod}</Text>
+                    <Text style={[bds.chipText, { color: c.textSecondary }]}>{String(booking.paymentMethod)}</Text>
                   </View>
                 ) : null}
               </View>
@@ -823,6 +831,7 @@ export function BookingDetailScreen() {
 // NOTIFICATIONS
 // ═══════════════════════════════════════════════════════════════
 export function NotificationsScreen() {
+  const c = useQarColors();
   const notifications = useQarWheelsStore((s) => s.notifications);
   const markRead      = useQarWheelsStore((s) => s.markNotificationsRead);
   const unread        = notifications.filter((n) => !n.read).length;
@@ -838,27 +847,27 @@ export function NotificationsScreen() {
       )}
 
       {notifications.map((n) => (
-        <View key={n.id} style={[ds.notifCard, !n.read && ds.notifUnread]}>
-          <View style={[ds.notifIcon, { backgroundColor: n.read ? colors.surfaceAlt : colors.primaryLight }]}>
+        <View key={n.id} style={[ds.notifCard, { backgroundColor: c.surface, borderColor: c.border }, !n.read && { borderColor: c.primaryMid, backgroundColor: c.primaryLight }]}>
+          <View style={[ds.notifIcon, { backgroundColor: n.read ? c.surfaceAlt : c.primaryLight }]}>
             <Icon
               name={n.read ? 'notifications-outline' : 'notifications'}
               size={18}
-              color={n.read ? colors.muted : colors.primary}
+              color={n.read ? c.muted : c.primary}
             />
           </View>
           <View style={{ flex: 1, gap: 3 }}>
-            <Text style={[ds.notifTitle, !n.read && { color: colors.primary }]}>{n.title}</Text>
-            <Text style={ds.notifBody}>{n.body}</Text>
+            <Text style={[ds.notifTitle, { color: c.text }, !n.read && { color: c.primary }]}>{n.title}</Text>
+            <Text style={[ds.notifBody, { color: c.muted }]}>{n.body}</Text>
           </View>
-          {!n.read && <View style={ds.unreadDot} />}
+          {!n.read && <View style={[ds.unreadDot, { backgroundColor: c.primary }]} />}
         </View>
       ))}
 
       {notifications.length === 0 && (
         <View style={ds.emptyState}>
-          <Icon name="notifications-off-outline" size={40} color={colors.muted} />
-          <Text style={ds.emptyTitle}>No notifications</Text>
-          <Text style={ds.emptyDesc}>We'll let you know when something needs your attention.</Text>
+          <Icon name="notifications-off-outline" size={40} color={c.muted} />
+          <Text style={[ds.emptyTitle, { color: c.textSecondary }]}>No notifications</Text>
+          <Text style={[ds.emptyDesc, { color: c.muted }]}>We'll let you know when something needs your attention.</Text>
         </View>
       )}
     </Page>
@@ -869,6 +878,7 @@ export function NotificationsScreen() {
 // SETTINGS DETAIL
 // ═══════════════════════════════════════════════════════════════
 export function SettingsDetailScreen() {
+  const c = useQarColors();
   const { section } = useLocalSearchParams<{ section: string }>();
   const normalized  = decodeURIComponent(section ?? 'settings').replaceAll('-', ' ');
   const language    = useQarWheelsStore((s) => s.language);
@@ -876,35 +886,35 @@ export function SettingsDetailScreen() {
   const favorites   = useQarWheelsStore((s) => s.favoriteGarageIds);
 
   return (
-    <Page title={normalized.replace(/\b\w/g, (c) => c.toUpperCase())}>
-      <View style={ds.card}>
-        <Text style={ds.eyebrow}>Account setting</Text>
-        <Text style={ds.cardTitle}>{normalized.replace(/\b\w/g, (c) => c.toUpperCase())}</Text>
-        <Text style={ds.cardMeta}>
+    <Page title={normalized.replace(/\b\w/g, (ch) => ch.toUpperCase())}>
+      <View style={[ds.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <Text style={[ds.eyebrow, { color: c.primary }]}>Account setting</Text>
+        <Text style={[ds.cardTitle, { color: c.text }]}>{normalized.replace(/\b\w/g, (ch) => ch.toUpperCase())}</Text>
+        <Text style={[ds.cardMeta, { color: c.muted }]}>
           This area is connected to your profile and will be fully wired to the production backend.
         </Text>
       </View>
 
       {/* Language picker */}
       {normalized.includes('language') && (
-        <View style={ds.card}>
-          <Text style={ds.sectionTitle}>Language</Text>
+        <View style={[ds.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Text style={[ds.sectionTitle, { color: c.text }]}>Language</Text>
           {(['en', 'ar'] as const).map((lang) => {
             const selected = language === lang;
             return (
               <Pressable
                 key={lang}
-                style={[ds.langRow, selected && ds.langRowActive]}
+                style={[ds.langRow, { borderTopColor: c.border }, selected && { backgroundColor: c.primaryLight }]}
                 onPress={() => { setLanguage(lang); void success(); }}
               >
                 <Text style={ds.langFlag}>{lang === 'en' ? '🇬🇧' : '🇶🇦'}</Text>
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={[ds.langName, selected && { color: colors.primary }]}>
+                  <Text style={[ds.langName, { color: c.text }, selected && { color: c.primary }]}>
                     {lang === 'en' ? 'English' : 'عربي (Arabic)'}
                   </Text>
-                  <Text style={ds.langSub}>{lang === 'en' ? 'Left-to-right layout' : 'Right-to-left layout'}</Text>
+                  <Text style={[ds.langSub, { color: c.muted }]}>{lang === 'en' ? 'Left-to-right layout' : 'Right-to-left layout'}</Text>
                 </View>
-                {selected && <Icon name="checkmark-circle" size={20} color={colors.primary} />}
+                {selected && <Icon name="checkmark-circle" size={20} color={c.primary} />}
               </Pressable>
             );
           })}
@@ -913,15 +923,15 @@ export function SettingsDetailScreen() {
 
       {/* Saved garages */}
       {normalized.includes('saved') && (
-        <View style={ds.card}>
-          <Text style={ds.sectionTitle}>Saved garages</Text>
+        <View style={[ds.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Text style={[ds.sectionTitle, { color: c.text }]}>Saved garages</Text>
           {favorites.length === 0 ? (
             <View style={ds.emptyState}>
-              <Icon name="heart-outline" size={32} color={colors.muted} />
-              <Text style={ds.emptyDesc}>No saved garages yet. Tap ♥ on any garage.</Text>
+              <Icon name="heart-outline" size={32} color={c.muted} />
+              <Text style={[ds.emptyDesc, { color: c.muted }]}>No saved garages yet. Tap ♥ on any garage.</Text>
             </View>
           ) : (
-            <Text style={ds.cardMeta}>{favorites.length} garage{favorites.length !== 1 ? 's' : ''} saved.</Text>
+            <Text style={[ds.cardMeta, { color: c.muted }]}>{favorites.length} garage{favorites.length !== 1 ? 's' : ''} saved.</Text>
           )}
         </View>
       )}
@@ -936,9 +946,18 @@ export function SettingsDetailScreen() {
 const cds = StyleSheet.create({
   safe:  { flex: 1 },
   navbar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.page, paddingVertical: 10,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.page, 
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    ...shadow.sm,
   },
   navBtn:  { width: 40, height: 40, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center', ...shadow.xs },
   navTitle: { ...typography.h4, flex: 1, textAlign: 'center' },

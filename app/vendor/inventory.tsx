@@ -62,7 +62,7 @@ export default function InventoryScreen() {
 
       {/* Low stock alert */}
       {lowStock.length > 0 && (
-        <View style={[s.alertBanner, { backgroundColor: '#F59E0B20', borderColor: '#F59E0B30' }]}>
+        <View style={[s.alertBanner, { backgroundColor: '#F59E0B20', borderColor: '#F59E0B30', marginTop: 60 }]}>
           <Ionicons name="warning-outline" size={16} color="#F59E0B" />
           <Text style={[s.alertText, { color: '#F59E0B' }]}>
             {lowStock.length} item{lowStock.length > 1 ? 's' : ''} low or out of stock — reorder needed
@@ -71,7 +71,7 @@ export default function InventoryScreen() {
       )}
 
       {/* Category filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catBar} contentContainerStyle={s.catBarContent}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[s.catBar, { paddingTop: lowStock.length === 0 ? 60 : 0 }]} contentContainerStyle={s.catBarContent}>
         {CATEGORIES.map((cat) => {
           const active = activeCategory === cat;
           return (
@@ -190,9 +190,18 @@ export default function InventoryScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.page, paddingVertical: 14,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.page, 
+    paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    ...shadow.sm,
   },
   navTitle: { ...typography.h3 },
   addBtn: { width: 38, height: 38, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },

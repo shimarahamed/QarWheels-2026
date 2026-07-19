@@ -65,7 +65,7 @@ export default function BookingDetailScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[s.content, { paddingTop: 60 }]} showsVerticalScrollIndicator={false}>
         <MotionScreen>
           {/* Status header */}
           <View style={[s.statusHeader, { backgroundColor: sc.bg, borderColor: `${sc.dot}30` }]}>
@@ -116,7 +116,8 @@ export default function BookingDetailScreen() {
               </Pressable>
               <Pressable
                 style={[s.contactBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
-                onPress={() => router.push(`/vendor/customer/${customer?.id ?? booking.customerName.replace(/\s/g, '_')}` as never)}
+                disabled={!customer?.id}
+              onPress={() => { if (customer?.id) router.push(`/vendor/customer/${customer.id}` as never); }}
               >
                 <Ionicons name="person-outline" size={15} color={c.textSecondary} />
                 <Text style={[s.contactBtnText, { color: c.textSecondary }]}>Profile</Text>
@@ -136,7 +137,7 @@ export default function BookingDetailScreen() {
             <Text style={[s.sectionTitle, { color: c.text }]}>Service</Text>
             <InfoRow label="Service" value={booking.service} c={c} />
             <InfoRow label="Category" value={booking.serviceCategory} c={c} />
-            <InfoRow label="Date" value={`${booking.date} · ${booking.timeSlot}`} c={c} />
+            <InfoRow label="Date" value={`${typeof booking.date === 'string' ? booking.date : ''}${booking.timeSlot ? ` · ${booking.timeSlot}` : ''}`} c={c} />
             <InfoRow label="Amount" value={`QAR ${booking.totalAmount}`} c={c} />
             {booking.paymentMethod ? <InfoRow label="Payment" value={booking.paymentMethod} c={c} /> : null}
             {booking.pickupEnabled || booking.dropoffEnabled ? (
@@ -209,9 +210,18 @@ export default function BookingDetailScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.page, paddingVertical: 10,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.page, 
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    ...shadow.sm,
   },
   backBtn: {
     width: 40, height: 40, borderRadius: radius.md,

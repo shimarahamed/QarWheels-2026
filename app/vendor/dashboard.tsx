@@ -1,12 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getAuth } from 'firebase/auth';
 import { useQarWheelsStore, useQarColors } from '@/lib/store';
 import { MotionScreen, MotionSurface } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { getStatusColor, getStatusLabel } from '@/lib/vendor-data';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
+import { saveVendorProfile, useVendorFirestoreBookings } from '@/lib/firestoreOps';
 
 export default function VendorDashboard() {
   const c = useQarColors();
@@ -14,6 +17,39 @@ export default function VendorDashboard() {
   const vendorTabBottom = useVendorTabBottom();
   const profile = useQarWheelsStore((s) => s.vendorProfile);
   const bookings = useQarWheelsStore((s) => s.vendorBookings);
+
+  const uid = getAuth().currentUser?.uid ?? null;
+
+  // Sync live bookings from Firestore into the vendor dashboard
+  useVendorFirestoreBookings(uid);
+
+  // Publish this vendor's profile to Firestore so they appear in the customer marketplace
+  useEffect(() => {
+    if (!uid) return;
+    void saveVendorProfile(uid, {
+      businessName: profile.businessName,
+      ownerName: profile.ownerName,
+      email: profile.email,
+      phone: profile.phone,
+      category: profile.category,
+      area: profile.area,
+      city: profile.city,
+      rating: profile.rating,
+      totalReviews: profile.totalReviews,
+      verified: profile.verified,
+      openNow: !profile.vacationMode,
+      vacationMode: profile.vacationMode,
+      openTime: profile.openTime,
+      closeTime: profile.closeTime,
+      workDays: profile.workDays,
+      startingPrice: 'QAR 100+',
+      startingPriceValue: 100,
+      responseTime: '15 min',
+      pickupAvailable: true,
+      warranty: '7-day warranty',
+      tags: profile.verified ? ['Verified'] : [],
+    });
+  }, [uid, profile.businessName, profile.vacationMode, profile.verified]);
 
   const todayBookings = bookings.filter((b) => b.date === 'Today');
   const pending = bookings.filter((b) => b.status === 'Pending').length;
@@ -63,7 +99,7 @@ export default function VendorDashboard() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16 }]}
+        contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16, paddingTop: 100 }]}
         showsVerticalScrollIndicator={false}
       >
         <MotionScreen style={s.dashboardStack}>
@@ -174,8 +210,8 @@ export default function VendorDashboard() {
                   { icon: 'calendar' as const, text: 'New booking: Omar Khalifa · AC check at 2 PM', time: '18 min ago', color: '#3B82F6' },
                   { icon: 'star' as const, text: 'Mohammed Al-Kuwari left a 5★ review', time: '1h ago', color: '#D4AF37' },
                   { icon: 'chatbubble' as const, text: 'Ahmed Al-Rashid sent a message', time: '2h ago', color: c.primary },
-                ].map((item, i) => (
-                  <View key={i} style={s.feedRow}>
+                ].map((item) => (
+                  <View key={item.text} style={s.feedRow}>
                     <View style={[s.feedIcon, { backgroundColor: `${item.color}20` }]}>
                       <Ionicons name={item.icon} size={16} color={item.color} />
                     </View>
@@ -230,9 +266,18 @@ const s = StyleSheet.create({
   safe: { flex: 1 },
 
   navbar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.page, paddingVertical: 12,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.page, 
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    ...shadow.sm,
   },
   navLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   navTitle: { ...typography.h4 },

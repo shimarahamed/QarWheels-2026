@@ -247,7 +247,7 @@ export default function VehicleOwnershipHub({ initialSection = 'overview' }: { i
       </View>
 
       <ScrollView
-        style={{ backgroundColor: c.background }}
+        style={{ backgroundColor: c.background, paddingTop: 60 }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
@@ -606,12 +606,18 @@ function SmallButton({ label, icon, onPress, c }: { label: string; icon: IconNam
 
 const styles = StyleSheet.create({
   navbar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: spacing.page,
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    ...shadow.sm,
   },
   navButton: {
     width: 42,

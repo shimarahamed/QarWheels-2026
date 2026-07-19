@@ -54,7 +54,7 @@ export default function VendorChatScreen() {
         </Pressable>
         <View style={{ flex: 1, gap: 1 }}>
           <Text style={[s.navTitle, { color: c.text }]}>{booking.customerName}</Text>
-          <Text style={[s.navSub, { color: c.muted }]}>{booking.service} · {booking.date}</Text>
+          <Text style={[s.navSub, { color: c.muted }]}>{booking.service || '—'} · {typeof booking.date === 'string' ? booking.date : ''}</Text>
         </View>
         <Pressable
           style={[s.detailBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
@@ -66,7 +66,7 @@ export default function VendorChatScreen() {
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView ref={scrollRef} contentContainerStyle={s.messages} showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} contentContainerStyle={[s.messages, { paddingTop: 60 }]} showsVerticalScrollIndicator={false}>
           {messages.map((msg) => {
             const isVendor = msg.sender === 'vendor';
             return (
@@ -138,9 +138,18 @@ export default function VendorChatScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: spacing.page, paddingVertical: 10,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 12,
+    paddingHorizontal: spacing.page, 
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    ...shadow.sm,
   },
   backBtn: {
     width: 40, height: 40, borderRadius: radius.md,

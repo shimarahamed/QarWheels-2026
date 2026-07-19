@@ -71,7 +71,31 @@ export type VendorInvoice = {
   subtotal: number;
   tax: number;
   discount: number;
+  discountType: 'fixed' | 'percent';
   total: number;
+  notes?: string;
+  counterOfferId?: string;
+};
+
+export type CounterOffer = {
+  id: string;
+  invoiceId: string;
+  bookingId: string;
+  customerName: string;
+  proposedTotal: number;
+  message: string;
+  status: 'Pending' | 'Accepted' | 'Declined';
+  createdAt: string;
+};
+
+export type VendorService = {
+  id: string;
+  name: string;
+  category: string;
+  basePrice: number;
+  duration: number; // minutes
+  description: string;
+  active: boolean;
 };
 
 export type VendorInvoiceLineItem = {
@@ -316,7 +340,7 @@ export const vendorInvoices: VendorInvoice[] = [
       { id: 'li_003', description: 'Oil Filter', type: 'part', quantity: 1, unitPrice: 35, total: 35 },
       { id: 'li_004', description: 'Labour charge', type: 'labour', quantity: 1, unitPrice: 30, total: 30 },
     ],
-    subtotal: 230, tax: 11.5, discount: 20, total: 221.5,
+    subtotal: 230, tax: 11.5, discount: 20, discountType: 'fixed', total: 221.5,
   },
   {
     id: 'inv_002', bookingId: 'vb_007', customerName: 'Mohammed Al-Kuwari', vehicle: '2023 Porsche Cayenne',
@@ -326,7 +350,7 @@ export const vendorInvoices: VendorInvoice[] = [
       { id: 'li_006', description: 'Wheel balancing (x4)', type: 'service', quantity: 4, unitPrice: 20, total: 80 },
       { id: 'li_007', description: 'Labour charge', type: 'labour', quantity: 1, unitPrice: 40, total: 40 },
     ],
-    subtotal: 240, tax: 12, discount: 0, total: 252,
+    subtotal: 240, tax: 12, discount: 0, discountType: 'fixed', total: 252,
   },
   {
     id: 'inv_003', bookingId: 'vb_001', customerName: 'Ahmed Al-Rashid', vehicle: '2023 Nissan Patrol',
@@ -337,9 +361,24 @@ export const vendorInvoices: VendorInvoice[] = [
       { id: 'li_010', description: 'Oil Filter', type: 'part', quantity: 1, unitPrice: 35, total: 35 },
       { id: 'li_011', description: 'Labour', type: 'labour', quantity: 1, unitPrice: 30, total: 30 },
     ],
-    subtotal: 255, tax: 12.75, discount: 0, total: 267.75,
+    subtotal: 255, tax: 12.75, discount: 0, discountType: 'fixed', total: 267.75,
   },
 ];
+
+export const vendorServices: VendorService[] = [
+  { id: 'svc_001', name: 'Oil & Filter Change', category: 'Maintenance', basePrice: 80, duration: 45, description: 'Drain, replace engine oil and filter. Includes multi-point check.', active: true },
+  { id: 'svc_002', name: 'Wheel Alignment', category: 'Tyres', basePrice: 120, duration: 60, description: 'Four-wheel computerised alignment. Includes printout report.', active: true },
+  { id: 'svc_003', name: 'Wheel Balancing', category: 'Tyres', basePrice: 20, duration: 20, description: 'Per wheel dynamic balancing.', active: true },
+  { id: 'svc_004', name: 'Brake Pad Replacement', category: 'Brakes', basePrice: 180, duration: 90, description: 'Front or rear brake pad set replacement (parts not included).', active: true },
+  { id: 'svc_005', name: 'AC System Check', category: 'AC', basePrice: 60, duration: 30, description: 'Cooling test, gas pressure check, cabin filter inspection.', active: true },
+  { id: 'svc_006', name: 'AC Gas Recharge', category: 'AC', basePrice: 150, duration: 60, description: 'Full AC refrigerant drain and recharge (R134a).', active: true },
+  { id: 'svc_007', name: 'Full Vehicle Diagnostics', category: 'Diagnostics', basePrice: 90, duration: 60, description: 'OBD-II scan + road test + 50-point inspection report.', active: true },
+  { id: 'svc_008', name: 'Battery Replacement', category: 'Electrical', basePrice: 40, duration: 30, description: 'Remove and fit new battery (battery sold separately).', active: true },
+  { id: 'svc_009', name: 'Tyre Change (x4)', category: 'Tyres', basePrice: 80, duration: 45, description: 'Mount and balance four tyres (tyres sold separately).', active: true },
+  { id: 'svc_010', name: 'Labour (per hour)', category: 'Labour', basePrice: 60, duration: 60, description: 'General mechanic labour charge per hour.', active: true },
+];
+
+export const counterOffers: CounterOffer[] = [];
 
 export const vendorPromotions: VendorPromotion[] = [
   {

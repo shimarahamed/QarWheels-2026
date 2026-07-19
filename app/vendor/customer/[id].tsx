@@ -41,7 +41,7 @@ export default function CustomerScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[s.content, { paddingTop: 60 }]} showsVerticalScrollIndicator={false}>
         <MotionScreen>
           {/* Profile card */}
           <View style={[s.profileCard, { backgroundColor: c.surface, borderColor: c.border }]}>
@@ -126,9 +126,9 @@ export default function CustomerScreen() {
                   >
                     <View style={{ flex: 1, gap: 2 }}>
                       <Text style={[s.historyService, { color: c.text }]}>{b.service}</Text>
-                      <Text style={[s.historyDate, { color: c.muted }]}>{b.date} · {b.timeSlot}</Text>
+                      <Text style={[s.historyDate, { color: c.muted }]}>{typeof b.date === 'string' ? b.date : ''}{b.timeSlot ? ` · ${b.timeSlot}` : ''}</Text>
                     </View>
-                    <Text style={[s.historyAmount, { color: c.text }]}>QAR {b.totalAmount}</Text>
+                    <Text style={[s.historyAmount, { color: c.text }]}>QAR {String(b.totalAmount ?? 0)}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -143,9 +143,18 @@ export default function CustomerScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.page, paddingVertical: 10,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.page, 
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    ...shadow.sm,
   },
   backBtn: {
     width: 40, height: 40, borderRadius: radius.md,

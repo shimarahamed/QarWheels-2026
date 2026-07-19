@@ -8,6 +8,28 @@ import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { vendorPayouts, vendorProfile } from '@/lib/vendor-data';
 
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheels.com';
+
+async function requestPayout(payload: {
+  payoutId: string;
+  amount: number;
+  bankName: string;
+  iban: string;
+  businessName: string;
+}) {
+  const res = await fetch(`${BACKEND_URL}/api/vendor/payout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Payout request failed (${res.status})${body ? `: ${body}` : ''}`);
+  }
+  return res.json() as Promise<{ requestId: string; estimatedDays: number }>;
+}
+
 export default function RequestPayoutScreen() {
   const c = useQarColors();
   const router = useRouter();
@@ -23,13 +45,27 @@ export default function RequestPayoutScreen() {
       return;
     }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1400));
-    setLoading(false);
-    Alert.alert(
-      'Payout Requested!',
-      `QAR ${netAmount.toFixed(2)} will be transferred to your ${kyc.bankName} account within 2–3 business days.`,
-      [{ text: 'Done', onPress: () => router.back() }],
-    );
+    try {
+      const result = await requestPayout({
+        payoutId: pendingPayout.id,
+        amount: netAmount,
+        bankName: kyc.bankName,
+        iban: kyc.iban,
+        businessName,
+      });
+      Alert.alert(
+        'Payout Requested!',
+        `QAR ${netAmount.toFixed(2)} will be transferred to your ${kyc.bankName} account within ${result.estimatedDays ?? 3} business days. Reference: ${result.requestId ?? 'PAY-' + Date.now()}`,
+        [{ text: 'Done', onPress: () => router.back() }],
+      );
+    } catch (e) {
+      Alert.alert(
+        'Request failed',
+        e instanceof Error ? e.message : 'Could not submit payout request. Please try again.',
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -44,7 +80,7 @@ export default function RequestPayoutScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[s.content, { paddingTop: 60 }]} showsVerticalScrollIndicator={false}>
         <MotionScreen>
           {/* Amount card */}
           <View style={[s.amountCard, { backgroundColor: c.primary }]}>
@@ -126,9 +162,18 @@ export default function RequestPayoutScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.page, paddingVertical: 10,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.page, 
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    ...shadow.sm,
   },
   backBtn: {
     width: 40, height: 40, borderRadius: radius.md,

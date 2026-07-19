@@ -38,7 +38,7 @@ export default function VendorBookings() {
         <Text style={[s.navCount, { color: c.muted }]}>{filtered.length} bookings</Text>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabBar} contentContainerStyle={s.tabBarContent}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[s.tabBar, { paddingTop: 60 }]} contentContainerStyle={s.tabBarContent}>
         {TABS.map((tab) => {
           const count = tab.key === 'All' ? bookings.length : bookings.filter((b) => b.status === tab.key).length;
           const active = activeTab === tab.key;
@@ -88,7 +88,7 @@ export default function VendorBookings() {
                           <View style={[s.statusDot, { backgroundColor: sc.dot }]} />
                           <Text style={[s.statusText, { color: sc.text }]}>{getStatusLabel(b.status)}</Text>
                         </View>
-                        <Text style={[s.dateText, { color: c.muted }]}>{b.date} · {b.timeSlot}</Text>
+                        <Text style={[s.dateText, { color: c.muted }]}>{typeof b.date === 'string' ? b.date : ''}{b.timeSlot ? ` · ${b.timeSlot}` : ''}</Text>
                       </View>
                     </View>
 
@@ -137,9 +137,18 @@ export default function VendorBookings() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.page, paddingVertical: 14,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.page, 
+    paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    ...shadow.sm,
   },
   navTitle: { ...typography.h3 },
   navCount: { fontSize: 13, fontWeight: '600' },

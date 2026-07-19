@@ -50,7 +50,7 @@ export default function VendorCalendar() {
       </View>
 
       {/* Week strip */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.weekStrip} contentContainerStyle={s.weekStripContent}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[s.weekStrip, { paddingTop: 60 }]} contentContainerStyle={s.weekStripContent}>
         {DAYS_OF_WEEK.map((day, i) => {
           const active = selectedDay === i;
           const isWorkDay = profile.workDays.includes(day);
@@ -186,9 +186,18 @@ export default function VendorCalendar() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.page, paddingVertical: 12,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.page, 
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    ...shadow.sm,
   },
   navTitle: { ...typography.h3 },
   navInfo: { flexDirection: 'row', alignItems: 'center', gap: 10 },

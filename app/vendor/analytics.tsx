@@ -28,7 +28,7 @@ export default function AnalyticsScreen() {
       </View>
 
       {/* Period selector */}
-      <View style={s.periodRow}>
+      <View style={[s.periodRow, { paddingTop: 60 }]}>
         {PERIODS.map((p) => (
           <Pressable
             key={p}
@@ -199,8 +199,15 @@ export default function AnalyticsScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    paddingHorizontal: spacing.page, paddingVertical: 14,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    paddingHorizontal: spacing.page, 
+    paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    ...shadow.sm,
   },
   navTitle: { ...typography.h3 },
 

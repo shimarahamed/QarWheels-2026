@@ -35,7 +35,7 @@ export function FlowScreen({ screenKey }: { screenKey: FlowScreenKey }) {
         <View style={[styles.navButton, { backgroundColor: c.surface }]} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} style={{ paddingTop: 60 }}>
         <MotionScreen>
         <View style={[styles.hero, { backgroundColor: c.surface, borderColor: c.border }]}>
           <View style={[styles.heroIcon, { backgroundColor: c.primaryLight }]}>
@@ -101,6 +101,11 @@ export function createFlowScreen(screenKey: FlowScreenKey) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   navbar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.page,
@@ -108,6 +113,7 @@ const styles = StyleSheet.create({
     minHeight: 56,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
+    ...shadow.sm,
   },
   navButton: {
     width: 44,

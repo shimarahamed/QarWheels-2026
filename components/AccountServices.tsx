@@ -10,7 +10,7 @@ import AnimatedPressable from '@/components/AnimatedPressable';
 import { useAuthContext } from '@/lib/AuthContext';
 import { auth, firestore } from '@/lib/firebase';
 import { success, tap } from '@/lib/haptics';
-import { garages } from '@/lib/marketplace';
+import { garages, type Garage } from '@/lib/marketplace';
 import { MotionScreen, MotionSurface } from '@/lib/motion';
 import { useQarColors, useQarWheelsStore } from '@/lib/store';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
@@ -299,15 +299,17 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
     }
 
     if (section === 'savedGarages') {
-      const saved = favorites.map((garageId) => garages.find((garage) => garage.id === garageId)).filter(Boolean);
+      const saved = favorites
+        .map((garageId) => garages.find((garage) => garage.id === garageId))
+        .filter((g): g is Garage => g !== undefined);
       return (
         <SectionCard title="Saved garages" subtitle="Fast access to trusted workshops and repeat bookings." icon="heart-outline" c={c}>
           {saved.length === 0 ? (
             <EmptyState title="No saved garages yet" body="Save a garage from discovery to keep it here." icon="heart-outline" c={c} />
           ) : (
-            saved.map((garage) => garage ? (
+            saved.map((garage) => (
               <ActionRow key={garage.id} label={garage.name} meta={`${garage.area} - ${garage.rating} rating - ${garage.startingPrice}`} icon="business-outline" onPress={() => router.push(route(`/garage/${garage.id}`))} c={c} />
-            ) : null)
+            ))
           )}
           <PrimaryButton label="Explore garages" icon="search-outline" onPress={() => router.push(route('/services'))} c={c} />
         </SectionCard>
@@ -318,7 +320,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
       return (
         <SectionCard title="Booking history" subtitle="Upcoming, completed, cancelled, and invoice-ready service records." icon="calendar-outline" c={c}>
           {bookings.slice(0, 5).map((booking) => (
-            <ActionRow key={booking.id} label={booking.service} meta={`${booking.garage} - ${booking.status} - ${booking.date}`} icon="calendar-outline" onPress={() => router.push(route(`/booking/${booking.id}`))} c={c} />
+            <ActionRow key={booking.id} label={booking.service || 'Service'} meta={`${booking.garage || '—'} - ${booking.status} - ${typeof booking.date === 'string' ? booking.date : ''}`} icon="calendar-outline" onPress={() => router.push(route(`/booking/${booking.id}`))} c={c} />
           ))}
           <PrimaryButton label="Open bookings tab" icon="albums-outline" onPress={() => router.push(route('/(tabs)/bookings'))} c={c} />
         </SectionCard>

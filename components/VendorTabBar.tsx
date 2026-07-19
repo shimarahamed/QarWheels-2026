@@ -1,9 +1,18 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { usePathname, useRouter } from 'expo-router';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { getQarColors, shadow } from '@/lib/theme';
+import Animated, {
+  FadeIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
+import { getQarColors } from '@/lib/theme';
 import { useQarWheelsStore } from '@/lib/store';
 import { tap } from '@/lib/haptics';
 import { motion } from '@/lib/motion';
@@ -21,124 +30,332 @@ interface VendorTabDef {
 export const VENDOR_TAB_PATHS: VendorTabDef[] = [
   { path: '/vendor/dashboard',  label: 'Dashboard', icon: 'grid-outline',      iconActive: 'grid'          },
   { path: '/vendor/bookings',   label: 'Bookings',  icon: 'calendar-outline',  iconActive: 'calendar'      },
-  { path: '/vendor/calendar',   label: '',          icon: 'add',               iconActive: 'add', isFab: true },
+  { path: '/vendor/services',   label: '',          icon: 'add',               iconActive: 'add', isFab: true },
   { path: '/vendor/analytics',  label: 'Analytics', icon: 'bar-chart-outline', iconActive: 'bar-chart'     },
   { path: '/vendor/settings',   label: 'Settings',  icon: 'settings-outline',  iconActive: 'settings'      },
 ];
 
-const TAB_ICON_SIZE = 22;
-export const VENDOR_TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 58 : 56;
+const ICON_SIZE     = 26;
+const ICON_SIZE_FAB = 28;
+const BAR_HEIGHT    = 62;
+const BAR_RADIUS    = 31;
+
+export const VENDOR_TAB_BAR_HEIGHT = BAR_HEIGHT;
 
 export function useVendorTabBottom(): number {
   const insets = useSafeAreaInsets();
-  const bottomPad = insets.bottom > 0 ? insets.bottom : (Platform.OS === 'ios' ? 16 : 8);
+  const bottomPad = insets.bottom > 0 ? insets.bottom - 4 : (Platform.OS === 'android' ? 4 : 0);
   return VENDOR_TAB_BAR_HEIGHT + bottomPad;
 }
 
-// Kept for backwards compat — prefer useVendorTabBottom() in screens
-export const VENDOR_TAB_BOTTOM = Platform.OS === 'ios' ? 98 : 70;
+export const VENDOR_TAB_BOTTOM = Platform.OS === 'ios' ? 96 : 76;
 
+// ─────────────────────────────────────────────────────────────────────
+// Single tab item
+// ─────────────────────────────────────────────────────────────────────
+function VendorTabItem({
+  tab,
+  focused,
+  onPress,
+  index,
+  isDark,
+  c,
+}: {
+  tab: VendorTabDef;
+  focused: boolean;
+  onPress: () => void;
+  index: number;
+  isDark: boolean;
+  c: ReturnType<typeof getQarColors>;
+}) {
+  const press     = useSharedValue(1);
+  const capsule   = useSharedValue(focused ? 1 : 0);
+  const iconScale = useSharedValue(focused ? 1.12 : 1);
+
+  if (focused) {
+    capsule.value   = withSpring(1, { damping: 18, stiffness: 320, mass: 0.6 });
+    iconScale.value = withSpring(1.12, { damping: 14, stiffness: 400, mass: 0.5 });
+  } else {
+    capsule.value   = withTiming(0, { duration: 180 });
+    iconScale.value = withTiming(1, { duration: 160 });
+  }
+
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: press.value }],
+  }));
+
+  const capsuleStyle = useAnimatedStyle(() => ({
+    opacity: capsule.value,
+    transform: [
+      { scale: interpolate(capsule.value, [0, 1], [0.7, 1], Extrapolation.CLAMP) },
+    ],
+  }));
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: iconScale.value }],
+  }));
+
+  return (
+    <Pressable
+      style={ss.tabItem}
+      onPress={onPress}
+      onPressIn={() => { press.value = withSpring(0.82, motion.pressIn); }}
+      onPressOut={() => { press.value = withSpring(1, motion.pressOut); }}
+      accessible
+      accessibilityRole="tab"
+      accessibilityLabel={tab.label || 'Tab'}
+      accessibilityState={{ selected: focused }}
+      hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+    >
+      <Animated.View
+        entering={FadeIn.duration(200).delay(index * 40)}
+        style={[ss.tabInner, pressStyle]}
+      >
+        <Animated.View
+          style={[
+            ss.activeCapsule,
+            capsuleStyle,
+            {
+              backgroundColor: isDark
+                ? 'rgba(255,255,255,0.15)'
+                : 'rgba(255,255,255,0.76)',
+              borderColor: isDark
+                ? 'rgba(255,255,255,0.22)'
+                : 'rgba(255,255,255,0.95)',
+              shadowColor: '#fff',
+              shadowOpacity: isDark ? 0.22 : 1.0,
+              shadowRadius: 0,
+              shadowOffset: { width: 0, height: 1 },
+            },
+          ]}
+        />
+        <Animated.View style={iconStyle}>
+          <Ionicons
+            name={focused ? tab.iconActive : tab.icon}
+            size={ICON_SIZE}
+            color={focused ? c.primary : isDark ? 'rgba(255,255,255,0.38)' : 'rgba(0,0,0,0.32)'}
+          />
+        </Animated.View>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Vendor floating tab bar
+// ─────────────────────────────────────────────────────────────────────
 export function VendorTabBar() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const insets = useSafeAreaInsets();
+  const router    = useRouter();
+  const pathname  = usePathname();
+  const insets    = useSafeAreaInsets();
   const themeMode = useQarWheelsStore((s) => s.themeMode);
-  const c = getQarColors(themeMode);
-  const bottomPad = insets.bottom > 0 ? insets.bottom : (Platform.OS === 'ios' ? 16 : 8);
-  const totalHeight = VENDOR_TAB_BAR_HEIGHT + bottomPad;
-  const fabScale = useSharedValue(1);
+  const c         = getQarColors(themeMode);
+  const isDark    = themeMode === 'dark';
+
+  const bottomOffset = insets.bottom > 0
+    ? insets.bottom - 4
+    : (Platform.OS === 'android' ? 4 : 0);
+
+  const fabScale     = useSharedValue(1);
   const fabAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: fabScale.value }] }));
 
   return (
     <View
-      style={[
-        ss.bar,
-        {
-          height: totalHeight,
-          paddingBottom: bottomPad,
-          backgroundColor: c.surface,
-          borderTopColor: c.border,
-          ...shadow.tab,
-        },
-      ]}
+      pointerEvents="box-none"
+      style={[ss.barOuter, { bottom: bottomOffset }]}
     >
-      {VENDOR_TAB_PATHS.map((tab, index) => {
-        const focused = pathname === tab.path || pathname.startsWith(tab.path + '/');
+      <View style={[
+        ss.pill,
+        {
+          shadowColor: isDark ? '#000' : '#1a1a2e',
+          shadowOpacity: isDark ? 0.55 : 0.22,
+          shadowRadius: 40,
+          shadowOffset: { width: 0, height: 20 },
+          elevation: 24,
+        },
+      ]}>
+        {Platform.OS === 'ios' ? (
+          <BlurView
+            intensity={isDark ? 80 : 65}
+            tint={isDark ? 'systemChromeMaterialDark' : 'systemChromeMaterial'}
+            style={[StyleSheet.absoluteFillObject, { borderRadius: BAR_RADIUS }]}
+          />
+        ) : (
+          <View style={[
+            StyleSheet.absoluteFillObject,
+            {
+              borderRadius: BAR_RADIUS,
+              backgroundColor: isDark ? 'rgba(18,18,22,0.92)' : 'rgba(248,248,252,0.92)',
+            },
+          ]} />
+        )}
 
-        const onPress = () => {
-          void tap();
-          if (!focused) router.push(tab.path as never);
-        };
+        <View
+          pointerEvents="none"
+          style={[ss.specularpill, {
+            backgroundColor: isDark
+              ? 'rgba(255,255,255,0.09)'
+              : 'rgba(255,255,255,0.82)',
+          }]}
+        />
 
-        if (tab.isFab) {
-          return (
-            <Pressable
-              key={tab.path}
-              style={ss.fabWrap}
-              onPress={() => { void tap(); router.push('/vendor/calendar' as never); }}
-              onPressIn={() => { fabScale.value = withSpring(0.88, motion.pressIn); }}
-              onPressOut={() => { fabScale.value = withSpring(1.0, motion.pressOut); }}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel="Open calendar"
-            >
-              <Animated.View
-                entering={FadeIn.duration(motion.base).delay(80)}
-                style={[ss.fab, { backgroundColor: c.primary }, shadow.primary, fabAnimStyle]}
-              >
-                <Ionicons name="add" size={28} color="#fff" />
-              </Animated.View>
-            </Pressable>
-          );
-        }
+        <View
+          pointerEvents="none"
+          style={[ss.borderRing, {
+            borderColor: isDark
+              ? 'rgba(255,255,255,0.12)'
+              : 'rgba(255,255,255,0.70)',
+          }]}
+        />
 
-        return (
-          <Pressable
-            key={tab.path}
-            style={ss.tabItem}
-            onPress={onPress}
-            accessible
-            accessibilityRole="tab"
-            accessibilityLabel={tab.label}
-            accessibilityState={{ selected: focused }}
-          >
-            <Animated.View
-              entering={FadeIn.duration(motion.base).delay(index * 30)}
-              style={ss.tabInner}
-            >
-              <Ionicons
-                name={focused ? tab.iconActive : tab.icon}
-                size={TAB_ICON_SIZE}
-                color={focused ? c.primary : c.muted}
+        <View
+          pointerEvents="none"
+          style={[ss.brandBleed, { backgroundColor: c.primary }]}
+        />
+
+        <View style={ss.innerRow}>
+          {VENDOR_TAB_PATHS.map((tab, index) => {
+            const focused = pathname === tab.path || pathname.startsWith(tab.path + '/');
+
+            const onPress = () => {
+              void tap();
+              if (!focused) router.push(tab.path as never);
+            };
+
+            if (tab.isFab) {
+              return (
+                <Pressable
+                  key={tab.path}
+                  style={ss.fabWrap}
+                  onPress={() => { void tap(); router.push('/vendor/services' as never); }}
+                  onPressIn={() => { fabScale.value = withSpring(0.84, motion.pressIn); }}
+                  onPressOut={() => { fabScale.value = withSpring(1.0, motion.pressOut); }}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Open services catalogue"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Animated.View style={[ss.fab, fabAnimStyle, {
+                    backgroundColor: c.primary,
+                    shadowColor: c.primary,
+                    shadowOpacity: 0.6,
+                    shadowRadius: 20,
+                    shadowOffset: { width: 0, height: 8 },
+                    elevation: 12,
+                  }]}>
+                    <View style={ss.fabSpecular} pointerEvents="none" />
+                    <Ionicons name="add" size={ICON_SIZE_FAB} color="#fff" />
+                  </Animated.View>
+                </Pressable>
+              );
+            }
+
+            return (
+              <VendorTabItem
+                key={tab.path}
+                tab={tab}
+                focused={focused}
+                onPress={onPress}
+                index={index}
+                isDark={isDark}
+                c={c}
               />
-              {tab.label ? (
-                <Text style={[ss.tabLabel, { color: focused ? c.primary : c.muted }]}>
-                  {tab.label}
-                </Text>
-              ) : null}
-              {focused && <View style={[ss.activeDot, { backgroundColor: c.primary }]} />}
-            </Animated.View>
-          </Pressable>
-        );
-      })}
+            );
+          })}
+        </View>
+      </View>
     </View>
   );
 }
 
 const ss = StyleSheet.create({
-  bar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    flexDirection: 'row', alignItems: 'center',
-    borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8, paddingHorizontal: 6,
+  barOuter: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    alignItems: 'center',
+    pointerEvents: 'box-none',
   },
-  tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 50, paddingHorizontal: 3 },
-  tabInner: { alignItems: 'center', justifyContent: 'center', gap: 4, minWidth: 58 },
-  tabLabel: { fontSize: 10, fontWeight: '700', lineHeight: 13, letterSpacing: 0.1, textAlign: 'center' },
-  activeDot: { width: 4, height: 4, borderRadius: 2, marginTop: 1 },
-  fabWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 50, paddingHorizontal: 3 },
+  pill: {
+    width: '100%',
+    height: BAR_HEIGHT,
+    borderRadius: BAR_RADIUS,
+    overflow: 'hidden',
+  },
+  specularpill: {
+    position: 'absolute',
+    left: 1,
+    right: 1,
+    top: 1,
+    height: '42%',
+    borderTopLeftRadius: BAR_RADIUS - 1,
+    borderTopRightRadius: BAR_RADIUS - 1,
+  },
+  borderRing: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: BAR_RADIUS,
+    borderWidth: 1,
+    zIndex: 1,
+  },
+  brandBleed: {
+    position: 'absolute',
+    left: -20,
+    top: -20,
+    width: 80,
+    height: 100,
+    borderRadius: 40,
+    opacity: 0.08,
+  },
+  innerRow: {
+    position: 'absolute',
+    inset: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    zIndex: 2,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: BAR_HEIGHT,
+  },
+  tabInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 52,
+    height: 44,
+    position: 'relative',
+  },
+  activeCapsule: {
+    position: 'absolute',
+    inset: 0,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  fabWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: BAR_HEIGHT,
+  },
   fab: {
-    width: 54, height: 54, borderRadius: 27,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: Platform.OS === 'ios' ? 6 : 4,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginTop: -8,
+  },
+  fabSpecular: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: '46%',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    backgroundColor: 'rgba(255,255,255,0.28)',
   },
 });

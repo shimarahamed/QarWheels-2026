@@ -12,6 +12,7 @@ import { AuthProvider, useAuthContext } from '@/lib/AuthContext';
 import { AppQueryProvider } from '@/lib/query-client';
 import { useQarWheelsStore } from '@/lib/store';
 import { motion } from '@/lib/motion';
+import { registerForPushNotificationsAsync } from '@/lib/notifications';
 
 export {
   ErrorBoundary,
@@ -43,22 +44,37 @@ export default function RootLayout() {
 }
 
 function AuthGuard({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuthContext();
+  const { user, loading, wasAuthenticated } = useAuthContext();
   const vendorAuthenticated = useQarWheelsStore((state) => state.vendorAuthenticated);
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
+    // Wait until Firebase has resolved auth state
     if (loading) return;
-    const inAuthGroup = segments[0] === '(auth)';
+
+    const inAuthGroup   = segments[0] === '(auth)';
+    const inTabsGroup   = segments[0] === '(tabs)';
     const inVendorGroup = segments[0] === 'vendor';
-    if (!user && !vendorAuthenticated && !inAuthGroup) {
+
+    if (user) {
+      // Logged in — send to tabs if still stuck in auth flow
+      if (inAuthGroup) router.replace('/(tabs)' as never);
+      return;
+    }
+
+    if (vendorAuthenticated) {
+      if (!inVendorGroup && !inAuthGroup) router.replace('/vendor/dashboard' as never);
+      return;
+    }
+
+    // Not logged in. Only redirect to splash if:
+    // 1. We are outside the auth group, AND
+    // 2. The user was NOT previously authenticated (avoids flash-to-splash on remount)
+    if (!inAuthGroup && !wasAuthenticated) {
       router.replace('/(auth)/splash' as never);
     }
-    if (!user && vendorAuthenticated && !inVendorGroup && !inAuthGroup) {
-      router.replace('/vendor/dashboard' as never);
-    }
-  }, [user, vendorAuthenticated, loading, segments, router]);
+  }, [user, vendorAuthenticated, loading, wasAuthenticated, segments, router]);
 
   return <>{children}</>;
 }
@@ -67,6 +83,10 @@ function RootLayoutNav() {
   const systemScheme = useColorScheme();
   const themeMode = useQarWheelsStore((state) => state.themeMode);
   const colorScheme = themeMode ?? systemScheme;
+
+  useEffect(() => {
+    void registerForPushNotificationsAsync();
+  }, []);
   const routeAnimation = Platform.OS === 'android' ? 'ios_from_right' : 'default';
 
   const bg = colorScheme === 'dark' ? '#070A0E' : '#F7F3F1';

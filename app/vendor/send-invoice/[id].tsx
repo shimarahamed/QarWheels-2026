@@ -8,6 +8,27 @@ import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { findVendorInvoice } from '@/lib/vendor-data';
 
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheels.com';
+
+async function sendInvoiceRequest(payload: {
+  invoiceId: string;
+  channels: string[];
+  email?: string;
+  message: string;
+}) {
+  const res = await fetch(`${BACKEND_URL}/api/invoice/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Send failed (${res.status})${body ? `: ${body}` : ''}`);
+  }
+  return res.json() as Promise<{ sent: boolean; channels: string[] }>;
+}
+
 export default function SendInvoiceScreen() {
   const c = useQarColors();
   const router = useRouter();
@@ -30,13 +51,32 @@ export default function SendInvoiceScreen() {
     }
     Keyboard.dismiss();
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    Alert.alert(
-      'Invoice Sent!',
-      `Invoice #${invoice.id.replace('inv_', '').toUpperCase()} sent to ${invoice.customerName}.`,
-      [{ text: 'Done', onPress: () => router.back() }],
-    );
+
+    const channels: string[] = [];
+    if (sendSMS) channels.push('sms');
+    if (sendEmail) channels.push('email');
+    if (sendWhatsApp) channels.push('whatsapp');
+
+    try {
+      await sendInvoiceRequest({
+        invoiceId: invoice.id,
+        channels,
+        email: sendEmail ? email.trim() : undefined,
+        message: message.trim(),
+      });
+      Alert.alert(
+        'Invoice Sent!',
+        `Invoice #${invoice.id.replace('inv_', '').toUpperCase()} sent to ${invoice.customerName} via ${channels.join(', ')}.`,
+        [{ text: 'Done', onPress: () => router.back() }],
+      );
+    } catch (e) {
+      Alert.alert(
+        'Send failed',
+        e instanceof Error ? e.message : 'Could not send invoice. Please check your connection and try again.',
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

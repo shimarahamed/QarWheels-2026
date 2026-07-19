@@ -45,14 +45,14 @@ export default function AssignStaffScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[s.content, { paddingTop: 60 }]} showsVerticalScrollIndicator={false}>
         <MotionScreen>
           {/* Booking context */}
           <View style={[s.contextCard, { backgroundColor: c.surface, borderColor: c.border }]}>
             <View style={{ gap: 2 }}>
               <Text style={[s.contextCustomer, { color: c.text }]}>{booking.customerName}</Text>
               <Text style={[s.contextService, { color: c.textSecondary }]}>{booking.service}</Text>
-              <Text style={[s.contextDate, { color: c.muted }]}>{booking.date} · {booking.timeSlot}</Text>
+              <Text style={[s.contextDate, { color: c.muted }]}>{typeof booking.date === 'string' ? booking.date : ''}{booking.timeSlot ? ` · ${booking.timeSlot}` : ''}</Text>
             </View>
             {booking.staffName ? (
               <View style={[s.currentStaffBadge, { backgroundColor: c.primaryLight, borderColor: c.primaryMid }]}>
@@ -113,9 +113,18 @@ export default function AssignStaffScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.page, paddingVertical: 10,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.page, 
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    ...shadow.sm,
   },
   backBtn: {
     width: 40, height: 40, borderRadius: radius.md,

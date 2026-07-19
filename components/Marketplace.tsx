@@ -12,9 +12,11 @@ import {
   Image,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -22,9 +24,9 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { type Booking, type Garage, garages as firestoreGarages, popularJobs, serviceCategories } from '@/lib/marketplace';
-import { type FirestoreBooking, type FirestoreCar } from '@/lib/firestoreOps';
+import { type FirestoreBooking, type FirestoreCar, useFirestoreBookings, useVendors } from '@/lib/firestoreOps';
 import { auth, firestore } from '@/lib/firebase';
 import { useAuthContext } from '@/lib/AuthContext';
 import { getQarColors, getThemedStatusColors, type QarColors, radius, shadow, spacing, typography } from '@/lib/theme';
@@ -40,14 +42,20 @@ import {
 
 // ── Constants ─────────────────────────────────────────────────────
 // Extra padding so content clears the absolute-positioned tab bar.
-// 52 (bar content) + 34 (safe area on notched iPhone) + 12 breathing room = 98 iOS
-// 50 (bar content) + 8 (Android safe area) + 12 breathing room = 70 Android
-const TAB_BOTTOM = Platform.OS === 'ios' ? 98 : 70;
+// iOS 26 floating pill: 62 (bar) + 34 (safe area) + 10 (gap above indicator) + 14 breathing = 120
+// Android: 62 (bar) + 14 (bottom gap) + 14 breathing = 90
+const TAB_BOTTOM = Platform.OS === 'ios' ? 120 : 90;
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 function route(path: string) { return path as never; }
 function Icon({ name, size = 18, color }: { name: IoniconName; size?: number; color: string }) {
   return <Ionicons name={name} size={size} color={color} />;
+}
+function timeGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
 }
 
 // ── Static home-screen data ────────────────────────────────────────
@@ -153,9 +161,40 @@ const ACCOUNT_MENU_SECTIONS = [
   },
 ];
 
+// ── Pull-to-refresh hook ───────────────────────────────────────────
+
+function useRefresh(onRefresh?: () => Promise<void>) {
+  const [refreshing, setRefreshing] = useState(false);
+  const c = useQarColors();
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await onRefresh?.();
+      // Minimum visual delay so the spinner is satisfying
+      await new Promise<void>((r) => setTimeout(r, 600));
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const control = (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={handleRefresh}
+      tintColor={c.primary}
+      colors={[c.primary]}
+      progressBackgroundColor={c.surface}
+    />
+  );
+
+  return { refreshing, handleRefresh, control };
+}
+
 // ── Shared sub-components ──────────────────────────────────────────
 
-function ScreenWrap({ c, children }: { c: QarColors; children: React.ReactNode }) {
+function ScreenWrap({ c, children, onRefresh }: { c: QarColors; children: React.ReactNode; onRefresh?: () => Promise<void> }) {
+  const { control } = useRefresh(onRefresh);
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['top']}>
       <ScrollView
@@ -163,6 +202,7 @@ function ScreenWrap({ c, children }: { c: QarColors; children: React.ReactNode }
         contentContainerStyle={{ paddingBottom: TAB_BOTTOM + 18, gap: spacing.section }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        refreshControl={control}
       >
         <MotionScreen>
           {children}
@@ -173,7 +213,7 @@ function ScreenWrap({ c, children }: { c: QarColors; children: React.ReactNode }
 }
 
 // ── GarageListCard ─────────────────────────────────────────────────
-function GarageListCard({ garage, c }: { garage: typeof HOME_GARAGES[0]; c: QarColors }) {
+function GarageListCard({ garage, c }: { garage: Garage; c: QarColors }) {
   const router = useRouter();
   const isFav = useQarWheelsStore((s) => s.favoriteGarageIds.includes(garage.id));
   const toggleFav = useQarWheelsStore((s) => s.toggleFavoriteGarage);
@@ -193,7 +233,7 @@ function GarageListCard({ garage, c }: { garage: typeof HOME_GARAGES[0]; c: QarC
           </Pressable>
         </View>
 
-        <Text style={[ss.garageSpecialty, { color: c.muted }]}>{garage.specialty}</Text>
+        <Text style={[ss.garageSpecialty, { color: c.muted }]}>{garage.type}</Text>
 
         <View style={ss.garageFactRow}>
           <Icon name="star" size={12} color="#F59E0B" />
@@ -201,20 +241,20 @@ function GarageListCard({ garage, c }: { garage: typeof HOME_GARAGES[0]; c: QarC
           <Text style={[ss.garageFact, { color: c.muted }]}>({garage.reviews})</Text>
           <Text style={[ss.garageDot, { color: c.muted }]}>·</Text>
           <Icon name="time-outline" size={11} color={c.muted} />
-          <Text style={[ss.garageFact, { color: c.muted }]}>{garage.response}</Text>
+          <Text style={[ss.garageFact, { color: c.muted }]}>{garage.responseTime}</Text>
           <Text style={[ss.garageDot, { color: c.muted }]}>·</Text>
-          <Text style={[ss.garageFact, { color: c.text, fontWeight: '700' }]}>{garage.price}</Text>
+          <Text style={[ss.garageFact, { color: c.text, fontWeight: '700' }]}>{garage.startingPrice}</Text>
         </View>
 
         <View style={ss.tagRow}>
-          <View style={[ss.openPill, { backgroundColor: garage.isOpen ? 'rgba(34,197,94,0.14)' : c.surfaceAlt }]}>
-            <View style={[ss.openDot, { backgroundColor: garage.isOpen ? '#22C55E' : c.muted }]} />
-            <Text style={[ss.openText, { color: garage.isOpen ? '#22C55E' : c.muted }]}>
-              {garage.isOpen ? 'Open' : 'Closed'}
+          <View style={[ss.openPill, { backgroundColor: garage.openNow ? 'rgba(34,197,94,0.14)' : c.surfaceAlt }]}>
+            <View style={[ss.openDot, { backgroundColor: garage.openNow ? '#22C55E' : c.muted }]} />
+            <Text style={[ss.openText, { color: garage.openNow ? '#22C55E' : c.muted }]}>
+              {garage.openNow ? 'Open' : 'Closed'}
             </Text>
           </View>
 
-          {garage.isVerified && (
+          {garage.verified && (
             <View style={[ss.verifiedPill, { backgroundColor: 'rgba(227,30,36,0.12)' }]}>
               <Icon name="shield-checkmark" size={10} color={c.primary} />
               <Text style={[ss.verifiedText, { color: c.primary }]}>Verified</Text>
@@ -242,13 +282,18 @@ export function HomeScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const unread = useQarWheelsStore((s) => s.notifications.filter((n) => !n.read).length);
   const [activeBrand, setActiveBrand] = useState('All');
+  const { vendors: liveVendors, loading: vendorsLoading } = useVendors();
 
   const firstName = user?.displayName?.split(' ')[0] ?? user?.email?.split('@')[0] ?? 'there';
-  const catCardWidth = Math.floor((screenWidth - spacing.page * 2 - 20) / 3);
   const trustCardWidth = Math.floor((screenWidth - spacing.page * 2 - 10) / 2);
 
+  const handleRefresh = async () => {
+    // Firestore listeners are always live — nothing to re-fetch.
+    // The 600ms minimum in useRefresh provides the satisfying spinner feedback.
+  };
+
   return (
-    <ScreenWrap c={c}>
+    <ScreenWrap c={c} onRefresh={handleRefresh}>
 
       {/* ── Header ─────────────────────────────────────────────── */}
       <View style={[ss.header, { paddingHorizontal: spacing.page }]}>
@@ -284,7 +329,7 @@ export function HomeScreen() {
 
       {/* ── Greeting ───────────────────────────────────────────── */}
       <View style={ss.greetingBlock}>
-        <Text style={[ss.greetingMain, { color: c.text }]}>Good morning, {firstName}</Text>
+        <Text style={[ss.greetingMain, { color: c.text }]}>{timeGreeting()}, {firstName}</Text>
         <Text style={[ss.greetingSub, { color: c.textSecondary }]}>What's your next move?</Text>
         <Text style={[ss.greetingAr, { color: c.muted }]}>ما هي خطوتك القادمة؟</Text>
       </View>
@@ -327,12 +372,21 @@ export function HomeScreen() {
             >
               <Text style={ss.heroBtnPrimaryText}>Explore Now</Text>
             </Pressable>
-            <Pressable
-              style={ss.heroBtnGhost}
-              onPress={() => { void tap(); router.push(route('/(auth)/register')); }}
-            >
-              <Text style={ss.heroBtnGhostText}>Join Free</Text>
-            </Pressable>
+            {user ? (
+              <Pressable
+                style={ss.heroBtnGhost}
+                onPress={() => { void tap(); router.push(route('/checkout/emergency')); }}
+              >
+                <Text style={ss.heroBtnGhostText}>Book Now</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                style={ss.heroBtnGhost}
+                onPress={() => { void tap(); router.push(route('/(auth)/register')); }}
+              >
+                <Text style={ss.heroBtnGhostText}>Join Free</Text>
+              </Pressable>
+            )}
           </View>
         </View>
       </View>
@@ -346,7 +400,7 @@ export function HomeScreen() {
             onPress={() => { void tap(); router.push(qa.href as never); }}
           >
             <View style={[ss.quickIcon, { backgroundColor: c.surface, borderColor: c.border }]}>
-              <Icon name={qa.icon} size={22} color={c.text} />
+              <Icon name={qa.icon} size={22} color={c.primary} />
             </View>
             <Text style={[ss.quickLabel, { color: c.muted }]}>{qa.label}</Text>
           </Pressable>
@@ -396,7 +450,7 @@ export function HomeScreen() {
             <Text style={ss.bookCtaSubAr}>سريع. موثوق. بأسعار مناسبة.</Text>
             <Pressable
               style={[ss.bookCtaBtn, { backgroundColor: '#fff' }]}
-              onPress={() => { void tap(); router.push(route('/checkout/new')); }}
+              onPress={() => { void tap(); router.push(route('/checkout/emergency')); }}
             >
               <Text style={[ss.bookCtaBtnText, { color: c.primary }]}>Book Now</Text>
             </Pressable>
@@ -417,7 +471,7 @@ export function HomeScreen() {
           {HOME_CATEGORIES.map((cat) => (
             <Pressable
               key={cat.id}
-              style={[ss.catCard, { width: catCardWidth, backgroundColor: c.surface, borderColor: c.border }]}
+              style={[ss.catCard, { backgroundColor: c.surface, borderColor: c.border }]}
               onPress={() => { void tap(); router.push(route(`/category/${cat.id}`)); }}
             >
               <View style={[ss.catIconWrap, { backgroundColor: cat.bg }]}>
@@ -444,7 +498,10 @@ export function HomeScreen() {
             <Text style={{ fontSize: 13, fontWeight: '800', color: c.primary }}>See map ›</Text>
           </Pressable>
         </View>
-        {HOME_GARAGES.map((g) => <GarageListCard key={g.id} garage={g} c={c} />)}
+        {vendorsLoading
+          ? <ActivityIndicator color={c.primary} style={{ marginVertical: 16 }} />
+          : liveVendors.map((g) => <GarageListCard key={g.id} garage={g} c={c} />)
+        }
       </View>
 
       {/* ── Promotional Banner ──────────────────────────────────── */}
@@ -524,37 +581,30 @@ export function HomeScreen() {
             </Pressable>
           ))}
         </ScrollView>
-        {GERMAN_GARAGES.map((g) => (
-          <Pressable
-            key={g.id}
-            style={[ss.garageCard, { backgroundColor: c.surface, borderColor: c.border }]}
-            onPress={() => { void tap(); router.push(route(`/garage/${g.id}`)); }}
-          >
-            <Image source={{ uri: g.imageUrl }} style={ss.garageThumb} resizeMode="cover" />
-            <View style={ss.garageBody}>
-              <View style={ss.garageTopRow}>
-                <Text numberOfLines={1} style={[ss.garageName, { color: c.text }]}>{g.name}</Text>
-                {g.isVerified && (
-                  <View style={[ss.verifiedPill, { backgroundColor: 'rgba(227,30,36,0.12)' }]}>
-                    <Text style={[ss.verifiedText, { color: c.primary }]}>Verified</Text>
-                  </View>
-                )}
-              </View>
-              <Text style={[ss.garageSpecialty, { color: c.muted }]}>{g.specialty}</Text>
-              <View style={ss.garageFactRow}>
-                <Icon name="star" size={12} color="#F59E0B" />
-                <Text style={[ss.garageFact, { color: c.text }]}>{g.rating}</Text>
-                <Text style={[ss.garageFact, { color: c.muted }]}>({g.reviews})</Text>
-                <Text style={[ss.garageDot, { color: c.muted }]}>·</Text>
-                <Icon name="time-outline" size={11} color={c.muted} />
-                <Text style={[ss.garageFact, { color: c.muted }]}>{g.response}</Text>
-                <Text style={[ss.garageDot, { color: c.muted }]}>·</Text>
-                <Text style={[ss.garageFact, { color: c.text, fontWeight: '700' }]}>{g.price}</Text>
-              </View>
-            </View>
-            <Icon name="chevron-forward" size={16} color={c.muted} />
-          </Pressable>
-        ))}
+        {vendorsLoading
+          ? <ActivityIndicator color={c.primary} style={{ marginVertical: 8 }} />
+          : liveVendors
+              .filter((g) => {
+                const haystack = `${g.name} ${g.type ?? ''} ${g.category ?? ''}`.toLowerCase();
+                if (activeBrand !== 'All') return haystack.includes(activeBrand.toLowerCase());
+                // Default: show garages that mention any German brand or "german"
+                return ['bmw', 'mercedes', 'audi', 'porsche', 'volkswagen', 'vw', 'german'].some((kw) =>
+                  haystack.includes(kw),
+                );
+              })
+              .map((g) => <GarageListCard key={g.id} garage={g} c={c} />)
+        }
+        {/* Fallback when live data has no German-specialist entries yet */}
+        {!vendorsLoading && liveVendors.filter((g) => {
+          const haystack = `${g.name} ${g.type ?? ''} ${g.category ?? ''}`.toLowerCase();
+          if (activeBrand !== 'All') return haystack.includes(activeBrand.toLowerCase());
+          return ['bmw', 'mercedes', 'audi', 'porsche', 'volkswagen', 'vw', 'german'].some((kw) => haystack.includes(kw));
+        }).length === 0 && (
+          <View style={[ss.emptyBox, { backgroundColor: c.surface, borderColor: c.border, paddingVertical: 24 }]}>
+            <Icon name="car-sport-outline" size={32} color={c.muted} />
+            <Text style={[ss.emptyDesc, { color: c.muted }]}>No {activeBrand === 'All' ? 'German specialist' : activeBrand} garages listed yet.</Text>
+          </View>
+        )}
       </View>
 
       {/* ── Trust & Safety ──────────────────────────────────────── */}
@@ -589,6 +639,13 @@ export function HomeScreen() {
   );
 }
 
+// ── SearchGarageList — live vendors for search screen ─────────────
+function SearchGarageList({ c }: { c: QarColors }) {
+  const { vendors, loading } = useVendors();
+  if (loading) return <ActivityIndicator color={c.primary} style={{ marginVertical: 16 }} />;
+  return <>{vendors.map((g) => <GarageListCard key={g.id} garage={g} c={c} />)}</>;
+}
+
 // ══════════════════════════════════════════════════════════════════
 // SEARCH SCREEN
 // ══════════════════════════════════════════════════════════════════
@@ -605,6 +662,27 @@ const TRENDING = ['AC Service', 'Oil Change', 'Brake Repair', 'Battery Replaceme
 export function SearchScreen() {
   const router = useRouter();
   const c = useQarColors();
+  const [searchQuery, setSearchQuery] = useState('');
+  const inputRef = useRef<TextInput>(null);
+  const { vendors, loading: vendorsLoading } = useVendors();
+
+  // Auto-focus input on mount
+  useEffect(() => {
+    const t = setTimeout(() => inputRef.current?.focus(), 120);
+    return () => clearTimeout(t);
+  }, []);
+
+  const trimmed = searchQuery.trim().toLowerCase();
+  const filteredVendors = trimmed
+    ? vendors.filter((g) =>
+        g.name.toLowerCase().includes(trimmed) ||
+        g.type?.toLowerCase().includes(trimmed) ||
+        g.area?.toLowerCase().includes(trimmed) ||
+        g.category?.toLowerCase().includes(trimmed),
+      )
+    : vendors;
+
+  const showSuggestions = trimmed.length === 0;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['top']}>
@@ -612,66 +690,96 @@ export function SearchScreen() {
         style={{ backgroundColor: c.background }}
         contentContainerStyle={{ paddingBottom: TAB_BOTTOM, gap: 20 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Search header */}
         <View style={{ paddingHorizontal: spacing.page, paddingTop: 14, gap: 14 }}>
           <View style={[ss.searchBarActive, { backgroundColor: c.surface, borderColor: c.primary }]}>
             <Icon name="search-outline" size={19} color={c.muted} />
-            <Text style={[ss.searchPlaceholder, { color: c.muted, flex: 1 }]}>
-              Garages, services, parts...
-            </Text>
-            <Pressable onPress={() => router.back()} hitSlop={8}>
+            <TextInput
+              ref={inputRef}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Garages, services, parts..."
+              placeholderTextColor={c.muted}
+              returnKeyType="search"
+              clearButtonMode="while-editing"
+              style={[ss.searchInput, { color: c.text, flex: 1 }]}
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            <Pressable onPress={() => { setSearchQuery(''); router.back(); }} hitSlop={8}>
               <Text style={{ fontSize: 14, fontWeight: '700', color: c.primary }}>Cancel</Text>
             </Pressable>
           </View>
 
-          {/* Recent Searches */}
-          <View style={[ss.suggestCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-            <Text style={[ss.suggestHeading, { color: c.textSecondary }]}>Recent Searches</Text>
-            {RECENT_SEARCHES.map((item) => (
-              <Pressable key={item} style={[ss.suggestRow, { borderTopColor: c.border }]}
-                onPress={() => { void tap(); }}>
-                <Icon name="time-outline" size={15} color={c.muted} />
-                <Text style={[ss.suggestText, { color: c.text, flex: 1 }]}>{item}</Text>
-                <Icon name="close" size={14} color={c.muted} />
-              </Pressable>
-            ))}
-          </View>
+          {showSuggestions && (
+            <>
+              {/* Recent Searches */}
+              <View style={[ss.suggestCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+                <Text style={[ss.suggestHeading, { color: c.textSecondary }]}>Recent Searches</Text>
+                {RECENT_SEARCHES.map((item) => (
+                  <Pressable key={item} style={[ss.suggestRow, { borderTopColor: c.border }]}
+                    onPress={() => { void tap(); setSearchQuery(item); }}>
+                    <Icon name="time-outline" size={15} color={c.muted} />
+                    <Text style={[ss.suggestText, { color: c.text, flex: 1 }]}>{item}</Text>
+                    <Icon name="close" size={14} color={c.muted} />
+                  </Pressable>
+                ))}
+              </View>
 
-          {/* Smart Suggestions */}
-          <View style={[ss.suggestCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-            <Text style={[ss.suggestHeading, { color: c.textSecondary }]}>Smart Suggestions</Text>
-            {SMART_SUGGESTIONS.map((item) => (
-              <Pressable key={item} style={[ss.suggestRow, { borderTopColor: c.border }]}
-                onPress={() => { void tap(); }}>
-                <Icon name="search-outline" size={15} color={c.muted} />
-                <Text style={[ss.suggestText, { color: c.text, flex: 1 }]}>{item}</Text>
-                <Icon name="chevron-forward" size={14} color={c.muted} />
-              </Pressable>
-            ))}
-          </View>
+              {/* Smart Suggestions */}
+              <View style={[ss.suggestCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+                <Text style={[ss.suggestHeading, { color: c.textSecondary }]}>Smart Suggestions</Text>
+                {SMART_SUGGESTIONS.map((item) => (
+                  <Pressable key={item} style={[ss.suggestRow, { borderTopColor: c.border }]}
+                    onPress={() => { void tap(); setSearchQuery(item); }}>
+                    <Icon name="search-outline" size={15} color={c.muted} />
+                    <Text style={[ss.suggestText, { color: c.text, flex: 1 }]}>{item}</Text>
+                    <Icon name="chevron-forward" size={14} color={c.muted} />
+                  </Pressable>
+                ))}
+              </View>
 
-          {/* Trending Services */}
-          <View style={{ gap: 8 }}>
-            <Text style={[ss.suggestHeading, { color: c.textSecondary }]}>Trending Services</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-              {TRENDING.map((t) => (
-                <Pressable
-                  key={t}
-                  style={[ss.trendChip, { backgroundColor: c.surface, borderColor: c.border }]}
-                  onPress={() => { void tap(); }}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>{t}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
+              {/* Trending Services */}
+              <View style={{ gap: 8 }}>
+                <Text style={[ss.suggestHeading, { color: c.textSecondary }]}>Trending Services</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                  {TRENDING.map((t) => (
+                    <Pressable
+                      key={t}
+                      style={[ss.trendChip, { backgroundColor: c.surface, borderColor: c.border }]}
+                      onPress={() => { void tap(); setSearchQuery(t); }}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>{t}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            </>
+          )}
         </View>
 
-        {/* All garages */}
-      <View style={ss.landingSection}>
-          <SectionRow title="Garage Listings" linkLabel="Map" onPress={() => router.push('/map')} c={c} />
-          {HOME_GARAGES.map((g) => <GarageListCard key={g.id} garage={g} c={c} />)}
+        {/* Garage results */}
+        <View style={ss.landingSection}>
+          <SectionRow
+            title={trimmed ? `Results for "${searchQuery}"` : 'Garage Listings'}
+            linkLabel="Map"
+            onPress={() => router.push('/map')}
+            c={c}
+          />
+          {vendorsLoading
+            ? <ActivityIndicator color={c.primary} style={{ marginVertical: 16 }} />
+            : filteredVendors.length === 0
+              ? (
+                <View style={[ss.emptyBox, { backgroundColor: c.surface, borderColor: c.border }]}>
+                  <Icon name="search-outline" size={36} color={c.muted} />
+                  <Text style={[ss.emptyTitle, { color: c.textSecondary }]}>No results</Text>
+                  <Text style={[ss.emptyDesc, { color: c.muted }]}>Try a different name, area, or service type.</Text>
+                </View>
+              )
+              : filteredVendors.map((g) => <GarageListCard key={g.id} garage={g} c={c} />)
+          }
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -690,6 +798,10 @@ export function BookingsScreen() {
   const cancelBooking = useQarWheelsStore((s) => s.cancelBooking);
   const rescheduleBooking = useQarWheelsStore((s) => s.rescheduleBooking);
   const [activeTab, setActiveTab] = useState<'Active' | BookingWorkflowStatus | 'History'>('Active');
+
+  // Live sync from Firestore — merges into Zustand on top of local/seed bookings
+  const { user } = useAuthContext();
+  useFirestoreBookings(user?.uid ?? null);
 
   const sortedBookings = [...bookings].sort((a, b) => {
     const left = a.bookingDate ? new Date(a.bookingDate).getTime() : 0;
@@ -729,12 +841,15 @@ export function BookingsScreen() {
     Alert.alert('Reschedule requested', 'Your booking was moved to Tomorrow, 10:00 AM and is waiting for garage confirmation.');
   }
 
+  const { control: refreshControl } = useRefresh();
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['top']}>
       <ScrollView
         style={{ backgroundColor: c.background }}
         contentContainerStyle={{ padding: spacing.page, paddingBottom: TAB_BOTTOM + 18, gap: 16 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
       >
         <View style={{ gap: 2 }}>
           <Text style={[ss.pageEyebrow, { color: c.primary }]}>Appointments</Text>
@@ -801,7 +916,7 @@ export function BookingsScreen() {
                   <View style={[ss.statusDot, { backgroundColor: sc.dot }]} />
                   <Text style={[ss.statusText, { color: sc.text }]}>{getBookingStatusLabel(booking.status)}</Text>
                 </View>
-                <Text style={[ss.bookingDate, { color: c.muted }]}>{booking.date}</Text>
+                <Text style={[ss.bookingDate, { color: c.muted }]}>{typeof booking.date === 'string' ? booking.date : ''}</Text>
               </View>
               <View style={ss.bookingBody}>
                 <Text style={[ss.bookingService, { color: c.text }]}>{booking.service}</Text>
@@ -839,7 +954,7 @@ export function BookingsScreen() {
         })}
 
         <Pressable style={[ss.primaryBtn, { backgroundColor: c.primary, ...shadow.primary }]}
-          onPress={() => router.push(route('/checkout/new'))}>
+          onPress={() => router.push(route('/checkout/emergency'))}>
           <Icon name="add-circle-outline" size={19} color="#fff" />
           <Text style={[ss.primaryBtnText, { color: '#fff' }]}>New booking</Text>
         </Pressable>
@@ -874,9 +989,16 @@ export function CarsScreen() {
   function nextService(car: FirestoreCar) {
     if (car.nextServiceDate) {
       try {
-        return new Date(car.nextServiceDate).toLocaleDateString('en-QA', { month: 'short', day: 'numeric' });
+        const raw = car.nextServiceDate as unknown;
+        const iso = typeof raw === 'string' ? raw
+          : (raw && typeof (raw as { toDate?: () => Date }).toDate === 'function')
+            ? (raw as { toDate: () => Date }).toDate().toISOString()
+            : String(raw);
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return 'Service due';
+        return d.toLocaleDateString('en-QA', { month: 'short', day: 'numeric' });
       } catch {
-        return car.nextServiceDate;
+        return 'Service due';
       }
     }
     return (car.health ?? 90) < 70 ? 'Inspection due' : 'On track';
@@ -888,12 +1010,15 @@ export function CarsScreen() {
     : 0;
   const attentionCount = carList.filter((car) => (car.health ?? 90) < 70).length;
 
+  const { control: refreshControl } = useRefresh();
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['top']}>
       <ScrollView
         style={{ backgroundColor: c.background }}
         contentContainerStyle={{ padding: spacing.page, paddingBottom: TAB_BOTTOM + 18, gap: 16 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
       >
         <View style={ss.carsHeroWrap}>
           <View style={{ flex: 1, gap: 3 }}>
@@ -1057,6 +1182,27 @@ export function AccountScreen() {
   const { user } = useAuthContext();
   const themeMode = useQarWheelsStore((s) => s.themeMode);
   const toggleTheme = useQarWheelsStore((s) => s.toggleThemeMode);
+  const bookings = useQarWheelsStore((s) => s.bookings);
+  const favoriteGarageIds = useQarWheelsStore((s) => s.favoriteGarageIds);
+  const vendorInvoices = useQarWheelsStore((s) => s.vendorInvoices);
+
+  // Live car count from Firestore (mirrors CarsScreen)
+  const [accountCarList, setAccountCarList] = useState<FirestoreCar[]>([]);
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(firestore, 'users', user.uid, 'cars'));
+    return onSnapshot(q, (snap) => {
+      setAccountCarList(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<FirestoreCar, 'id'>) })));
+    });
+  }, [user]);
+
+  const totalVehicles = accountCarList.length;
+  const totalBookings = bookings.length;
+  const totalSaved = favoriteGarageIds.length;
+  const totalSpent = vendorInvoices
+    .filter((inv) => inv.status === 'Paid' || inv.status === 'paid')
+    .reduce((sum, inv) => sum + (inv.total ?? 0), 0);
+  const spentLabel = totalSpent > 0 ? `QAR ${totalSpent.toLocaleString()}` : 'QAR 0';
 
   const initial = user?.displayName?.[0] ?? user?.email?.[0]?.toUpperCase() ?? 'U';
   const name = user?.displayName ?? 'QarWheels User';
@@ -1100,6 +1246,7 @@ export function AccountScreen() {
         style={{ backgroundColor: c.background }}
         contentContainerStyle={{ padding: spacing.page, paddingBottom: TAB_BOTTOM + 18, gap: 16 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={() => {}} tintColor={c.primary} colors={[c.primary]} />}
       >
         <View style={{ gap: 2 }}>
           <Text style={[ss.pageEyebrow, { color: c.primary }]}>QarWheels</Text>
@@ -1145,10 +1292,10 @@ export function AccountScreen() {
         {/* Stats */}
         <View style={[ss.statsStrip, { backgroundColor: c.surface, borderColor: c.border }]}>
           {[
-            { label: 'Vehicles', value: '2',         icon: 'car-outline' as IoniconName },
-            { label: 'Bookings', value: '14',        icon: 'calendar-outline' as IoniconName },
-            { label: 'Saved',    value: '5',         icon: 'heart-outline' as IoniconName },
-            { label: 'Spent',    value: 'QAR\n2,800', icon: 'wallet-outline' as IoniconName },
+            { label: 'Vehicles', value: String(totalVehicles), icon: 'car-outline' as IoniconName },
+            { label: 'Bookings', value: String(totalBookings), icon: 'calendar-outline' as IoniconName },
+            { label: 'Saved',    value: String(totalSaved),    icon: 'heart-outline' as IoniconName },
+            { label: 'Spent',    value: spentLabel,            icon: 'wallet-outline' as IoniconName },
           ].map((s, i) => (
             <View
               key={s.label}
@@ -1284,7 +1431,7 @@ const ss = StyleSheet.create({
   // Featured services
   hScroll:        { gap: 12 },
   featSvcCard:    { width: 136, borderRadius: 16, overflow: 'hidden', borderWidth: 1 },
-  featSvcImage:   { width: 130, height: 88 },
+  featSvcImage:   { width: 136, height: 88 },
   featSvcInfo:    { padding: 10, gap: 3 },
   featSvcLabel:   { fontSize: 12, fontWeight: '800' },
   featSvcPrice:   { fontSize: 11 },
@@ -1303,6 +1450,8 @@ const ss = StyleSheet.create({
   // Categories 3-column grid — gap 10 on both axes for consistent spacing
   catGrid:        { flexDirection: 'row', flexWrap: 'wrap', gap: 10, alignItems: 'stretch' },
   catCard: {
+    flexBasis: '30%',
+    flexGrow: 1,
     borderRadius: 16,
     borderWidth: 1,
     minHeight: 124,
@@ -1385,6 +1534,7 @@ const ss = StyleSheet.create({
   suggestRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 13, borderTopWidth: StyleSheet.hairlineWidth },
   suggestText:    { fontSize: 14, fontWeight: '500' },
   trendChip:      { borderRadius: 20, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8 },
+  searchInput:    { fontSize: 14, paddingVertical: 0 },
 
   // Page headers — consistent top padding so eyebrow isn't flush against safe area
   pageEyebrow:    { fontSize: 10, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },

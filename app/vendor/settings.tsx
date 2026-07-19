@@ -9,6 +9,8 @@ import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
 import { auth } from '@/lib/firebase';
+import { getAuth } from 'firebase/auth';
+import { saveVendorProfile } from '@/lib/firestoreOps';;
 const WORK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function VendorSettingsScreen() {
@@ -33,6 +35,32 @@ export default function VendorSettingsScreen() {
 
   function handleSaveHours() {
     updateProfile({ openTime, closeTime, workDays, notifications: notifs });
+    const uid = getAuth().currentUser?.uid;
+    if (uid) {
+      void saveVendorProfile(uid, {
+        openTime,
+        closeTime,
+        workDays,
+        businessName: profile.businessName,
+        ownerName: profile.ownerName,
+        email: profile.email,
+        phone: profile.phone,
+        category: profile.category,
+        area: profile.area,
+        city: profile.city,
+        rating: profile.rating,
+        totalReviews: profile.totalReviews,
+        verified: profile.verified,
+        openNow: !profile.vacationMode,
+        vacationMode: profile.vacationMode,
+        startingPrice: 'QAR 100+',
+        startingPriceValue: 100,
+        responseTime: '15 min',
+        pickupAvailable: true,
+        warranty: '7-day warranty',
+        tags: profile.verified ? ['Verified'] : [],
+      });
+    }
     Alert.alert('Saved', 'Your settings have been updated.');
   }
 
@@ -44,7 +72,18 @@ export default function VendorSettingsScreen() {
         : 'Customers will not be able to book while vacation mode is on.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Confirm', onPress: () => toggleVacation() },
+        {
+          text: 'Confirm', onPress: () => {
+            toggleVacation();
+            const uid = getAuth().currentUser?.uid;
+            if (uid) {
+              void saveVendorProfile(uid, {
+                vacationMode: !profile.vacationMode,
+                openNow: profile.vacationMode,
+              });
+            }
+          },
+        },
       ],
     );
   }
@@ -79,7 +118,7 @@ export default function VendorSettingsScreen() {
         <Text style={[s.navTitle, { color: c.text }]}>Settings</Text>
       </View>
 
-      <ScrollView contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16, paddingTop: 70 }]} showsVerticalScrollIndicator={false}>
         <MotionScreen>
           {/* Business profile */}
           <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
@@ -276,8 +315,15 @@ export default function VendorSettingsScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    paddingHorizontal: spacing.page, paddingVertical: 14,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    paddingHorizontal: spacing.page, 
+    paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    ...shadow.sm,
   },
   navTitle: { ...typography.h3 },
 

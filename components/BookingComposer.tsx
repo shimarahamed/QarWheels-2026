@@ -17,9 +17,9 @@ import { collection, onSnapshot, query } from 'firebase/firestore';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import { MotionScreen, MotionSurface } from '@/lib/motion';
 import { useAuthContext } from '@/lib/AuthContext';
-import { createBooking as createFirestoreBooking, type FirestoreCar } from '@/lib/firestoreOps';
+import { createBooking as createFirestoreBooking, type FirestoreCar, useVendors } from '@/lib/firestoreOps';
 import { firestore } from '@/lib/firebase';
-import { cars, findGarage, findJob, garages, popularJobs } from '@/lib/marketplace';
+import { cars } from '@/lib/marketplace';
 import { useQarColors, useQarWheelsStore } from '@/lib/store';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { success, tap } from '@/lib/haptics';
@@ -103,26 +103,34 @@ export default function BookingComposer() {
   const [loadingCars, setLoadingCars] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const days = useMemo(() => nextDays(), []);
-
-  const initialGarage = useMemo(() => {
-    if (id && garages.some((garage) => garage.id === id)) return findGarage(id);
-    const job = id ? popularJobs.find((item) => item.id === id) : undefined;
-    return job?.garageId ? findGarage(job.garageId) : garages[0];
-  }, [id]);
-
-  const initialJob = useMemo(() => {
-    if (id && popularJobs.some((job) => job.id === id)) return findJob(id);
-    return popularJobs.find((job) => job.garageId === initialGarage.id) ?? popularJobs[0];
-  }, [id, initialGarage.id]);
+  const { vendors: liveGarages, jobs: liveJobs, loading: vendorsLoading } = useVendors();
 
   const initialCarId = useMemo(() => {
     if (id && cars.some((car) => car.id === id)) return id;
     return cars[0]?.id ?? '';
   }, [id]);
 
-  const [selectedGarageId, setSelectedGarageId] = useState(initialGarage.id);
-  const [selectedServiceId, setSelectedServiceId] = useState(initialJob.id);
+  const [selectedGarageId, setSelectedGarageId] = useState('');
+  const [selectedServiceId, setSelectedServiceId] = useState('');
   const [selectedCarId, setSelectedCarId] = useState(initialCarId);
+  // True when id resolved to a specific garage or job — hides the full pickers
+  const [fromContext, setFromContext] = useState(false);
+
+  // Once vendors load, seed initial selection based on route param
+  useEffect(() => {
+    if (vendorsLoading || liveGarages.length === 0) return;
+    if (!selectedGarageId) {
+      const garageFromId = id ? liveGarages.find((g) => g.id === id) : undefined;
+      const jobFromId = id ? liveJobs.find((j) => j.id === id) : undefined;
+      const garageFromJob = jobFromId ? liveGarages.find((g) => g.id === jobFromId.garageId) : undefined;
+      setSelectedGarageId((garageFromId ?? garageFromJob ?? liveGarages[0]).id);
+      if (garageFromId || jobFromId) setFromContext(true);
+    }
+    if (!selectedServiceId) {
+      const jobFromId = id ? liveJobs.find((j) => j.id === id) : undefined;
+      setSelectedServiceId((jobFromId ?? liveJobs[0])?.id ?? '');
+    }
+  }, [id, liveGarages, liveJobs, vendorsLoading, selectedGarageId, selectedServiceId]);
   const [selectedDayId, setSelectedDayId] = useState(days[1]?.id ?? days[0].id);
   const [selectedTime, setSelectedTime] = useState(timeSlots[1]);
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>(['report']);
@@ -167,12 +175,12 @@ export default function BookingComposer() {
         source: 'seed',
       }));
 
-  const selectedGarage = findGarage(selectedGarageId);
-  const selectedService = findJob(selectedServiceId);
+  const selectedGarage = liveGarages.find((g) => g.id === selectedGarageId) ?? liveGarages[0];
+  const selectedService = liveJobs.find((j) => j.id === selectedServiceId) ?? liveJobs[0];
   const selectedCar = selectableCars.find((car) => car.id === selectedCarId) ?? selectableCars[0];
   const selectedDay = days.find((day) => day.id === selectedDayId) ?? days[0];
   const addOnTotal = addOns.filter((item) => selectedAddOns.includes(item.id)).reduce((sum, item) => sum + item.price, 0);
-  const servicePrice = priceFromLabel(selectedService.price);
+  const servicePrice = selectedService ? priceFromLabel(selectedService.price) : 0;
   const logisticsTotal = (pickupEnabled ? 40 : 0) + (dropoffEnabled ? 40 : 0);
   const estimatedTotal = servicePrice + addOnTotal + logisticsTotal;
   const canSubmit = Boolean(selectedCar && selectedGarage && selectedService && selectedDay && selectedTime);
@@ -198,10 +206,10 @@ export default function BookingComposer() {
     bookingDate.setHours(hour, rawMinute, 0, 0);
 
     const localBooking = createLocalBooking({
-      garage: selectedGarage.name,
-      garageId: selectedGarage.id,
-      service: selectedService.title,
-      serviceId: selectedService.id,
+      garage: selectedGarage?.name ?? '',
+      garageId: selectedGarage?.id ?? '',
+      service: selectedService?.title ?? '',
+      serviceId: selectedService?.id ?? '',
       vehicle: selectedCar.name,
       vehicleId: selectedCar.id,
       vehiclePlate: selectedCar.meta.split(' · ')[0],
@@ -216,17 +224,17 @@ export default function BookingComposer() {
       notes: notes.trim(),
       paymentMethod: payment,
       addOns: addOns.filter((item) => selectedAddOns.includes(item.id)).map((item) => item.title),
-      serviceCategory: selectedGarage.category,
+      serviceCategory: selectedGarage?.category ?? '',
     });
 
     try {
       if (user && selectedCar.source === 'firestore') {
         await createFirestoreBooking(user.uid, {
-          vendorId: selectedGarage.id,
-          vendorName: selectedGarage.name,
+          vendorId: selectedGarage?.id ?? '',
+          vendorName: selectedGarage?.name ?? '',
           carId: selectedCar.id,
           carName: selectedCar.name,
-          serviceName: selectedService.title,
+          serviceName: selectedService?.title ?? '',
           bookingDate: bookingDate.toISOString(),
           cost: estimatedTotal,
           notes: [
@@ -264,7 +272,7 @@ export default function BookingComposer() {
       </View>
 
       <ScrollView
-        style={{ backgroundColor: c.background }}
+        style={{ backgroundColor: c.background, paddingTop: 60 }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -272,13 +280,13 @@ export default function BookingComposer() {
         <MotionScreen style={[styles.hero, { backgroundColor: c.surface, borderColor: c.border }]}>
           <View style={styles.heroTop}>
             <View style={[styles.heroIcon, { backgroundColor: c.primaryLight }]}>
-              <Ionicons name={serviceIcon(selectedService.id)} size={25} color={c.primary} />
+              <Ionicons name={serviceIcon(selectedService?.id ?? '')} size={25} color={c.primary} />
             </View>
             <View style={{ flex: 1, gap: 5 }}>
               <Text style={[styles.eyebrow, { color: c.primary }]}>Service booking</Text>
-              <Text style={[styles.title, { color: c.text }]} numberOfLines={2}>{selectedService.title}</Text>
+              <Text style={[styles.title, { color: c.text }]} numberOfLines={2}>{selectedService?.title ?? 'Select a service'}</Text>
               <Text style={[styles.subtitle, { color: c.textSecondary }]} numberOfLines={2}>
-                {selectedGarage.name} · {selectedGarage.responseTime} response · {selectedGarage.warranty}
+                {selectedGarage?.name ?? '…'} · {selectedGarage?.responseTime ?? ''} response · {selectedGarage?.warranty ?? ''}
               </Text>
             </View>
           </View>
@@ -300,21 +308,40 @@ export default function BookingComposer() {
           <SummaryItem label="Estimate" value={currency(estimatedTotal)} c={c} icon="wallet-outline" highlight />
         </MotionSurface>
 
-        <MotionSurface delay={90} style={[styles.routeCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <View style={[styles.routeIcon, { backgroundColor: c.primaryLight }]}>
-            <Ionicons name="business-outline" size={18} color={c.primary} />
-          </View>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={[styles.routeTitle, { color: c.text }]} numberOfLines={1}>{selectedGarage.name}</Text>
-            <Text style={[styles.routeMeta, { color: c.textSecondary }]} numberOfLines={1}>
-              {selectedGarage.area} · {selectedGarage.distanceKm} km · {selectedGarage.openNow ? 'Open now' : 'Closed'}
-            </Text>
-          </View>
-          <View style={[styles.ratingPill, { backgroundColor: c.aiBg }]}>
-            <Ionicons name="star" size={12} color={c.gold} />
-            <Text style={[styles.ratingText, { color: c.gold }]}>{selectedGarage.rating}</Text>
-          </View>
-        </MotionSurface>
+        {selectedGarage && (
+          <MotionSurface delay={90} style={[styles.routeCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+            <View style={[styles.routeIcon, { backgroundColor: c.primaryLight }]}>
+              <Ionicons name="business-outline" size={18} color={c.primary} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[styles.routeTitle, { color: c.text }]} numberOfLines={1}>{selectedGarage.name}</Text>
+              <Text style={[styles.routeMeta, { color: c.textSecondary }]} numberOfLines={1}>
+                {selectedGarage.area} · {selectedGarage.distanceKm} km · {selectedGarage.openNow ? 'Open now' : 'Closed'}
+              </Text>
+            </View>
+            <View style={[styles.ratingPill, { backgroundColor: c.aiBg }]}>
+              <Ionicons name="star" size={12} color={c.gold} />
+              <Text style={[styles.ratingText, { color: c.gold }]}>{selectedGarage.rating}</Text>
+            </View>
+          </MotionSurface>
+        )}
+
+        {fromContext && selectedService && (
+          <MotionSurface delay={105} style={[styles.routeCard, { backgroundColor: c.primaryLight, borderColor: c.primaryMid }]}>
+            <View style={[styles.routeIcon, { backgroundColor: c.primary }]}>
+              <Ionicons name={serviceIcon(selectedService.id)} size={18} color="#fff" />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[styles.routeTitle, { color: c.text }]} numberOfLines={1}>{selectedService.title}</Text>
+              <Text style={[styles.routeMeta, { color: c.textSecondary }]} numberOfLines={1}>
+                {selectedService.duration ?? '45 min'} · {selectedService.warranty ?? 'Service warranty'}
+              </Text>
+            </View>
+            <View style={[styles.ratingPill, { backgroundColor: c.primaryLight }]}>
+              <Text style={[styles.ratingText, { color: c.primary }]}>{selectedService.price}</Text>
+            </View>
+          </MotionSurface>
+        )}
 
         <Section title="Vehicle" subtitle={loadingCars ? 'Loading your garage...' : 'Choose the car that needs service'} icon="car-sport-outline" c={c}>
           {selectableCars.map((car) => (
@@ -336,46 +363,58 @@ export default function BookingComposer() {
           ) : null}
         </Section>
 
-        <Section title="Garage" subtitle="Pick the provider for this booking" icon="business-outline" c={c}>
-          {garages.map((garage) => (
-            <OptionRow
-              key={garage.id}
-              title={garage.name}
-              description={`${garage.area} · ${garage.rating} rating · ${garage.responseTime} response`}
-              icon="business-outline"
-              selected={selectedGarageId === garage.id}
-              onPress={() => setSelectedGarageId(garage.id)}
-              c={c}
-            />
-          ))}
-        </Section>
+        {fromContext ? null : (
+          <Section title="Garage" subtitle="Pick the provider for this booking" icon="business-outline" c={c}>
+            {vendorsLoading
+              ? <ActivityIndicator color={c.primary} style={{ marginVertical: 8 }} />
+              : liveGarages.map((garage) => (
+                  <OptionRow
+                    key={garage.id}
+                    title={garage.name}
+                    description={`${garage.area} · ${garage.rating} rating · ${garage.responseTime} response`}
+                    icon="business-outline"
+                    selected={selectedGarageId === garage.id}
+                    onPress={() => setSelectedGarageId(garage.id)}
+                    c={c}
+                  />
+                ))
+            }
+          </Section>
+        )}
 
-        <Section title="Service type" subtitle="Select the main job" icon="construct-outline" c={c}>
-          <View style={styles.serviceGrid}>
-            {popularJobs.map((job) => {
-              const selected = selectedServiceId === job.id;
-              return (
-                <AnimatedPressable
-                  key={job.id}
-                  style={[
-                    styles.serviceCard,
-                    { backgroundColor: selected ? c.primaryLight : c.surfaceAlt, borderColor: selected ? c.primary : c.border },
-                  ]}
-                  onPress={() => { void tap(); setSelectedServiceId(job.id); }}
-                >
-                  <View style={styles.serviceTop}>
-                    <Ionicons name={selected ? 'checkmark-circle' : serviceIcon(job.id)} size={20} color={selected ? c.primary : c.textSecondary} />
-                    <Text style={[styles.servicePrice, { color: selected ? c.primary : c.text }]}>{job.price}</Text>
-                  </View>
-                  <View style={{ gap: 3 }}>
-                    <Text style={[styles.serviceTitle, { color: c.text }]}>{job.title}</Text>
-                    <Text style={[styles.serviceMeta, { color: c.textSecondary }]}>{job.duration ?? '45 min'} · {job.warranty ?? 'Service warranty'}</Text>
-                  </View>
-                </AnimatedPressable>
-              );
-            })}
-          </View>
-        </Section>
+        {fromContext ? null : (
+          <Section title="Service type" subtitle="Select the main job" icon="construct-outline" c={c}>
+            {vendorsLoading
+              ? <ActivityIndicator color={c.primary} style={{ marginVertical: 8 }} />
+              : (
+                <View style={styles.serviceGrid}>
+                  {liveJobs.map((job) => {
+                    const selected = selectedServiceId === job.id;
+                    return (
+                      <AnimatedPressable
+                        key={job.id}
+                        style={[
+                          styles.serviceCard,
+                          { backgroundColor: selected ? c.primaryLight : c.surfaceAlt, borderColor: selected ? c.primary : c.border },
+                        ]}
+                        onPress={() => { void tap(); setSelectedServiceId(job.id); }}
+                      >
+                        <View style={styles.serviceTop}>
+                          <Ionicons name={selected ? 'checkmark-circle' : serviceIcon(job.id)} size={20} color={selected ? c.primary : c.textSecondary} />
+                          <Text style={[styles.servicePrice, { color: selected ? c.primary : c.text }]}>{job.price}</Text>
+                        </View>
+                        <View style={{ gap: 3 }}>
+                          <Text style={[styles.serviceTitle, { color: c.text }]}>{job.title}</Text>
+                          <Text style={[styles.serviceMeta, { color: c.textSecondary }]}>{job.duration ?? '45 min'} · {job.warranty ?? 'Service warranty'}</Text>
+                        </View>
+                      </AnimatedPressable>
+                    );
+                  })}
+                </View>
+              )
+            }
+          </Section>
+        )}
 
         <Section title="Date and time" subtitle="Choose an available service slot" icon="calendar-outline" c={c}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayRow}>
@@ -471,7 +510,7 @@ export default function BookingComposer() {
 
         <MotionSurface delay={120} style={[styles.totalCard, { backgroundColor: c.surface, borderColor: c.primaryMid }]}>
           <Text style={[styles.sectionTitle, { color: c.text }]}>Booking summary</Text>
-          <PriceRow label={selectedService.title} value={servicePrice} c={c} />
+          <PriceRow label={selectedService?.title ?? 'Service'} value={servicePrice} c={c} />
           <PriceRow label="Add-ons" value={addOnTotal} c={c} />
           <PriceRow label="Pickup / drop-off" value={logisticsTotal} c={c} />
           <View style={[styles.totalLine, { backgroundColor: c.border }]} />
@@ -591,12 +630,18 @@ function PriceRow({ label, value, c }: { label: string; value: number; c: Return
 
 const styles = StyleSheet.create({
   navbar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: spacing.page,
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    ...shadow.sm,
   },
   navButton: {
     width: 42,

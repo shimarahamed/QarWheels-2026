@@ -4,15 +4,59 @@ import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { doc, updateDoc } from 'firebase/firestore';
 import { useQarColors, useQarWheelsStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
+import { firebaseApp, firestore, auth } from '@/lib/firebase';
+
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheels.com';
 
 const STATUS_CONFIG = {
   Pending:  { bg: 'rgba(245,158,11,0.15)',  text: '#F59E0B', icon: 'time-outline' as const, label: 'Under Review' },
   Verified: { bg: 'rgba(34,197,94,0.15)',   text: '#22C55E', icon: 'shield-checkmark-outline' as const, label: 'Verified' },
   Rejected: { bg: 'rgba(239,68,68,0.15)',   text: '#EF4444', icon: 'close-circle-outline' as const, label: 'Rejected' },
 };
+
+async function uploadDocuments(uris: string[], vendorId: string): Promise<string[]> {
+  const storage = getStorage(firebaseApp);
+  const urls: string[] = [];
+
+  for (let i = 0; i < uris.length; i++) {
+    const uri = uris[i];
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    const ext = uri.split('.').pop() ?? 'jpg';
+    const storageRef = ref(storage, `kyc/${vendorId}/doc_${Date.now()}_${i}.${ext}`);
+    await uploadBytes(storageRef, blob);
+    const url = await getDownloadURL(storageRef);
+    urls.push(url);
+  }
+
+  return urls;
+}
+
+async function submitKycToBackend(payload: {
+  vendorId: string;
+  crNumber: string;
+  licenseNumber: string;
+  bankName: string;
+  iban: string;
+  documentUrls: string[];
+}) {
+  const res = await fetch(`${BACKEND_URL}/api/vendor/kyc`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`KYC submission failed (${res.status})${body ? `: ${body}` : ''}`);
+  }
+  return res.json() as Promise<{ kycId: string; status: string }>;
+}
 
 export default function KYCScreen() {
   const c = useQarColors();
@@ -28,6 +72,7 @@ export default function KYCScreen() {
   const [iban, setIban] = useState(kyc.iban);
   const [documentUris, setDocumentUris] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
 
   async function handlePickDocuments() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -53,19 +98,65 @@ export default function KYCScreen() {
       return;
     }
     setLoading(true);
-    submitVendorKyc({
-      crNumber: crNumber.trim(),
-      licenseNumber: licenseNumber.trim(),
-      bankName: bankName.trim(),
-      iban: iban.trim().toUpperCase(),
-    });
-    await new Promise((r) => setTimeout(r, 500));
-    setLoading(false);
-    Alert.alert(
-      'KYC Submitted',
-      'Your verification documents have been submitted. Our team will review within 1-2 business days.',
-      [{ text: 'Done', onPress: () => router.back() }],
-    );
+
+    try {
+      // Upload documents to Firebase Storage if any were selected
+      let documentUrls: string[] = [];
+      if (documentUris.length > 0) {
+        setUploadProgress(`Uploading ${documentUris.length} document${documentUris.length > 1 ? 's' : ''}…`);
+        const vendorId = auth.currentUser?.uid ?? 'anonymous';
+        documentUrls = await uploadDocuments(documentUris, vendorId);
+      }
+
+      setUploadProgress('Submitting for review…');
+
+      // Update local store state immediately
+      submitVendorKyc({
+        crNumber: crNumber.trim(),
+        licenseNumber: licenseNumber.trim(),
+        bankName: bankName.trim(),
+        iban: iban.trim().toUpperCase(),
+      });
+
+      // Persist to Firestore if authenticated
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        await updateDoc(doc(firestore, 'vendors', uid), {
+          'kyc.crNumber': crNumber.trim(),
+          'kyc.licenseNumber': licenseNumber.trim(),
+          'kyc.bankName': bankName.trim(),
+          'kyc.iban': iban.trim().toUpperCase(),
+          'kyc.documentUrls': documentUrls,
+          'kyc.status': 'Pending',
+          'kyc.submittedAt': new Date().toISOString(),
+        });
+      }
+
+      // Notify backend to trigger compliance review workflow
+      const vendorId = uid ?? 'anonymous';
+      await submitKycToBackend({
+        vendorId,
+        crNumber: crNumber.trim(),
+        licenseNumber: licenseNumber.trim(),
+        bankName: bankName.trim(),
+        iban: iban.trim().toUpperCase(),
+        documentUrls,
+      });
+
+      Alert.alert(
+        'KYC Submitted',
+        'Your verification documents have been submitted. Our team will review within 1-2 business days.',
+        [{ text: 'Done', onPress: () => router.back() }],
+      );
+    } catch (e) {
+      Alert.alert(
+        'Submission failed',
+        e instanceof Error ? e.message : 'Could not submit KYC. Please check your connection and try again.',
+      );
+    } finally {
+      setLoading(false);
+      setUploadProgress('');
+    }
   }
 
   const steps = [
@@ -87,7 +178,7 @@ export default function KYCScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[s.content, { paddingTop: 60 }]} showsVerticalScrollIndicator={false}>
         <MotionScreen>
           {/* Status */}
           <View style={[s.statusCard, { backgroundColor: statusCfg.bg, borderColor: `${statusCfg.text}30` }]}>
@@ -202,6 +293,14 @@ export default function KYCScreen() {
             </View>
           </View>
 
+          {/* Upload progress */}
+          {uploadProgress ? (
+            <View style={[s.progressNote, { backgroundColor: c.primaryLight, borderColor: c.primaryMid }]}>
+              <Ionicons name="cloud-upload-outline" size={14} color={c.primary} />
+              <Text style={[s.progressText, { color: c.primary }]}>{uploadProgress}</Text>
+            </View>
+          ) : null}
+
           {/* Submit */}
           <Pressable
             style={[s.submitBtn, { backgroundColor: loading ? c.muted : c.primary }]}
@@ -209,7 +308,7 @@ export default function KYCScreen() {
             disabled={loading}
           >
             <Ionicons name="shield-checkmark-outline" size={18} color="#fff" />
-            <Text style={s.submitBtnText}>{loading ? 'Submitting...' : 'Submit for Verification'}</Text>
+            <Text style={s.submitBtnText}>{loading ? (uploadProgress || 'Submitting...') : 'Submit for Verification'}</Text>
           </Pressable>
         </MotionScreen>
       </ScrollView>
@@ -220,9 +319,18 @@ export default function KYCScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.page, paddingVertical: 10,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.page, 
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    ...shadow.sm,
   },
   backBtn: {
     width: 40, height: 40, borderRadius: radius.md,
@@ -264,6 +372,12 @@ const s = StyleSheet.create({
     gap: 10, borderRadius: radius.lg, borderWidth: 1, borderStyle: 'dashed', paddingVertical: 16,
   },
   uploadText: { fontSize: 13, fontWeight: '700' },
+
+  progressNote: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderRadius: radius.lg, borderWidth: 1, padding: 10,
+  },
+  progressText: { fontSize: 12, fontWeight: '700', flex: 1 },
 
   submitBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
