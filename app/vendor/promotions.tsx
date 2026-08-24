@@ -167,7 +167,7 @@ const s = StyleSheet.create({
     alignItems: 'center', gap: 4, ...shadow.xs,
   },
   statValue: { ...typography.h4 },
-  statLabel: { fontSize: 10, fontWeight: '700' },
+  statLabel: { fontSize: 12, fontWeight: '700' },
 
   groupLabel: { ...typography.overline, paddingHorizontal: 2 },
 });
@@ -179,13 +179,13 @@ const ps = StyleSheet.create({
   desc: { fontSize: 12, fontWeight: '500', lineHeight: 17 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   discountTag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.full, borderWidth: 1 },
-  discountText: { fontSize: 11, fontWeight: '800' },
-  validity: { fontSize: 11, fontWeight: '500' },
+  discountText: { fontSize: 12, fontWeight: '800' },
+  validity: { fontSize: 12, fontWeight: '500' },
   usageRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth,
   },
-  usageLabel: { fontSize: 11, fontWeight: '700', width: 80 },
+  usageLabel: { fontSize: 12, fontWeight: '700', width: 80 },
   usageBar: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
   usageFill: { height: '100%', borderRadius: 3 },
 });

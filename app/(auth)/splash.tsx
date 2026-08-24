@@ -172,7 +172,7 @@ export default function SplashScreenRoute() {
           entering={FadeIn.duration(700).delay(150)}
           style={ss.logoWrap}
         >
-          <Ionicons name="car-sport" size={46} color="#fff" />
+          <Text style={ss.logoGlyph} allowFontScaling={false}>Q</Text>
         </Animated.View>
 
         <Animated.Text entering={FadeInDown.duration(600).delay(350)} style={ss.brandName}>
@@ -180,7 +180,7 @@ export default function SplashScreenRoute() {
         </Animated.Text>
 
         <Animated.Text entering={FadeInDown.duration(600).delay(500)} style={ss.brandSub}>
-          Qatar's trusted car care platform
+          Your Car. Our Care.
         </Animated.Text>
 
         <Animated.Text entering={FadeInDown.duration(600).delay(680)} style={ss.arabicText}>
@@ -193,8 +193,8 @@ export default function SplashScreenRoute() {
         <Text style={ss.caption}>Cars · Garages · Services · One hub</Text>
         <View style={ss.dotsRow}>
           <PulsingDot delay={0} />
-          <PulsingDot delay={220} />
-          <PulsingDot delay={440} />
+          <PulsingDot delay={80} />
+          <PulsingDot delay={120} />
         </View>
       </Animated.View>
     </View>
@@ -220,10 +220,16 @@ const ss = StyleSheet.create({
     gap: 14,
     paddingHorizontal: 48,
   },
+  logoGlyph: {
+    fontSize: 52,
+    fontWeight: '900',
+    color: '#fff',
+    lineHeight: 58,
+  },
   logoWrap: {
     width: LOGO_SIZE,
     height: LOGO_SIZE,
-    borderRadius: 28,
+    borderRadius: LOGO_SIZE / 2,
     backgroundColor: MAROON,
     alignItems: 'center',
     justifyContent: 'center',
@@ -261,7 +267,7 @@ const ss = StyleSheet.create({
     gap: 18,
   },
   caption: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: 'rgba(255,255,255,0.35)',
     letterSpacing: 1.2,

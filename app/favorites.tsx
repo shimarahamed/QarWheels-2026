@@ -132,7 +132,7 @@ const s = StyleSheet.create({
   garageType: { fontSize: 12, fontWeight: '500', marginTop: 2 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.full, paddingHorizontal: 8, paddingVertical: 4 },
-  chipText: { fontSize: 11, fontWeight: '700' },
+  chipText: { fontSize: 12, fontWeight: '700' },
   dot: { width: 6, height: 6, borderRadius: 3 },
   bookBtn: { height: 40, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
   bookBtnText: { color: '#fff', fontSize: 13, fontWeight: '900' },

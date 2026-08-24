@@ -545,7 +545,7 @@ const s = StyleSheet.create({
   issueIcon: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   issueLabel: { fontSize: 14, fontWeight: '800', textAlign: 'center' },
   issueEta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  issueEtaText: { fontSize: 11, fontWeight: '600' },
+  issueEtaText: { fontSize: 12, fontWeight: '600' },
 
   infoNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: radius.lg, borderWidth: 1, padding: 12 },
   infoNoteText: { flex: 1, fontSize: 12, lineHeight: 17 },
@@ -563,10 +563,10 @@ const s = StyleSheet.create({
   locationCard: { borderRadius: radius.xl, borderWidth: 1, padding: 14, ...shadow.xs },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   locationIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  locationLabel: { fontSize: 11, fontWeight: '600' },
+  locationLabel: { fontSize: 12, fontWeight: '600' },
   locationAddress: { fontSize: 13, fontWeight: '700', marginTop: 2 },
   locationBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: radius.full },
-  locationBadgeText: { fontSize: 10, fontWeight: '800' },
+  locationBadgeText: { fontSize: 12, fontWeight: '800' },
 
   nearbyTitle: { ...typography.h4, marginBottom: -4 },
   responderCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: radius.xl, borderWidth: 1.5, padding: 14, ...shadow.xs },
@@ -574,7 +574,7 @@ const s = StyleSheet.create({
   responderRadioInner: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff' },
   responderName: { fontSize: 14, fontWeight: '800' },
   responderMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
-  responderMetaText: { fontSize: 11, fontWeight: '600' },
+  responderMetaText: { fontSize: 12, fontWeight: '600' },
   callBtn: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 
   dispatchBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, height: 56, borderRadius: radius.xl, ...shadow.primary },
@@ -606,5 +606,5 @@ const st = StyleSheet.create({
   line: { flex: 1, width: 2, marginVertical: 2 },
   textCol: { flex: 1, paddingVertical: 2, paddingBottom: 10 },
   stepLabel: { fontSize: 13, fontWeight: '800' },
-  stepSub: { fontSize: 11, marginTop: 2 },
+  stepSub: { fontSize: 12, marginTop: 2 },
 });

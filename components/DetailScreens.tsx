@@ -8,18 +8,21 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  findBooking,
-  findCar,
-  findCategory,
-  findGarage,
-  findJob,
   garages,
+  lookupBooking,
+  lookupCar,
+  lookupCategory,
+  lookupGarage,
+  lookupJob,
   popularJobs,
 } from '@/lib/marketplace';
+import RecordNotFound from '@/components/RecordNotFound';
 import { findVendorInvoiceByBooking } from '@/lib/vendor-data';
 import { categoryColors, colors, getThemedStatusColors, radius, shadow, spacing, statusColors, typography } from '@/lib/theme';
 import { useQarColors } from '@/lib/store';
 import { success, tap } from '@/lib/haptics';
+import { useTranslation } from '@/lib/i18n';
+import { promptRestartForRTL } from '@/lib/i18n/restart';
 import { useQarWheelsStore } from '@/lib/store';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import { MotionScreen } from '@/lib/motion';
@@ -108,11 +111,20 @@ function InfoRow({ icon, label, value, valueColor }: {
 function GarageMini({ id, name, detail }: { id: string; name: string; detail: string }) {
   const c = useQarColors();
   const router = useRouter();
-  const garage = findGarage(id);
+  // Only the thumbnail comes from the record; the name and detail are passed
+  // in. An unknown id therefore degrades to a plain tile rather than showing
+  // another garage's photo next to this garage's name.
+  const garage = lookupGarage(id);
 
   return (
     <AnimatedPressable style={[ds.miniCard, { borderTopColor: c.border }]} onPress={() => router.push(route(`/garage/${id}`))} scaleValue={0.98}>
-      <Image source={{ uri: garage.imageUrl }} style={[ds.miniThumb, { backgroundColor: c.surfaceAlt }]} resizeMode="cover" />
+      {garage ? (
+        <Image source={{ uri: garage.imageUrl }} style={[ds.miniThumb, { backgroundColor: c.surfaceAlt }]} resizeMode="cover" />
+      ) : (
+        <View style={[ds.miniThumb, { backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center' }]}>
+          <Icon name="business-outline" size={18} color={c.muted} />
+        </View>
+      )}
       <View style={ds.miniBody}>
         <Text style={[ds.miniName, { color: c.text }]}>{name}</Text>
         <Text style={[ds.miniDetail, { color: c.muted }]}>{detail}</Text>
@@ -151,9 +163,20 @@ export function GarageDetailScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const garage = findGarage(id);
-  const isFav = useQarWheelsStore((s) => s.favoriteGarageIds.includes(garage.id));
+  const garage = lookupGarage(id);
+  // Hooks must run before the guard below, so read favourites defensively.
+  const isFav = useQarWheelsStore((s) => (garage ? s.favoriteGarageIds.includes(garage.id) : false));
   const toggleFav = useQarWheelsStore((s) => s.toggleFavoriteGarage);
+
+  if (!garage) {
+    return (
+      <RecordNotFound
+        title="Garage not found"
+        message="This garage may no longer be listed on QarWheels."
+      />
+    );
+  }
+
   const handleBook = () => router.push(route(`/checkout/${garage.id}`));
   const garageServices = popularJobs.filter((job) => job.garageId === garage.id);
   const visibleServices = garageServices.length > 0 ? garageServices : popularJobs.slice(0, 3);
@@ -332,7 +355,17 @@ export function GarageDetailScreen() {
 export function CategoryDetailScreen() {
   const c = useQarColors();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const category = findCategory(id);
+  const category = lookupCategory(id);
+
+  if (!category) {
+    return (
+      <RecordNotFound
+        title="Category not found"
+        message="This service category is no longer available."
+      />
+    );
+  }
+
   const cc = categoryColors[id] ?? categoryColors.default;
   const matching = garages.filter((g) =>
     `${g.type} ${g.category}`.toLowerCase().includes(category.label.toLowerCase()) ||
@@ -371,7 +404,16 @@ export function JobDetailScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const job = findJob(id);
+  const job = lookupJob(id);
+
+  if (!job) {
+    return (
+      <RecordNotFound
+        title="Service not found"
+        message="This service is no longer offered."
+      />
+    );
+  }
 
   return (
     <Page title="Service details">
@@ -419,7 +461,19 @@ export function CarDetailScreen() {
   const router = useRouter();
   const c = useQarColors();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const car = findCar(id);
+  const car = lookupCar(id);
+
+  // No hooks below this point, so an early return is safe. Previously
+  // `findCar` fell back to the first seed vehicle, showing someone else's car
+  // under a deleted id.
+  if (!car) {
+    return (
+      <RecordNotFound
+        title="Vehicle not found"
+        message="This vehicle may have been removed from your garage."
+      />
+    );
+  }
 
   const hColor = car.health >= 80 ? c.success : car.health >= 60 ? c.warning : c.danger;
   const hBg    = car.health >= 80 ? c.successBg : car.health >= 60 ? c.warningBg : c.dangerBg;
@@ -437,19 +491,28 @@ export function CarDetailScreen() {
   const history = car.serviceHistory ?? [];
 
   return (
-    <SafeAreaView style={[cds.safe, { backgroundColor: c.background }]} edges={['top']}>
+    <SafeAreaView style={[cds.safe, { backgroundColor: c.background }]} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* ── Navbar ── */}
+      {/* ── Navbar ──
+          Sits in normal flow rather than floating: an absolutely-positioned bar
+          inside SafeAreaView overlapped the first card, and the compensating
+          paddingTop was on `style` (the scroll viewport) instead of
+          `contentContainerStyle`, so it never offset the content. */}
       <View style={[cds.navbar, { backgroundColor: c.background, borderBottomColor: c.border }]}>
-        <AnimatedPressable style={[cds.navBtn, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.back()} scaleValue={0.96}>
+        <AnimatedPressable
+          style={[cds.navBtn, { backgroundColor: c.surface, borderColor: c.border }]}
+          onPress={() => router.back()}
+          scaleValue={0.96}
+          accessibilityLabel="Go back"
+        >
           <Icon name="arrow-back" size={20} color={c.text} />
         </AnimatedPressable>
         <Text style={[cds.navTitle, { color: c.text }]} numberOfLines={1}>{car.name}</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={cds.content} showsVerticalScrollIndicator={false} style={{ backgroundColor: c.background, paddingTop: 60 }}>
+      <ScrollView contentContainerStyle={cds.content} showsVerticalScrollIndicator={false} style={{ backgroundColor: c.background }}>
         <MotionScreen>
 
           {/* ── Identity hero ── */}
@@ -516,13 +579,8 @@ export function CarDetailScreen() {
               <Text style={[cds.alertTitle, { color: c.text }]}>Upcoming service</Text>
               <Text style={[cds.alertSub, { color: c.muted }]}>{car.nextService}</Text>
             </View>
-            <AnimatedPressable
-              style={[cds.alertBtn, { backgroundColor: c.warning }]}
-              onPress={() => router.push(route(`/checkout/${car.id}`))}
-              scaleValue={0.95}
-            >
-              <Text style={cds.alertBtnText}>Book</Text>
-            </AnimatedPressable>
+            {/* No Book button here — the sticky bar below owns that action, and
+                two competing CTAs made the top of the screen feel crowded. */}
           </View>
 
           {/* ── Service history ── */}
@@ -554,24 +612,30 @@ export function CarDetailScreen() {
             </View>
           )}
 
-          {/* ── Book CTA ── */}
-          <AnimatedPressable
-            style={[cds.bookCta, { backgroundColor: c.primary }]}
-            onPress={() => router.push(route(`/checkout/${car.id}`))}
-            scaleValue={0.97}
-          >
-            <View style={cds.bookCtaIcon}>
-              <Icon name="calendar-outline" size={20} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={cds.bookCtaTitle}>Book maintenance</Text>
-              <Text style={cds.bookCtaSub}>Schedule a service at a QarWheels garage</Text>
-            </View>
-            <Icon name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
-          </AnimatedPressable>
-
         </MotionScreen>
       </ScrollView>
+
+      {/* ── Sticky action bar ──
+          Booking is the reason people open this screen, so the CTA stays
+          reachable at the thumb rather than sitting in the header (where it
+          competed with Back) or at the end of a long scroll. */}
+      <View style={[cds.actionBar, { backgroundColor: c.background, borderTopColor: c.border }]}>
+        <AnimatedPressable
+          style={[cds.bookCta, { backgroundColor: c.primary }]}
+          onPress={() => router.push(route(`/checkout/${car.id}`))}
+          scaleValue={0.97}
+          accessibilityLabel={`Book maintenance for ${car.name}`}
+        >
+          <View style={cds.bookCtaIcon}>
+            <Icon name="calendar-outline" size={20} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={cds.bookCtaTitle}>Book maintenance</Text>
+            <Text style={cds.bookCtaSub}>Schedule a service at a QarWheels garage</Text>
+          </View>
+          <Icon name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
+        </AnimatedPressable>
+      </View>
     </SafeAreaView>
   );
 }
@@ -590,7 +654,19 @@ export function BookingDetailScreen() {
   const rescheduleBooking = useQarWheelsStore((s) => s.rescheduleBooking);
   const themeMode = useQarWheelsStore((s) => s.themeMode);
   const themedStatusColors = getThemedStatusColors(themeMode);
-  const booking = storeBooking ?? findBooking(id);
+  // Prefer the user's own booking; the seed lookup is strict so a stale link
+  // cannot render somebody else's appointment under this id.
+  const booking = storeBooking ?? lookupBooking(id);
+
+  if (!booking) {
+    return (
+      <RecordNotFound
+        title="Booking not found"
+        message="This booking may have been cancelled or removed."
+      />
+    );
+  }
+
   const sc = themedStatusColors[booking.status] ?? themedStatusColors.Pending;
   const currentIndex = getBookingStatusIndex(booking.status);
   const canModify = booking.status !== 'Cancelled' && booking.status !== 'Completed';
@@ -616,7 +692,7 @@ export function BookingDetailScreen() {
         {
           text: 'Cancel booking',
           style: 'destructive',
-          onPress: () => { cancelBooking(booking.id); void success(); },
+          onPress: () => { cancelBooking(storeBooking.id); void success(); },
         },
       ],
     );
@@ -637,9 +713,9 @@ export function BookingDetailScreen() {
       'Reschedule booking',
       'Choose a new slot — the garage will reconfirm availability.',
       [
-        { text: slots[0].label, onPress: () => rescheduleBooking(booking.id, { date: slots[0].label, bookingDate: slots[0].date.toISOString(), timeSlot: slots[0].time }) },
-        { text: slots[1].label, onPress: () => rescheduleBooking(booking.id, { date: slots[1].label, bookingDate: slots[1].date.toISOString(), timeSlot: slots[1].time }) },
-        { text: slots[2].label, onPress: () => rescheduleBooking(booking.id, { date: slots[2].label, bookingDate: slots[2].date.toISOString(), timeSlot: slots[2].time }) },
+        { text: slots[0].label, onPress: () => rescheduleBooking(storeBooking.id, { date: slots[0].label, bookingDate: slots[0].date.toISOString(), timeSlot: slots[0].time }) },
+        { text: slots[1].label, onPress: () => rescheduleBooking(storeBooking.id, { date: slots[1].label, bookingDate: slots[1].date.toISOString(), timeSlot: slots[1].time }) },
+        { text: slots[2].label, onPress: () => rescheduleBooking(storeBooking.id, { date: slots[2].label, bookingDate: slots[2].date.toISOString(), timeSlot: slots[2].time }) },
         { text: 'Cancel', style: 'cancel' },
       ],
     );
@@ -881,8 +957,7 @@ export function SettingsDetailScreen() {
   const c = useQarColors();
   const { section } = useLocalSearchParams<{ section: string }>();
   const normalized  = decodeURIComponent(section ?? 'settings').replaceAll('-', ' ');
-  const language    = useQarWheelsStore((s) => s.language);
-  const setLanguage = useQarWheelsStore((s) => s.setLanguage);
+  const { language, changeLanguage } = useTranslation();
   const favorites   = useQarWheelsStore((s) => s.favoriteGarageIds);
 
   return (
@@ -905,7 +980,11 @@ export function SettingsDetailScreen() {
               <Pressable
                 key={lang}
                 style={[ds.langRow, { borderTopColor: c.border }, selected && { backgroundColor: c.primaryLight }]}
-                onPress={() => { setLanguage(lang); void success(); }}
+                onPress={() => {
+                  const needsRestart = changeLanguage(lang);
+                  void success();
+                  if (needsRestart) void promptRestartForRTL();
+                }}
               >
                 <Text style={ds.langFlag}>{lang === 'en' ? '🇬🇧' : '🇶🇦'}</Text>
                 <View style={{ flex: 1, gap: 2 }}>
@@ -946,22 +1025,23 @@ export function SettingsDetailScreen() {
 const cds = StyleSheet.create({
   safe:  { flex: 1 },
   navbar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    flexDirection: 'row', 
-    alignItems: 'center', 
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.page, 
+    paddingHorizontal: spacing.page,
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    ...shadow.sm,
   },
   navBtn:  { width: 40, height: 40, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center', ...shadow.xs },
   navTitle: { ...typography.h4, flex: 1, textAlign: 'center' },
-  content: { padding: spacing.page, gap: 14, paddingBottom: 48 },
+  // Bottom padding clears the sticky action bar so the last card is readable.
+  content: { padding: spacing.page, gap: 14, paddingBottom: 24 },
+  actionBar: {
+    paddingHorizontal: spacing.page,
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
 
   // Hero
   heroCard:  { borderRadius: radius.xl, borderWidth: 1, padding: 18, gap: 14, ...shadow.sm },
@@ -975,14 +1055,14 @@ const cds = StyleSheet.create({
   },
   plateText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
   healthBadge: { borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start' },
-  healthBadgeText: { fontSize: 11, fontWeight: '900' },
+  healthBadgeText: { fontSize: 12, fontWeight: '900' },
 
   vinRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     borderRadius: radius.md, borderWidth: 1,
     paddingHorizontal: 12, paddingVertical: 10,
   },
-  vinLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  vinLabel: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
   vinValue: { flex: 1, fontSize: 12, fontWeight: '600', letterSpacing: 0.3 },
 
   healthSection: { gap: 8 },
@@ -1006,7 +1086,7 @@ const cds = StyleSheet.create({
   },
   specIconWrap: { width: 30, height: 30, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   specValue:   { fontSize: 13, fontWeight: '800', lineHeight: 18 },
-  specLabel:   { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  specLabel:   { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
 
   // Alert card
   alertCard: {
@@ -1026,7 +1106,7 @@ const cds = StyleSheet.create({
   },
   historyDot:   { width: 8, height: 8, borderRadius: 4 },
   historyLabel: { fontSize: 13, fontWeight: '700' },
-  historyMeta:  { fontSize: 11, fontWeight: '500' },
+  historyMeta:  { fontSize: 12, fontWeight: '500' },
   historyDate:  { fontSize: 12, fontWeight: '700' },
 
   // Info row (single line)
@@ -1072,7 +1152,7 @@ const bds = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5,
   },
   statusDot:   { width: 7, height: 7, borderRadius: 4 },
-  statusLabel: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.4 },
+  statusLabel: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.4 },
   heroService: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5, lineHeight: 26 },
   heroGarage:  { fontSize: 14, fontWeight: '600' },
   heroStatusDesc: { fontSize: 13, fontWeight: '500', lineHeight: 18 },
@@ -1096,7 +1176,7 @@ const bds = StyleSheet.create({
   invoiceCtaTitle:     { fontSize: 15, fontWeight: '900' },
   invoiceCtaSub:       { fontSize: 12, fontWeight: '500' },
   invoiceCtaBadge:     { borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 4 },
-  invoiceCtaBadgeText: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
+  invoiceCtaBadgeText: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
 
   // Section
   section: { borderRadius: radius.xl, borderWidth: 1, padding: 16, gap: 14, ...shadow.xs },
@@ -1111,7 +1191,7 @@ const bds = StyleSheet.create({
   stepLine:    { flex: 1, width: 2, minHeight: 20, marginVertical: 2 },
   stepContent: { flex: 1, paddingBottom: 18, justifyContent: 'center' },
   stepLabel:   { fontSize: 14, color: colors.text },
-  stepSub:     { fontSize: 11, fontWeight: '700', marginTop: 1 },
+  stepSub:     { fontSize: 12, fontWeight: '700', marginTop: 1 },
   cancelledRow:{ flexDirection: 'row', alignItems: 'center', gap: 12 },
 
   // 2×2 action grid — equal columns, gap accounted for
@@ -1154,13 +1234,13 @@ const ds = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5,
   },
   openDot:      { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ADE80' },
-  openText:     { color: '#fff', fontSize: 11, fontWeight: '800' },
+  openText:     { color: '#fff', fontSize: 12, fontWeight: '800' },
   heroRatingBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: radius.full,
     paddingHorizontal: 10, paddingVertical: 5,
   },
-  heroRatingText: { color: '#fff', fontSize: 11, fontWeight: '900' },
+  heroRatingText: { color: '#fff', fontSize: 12, fontWeight: '900' },
 
   // Cards
   card: {
@@ -1188,7 +1268,7 @@ const ds = StyleSheet.create({
     backgroundColor: colors.primaryLight, borderRadius: radius.full,
     paddingHorizontal: 10, paddingVertical: 4,
   },
-  tagText: { color: colors.primary, fontSize: 11, fontWeight: '900' },
+  tagText: { color: colors.primary, fontSize: 12, fontWeight: '900' },
 
   // Discovery context
   discoveryMetrics: {
@@ -1279,7 +1359,7 @@ const ds = StyleSheet.create({
   svcLeft:      { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
   svcName:      { ...typography.h4, color: colors.text },
   svcMeta:      { ...typography.caption, color: colors.muted, marginTop: 2 },
-  svcPriceWrap: { alignItems: 'flex-end', gap: 5, marginLeft: 8 },
+  svcPriceWrap: { alignItems: 'flex-end', gap: 5, marginStart: 8 },
   svcPrice:     { ...typography.h4, color: colors.primary },
   svcBookPill:  { minWidth: 52, height: 28, borderRadius: radius.full, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
   svcBookText:  { color: '#fff', ...typography.caption, fontWeight: '900' },
@@ -1322,7 +1402,7 @@ const ds = StyleSheet.create({
   vehicleHeroTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   vehicleIcon:    { width: 52, height: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   healthBadge:    { borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 5 },
-  healthBadgeText: { fontSize: 11, fontWeight: '900' },
+  healthBadgeText: { fontSize: 12, fontWeight: '900' },
   healthBarWrap:  { gap: 6 },
   healthBarRow:   { flexDirection: 'row', justifyContent: 'space-between' },
   healthBarLabel: { ...typography.caption, color: colors.muted },

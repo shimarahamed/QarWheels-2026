@@ -274,7 +274,7 @@ const s = StyleSheet.create({
   photoImg: { width: '100%', height: '100%' },
   removeBtn: { position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   addPhotoBtn: { width: '30%', aspectRatio: 1, borderRadius: radius.lg, borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 4 },
-  addPhotoText: { fontSize: 11, fontWeight: '700' },
+  addPhotoText: { fontSize: 12, fontWeight: '700' },
 
   descInput: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: radius.lg, borderWidth: 1, padding: 12, minHeight: 56 },
   descText: { flex: 1, fontSize: 13 },
@@ -289,7 +289,7 @@ const s = StyleSheet.create({
   resultCostLabel: { fontSize: 12, fontWeight: '600' },
 
   resultRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  resultLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 },
+  resultLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 },
   resultValue: { fontSize: 13, fontWeight: '600', lineHeight: 18 },
 
   thumbImg: { width: 80, height: 80, borderRadius: radius.md, borderWidth: 1 },

@@ -26,19 +26,55 @@ export function AuthScreen({
           {children}
         </MotionScreen>
       </ScrollView>
-      {footer ? <MotionSurface delay={120} style={styles.footer}>{footer}</MotionSurface> : null}
+      {footer ? <MotionSurface delay={40} style={styles.footer}>{footer}</MotionSurface> : null}
     </SafeAreaView>
   );
 }
 
-export function BrandMark({ compact = false }: { compact?: boolean }) {
+/**
+ * Brand lockup, matching the web `Logo` component: a red disc carrying a white
+ * "Q" beside the wordmark, with "Your Car. Our Care." underneath.
+ *
+ * The web version is always a row, so that is the default here too.
+ * `compact` scales the whole lockup down for inline use; `stacked` centres it
+ * vertically for the tall hero screens. The tagline is part of the brand — it
+ * is only dropped when `hideText` removes the text block entirely.
+ */
+export function BrandMark({
+  compact = false,
+  stacked = false,
+  hideText = false,
+}: {
+  compact?: boolean;
+  stacked?: boolean;
+  hideText?: boolean;
+}) {
   return (
-    <View style={[styles.brand, compact && styles.brandCompact]}>
-      <View style={[styles.brandIcon, compact && styles.brandIconCompact]}>
-        <Ionicons name="car-sport" size={compact ? 24 : 34} color="#fff" />
+    <View
+      style={[styles.brand, stacked ? styles.brandStacked : styles.brandRow, compact && styles.brandTight]}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel="QarWheels — Your Car. Our Care."
+    >
+      <View style={compact ? styles.brandIconCompact : styles.brandIcon}>
+        <Text style={compact ? styles.brandGlyphCompact : styles.brandGlyph} allowFontScaling={false}>
+          Q
+        </Text>
       </View>
-      <Text style={styles.brandName}>QarWheels</Text>
-      {!compact ? <Text style={styles.brandSub}>Qatar's trusted car care platform</Text> : null}
+
+      {!hideText && (
+        <View style={stacked ? styles.brandTextStacked : styles.brandText}>
+          <Text style={compact ? styles.brandNameCompact : styles.brandName}>QarWheels</Text>
+          <Text
+            style={[
+              compact ? styles.brandSubCompact : styles.brandSub,
+              stacked && styles.brandSubStacked,
+            ]}
+          >
+            Your Car. Our Care.
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -156,8 +192,18 @@ export function OptionCard({
   selected?: boolean;
 }) {
   return (
-    <AnimatedPressable style={[styles.option, selected && styles.optionSelected]} onPress={onPress} scaleValue={0.98}>
-      <View style={styles.optionIcon}>
+    <AnimatedPressable
+      style={[styles.option, selected && styles.optionSelected]}
+      onPress={onPress}
+      scaleValue={0.98}
+      // These cards are a single-choice group, so selection state has to be
+      // announced — "button" alone would not tell the user what is active.
+      accessibilityRole="radio"
+      accessibilityState={{ selected: !!selected, checked: !!selected }}
+      accessibilityLabel={title}
+      accessibilityHint={body}
+    >
+      <View style={styles.optionIcon} importantForAccessibility="no" accessibilityElementsHidden>
         <Ionicons name={icon} size={22} color={colors.primary} />
       </View>
       <View style={{ flex: 1, gap: 2 }}>
@@ -192,7 +238,7 @@ export function AuthField({
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       <View style={styles.inputRow}>
-        <Ionicons name={icon} size={17} color={colors.muted} style={{ marginRight: 8 }} />
+        <Ionicons name={icon} size={17} color={colors.muted} style={{ marginEnd: 8 }} />
         <TextInput
           style={styles.input}
           value={value}
@@ -229,20 +275,43 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   screenInner: { gap: spacing.gap },
-  brand: { alignItems: 'center', gap: 12, paddingVertical: spacing.xl },
-  brandCompact: { alignItems: 'flex-start', paddingVertical: spacing.xs },
+  brand: { paddingVertical: spacing.lg },
+  // Default: disc beside the text, matching the web lockup.
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  // Hero screens centre it and stack the text beneath the disc.
+  brandStacked: { flexDirection: 'column', alignItems: 'center', gap: 12, paddingVertical: spacing.xl },
+  brandTight: { paddingVertical: spacing.xs },
+  // A circle, not a rounded square — radius is half the side.
   brandIcon: {
-    width: 74,
-    height: 74,
-    borderRadius: 24,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadow.primary,
   },
-  brandIconCompact: { width: 52, height: 52, borderRadius: 18 },
-  brandName: { ...typography.h2, color: colors.text },
-  brandSub: { ...typography.bodySm, color: colors.muted, textAlign: 'center' },
+  brandIconCompact: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow.primary,
+  },
+  // `allowFontScaling={false}` on the glyph keeps it centred in the disc at
+  // any system text size; the disc cannot grow with it.
+  brandGlyph: { fontSize: 36, fontWeight: '900', color: '#fff', lineHeight: 40 },
+  brandGlyphCompact: { fontSize: 19, fontWeight: '900', color: '#fff', lineHeight: 22 },
+  // Row layout: tight leading, matching the web `leading-none` stack.
+  brandText: { alignItems: 'flex-start', gap: 2 },
+  brandTextStacked: { alignItems: 'center', gap: 4 },
+  brandName: { ...typography.h2, color: colors.text, letterSpacing: -0.4 },
+  brandNameCompact: { ...typography.h3, color: colors.text, letterSpacing: -0.3 },
+  brandSub: { ...typography.bodySm, color: colors.muted, letterSpacing: 0.2 },
+  brandSubCompact: { ...typography.caption, color: colors.muted, letterSpacing: 0.3 },
+  brandSubStacked: { textAlign: 'center' },
   header: { gap: 12 },
   headerIcon: {
     width: 64,

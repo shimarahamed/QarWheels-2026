@@ -61,7 +61,7 @@ export default function AnalyticsScreen() {
           </View>
 
           {/* Revenue chart */}
-          <MotionSurface delay={60}>
+          <MotionSurface delay={20}>
             <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
               <Text style={[s.sectionTitle, { color: c.text }]}>Revenue — {period}</Text>
               {data.totalRevenue === 0 ? (
@@ -100,7 +100,7 @@ export default function AnalyticsScreen() {
           </MotionSurface>
 
           {/* Top services */}
-          <MotionSurface delay={120}>
+          <MotionSurface delay={40}>
             <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
               <Text style={[s.sectionTitle, { color: c.text }]}>Top Services</Text>
               {data.topServices.map((svc, i) => {
@@ -123,7 +123,7 @@ export default function AnalyticsScreen() {
           </MotionSurface>
 
           {/* Peak hours */}
-          <MotionSurface delay={180}>
+          <MotionSurface delay={60}>
             <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
               <Text style={[s.sectionTitle, { color: c.text }]}>Peak Hours</Text>
               {data.totalBookings === 0 ? (
@@ -153,7 +153,7 @@ export default function AnalyticsScreen() {
           </MotionSurface>
 
           {/* Funnel */}
-          <MotionSurface delay={240}>
+          <MotionSurface delay={80}>
             <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
               <Text style={[s.sectionTitle, { color: c.text }]}>Conversion Funnel</Text>
               {data.funnelSteps.map((step, i) => {
@@ -175,7 +175,7 @@ export default function AnalyticsScreen() {
           </MotionSurface>
 
           {/* Repeat rate */}
-          <MotionSurface delay={300}>
+          <MotionSurface delay={100}>
             <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
               <View style={s.repeatRow}>
                 <View style={{ gap: 3 }}>
@@ -227,7 +227,7 @@ const s = StyleSheet.create({
   },
   kpiIcon: { width: 32, height: 32, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   kpiValue: { ...typography.h4 },
-  kpiLabel: { fontSize: 10, fontWeight: '700' },
+  kpiLabel: { fontSize: 12, fontWeight: '700' },
 
   section: { borderRadius: radius.xl, borderWidth: 1, padding: 16, gap: 14, ...shadow.sm },
   sectionTitle: { ...typography.h4 },
@@ -237,28 +237,28 @@ const s = StyleSheet.create({
 
   chartArea: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 160 },
   barCol: { flex: 1, alignItems: 'center', gap: 4 },
-  barValue: { fontSize: 9, fontWeight: '700' },
+  barValue: { fontSize: 12, fontWeight: '700' },
   barWrap: { flex: 1, justifyContent: 'flex-end', width: '100%', alignItems: 'center' },
   bar: { width: '75%' },
-  barDay: { fontSize: 9, fontWeight: '700' },
+  barDay: { fontSize: 12, fontWeight: '700' },
 
   svcRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  svcRank: { fontSize: 11, fontWeight: '700', width: 20 },
+  svcRank: { fontSize: 12, fontWeight: '700', width: 20 },
   svcName: { flex: 1, fontSize: 13, fontWeight: '700' },
-  svcCount: { fontSize: 11, fontWeight: '600' },
+  svcCount: { fontSize: 12, fontWeight: '600' },
   svcRevenue: { fontSize: 12, fontWeight: '800', width: 60, textAlign: 'right' },
   svcBar: { height: 6, borderRadius: 3, overflow: 'hidden' },
   svcFill: { height: '100%', borderRadius: 3 },
 
   peakChart: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 120 },
   peakCol: { flex: 1, alignItems: 'center', gap: 3 },
-  peakValue: { fontSize: 9, fontWeight: '700' },
-  peakHour: { fontSize: 8, fontWeight: '700' },
+  peakValue: { fontSize: 12, fontWeight: '700' },
+  peakHour: { fontSize: 12, fontWeight: '700' },
 
   funnelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   funnelStep: { flex: 1, fontSize: 13, fontWeight: '600' },
   funnelCount: { fontSize: 13, fontWeight: '800' },
-  funnelPct: { fontSize: 11, fontWeight: '600', width: 36, textAlign: 'right' },
+  funnelPct: { fontSize: 12, fontWeight: '600', width: 36, textAlign: 'right' },
   funnelBar: { height: 8, borderRadius: 4, overflow: 'hidden' },
   funnelFill: { height: '100%', width: '100%' },
 

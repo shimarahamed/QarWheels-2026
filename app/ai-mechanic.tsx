@@ -362,18 +362,18 @@ const s = StyleSheet.create({
   navCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   navAiIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   navTitle: { ...typography.h4 },
-  navSub: { fontSize: 10, fontWeight: '600' },
+  navSub: { fontSize: 12, fontWeight: '600' },
   liveDot: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4 },
   liveDotInner: { width: 6, height: 6, borderRadius: 3 },
-  liveText: { fontSize: 10, fontWeight: '800' },
+  liveText: { fontSize: 12, fontWeight: '800' },
 
   demoBar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing.page, paddingVertical: 8, borderBottomWidth: 1 },
-  demoText: { fontSize: 11, fontWeight: '600', flex: 1 },
+  demoText: { fontSize: 12, fontWeight: '600', flex: 1 },
 
   chatContent: { padding: spacing.page, gap: 14, paddingBottom: 20 },
 
   suggestWrap: { gap: 10, marginTop: 8 },
-  suggestLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
+  suggestLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
   suggestRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 7 },
   chipText: { fontSize: 12, fontWeight: '600' },
@@ -393,10 +393,10 @@ const bub = StyleSheet.create({
   avatar: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   bubble: { borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 10 },
   text: { fontSize: 14, lineHeight: 20 },
-  time: { fontSize: 10, fontWeight: '600' },
+  time: { fontSize: 12, fontWeight: '600' },
 });
 
 const ub = StyleSheet.create({
   badge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' },
-  label: { fontSize: 10, fontWeight: '800' },
+  label: { fontSize: 12, fontWeight: '800' },
 });

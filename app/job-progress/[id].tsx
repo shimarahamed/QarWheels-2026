@@ -218,9 +218,9 @@ const s = StyleSheet.create({
     borderRadius: radius.full, paddingHorizontal: 8, paddingVertical: 4,
   },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
-  liveText: { color: '#fff', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  liveText: { color: '#fff', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
 
-  updatedText: { fontSize: 11, fontWeight: '600', textAlign: 'center' },
+  updatedText: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
 
   section: { borderRadius: radius.xl, borderWidth: 1, padding: 16, gap: 0, ...shadow.xs },
   sectionTitle: { ...typography.h4, marginBottom: 12 },
@@ -232,7 +232,7 @@ const s = StyleSheet.create({
   stepLine: { flex: 1, width: 2, minHeight: 16, marginVertical: 2 },
   stepContent: { flex: 1, paddingBottom: 16, justifyContent: 'center' },
   stepLabel: { fontSize: 14 },
-  stepSub: { fontSize: 11, fontWeight: '700', marginTop: 2 },
+  stepSub: { fontSize: 12, fontWeight: '700', marginTop: 2 },
 
   infoStrip: { borderRadius: radius.xl, borderWidth: 1, padding: 14, gap: 0, ...shadow.xs },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9 },

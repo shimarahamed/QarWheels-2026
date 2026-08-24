@@ -63,7 +63,7 @@ export default function PayoutsScreen() {
           </View>
 
           {/* Payout history */}
-          <MotionSurface delay={80}>
+          <MotionSurface delay={30}>
             <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
               <Text style={[s.sectionTitle, { color: c.text }]}>Payout History</Text>
               {vendorPayouts.map((payout) => {
@@ -155,7 +155,7 @@ const s = StyleSheet.create({
     alignItems: 'center', gap: 5, ...shadow.xs,
   },
   metricValue: { ...typography.h4 },
-  metricLabel: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
+  metricLabel: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
 
   noteCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
@@ -169,18 +169,18 @@ const s = StyleSheet.create({
   payoutCard: { borderRadius: radius.lg, borderWidth: 1, overflow: 'hidden' },
   payoutTop: { flexDirection: 'row', justifyContent: 'space-between', padding: 12 },
   payoutPeriod: { fontSize: 14, fontWeight: '800' },
-  payoutSub: { fontSize: 11, fontWeight: '500' },
+  payoutSub: { fontSize: 12, fontWeight: '500' },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full },
-  statusText: { fontSize: 10, fontWeight: '900' },
+  statusText: { fontSize: 12, fontWeight: '900' },
   payoutNet: { fontSize: 15, fontWeight: '900' },
 
   txnList: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8, paddingHorizontal: 12, paddingBottom: 12, gap: 8 },
   txnRow: { flexDirection: 'row', alignItems: 'flex-start' },
   txnCustomer: { fontSize: 13, fontWeight: '700' },
-  txnService: { fontSize: 11, fontWeight: '500' },
+  txnService: { fontSize: 12, fontWeight: '500' },
   txnAmount: { fontSize: 13, fontWeight: '700' },
-  txnNet: { fontSize: 11, fontWeight: '700' },
-  paidAt: { fontSize: 11, fontWeight: '500', paddingHorizontal: 12, paddingBottom: 10 },
+  txnNet: { fontSize: 12, fontWeight: '700' },
+  paidAt: { fontSize: 12, fontWeight: '500', paddingHorizontal: 12, paddingBottom: 10 },
 
   ctaBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

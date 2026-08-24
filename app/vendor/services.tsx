@@ -323,7 +323,7 @@ const s = StyleSheet.create({
   summaryRow: { flexDirection: 'row', gap: 10 },
   summaryCard: { flex: 1, borderRadius: radius.lg, borderWidth: 1, padding: 12, alignItems: 'center', gap: 4, ...shadow.xs },
   summaryValue: { ...typography.h4 },
-  summaryLabel: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
+  summaryLabel: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
 
   empty: { alignItems: 'center', gap: 8, paddingVertical: 40 },
   emptyTitle: { fontSize: 15, fontWeight: '800' },
@@ -335,18 +335,18 @@ const s = StyleSheet.create({
   svcName: { fontSize: 14, fontWeight: '800' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   catTag: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: radius.full, borderWidth: 1 },
-  catTagText: { fontSize: 10, fontWeight: '700' },
-  duration: { fontSize: 11 },
+  catTagText: { fontSize: 12, fontWeight: '700' },
+  duration: { fontSize: 12 },
   desc: { fontSize: 12, lineHeight: 16 },
   price: { fontSize: 16, fontWeight: '900' },
   activeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.full },
-  activeBadgeText: { fontSize: 10, fontWeight: '800' },
+  activeBadgeText: { fontSize: 12, fontWeight: '800' },
 
   cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth },
   footerBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.full, borderWidth: 1 },
-  footerBtnText: { fontSize: 11, fontWeight: '700' },
-  priceTag: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto', paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full, borderWidth: 1 },
-  priceTagText: { fontSize: 10, fontWeight: '600' },
+  footerBtnText: { fontSize: 12, fontWeight: '700' },
+  priceTag: { flexDirection: 'row', alignItems: 'center', gap: 4, marginStart: 'auto', paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full, borderWidth: 1 },
+  priceTagText: { fontSize: 12, fontWeight: '600' },
 });
 
 const mod = StyleSheet.create({

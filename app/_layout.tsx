@@ -7,20 +7,29 @@ import { useEffect, type ReactNode } from 'react';
 import { Platform } from 'react-native';
 import 'react-native-reanimated';
 
+import { AppErrorBoundary } from '@/components/AppErrorBoundary';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider, useAuthContext } from '@/lib/AuthContext';
+import { applyLanguage } from '@/lib/i18n';
 import { AppQueryProvider } from '@/lib/query-client';
 import { useQarWheelsStore } from '@/lib/store';
 import { motion } from '@/lib/motion';
-import { registerForPushNotificationsAsync } from '@/lib/notifications';
-
-export {
-  ErrorBoundary,
-} from 'expo-router';
+import { syncPushTokenToProfile } from '@/lib/notifications';
+import { assertConfig, identifyUser, initObservability, trackScreen } from '@/lib/observability';
 
 export const unstable_settings = {
   initialRouteName: '(auth)',
 };
+
+// Start crash reporting before anything else can throw, then surface any
+// configuration that is missing rather than letting it degrade silently.
+initObservability();
+assertConfig();
+
+// Apply the persisted language's layout direction during module evaluation,
+// i.e. before the first render. Calling this later would require a restart.
+applyLanguage(useQarWheelsStore.getState().language);
 
 SplashScreen.preventAutoHideAsync();
 
@@ -48,6 +57,20 @@ function AuthGuard({ children }: { children: ReactNode }) {
   const vendorAuthenticated = useQarWheelsStore((state) => state.vendorAuthenticated);
   const segments = useSegments();
   const router = useRouter();
+
+  // Register the device for push and attach the token to the user's profile.
+  // Without this the token never leaves the device and no booking update can
+  // ever be delivered.
+  useEffect(() => {
+    identifyUser(user?.uid ?? null);
+    if (!user?.uid) return;
+    void syncPushTokenToProfile(user.uid);
+  }, [user?.uid]);
+
+  // Breadcrumb the route so crash reports show how the user got there.
+  useEffect(() => {
+    if (segments.length) trackScreen('/' + segments.join('/'));
+  }, [segments]);
 
   useEffect(() => {
     // Wait until Firebase has resolved auth state
@@ -84,18 +107,17 @@ function RootLayoutNav() {
   const themeMode = useQarWheelsStore((state) => state.themeMode);
   const colorScheme = themeMode ?? systemScheme;
 
-  useEffect(() => {
-    void registerForPushNotificationsAsync();
-  }, []);
   const routeAnimation = Platform.OS === 'android' ? 'ios_from_right' : 'default';
 
   const bg = colorScheme === 'dark' ? '#070A0E' : '#F7F3F1';
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <AppErrorBoundary>
       <AuthProvider>
         <AppQueryProvider>
           <AuthGuard>
+            <OfflineBanner />
             <Stack
               screenOptions={{
                 // Pin the container background so no white void is ever exposed
@@ -120,6 +142,7 @@ function RootLayoutNav() {
           </AuthGuard>
         </AppQueryProvider>
       </AuthProvider>
+      </AppErrorBoundary>
     </ThemeProvider>
   );
 }

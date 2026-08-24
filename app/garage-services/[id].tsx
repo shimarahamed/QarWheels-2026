@@ -6,7 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { findGarage, popularJobs } from '@/lib/marketplace';
+import { lookupGarage, popularJobs } from '@/lib/marketplace';
+import RecordNotFound from '@/components/RecordNotFound';
 
 const CATEGORIES = ['All', 'Oil & Fluids', 'AC & Cooling', 'Brakes', 'Battery', 'Tyres', 'Diagnostics', 'Body'];
 
@@ -27,7 +28,7 @@ export default function GarageServicesScreen() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [search, setSearch] = useState('');
 
-  const garage = (() => { try { return findGarage(id); } catch { return null; } })();
+  const garage = lookupGarage(id);
 
   // Use popularJobs as the service catalogue — filter to garage if available, else show all
   const garageJobs = popularJobs.filter((j) => !j.garageId || j.garageId === id);
@@ -38,6 +39,10 @@ export default function GarageServicesScreen() {
     const matchCat = activeCategory === 'All' || job.categoryId === activeCategory.toLowerCase().replace(/ & /g, '-').replace(/\s/g, '-');
     return matchSearch && matchCat;
   });
+
+  if (!garage) {
+    return <RecordNotFound title="Garage not found" message="This garage may no longer be listed." />;
+  }
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.background }]} edges={['top']}>
@@ -161,7 +166,7 @@ const s = StyleSheet.create({
   },
   navBtn: { width: 40, height: 40, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center', ...shadow.xs },
   navTitle: { ...typography.h4 },
-  navSub: { fontSize: 11, fontWeight: '600' },
+  navSub: { fontSize: 12, fontWeight: '600' },
   searchWrap: { paddingHorizontal: spacing.page, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.lg, borderWidth: 1, paddingHorizontal: 12, height: 42 },
   searchInput: { flex: 1, fontSize: 14 },
@@ -180,7 +185,7 @@ const s = StyleSheet.create({
   serviceTitle: { fontSize: 14, fontWeight: '800', marginBottom: 4 },
   serviceMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   metaChip: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  metaText: { fontSize: 11, fontWeight: '600' },
+  metaText: { fontSize: 12, fontWeight: '600' },
   serviceRight: { alignItems: 'flex-end', gap: 8 },
   servicePrice: { fontSize: 15, fontWeight: '900' },
   bookPill: { borderRadius: radius.full, paddingHorizontal: 14, paddingVertical: 6 },

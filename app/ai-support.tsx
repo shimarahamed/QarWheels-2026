@@ -105,7 +105,7 @@ export default function AiSupportScreen() {
         </View>
 
         {/* Messages */}
-        <ScrollView ref={scrollRef} contentContainerStyle={s.chatContent} showsVerticalScrollIndicator={false} style={{ paddingTop: 60 }}>
+        <ScrollView ref={scrollRef} contentContainerStyle={s.chatContent} showsVerticalScrollIndicator={false}>
           {/* Quick prompts (only before first user message) */}
           {messages.length === 1 && (
             <View style={s.quickRow}>
@@ -176,11 +176,6 @@ export default function AiSupportScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
     flexDirection: 'row', 
     alignItems: 'center', 
     gap: 10,
@@ -193,7 +188,7 @@ const s = StyleSheet.create({
   navCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   aiAvatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   navTitle: { ...typography.h4 },
-  navOnline: { fontSize: 11, fontWeight: '600' },
+  navOnline: { fontSize: 12, fontWeight: '600' },
   chatContent: { padding: spacing.page, gap: 12, paddingBottom: 16 },
   quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
   quickChip: { borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 7 },
@@ -205,7 +200,7 @@ const s = StyleSheet.create({
   bubble: { borderRadius: 18, padding: 12, gap: 4, maxWidth: '100%' },
   thinkBubble: { paddingHorizontal: 20, paddingVertical: 14 },
   bubbleText: { fontSize: 14, lineHeight: 20 },
-  bubbleTime: { fontSize: 10, fontWeight: '500', alignSelf: 'flex-end' },
+  bubbleTime: { fontSize: 12, fontWeight: '500', alignSelf: 'flex-end' },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, padding: 12, borderTopWidth: StyleSheet.hairlineWidth },
   composerInput: { flex: 1, borderRadius: radius.lg, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, maxHeight: 100 },
   sendBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },

@@ -248,7 +248,7 @@ const s = StyleSheet.create({
   workflowRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   workflowDot: { width: 10, height: 10, borderRadius: 5, marginTop: 5 },
   workflowText: { fontSize: 13, fontWeight: '800' },
-  workflowMeta: { fontSize: 11, fontWeight: '500', lineHeight: 16 },
+  workflowMeta: { fontSize: 12, fontWeight: '500', lineHeight: 16 },
 
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
   infoLabel: { fontSize: 13, fontWeight: '600', flex: 1 },

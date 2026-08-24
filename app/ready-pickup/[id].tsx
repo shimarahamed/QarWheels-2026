@@ -145,7 +145,7 @@ const s = StyleSheet.create({
   summaryStrip: { flexDirection: 'row', borderRadius: radius.xl, borderWidth: 1, overflow: 'hidden', ...shadow.xs },
   summaryItem: { flex: 1, padding: 14, gap: 4 },
   summaryDivider: { width: StyleSheet.hairlineWidth },
-  summaryLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  summaryLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   summaryValue: { fontSize: 13, fontWeight: '800' },
 
   section: { borderRadius: radius.xl, borderWidth: 1, padding: 16, gap: 0, ...shadow.xs },

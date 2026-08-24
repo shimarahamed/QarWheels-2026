@@ -198,12 +198,12 @@ const s = StyleSheet.create({
   bankIcon: { width: 40, height: 40, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   bankName: { fontSize: 14, fontWeight: '700' },
   bankIban: { fontSize: 12, fontWeight: '600' },
-  businessName: { fontSize: 11, fontWeight: '500' },
+  businessName: { fontSize: 12, fontWeight: '500' },
   verifiedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full,
   },
-  verifiedText: { fontSize: 10, fontWeight: '800', color: '#22C55E' },
+  verifiedText: { fontSize: 12, fontWeight: '800', color: '#22C55E' },
 
   breakRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   breakLabel: { fontSize: 13, fontWeight: '600' },

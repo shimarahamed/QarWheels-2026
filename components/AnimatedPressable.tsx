@@ -20,6 +20,8 @@ export default function AnimatedPressable({
   style,
   disabled,
   scaleValue = 0.95,
+  accessibilityRole,
+  accessibilityState,
   ...rest
 }: Props) {
   const scale = useSharedValue(1);
@@ -42,6 +44,11 @@ export default function AnimatedPressable({
         }}
         onPress={onPress}
         disabled={disabled}
+        // This wrapper backs most tappable surfaces in the app. Defaulting the
+        // role here means every consumer is announced as a button, and the
+        // disabled state is conveyed rather than silently ignored.
+        accessibilityRole={accessibilityRole ?? 'button'}
+        accessibilityState={{ disabled: !!disabled, ...accessibilityState }}
         {...rest}
       >
         {children}

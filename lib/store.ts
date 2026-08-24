@@ -27,6 +27,26 @@ import {
   type CounterOffer,
 } from '@/lib/vendor-data';
 
+/** Short human-quotable reference for a ledger entry, e.g. "PAY-K3F9QX". */
+function makeReference(prefix: string) {
+  const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `${prefix}-${suffix}`;
+}
+
+/**
+ * Unique id for a locally-created record.
+ *
+ * `Date.now()` alone is not enough: two records created in the same
+ * millisecond — a double tap, or a loop — collide, and React list keys plus
+ * every `find(x => x.id === id)` lookup then resolve to the wrong record.
+ * A monotonic counter makes collisions impossible within a session.
+ */
+let idCounter = 0;
+function makeId(prefix: string) {
+  idCounter += 1;
+  return `${prefix}_${Date.now().toString(36)}${idCounter.toString(36)}`;
+}
+
 type BookingCreateInput = Omit<Booking, 'id' | 'status' | 'vendorBookingId'> & {
   status?: Booking['status'];
   customerName?: string;
@@ -49,6 +69,78 @@ export type NotificationItem = {
   read: boolean;
 };
 
+// ─── Account domain ──────────────────────────────────────────────────────────
+// Wallet, ledger, documents and addresses were previously hardcoded strings in
+// the UI ("QAR 280.00", two fixed addresses, three invented invoices). They are
+// real persisted state now, so a top-up changes the balance, a booking debits
+// it, and the ledger explains every movement.
+
+export type SavedAddress = {
+  id: string;
+  /** User-supplied name: "Home", "Villa 12", "Mum's place". */
+  label: string;
+  line: string;
+  area: string;
+  /** Free-text landmark or delivery note for the driver. */
+  instructions?: string;
+  isDefault: boolean;
+  createdAt: string;
+};
+
+export type WalletTxnKind = 'topup' | 'payment' | 'refund' | 'reward';
+
+export type WalletTransaction = {
+  id: string;
+  kind: WalletTxnKind;
+  /** Positive credits the wallet, negative debits it. Always QAR. */
+  amount: number;
+  description: string;
+  /** Balance immediately after this entry — makes the ledger auditable. */
+  balanceAfter: number;
+  createdAt: string;
+  bookingId?: string;
+  invoiceId?: string;
+  method?: string;
+  reference: string;
+};
+
+export type StoredInvoice = {
+  id: string;
+  /** Human reference, e.g. INV-2026-0184. */
+  number: string;
+  bookingId?: string;
+  garage: string;
+  service: string;
+  vehicle?: string;
+  amount: number;
+  status: 'Paid' | 'Unpaid' | 'Refunded';
+  method: string;
+  issuedAt: string;
+};
+
+export type VaultDocumentKind =
+  | 'license'
+  | 'id'
+  | 'insurance'
+  | 'registration'
+  | 'invoice'
+  | 'other';
+
+export type VaultDocument = {
+  id: string;
+  kind: VaultDocumentKind;
+  title: string;
+  /** Local file URI from the picker. */
+  uri: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  /** ISO date; surfaced as an expiry warning when near. */
+  expiresAt?: string;
+  /** Optional link to a vehicle in the garage. */
+  vehicleId?: string;
+  addedAt: string;
+};
+
 type QarWheelsState = {
   // ── Customer ──────────────────────────────────────────────────────────────
   favoriteGarageIds: string[];
@@ -57,7 +149,44 @@ type QarWheelsState = {
   notifications: NotificationItem[];
   language: 'en' | 'ar';
   themeMode: QarThemeMode;
+  /** False until the user has explicitly chosen a theme during onboarding. */
+  themeChosen: boolean;
   vendorAuthenticated: boolean;
+
+  // ── Account domain ────────────────────────────────────────────────────────
+  addresses: SavedAddress[];
+  walletBalance: number;
+  walletTransactions: WalletTransaction[];
+  invoices: StoredInvoice[];
+  documents: VaultDocument[];
+
+  addAddress: (input: Omit<SavedAddress, 'id' | 'createdAt' | 'isDefault'> & { isDefault?: boolean }) => SavedAddress;
+  updateAddress: (id: string, patch: Partial<Omit<SavedAddress, 'id' | 'createdAt'>>) => void;
+  removeAddress: (id: string) => void;
+  setDefaultAddress: (id: string) => void;
+
+  /** Credits the wallet and records the entry. Returns the new balance. */
+  topUpWallet: (amount: number, method: string) => number;
+  /**
+   * Debits the wallet for a booking. Returns false without recording anything
+   * when the balance is insufficient — the caller must fall back to a card.
+   */
+  chargeWallet: (amount: number, description: string, bookingId?: string) => boolean;
+  refundToWallet: (amount: number, description: string, bookingId?: string) => void;
+
+  addInvoice: (input: Omit<StoredInvoice, 'id' | 'number' | 'issuedAt'> & { issuedAt?: string }) => StoredInvoice;
+
+  addDocument: (input: Omit<VaultDocument, 'id' | 'addedAt'>) => VaultDocument;
+  removeDocument: (id: string) => void;
+  renameDocument: (id: string, title: string) => void;
+
+  /**
+   * Wipe everything belonging to the signed-in person, for sign-out.
+   * Device preferences (theme, language) deliberately survive — they are
+   * settings for the device, not personal data.
+   */
+  clearPersonalData: () => void;
+
   toggleFavoriteGarage: (garageId: string) => boolean;
   createQuoteRequest: (input: Pick<QuoteRequest, 'issue' | 'vehicle'>) => QuoteRequest;
   createBooking: (input: BookingCreateInput) => Booking;
@@ -66,6 +195,8 @@ type QarWheelsState = {
   markNotificationsRead: () => void;
   setLanguage: (language: 'en' | 'ar') => void;
   setThemeMode: (mode: QarThemeMode) => void;
+  /** Records an explicit onboarding theme choice. */
+  chooseThemeMode: (mode: QarThemeMode) => void;
   toggleThemeMode: () => void;
   setVendorAuthenticated: (authenticated: boolean) => void;
   mergeFirestoreBookings: (firestoreBookings: Booking[]) => void;
@@ -132,7 +263,172 @@ export const useQarWheelsStore = create<QarWheelsState>()(
       ],
       language: 'en',
       themeMode: 'dark',
+      themeChosen: false,
       vendorAuthenticated: false,
+
+      // ── Account domain ──────────────────────────────────────────────────
+      // Starts genuinely empty. A new account has no addresses, no balance and
+      // no paperwork; showing invented ones taught users to distrust the
+      // numbers.
+      addresses: [],
+      walletBalance: 0,
+      walletTransactions: [],
+      invoices: [],
+      documents: [],
+
+      addAddress: (input) => {
+        const existing = get().addresses;
+        const address: SavedAddress = {
+          id: makeId('addr'),
+          label: input.label.trim() || 'Address',
+          line: input.line.trim(),
+          area: input.area.trim(),
+          instructions: input.instructions?.trim() || undefined,
+          // First address saved is the default, regardless of the flag.
+          isDefault: input.isDefault ?? existing.length === 0,
+          createdAt: new Date().toISOString(),
+        };
+        set((state) => ({
+          addresses: address.isDefault
+            ? [...state.addresses.map((a) => ({ ...a, isDefault: false })), address]
+            : [...state.addresses, address],
+        }));
+        return address;
+      },
+
+      updateAddress: (id, patch) =>
+        set((state) => ({
+          addresses: state.addresses.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+        })),
+
+      removeAddress: (id) =>
+        set((state) => {
+          const remaining = state.addresses.filter((a) => a.id !== id);
+          // Never leave the list without a default.
+          if (remaining.length && !remaining.some((a) => a.isDefault)) {
+            remaining[0] = { ...remaining[0], isDefault: true };
+          }
+          return { addresses: remaining };
+        }),
+
+      setDefaultAddress: (id) =>
+        set((state) => ({
+          addresses: state.addresses.map((a) => ({ ...a, isDefault: a.id === id })),
+        })),
+
+      topUpWallet: (amount, method) => {
+        const rounded = Math.round(amount * 100) / 100;
+        const balance = Math.round((get().walletBalance + rounded) * 100) / 100;
+        const txn: WalletTransaction = {
+          id: makeId('txn'),
+          kind: 'topup',
+          amount: rounded,
+          description: `Wallet top-up · ${method}`,
+          balanceAfter: balance,
+          createdAt: new Date().toISOString(),
+          method,
+          reference: makeReference('TOP'),
+        };
+        set((state) => ({
+          walletBalance: balance,
+          walletTransactions: [txn, ...state.walletTransactions],
+        }));
+        return balance;
+      },
+
+      chargeWallet: (amount, description, bookingId) => {
+        const rounded = Math.round(amount * 100) / 100;
+        const current = get().walletBalance;
+        if (rounded <= 0 || current < rounded) return false;
+
+        const balance = Math.round((current - rounded) * 100) / 100;
+        const txn: WalletTransaction = {
+          id: makeId('txn'),
+          kind: 'payment',
+          amount: -rounded,
+          description,
+          balanceAfter: balance,
+          createdAt: new Date().toISOString(),
+          bookingId,
+          method: 'Wallet',
+          reference: makeReference('PAY'),
+        };
+        set((state) => ({
+          walletBalance: balance,
+          walletTransactions: [txn, ...state.walletTransactions],
+        }));
+        return true;
+      },
+
+      refundToWallet: (amount, description, bookingId) => {
+        const rounded = Math.round(amount * 100) / 100;
+        if (rounded <= 0) return;
+        const balance = Math.round((get().walletBalance + rounded) * 100) / 100;
+        const txn: WalletTransaction = {
+          id: makeId('txn'),
+          kind: 'refund',
+          amount: rounded,
+          description,
+          balanceAfter: balance,
+          createdAt: new Date().toISOString(),
+          bookingId,
+          method: 'Wallet',
+          reference: makeReference('REF'),
+        };
+        set((state) => ({
+          walletBalance: balance,
+          walletTransactions: [txn, ...state.walletTransactions],
+        }));
+      },
+
+      addInvoice: (input) => {
+        const issuedAt = input.issuedAt ?? new Date().toISOString();
+        const year = new Date(issuedAt).getFullYear();
+        const seq = get().invoices.length + 1;
+        const invoice: StoredInvoice = {
+          ...input,
+          id: makeId('inv'),
+          number: `INV-${year}-${String(seq).padStart(4, '0')}`,
+          issuedAt,
+        };
+        set((state) => ({ invoices: [invoice, ...state.invoices] }));
+        return invoice;
+      },
+
+      addDocument: (input) => {
+        const document: VaultDocument = {
+          ...input,
+          id: makeId('doc'),
+          addedAt: new Date().toISOString(),
+        };
+        set((state) => ({ documents: [document, ...state.documents] }));
+        return document;
+      },
+
+      removeDocument: (id) =>
+        set((state) => ({ documents: state.documents.filter((d) => d.id !== id) })),
+
+      renameDocument: (id, title) =>
+        set((state) => ({
+          documents: state.documents.map((d) => (d.id === id ? { ...d, title } : d)),
+        })),
+
+      clearPersonalData: () =>
+        set({
+          // Identity documents, money and addresses must not survive into the
+          // next account on a shared device.
+          documents: [],
+          addresses: [],
+          walletBalance: 0,
+          walletTransactions: [],
+          invoices: [],
+          bookings: [],
+          quoteRequests: [],
+          favoriteGarageIds: [],
+          notifications: [],
+          vendorAuthenticated: false,
+        }),
+
       toggleFavoriteGarage: (garageId) => {
         const isFavorite = get().favoriteGarageIds.includes(garageId);
         set((state) => ({
@@ -144,7 +440,7 @@ export const useQarWheelsStore = create<QarWheelsState>()(
       },
       createQuoteRequest: (input) => {
         const request: QuoteRequest = {
-          id: `quote_${Date.now()}`,
+          id: makeId('quote'),
           issue: input.issue,
           vehicle: input.vehicle,
           status: 'Sent',
@@ -166,8 +462,8 @@ export const useQarWheelsStore = create<QarWheelsState>()(
       },
       createBooking: (input) => {
         const createdAt = new Date().toISOString();
-        const bookingId = `booking_${Date.now()}`;
-        const vendorBookingId = `vb_user_${Date.now()}`;
+        const bookingId = makeId('booking');
+        const vendorBookingId = makeId('vb_user');
         const booking: Booking = {
           ...input,
           id: bookingId,
@@ -225,7 +521,7 @@ export const useQarWheelsStore = create<QarWheelsState>()(
             ),
             notifications: [
               {
-                id: `notif_cancel_${id}_${Date.now()}`,
+                id: makeId(`notif_cancel_${id}`),
                 title: 'Booking cancelled',
                 body: booking ? `${booking.service} at ${booking.garage} has been cancelled.` : 'Your booking has been cancelled.',
                 read: false,
@@ -265,7 +561,7 @@ export const useQarWheelsStore = create<QarWheelsState>()(
             ),
             notifications: [
               {
-                id: `notif_reschedule_${id}_${Date.now()}`,
+                id: makeId(`notif_reschedule_${id}`),
                 title: 'Reschedule requested',
                 body: booking ? `${booking.service} moved to ${input.date}.` : `Booking moved to ${input.date}.`,
                 read: false,
@@ -281,6 +577,7 @@ export const useQarWheelsStore = create<QarWheelsState>()(
       },
       setLanguage: (language) => set({ language }),
       setThemeMode: (themeMode) => set({ themeMode }),
+      chooseThemeMode: (themeMode) => set({ themeMode, themeChosen: true }),
       toggleThemeMode: () => set((state) => ({ themeMode: state.themeMode === 'dark' ? 'light' : 'dark' })),
       setVendorAuthenticated: (vendorAuthenticated) => set({ vendorAuthenticated }),
       mergeFirestoreBookings: (firestoreBookings) =>
@@ -327,7 +624,7 @@ export const useQarWheelsStore = create<QarWheelsState>()(
           ),
           notifications: [
             {
-              id: `notif_status_${id}_${Date.now()}`,
+              id: makeId(`notif_status_${id}`),
               title: 'Booking status updated',
               body: `Your booking is now ${status}.`,
               read: false,
@@ -343,14 +640,14 @@ export const useQarWheelsStore = create<QarWheelsState>()(
           ),
         })),
       addVendorStaff: (staffData) => {
-        const staff: VendorStaff = { ...staffData, id: `staff_${Date.now()}` };
+        const staff: VendorStaff = { ...staffData, id: makeId('staff') };
         set((state) => ({ vendorStaff: [...state.vendorStaff, staff] }));
         return staff;
       },
       addVendorInventoryItem: (itemData) => {
         const item: VendorInventoryItem = {
           ...itemData,
-          id: `inv_item_${Date.now()}`,
+          id: makeId('inv_item'),
           lastRestocked: itemData.lastRestocked ?? new Date().toLocaleDateString('en-QA', { month: 'short', day: 'numeric' }),
         };
         set((state) => ({ vendorInventory: [item, ...state.vendorInventory] }));
@@ -401,7 +698,7 @@ export const useQarWheelsStore = create<QarWheelsState>()(
         const tax = Number((subtotal * 0.05).toFixed(2));
         const lineItems: VendorInvoiceLineItem[] = [
           {
-            id: `li_${Date.now()}`,
+            id: makeId('li'),
             description: booking.service,
             type: 'service',
             quantity: 1,
@@ -410,7 +707,7 @@ export const useQarWheelsStore = create<QarWheelsState>()(
           },
         ];
         const invoice: VendorInvoice = {
-          id: `inv_${Date.now()}`,
+          id: makeId('inv'),
           bookingId,
           customerName: booking.customerName,
           vehicle: booking.vehicle,
@@ -458,7 +755,7 @@ export const useQarWheelsStore = create<QarWheelsState>()(
             if (inv.id !== invoiceId) return inv;
             const newItem: VendorInvoiceLineItem = {
               ...item,
-              id: `li_${Date.now()}`,
+              id: makeId('li'),
               total: Number((item.quantity * item.unitPrice).toFixed(2)),
             };
             const lineItems = [...inv.lineItems, newItem];
@@ -505,7 +802,7 @@ export const useQarWheelsStore = create<QarWheelsState>()(
         }));
       },
       addVendorService: (serviceData) => {
-        const service: VendorService = { ...serviceData, id: `svc_${Date.now()}` };
+        const service: VendorService = { ...serviceData, id: makeId('svc') };
         set((state) => ({ vendorServices: [...state.vendorServices, service] }));
         return service;
       },
@@ -519,7 +816,7 @@ export const useQarWheelsStore = create<QarWheelsState>()(
         })),
       submitCounterOffer: (invoiceId, bookingId, customerName, proposedTotal, message) => {
         const offer: CounterOffer = {
-          id: `offer_${Date.now()}`,
+          id: makeId('offer'),
           invoiceId,
           bookingId,
           customerName,
@@ -565,7 +862,7 @@ export const useQarWheelsStore = create<QarWheelsState>()(
         const end = new Date(now);
         end.setDate(now.getDate() + 7);
         const promotion: VendorPromotion = {
-          id: `promo_${Date.now()}`,
+          id: makeId('promo'),
           title: promotionData.title ?? 'New seasonal offer',
           description: promotionData.description ?? 'A limited-time offer created from the vendor app.',
           discount: promotionData.discount ?? '10% off',
@@ -623,7 +920,13 @@ export const useQarWheelsStore = create<QarWheelsState>()(
         notifications: state.notifications,
         language: state.language,
         themeMode: state.themeMode,
+        themeChosen: state.themeChosen,
         vendorAuthenticated: state.vendorAuthenticated,
+        addresses: state.addresses,
+        walletBalance: state.walletBalance,
+        walletTransactions: state.walletTransactions,
+        invoices: state.invoices,
+        documents: state.documents,
         vendorBookings: state.vendorBookings,
         vendorProfile: state.vendorProfile,
         vendorStaff: state.vendorStaff,

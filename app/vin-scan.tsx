@@ -445,7 +445,7 @@ const s = StyleSheet.create({
   vinMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   vinCounter: { fontSize: 12, fontWeight: '600' },
   vinValidBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.full },
-  vinValidText: { fontSize: 11, fontWeight: '800' },
+  vinValidText: { fontSize: 12, fontWeight: '800' },
 
   decodeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 54, borderRadius: radius.xl },
   decodeBtnText: { fontSize: 16, fontWeight: '900' },
@@ -466,11 +466,11 @@ const s = StyleSheet.create({
   resultCard: { borderRadius: radius.xl, borderWidth: 1, overflow: 'hidden', ...shadow.xs },
   resultHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderBottomWidth: 1 },
   resultIcon: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  resultMake: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
+  resultMake: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
   resultModel: { fontSize: 18, fontWeight: '900', marginTop: 2 },
 
   sourceNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, borderRadius: radius.lg, borderWidth: 1, padding: 10 },
-  sourceText: { fontSize: 11, flex: 1, lineHeight: 16 },
+  sourceText: { fontSize: 12, flex: 1, lineHeight: 16 },
 });
 
 const sr = StyleSheet.create({

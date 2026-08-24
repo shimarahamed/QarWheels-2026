@@ -1,10 +1,19 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
 import { AuthScreen, BrandMark, OptionCard, PrimaryButton, StepHeader } from '@/components/auth-flow';
+import { useTranslation } from '@/lib/i18n';
+import { promptRestartForRTL } from '@/lib/i18n/restart';
 
 export default function LanguageScreen() {
   const router = useRouter();
-  const [language, setLanguage] = useState<'en' | 'ar'>('en');
+  const { language, changeLanguage } = useTranslation();
+
+  // Selecting a language here persists it immediately, so the rest of
+  // onboarding is already translated. Switching to Arabic flips the layout
+  // direction, which only takes effect after a restart.
+  const select = async (next: 'en' | 'ar') => {
+    const needsRestart = changeLanguage(next);
+    if (needsRestart) await promptRestartForRTL();
+  };
 
   return (
     <AuthScreen
@@ -12,7 +21,7 @@ export default function LanguageScreen() {
         <PrimaryButton
           label="Continue"
           icon="arrow-forward"
-          onPress={() => router.push('/(auth)/welcome' as never)}
+          onPress={() => router.push('/(auth)/appearance' as never)}
         />
       }
     >
@@ -26,16 +35,16 @@ export default function LanguageScreen() {
       <OptionCard
         title="English"
         body="Use QarWheels in English."
-        icon="checkmark-circle-outline"
+        icon={language === 'en' ? 'checkmark-circle' : 'ellipse-outline'}
         selected={language === 'en'}
-        onPress={() => setLanguage('en')}
+        onPress={() => void select('en')}
       />
       <OptionCard
-        title="Arabic"
-        body="Arabic language experience."
-        icon="ellipse-outline"
+        title="العربية"
+        body="استخدم QarWheels باللغة العربية."
+        icon={language === 'ar' ? 'checkmark-circle' : 'ellipse-outline'}
         selected={language === 'ar'}
-        onPress={() => setLanguage('ar')}
+        onPress={() => void select('ar')}
       />
     </AuthScreen>
   );

@@ -20,6 +20,7 @@ export default function AuthLayout() {
     >
       <Stack.Screen name="splash" options={{ animation: 'fade', animationDuration: motion.slow }} />
       <Stack.Screen name="language" />
+      <Stack.Screen name="appearance" />
       <Stack.Screen name="welcome" />
       <Stack.Screen name="role" />
       <Stack.Screen name="onboarding-1" />

@@ -1,6 +1,7 @@
 'use client';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,7 +15,7 @@ import Animated, {
   FadeIn,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
-import { getQarColors } from '@/lib/theme';
+import { getQarColors, withAlpha } from '@/lib/theme';
 import { useQarWheelsStore } from '@/lib/store';
 import { tap } from '@/lib/haptics';
 import { motion } from '@/lib/motion';
@@ -45,6 +46,27 @@ const BAR_HEIGHT     = 62;   // content area
 const BAR_RADIUS     = 31;   // full pill
 const H_PADDING      = 8;
 
+// Stacked bands approximating a top-down specular gradient (no gradient dep needed).
+//
+// Light mode gets a much weaker highlight than dark. A near-opaque white
+// streak on a light-grey page is invisible as a highlight and only serves to
+// wash the pill out — glass reads as glass because of the *edge* contrast, not
+// because it is bright.
+const SPECULAR_BANDS = [
+  { height: 5, light: 0.42, dark: 0.14 },
+  { height: 5, light: 0.28, dark: 0.10 },
+  { height: 6, light: 0.16, dark: 0.07 },
+  { height: 7, light: 0.08, dark: 0.04 },
+  { height: 8, light: 0.03, dark: 0.02 },
+];
+
+const FAB_SPECULAR_BANDS = [
+  { height: 5, alpha: 0.34 },
+  { height: 5, alpha: 0.22 },
+  { height: 6, alpha: 0.12 },
+  { height: 7, alpha: 0.05 },
+];
+
 // ─────────────────────────────────────────────────────────────────────
 // Single tab item — iOS 26 style: icon only, glass capsule on active
 // ─────────────────────────────────────────────────────────────────────
@@ -65,16 +87,18 @@ function TabItem({
 }) {
   const press   = useSharedValue(1);
   const capsule = useSharedValue(focused ? 1 : 0);
-  const iconScale = useSharedValue(focused ? 1 : 1);
+  const iconScale = useSharedValue(1);
 
-  // Capsule spring-in, fade-out
-  if (focused) {
-    capsule.value = withSpring(1, { damping: 18, stiffness: 320, mass: 0.6 });
-    iconScale.value = withSpring(1.12, { damping: 14, stiffness: 400, mass: 0.5 });
-  } else {
-    capsule.value  = withTiming(0, { duration: 180 });
-    iconScale.value = withTiming(1, { duration: 160 });
-  }
+  // Capsule spring-in, fade-out. Driven in an effect so renders stay pure.
+  useEffect(() => {
+    if (focused) {
+      capsule.value = withSpring(1, { damping: 18, stiffness: 320, mass: 0.6 });
+      iconScale.value = withSpring(1.12, { damping: 14, stiffness: 400, mass: 0.5 });
+    } else {
+      capsule.value = withTiming(0, { duration: 180 });
+      iconScale.value = withTiming(1, { duration: 160 });
+    }
+  }, [focused, capsule, iconScale]);
 
   const pressStyle = useAnimatedStyle(() => ({
     transform: [{ scale: press.value }],
@@ -113,17 +137,19 @@ function TabItem({
             ss.activeCapsule,
             capsuleStyle,
             {
+              // Dark mode lifts the capsule with white; light mode has to go
+              // the other way — a white capsule on a white bar is invisible,
+              // so the active state is a soft tint of the brand colour.
               backgroundColor: isDark
                 ? 'rgba(255,255,255,0.15)'
-                : 'rgba(255,255,255,0.76)',
+                : withAlpha(c.primary, 0.13),
               borderColor: isDark
                 ? 'rgba(255,255,255,0.22)'
-                : 'rgba(255,255,255,0.95)',
-              // Specular top edge
-              shadowColor: '#fff',
-              shadowOpacity: isDark ? 0.22 : 1.0,
-              shadowRadius: 0,
-              shadowOffset: { width: 0, height: 1 },
+                : withAlpha(c.primary, 0.26),
+              shadowColor: isDark ? '#fff' : c.primary,
+              shadowOpacity: isDark ? 0.22 : 0.18,
+              shadowRadius: isDark ? 0 : 6,
+              shadowOffset: { width: 0, height: isDark ? 1 : 2 },
             },
           ]}
         />
@@ -133,7 +159,10 @@ function TabItem({
           <Ionicons
             name={focused ? tab.iconActive : tab.icon}
             size={ICON_SIZE}
-            color={focused ? c.primary : isDark ? 'rgba(255,255,255,0.38)' : 'rgba(0,0,0,0.32)'}
+            // 0.32 black on a light translucent bar failed contrast for an
+            // interactive control; 0.55 keeps inactive tabs clearly readable
+            // while still reading as secondary to the focused one.
+            color={focused ? c.primary : isDark ? 'rgba(255,255,255,0.45)' : 'rgba(20,16,20,0.55)'}
           />
         </Animated.View>
       </Animated.View>
@@ -167,49 +196,72 @@ function QarTabBar({ state, navigation }: BottomTabBarProps) {
       <View style={[
         ss.pill,
         {
-          // iOS shadow
-          shadowColor: isDark ? '#000' : '#1a1a2e',
-          shadowOpacity: isDark ? 0.55 : 0.22,
-          shadowRadius: 40,
-          shadowOffset: { width: 0, height: 20 },
+          // iOS shadow. In light mode this is the primary cue that the bar
+          // floats above the page, so it is tighter and more opaque than the
+          // wide diffuse glow that reads well against a dark background.
+          shadowColor: isDark ? '#000' : '#2A1418',
+          shadowOpacity: isDark ? 0.55 : 0.16,
+          shadowRadius: isDark ? 40 : 22,
+          shadowOffset: { width: 0, height: isDark ? 20 : 10 },
           // Android elevation
           elevation: 24,
         },
       ]}>
-        {/* Real blur on iOS — systemChromeMaterialDark/Light gives the truest Apple glass */}
-        {Platform.OS === 'ios' ? (
-          <BlurView
-            intensity={isDark ? 80 : 65}
-            tint={isDark ? 'systemChromeMaterialDark' : 'systemChromeMaterial'}
-            style={[StyleSheet.absoluteFillObject, { borderRadius: BAR_RADIUS }]}
-          />
-        ) : (
-          <View style={[
-            StyleSheet.absoluteFillObject,
-            {
-              borderRadius: BAR_RADIUS,
-              backgroundColor: isDark ? 'rgba(18,18,22,0.92)' : 'rgba(248,248,252,0.92)',
-            },
-          ]} />
-        )}
-
-        {/* Top specular streak — the key iOS 26 glass tell */}
-        <View
-          pointerEvents="none"
-          style={[ss.specularpill, {
-            backgroundColor: isDark
-              ? 'rgba(255,255,255,0.09)'
-              : 'rgba(255,255,255,0.82)',
-          }]}
+        {/* Real blur on both platforms. Android needs the dimezisBlurView method. */}
+        <BlurView
+          // Light mode blurs harder: the page behind is low-contrast, so a
+          // weak blur leaves the pill looking like flat translucent film
+          // rather than glass sitting above content.
+          intensity={isDark ? 80 : 92}
+          tint={isDark ? 'systemChromeMaterialDark' : 'systemThickMaterialLight'}
+          experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
+          style={[StyleSheet.absoluteFillObject, { borderRadius: BAR_RADIUS }]}
         />
+
+        {/* Android's blur is thinner — lay a scrim under the content to keep contrast */}
+        {Platform.OS === 'android' ? (
+          <View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFillObject,
+              {
+                borderRadius: BAR_RADIUS,
+                // Light mode needs a denser scrim: the page behind is already
+                // light, so a 0.55 white wash left the pill with no surface of
+                // its own and the icons floating on the background.
+                backgroundColor: isDark ? 'rgba(18,18,22,0.55)' : 'rgba(255,255,255,0.82)',
+              },
+            ]}
+          />
+        ) : null}
+
+        {/* Top specular streak — stacked bands fake a soft gradient falloff,
+            which is what separates real glass from a flat translucent block. */}
+        <View pointerEvents="none" style={ss.specularStack}>
+          {SPECULAR_BANDS.map((band, i) => (
+            <View
+              key={i}
+              style={{
+                height: band.height,
+                backgroundColor: isDark
+                  ? `rgba(255,255,255,${band.dark})`
+                  : `rgba(255,255,255,${band.light})`,
+                borderTopLeftRadius: i === 0 ? BAR_RADIUS - 1 : 0,
+                borderTopRightRadius: i === 0 ? BAR_RADIUS - 1 : 0,
+              }}
+            />
+          ))}
+        </View>
 
         {/* Glass border */}
         <View
           pointerEvents="none"
           style={[ss.borderRing, {
+            // In light mode the ring is what separates the pill from the page.
+            // A white border did the opposite — it merged them.
             borderColor: isDark
               ? 'rgba(255,255,255,0.12)'
-              : 'rgba(255,255,255,0.70)',
+              : 'rgba(20,16,20,0.10)',
           }]}
         />
 
@@ -256,13 +308,25 @@ function QarTabBar({ state, navigation }: BottomTabBarProps) {
                     backgroundColor: c.primary,
                     // Lift FAB above the bar surface
                     shadowColor: c.primary,
-                    shadowOpacity: 0.6,
-                    shadowRadius: 20,
-                    shadowOffset: { width: 0, height: 8 },
+                    // A 0.6 coloured glow bleeds into a light page as a red
+                    // halo; dark backgrounds absorb it, light ones do not.
+                    shadowOpacity: isDark ? 0.6 : 0.34,
+                    shadowRadius: isDark ? 20 : 12,
+                    shadowOffset: { width: 0, height: isDark ? 8 : 5 },
                     elevation: 12,
                   }]}>
-                    {/* FAB top specular */}
-                    <View style={ss.fabSpecular} pointerEvents="none" />
+                    {/* FAB top specular — banded for a soft falloff */}
+                    <View style={ss.fabSpecular} pointerEvents="none">
+                      {FAB_SPECULAR_BANDS.map((band, i) => (
+                        <View
+                          key={i}
+                          style={{
+                            height: band.height,
+                            backgroundColor: `rgba(255,255,255,${band.alpha})`,
+                          }}
+                        />
+                      ))}
+                    </View>
                     <Ionicons name="add" size={ICON_SIZE_FAB} color="#fff" />
                   </Animated.View>
                 </Pressable>
@@ -333,12 +397,12 @@ const ss = StyleSheet.create({
   },
 
   // Top specular highlight — gives the "wet glass" look
-  specularpill: {
+  specularStack: {
     position: 'absolute',
     left: 1,
     right: 1,
     top: 1,
-    height: '42%',
+    overflow: 'hidden',
     borderTopLeftRadius: BAR_RADIUS - 1,
     borderTopRightRadius: BAR_RADIUS - 1,
   },
@@ -364,8 +428,7 @@ const ss = StyleSheet.create({
 
   // Row of tab items
   innerRow: {
-    position: 'absolute',
-    inset: 0,
+    ...StyleSheet.absoluteFillObject,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: H_PADDING,
@@ -391,8 +454,7 @@ const ss = StyleSheet.create({
 
   // Frosted glass active capsule behind icon
   activeCapsule: {
-    position: 'absolute',
-    inset: 0,
+    ...StyleSheet.absoluteFillObject,
     borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -423,9 +485,8 @@ const ss = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
-    height: '46%',
+    overflow: 'hidden',
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.28)',
   },
 });

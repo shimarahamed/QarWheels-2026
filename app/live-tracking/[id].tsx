@@ -216,7 +216,7 @@ const s = StyleSheet.create({
   navTitle: { ...typography.h4 },
   livePill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 5 },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
-  liveText: { fontSize: 10, fontWeight: '900', color: '#fff', letterSpacing: 1 },
+  liveText: { fontSize: 12, fontWeight: '900', color: '#fff', letterSpacing: 1 },
 
   content: { padding: spacing.page, gap: spacing.gap, paddingBottom: 40 },
 
@@ -246,13 +246,13 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 6,
   },
-  mapNoteText: { fontSize: 10, fontWeight: '600', flex: 1 },
+  mapNoteText: { fontSize: 12, fontWeight: '600', flex: 1 },
 
   etaCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: radius.xl, borderWidth: 1, padding: 16, ...shadow.xs },
   etaIcon: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   etaStatus: { fontSize: 16, fontWeight: '900' },
   etaTime: { fontSize: 13, fontWeight: '600', marginTop: 2 },
-  pollNote: { fontSize: 10, fontWeight: '700' },
+  pollNote: { fontSize: 12, fontWeight: '700' },
 
   section: { borderRadius: radius.xl, borderWidth: 1, padding: 16, gap: 0, ...shadow.xs },
   sectionTitle: { ...typography.h4, marginBottom: 10 },

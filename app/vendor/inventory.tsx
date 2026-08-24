@@ -228,19 +228,19 @@ const s = StyleSheet.create({
     alignItems: 'center', gap: 4, ...shadow.xs,
   },
   summaryValue: { ...typography.h4 },
-  summaryLabel: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
+  summaryLabel: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
 
   itemCard: { borderRadius: radius.xl, borderWidth: 1, overflow: 'hidden', ...shadow.xs },
   itemTop: { flexDirection: 'row', padding: 14, gap: 10 },
   itemName: { fontSize: 14, fontWeight: '700' },
-  itemSku: { fontSize: 11, fontWeight: '600' },
+  itemSku: { fontSize: 12, fontWeight: '600' },
   itemMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   catTag: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: radius.full, borderWidth: 1 },
-  catTagText: { fontSize: 10, fontWeight: '700' },
-  supplier: { fontSize: 11, fontWeight: '500' },
+  catTagText: { fontSize: 12, fontWeight: '700' },
+  supplier: { fontSize: 12, fontWeight: '500' },
   unitPrice: { fontSize: 13, fontWeight: '800' },
   stockAlert: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.full },
-  stockAlertText: { fontSize: 10, fontWeight: '800' },
+  stockAlertText: { fontSize: 12, fontWeight: '800' },
 
   itemFooter: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -253,8 +253,8 @@ const s = StyleSheet.create({
 
   qtyBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   qtyValue: { fontSize: 15, fontWeight: '900', minWidth: 28, textAlign: 'center' },
-  minQty: { fontSize: 11, fontWeight: '600' },
-  restocked: { fontSize: 11, fontWeight: '500', flex: 1 },
+  minQty: { fontSize: 12, fontWeight: '600' },
+  restocked: { fontSize: 12, fontWeight: '500', flex: 1 },
   reorderBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.full, borderWidth: 1 },
-  reorderText: { fontSize: 11, fontWeight: '800' },
+  reorderText: { fontSize: 12, fontWeight: '800' },
 });

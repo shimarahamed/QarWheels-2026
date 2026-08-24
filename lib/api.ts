@@ -12,6 +12,9 @@ export async function apiPost<T>(path: string, token: string | null, body: unkno
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(body),
+    // Without this a stalled connection hangs the caller forever; every
+    // screen awaiting it shows a spinner that never resolves.
+    signal: AbortSignal.timeout(20_000),
   });
 
   if (!response.ok) {

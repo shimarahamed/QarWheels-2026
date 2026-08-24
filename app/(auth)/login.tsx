@@ -29,7 +29,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BrandMark } from '@/components/auth-flow';
 import { auth } from '@/lib/firebase';
+import { emailSchema, firstError } from '@/lib/validation';
 import { colors, radius, shadow, spacing, typography } from '@/lib/theme';
 
 export default function LoginScreen() {
@@ -40,8 +42,15 @@ export default function LoginScreen() {
   const [showPw, setShowPw] = useState(false);
 
   async function handleLogin() {
-    if (!email.trim() || !password) {
-      Alert.alert('Missing fields', 'Please enter your email and password.');
+    // Catch a malformed address before the network call; Firebase returns
+    // `auth/invalid-email` for it, which reads as an account problem.
+    const problem = firstError(emailSchema, email);
+    if (problem) {
+      Alert.alert('Check your email', problem);
+      return;
+    }
+    if (!password) {
+      Alert.alert('Password required', 'Enter your password to sign in.');
       return;
     }
     setLoading(true);
@@ -60,14 +69,8 @@ export default function LoginScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
 
-          {/* Brand */}
-          <View style={s.brand}>
-            <View style={s.brandIcon}>
-              <Ionicons name="car-sport" size={30} color="#fff" />
-            </View>
-            <Text style={s.brandName}>QarWheels</Text>
-            <Text style={s.brandSub}>Qatar's trusted car care platform</Text>
-          </View>
+          {/* Brand — the shared lockup, so it cannot drift from the others */}
+          <BrandMark stacked />
 
           <Text style={s.heading}>Welcome back</Text>
           <Text style={s.sub}>Sign in to manage your vehicles and bookings.</Text>
@@ -184,7 +187,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, height: 54,
     ...shadow.xs,
   },
-  inputIcon: { marginRight: 8 },
+  inputIcon: { marginEnd: 8 },
   input: { flex: 1, ...typography.body, color: colors.text },
   // Eye toggle needs a comfortable tap area
   eyeBtn: { paddingHorizontal: 8, paddingVertical: 8 },

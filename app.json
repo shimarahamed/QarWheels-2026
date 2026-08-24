@@ -19,6 +19,7 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "QarWheels uses your location to show nearby garages and service providers.",
         "NSPhotoLibraryUsageDescription": "QarWheels lets you attach service invoices and car photos to requests.",
+        "NSCameraUsageDescription": "QarWheels uses the camera to scan your VIN and photograph vehicle damage.",
         "NSUserNotificationsUsageDescription": "QarWheels sends booking updates and maintenance reminders.",
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -28,7 +29,8 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "CAMERA"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -46,8 +48,22 @@
       "expo-router",
       "expo-secure-store",
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-updates",
+      [
+        "expo-localization",
+        {
+          "supportedLocales": {
+            "ios": ["en", "ar"],
+            "android": ["en", "ar"]
+          }
+        }
+      ],
+      "@sentry/react-native"
     ],
+    "locales": {
+      "ar": "./locales/ar.json"
+    },
     "experiments": {
       "typedRoutes": true
     },

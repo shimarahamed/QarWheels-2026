@@ -118,7 +118,7 @@ export default function VendorLoginScreen() {
             </Pressable>
 
             {/* Hero */}
-            <MotionSurface delay={60} style={s.hero}>
+            <MotionSurface delay={20} style={s.hero}>
               {/* Garage icon mark */}
               <View style={[s.iconMark, { backgroundColor: c.primary }]}>
                 <Ionicons name="business" size={30} color="#fff" />
@@ -153,7 +153,7 @@ export default function VendorLoginScreen() {
             </MotionSurface>
 
             {/* Form */}
-            <MotionSurface delay={140} style={[s.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+            <MotionSurface delay={50} style={[s.card, { backgroundColor: c.surface, borderColor: c.border }]}>
               {/* Email */}
               <View style={s.fieldGroup}>
                 <Text style={[s.fieldLabel, { color: c.textSecondary }]}>Business email</Text>
@@ -241,7 +241,7 @@ export default function VendorLoginScreen() {
             </MotionSurface>
 
             {/* KYC note */}
-            <MotionSurface delay={200}>
+            <MotionSurface delay={70}>
               <View style={[s.kycNote, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                 <View style={[s.kycIconWrap, { backgroundColor: c.primaryLight }]}>
                   <Ionicons name="shield-outline" size={16} color={c.primary} />
@@ -258,7 +258,7 @@ export default function VendorLoginScreen() {
         </ScrollView>
 
         {/* Footer */}
-        <MotionSurface delay={260} style={[s.footer, { backgroundColor: c.background, borderTopColor: c.border }]}>
+        <MotionSurface delay={90} style={[s.footer, { backgroundColor: c.background, borderTopColor: c.border }]}>
           <Pressable
             style={[s.customerBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
             onPress={() => router.push('/(auth)/onboarding-1' as never)}
@@ -297,7 +297,7 @@ const s = StyleSheet.create({
     borderRadius: radius.full, borderWidth: 1, alignSelf: 'flex-start',
   },
   heroBadgeDot: { width: 6, height: 6, borderRadius: 3 },
-  heroBadgeText: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  heroBadgeText: { fontSize: 12, fontWeight: '900', letterSpacing: 1 },
   heroTitle: { fontSize: 32, fontWeight: '900', letterSpacing: -0.5, lineHeight: 38 },
   heroSub: { fontSize: 14, fontWeight: '400', lineHeight: 21 },
 
@@ -307,7 +307,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 6,
     borderRadius: radius.full, borderWidth: 1,
   },
-  trustChipText: { fontSize: 11, fontWeight: '700' },
+  trustChipText: { fontSize: 12, fontWeight: '700' },
 
   card: {
     borderRadius: radius.xl, borderWidth: 1, padding: 20, gap: 16,
@@ -316,7 +316,7 @@ const s = StyleSheet.create({
 
   fieldGroup: { gap: 8 },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  fieldLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
+  fieldLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 0.6 },
   forgotText: { fontSize: 12, fontWeight: '800' },
   inputRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -358,5 +358,5 @@ const s = StyleSheet.create({
     borderRadius: radius.xl, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 13,
   },
   customerBtnText: { flex: 1, fontSize: 13, fontWeight: '700' },
-  footerNote: { fontSize: 11, fontWeight: '500', textAlign: 'center', lineHeight: 17 },
+  footerNote: { fontSize: 12, fontWeight: '500', textAlign: 'center', lineHeight: 17 },
 });

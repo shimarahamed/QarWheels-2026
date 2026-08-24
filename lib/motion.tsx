@@ -9,45 +9,59 @@ import Animated, {
   SlideInRight,
 } from 'react-native-reanimated';
 
+// ─── Motion ──────────────────────────────────────────────────────────────────
+// Durations are deliberately short. Anything past ~250ms on a screen transition
+// reads as lag rather than polish, and under-damped springs on entering
+// elements cause the overshoot-and-settle wobble ("giggling") that makes a list
+// feel unstable while you are trying to read it.
+//
+// Entering animations are therefore critically damped: they ease in and stop.
+// Springs are kept only for direct manipulation (press feedback), where the
+// bounce tracks the finger and reads as responsiveness.
+
 export const motion = {
-  fast: 160,
-  base: 260,
-  slow: 420,
-  screen: 360,
+  fast: 110,
+  base: 160,
+  slow: 220,
+  screen: 200,
   spring: {
-    damping: 16,
-    stiffness: 260,
-    mass: 0.8,
-  },
-  pressIn: {
-    damping: 14,
-    stiffness: 500,
-    mass: 0.7,
-  },
-  pressOut: {
-    damping: 12,
+    damping: 22,
     stiffness: 320,
     mass: 0.7,
   },
+  pressIn: {
+    damping: 18,
+    stiffness: 600,
+    mass: 0.6,
+  },
+  pressOut: {
+    damping: 16,
+    stiffness: 420,
+    mass: 0.6,
+  },
 } as const;
 
+// Entering transitions: short fade + small translate, no spring. A 10px slide
+// is enough to read as motion; 30px reads as the layout still assembling.
 export function screenEntering(delay = 0) {
-  return FadeInDown.duration(motion.screen).delay(delay).springify().damping(18).stiffness(120);
+  return FadeInDown.duration(motion.screen).delay(delay);
 }
 
 export function surfaceEntering(delay = 0) {
-  return FadeInUp.duration(motion.slow).delay(delay).springify().damping(18).stiffness(130);
+  return FadeInUp.duration(motion.base).delay(delay);
 }
 
 export function fadeEntering(delay = 0) {
-  return FadeIn.duration(motion.base).delay(delay);
+  return FadeIn.duration(motion.fast).delay(delay);
 }
 
 export function pushEntering(delay = 0) {
-  return SlideInRight.duration(motion.screen).delay(delay).springify().damping(18).stiffness(140);
+  return SlideInRight.duration(motion.screen).delay(delay);
 }
 
-export const smoothLayout = LinearTransition.duration(motion.base).springify().damping(18).stiffness(160);
+// Layout shifts stay springy but heavily damped — content settling into place
+// should not oscillate.
+export const smoothLayout = LinearTransition.duration(motion.fast);
 
 const styles = StyleSheet.create({
   screenStack: {

@@ -160,6 +160,7 @@ async function backendFetch<T>(path: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(`${SMARTCAR_BACKEND_URL}${path}`, {
     ...opts,
     headers: { 'Content-Type': 'application/json', ...(opts?.headers ?? {}) },
+    signal: opts?.signal ?? AbortSignal.timeout(20_000),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => '');

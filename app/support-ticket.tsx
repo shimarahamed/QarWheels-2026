@@ -106,7 +106,7 @@ export default function SupportTicketScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ paddingTop: 60 }}>
+        <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <MotionScreen>
             {/* Category */}
             <Text style={[s.fieldLabel, { color: c.text }]}>Category</Text>
@@ -204,11 +204,6 @@ export default function SupportTicketScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
     flexDirection: 'row', 
     alignItems: 'center', 
     justifyContent: 'space-between',
@@ -232,9 +227,9 @@ const s = StyleSheet.create({
   priorityDesc: { fontSize: 12, fontWeight: '500', marginTop: 1 },
   inputSingle: { borderRadius: radius.lg, borderWidth: 1, paddingHorizontal: 14, height: 46, fontSize: 14 },
   inputMulti: { borderRadius: radius.lg, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, minHeight: 120 },
-  charCount: { fontSize: 10, fontWeight: '600', alignSelf: 'flex-end', marginTop: -4 },
+  charCount: { fontSize: 12, fontWeight: '600', alignSelf: 'flex-end', marginTop: -4 },
   infoNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: radius.lg, borderWidth: 1, padding: 10 },
-  infoText: { fontSize: 11, lineHeight: 16, flex: 1 },
+  infoText: { fontSize: 12, lineHeight: 16, flex: 1 },
   footer: { padding: spacing.page, paddingBottom: 28, borderTopWidth: StyleSheet.hairlineWidth },
   submitBtn: { height: 52, borderRadius: radius.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   submitText: { color: '#fff', fontSize: 16, fontWeight: '900' },

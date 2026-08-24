@@ -285,7 +285,7 @@ const s = StyleSheet.create({
     borderRadius: radius.lg, borderWidth: 1, padding: 12,
     fontSize: 14, minHeight: 100, textAlignVertical: 'top',
   },
-  charCount: { fontSize: 11, fontWeight: '600', textAlign: 'right' },
+  charCount: { fontSize: 12, fontWeight: '600', textAlign: 'right' },
 
   submitBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

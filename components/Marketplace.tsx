@@ -23,7 +23,6 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { type Booking, type Garage, garages as firestoreGarages, popularJobs, serviceCategories } from '@/lib/marketplace';
 import { type FirestoreBooking, type FirestoreCar, useFirestoreBookings, useVendors } from '@/lib/firestoreOps';
@@ -32,6 +31,8 @@ import { useAuthContext } from '@/lib/AuthContext';
 import { getQarColors, getThemedStatusColors, type QarColors, radius, shadow, spacing, typography } from '@/lib/theme';
 import { tap } from '@/lib/haptics';
 import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { signOutCompletely } from '@/lib/session';
+import { RemoteImage } from '@/components/RemoteImage';
 import { MotionScreen } from '@/lib/motion';
 import {
   getBookingStatusDescription,
@@ -82,14 +83,14 @@ const HOME_GARAGES = [
 
 const FEATURED_SERVICES = [
   { id: 's1', label: 'AC Service',    price: 'From AED 159', imageUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=300&q=80' },
-  { id: 's2', label: 'Oil Change',    price: 'From AED 99',  imageUrl: 'https://images.unsplash.com/photo-1504222490345-c075b626f0c2?auto=format&fit=crop&w=300&q=80' },
+  { id: 's2', label: 'Oil Change',    price: 'From AED 99',  imageUrl: 'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=300&q=80' },
   { id: 's3', label: 'Brake Repair',  price: 'From AED 149', imageUrl: 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=300&q=80' },
   { id: 's4', label: 'Battery',       price: 'From AED 199', imageUrl: 'https://images.unsplash.com/photo-1580274455191-1c62238fa333?auto=format&fit=crop&w=300&q=80' },
   { id: 's5', label: 'Tire Change',   price: 'From AED 249', imageUrl: 'https://images.unsplash.com/photo-1551522435-a13afa10f103?auto=format&fit=crop&w=300&q=80' },
 ];
 
 const TOP_OFFERS = [
-  { id: 'o1', service: 'Oil Change',   discount: '15% OFF', until: 'Valid till 30 May', imageUrl: 'https://images.unsplash.com/photo-1504222490345-c075b626f0c2?auto=format&fit=crop&w=200&q=80' },
+  { id: 'o1', service: 'Oil Change',   discount: '15% OFF', until: 'Valid till 30 May', imageUrl: 'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=200&q=80' },
   { id: 'o2', service: 'Brake Pads',   discount: '10% OFF', until: 'Valid till 30 May', imageUrl: 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=200&q=80' },
   { id: 'o3', service: 'Full Service', discount: 'AED 99',  until: 'Limited Time',      imageUrl: 'https://images.unsplash.com/photo-1559416523-140ddc3d238c?auto=format&fit=crop&w=200&q=80' },
 ];
@@ -151,6 +152,15 @@ const ACCOUNT_MENU_SECTIONS = [
       { label: 'Privacy & data safety', icon: 'shield-outline' as IoniconName, href: '/privacy-security', color: '#A78BFA' },
       { label: 'Subscriptions', icon: 'repeat-outline' as IoniconName, href: '/subscriptions', color: '#22C55E' },
       { label: 'Coupons & rewards', icon: 'pricetag-outline' as IoniconName, href: '/coupons', color: '#EF4444' },
+    ],
+  },
+  {
+    title: 'Support',
+    items: [
+      { label: 'Messages', icon: 'chatbubbles-outline' as IoniconName, href: '/messages', color: '#3B82F6' },
+      { label: 'Help center', icon: 'help-circle-outline' as IoniconName, href: '/help-center', color: '#22D3EE' },
+      { label: 'FAQ', icon: 'information-circle-outline' as IoniconName, href: '/faq', color: '#A78BFA' },
+      { label: 'Contact us', icon: 'mail-outline' as IoniconName, href: '/contact-us', color: '#22C55E' },
     ],
   },
   {
@@ -223,7 +233,7 @@ function GarageListCard({ garage, c }: { garage: Garage; c: QarColors }) {
       style={[ss.garageCard, { backgroundColor: c.surface, borderColor: isFav ? c.primary : c.border }]}
       onPress={() => { void tap(); router.push(route(`/garage/${garage.id}`)); }}
     >
-      <Image source={{ uri: garage.imageUrl }} style={ss.garageThumb} resizeMode="cover" />
+      <RemoteImage uri={garage.imageUrl} style={ss.garageThumb} fallbackIcon="business-outline" accessibilityLabel={garage.name} />
 
       <View style={ss.garageBody}>
         <View style={ss.garageTopRow}>
@@ -427,7 +437,7 @@ export function HomeScreen() {
               style={[ss.featSvcCard, { backgroundColor: c.surface, borderColor: c.border }]}
               onPress={() => { void tap(); router.push('/services'); }}
             >
-              <Image source={{ uri: svc.imageUrl }} style={ss.featSvcImage} resizeMode="cover" />
+              <RemoteImage uri={svc.imageUrl} style={ss.featSvcImage} fallbackIcon="construct-outline" accessibilityLabel={svc.label} />
               <View style={ss.featSvcInfo}>
                 <Text style={[ss.featSvcLabel, { color: c.text }]}>{svc.label}</Text>
                 <Text style={[ss.featSvcPrice, { color: c.muted }]}>{svc.price}</Text>
@@ -542,7 +552,7 @@ export function HomeScreen() {
               onPress={() => { void tap(); router.push('/offers'); }}
             >
               <View style={ss.offerImgWrap}>
-                <Image source={{ uri: offer.imageUrl }} style={ss.offerImg} resizeMode="cover" />
+                <RemoteImage uri={offer.imageUrl} style={ss.offerImg} fallbackIcon="pricetag-outline" accessibilityLabel={offer.service} />
                 <View style={ss.offerImgOverlay} />
                 <Text style={ss.offerDiscount}>{offer.discount}</Text>
               </View>
@@ -1200,7 +1210,7 @@ export function AccountScreen() {
   const totalBookings = bookings.length;
   const totalSaved = favoriteGarageIds.length;
   const totalSpent = vendorInvoices
-    .filter((inv) => inv.status === 'Paid' || inv.status === 'paid')
+    .filter((inv) => inv.status === 'Paid')
     .reduce((sum, inv) => sum + (inv.total ?? 0), 0);
   const spentLabel = totalSpent > 0 ? `QAR ${totalSpent.toLocaleString()}` : 'QAR 0';
 
@@ -1340,11 +1350,17 @@ export function AccountScreen() {
         <Pressable
           style={[ss.signOutBtn, { backgroundColor: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.25)' }]}
           onPress={() =>
-            Alert.alert('Sign out', 'Are you sure?', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Sign out', style: 'destructive', onPress: () => signOut(auth) },
-            ])
+            Alert.alert(
+              'Sign out',
+              'Your saved addresses, wallet history and documents will be removed from this device.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Sign out', style: 'destructive', onPress: () => void signOutCompletely() },
+              ],
+            )
           }
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
         >
           <Icon name="log-out-outline" size={17} color="#EF4444" />
           <Text style={[ss.signOutText, { color: '#EF4444' }]}>Sign out</Text>
@@ -1388,11 +1404,11 @@ const ss = StyleSheet.create({
   logoText:       { fontSize: 18, fontWeight: '900', letterSpacing: -0.4 },
   headerRight:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
   langChip:       { borderWidth: 1, borderRadius: 9, paddingHorizontal: 10, paddingVertical: 6 },
-  langText:       { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  langText:       { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
   // 44×44 minimum touch target for the notification button
   iconBtn:        { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   notifDot:       { position: 'absolute', right: -2, top: -2, minWidth: 17, height: 17, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
-  notifDotText:   { color: '#fff', fontSize: 9, fontWeight: '900' },
+  notifDotText:   { color: '#fff', fontSize: 12, fontWeight: '900' },
 
   // Greeting
   greetingBlock:  { paddingHorizontal: spacing.page, gap: 4 },
@@ -1401,7 +1417,7 @@ const ss = StyleSheet.create({
   greetingAr:     { fontSize: 12, lineHeight: 18, textAlign: 'right', writingDirection: 'rtl' },
 
   // Search
-  searchBar:      { marginHorizontal: spacing.page, minHeight: 54, borderRadius: 27, flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 8, borderWidth: 1, gap: 10 },
+  searchBar:      { marginHorizontal: spacing.page, minHeight: 54, borderRadius: 27, flexDirection: 'row', alignItems: 'center', paddingStart: 16, paddingEnd: 8, borderWidth: 1, gap: 10 },
   searchBarActive:{ height: 52, borderRadius: 26, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, borderWidth: 1.5, gap: 10 },
   searchPlaceholder: { fontSize: 14, flex: 1 },
   searchAr:       { fontSize: 12, writingDirection: 'rtl', textAlign: 'right' },
@@ -1413,9 +1429,9 @@ const ss = StyleSheet.create({
   heroOverlayLeft:{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '50%' },
   heroOverlayMid: { position: 'absolute', left: '40%', top: 0, bottom: 0, width: '30%' },
   heroContent:    { position: 'absolute', left: 0, top: 0, bottom: 0, width: '70%', padding: 20, justifyContent: 'center', gap: 5 },
-  heroEyebrow:    { color: '#E31E24', fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
+  heroEyebrow:    { color: '#E31E24', fontSize: 12, fontWeight: '900', letterSpacing: 1.2 },
   heroHeadline:   { color: '#fff', fontSize: 19, fontWeight: '900', lineHeight: 24 },
-  heroAr:         { color: 'rgba(255,255,255,0.48)', fontSize: 11, lineHeight: 17, marginBottom: 8, textAlign: 'right', writingDirection: 'rtl', alignSelf: 'stretch' },
+  heroAr:         { color: 'rgba(255,255,255,0.48)', fontSize: 12, lineHeight: 17, marginBottom: 8, textAlign: 'right', writingDirection: 'rtl', alignSelf: 'stretch' },
   heroBtnRow:     { flexDirection: 'row', gap: 8, alignItems: 'center' },
   heroBtnPrimary: { height: 36, borderRadius: 11, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
   heroBtnPrimaryText: { color: '#fff', fontSize: 12, fontWeight: '900' },
@@ -1426,7 +1442,7 @@ const ss = StyleSheet.create({
   quickRow:       { flexDirection: 'row', gap: 10 },
   quickItem:      { flex: 1, alignItems: 'center', gap: 8, minHeight: 82 },
   quickIcon:      { width: 58, height: 58, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  quickLabel:     { fontSize: 11, fontWeight: '700', textAlign: 'center', lineHeight: 15, minHeight: 30 },
+  quickLabel:     { fontSize: 12, fontWeight: '700', textAlign: 'center', lineHeight: 15, minHeight: 30 },
 
   // Featured services
   hScroll:        { gap: 12 },
@@ -1434,7 +1450,7 @@ const ss = StyleSheet.create({
   featSvcImage:   { width: 136, height: 88 },
   featSvcInfo:    { padding: 10, gap: 3 },
   featSvcLabel:   { fontSize: 12, fontWeight: '800' },
-  featSvcPrice:   { fontSize: 11 },
+  featSvcPrice:   { fontSize: 12 },
 
   // Book any service CTA
   bookCta:        { borderRadius: 22, overflow: 'hidden', minHeight: 132 },
@@ -1443,7 +1459,7 @@ const ss = StyleSheet.create({
   bookCtaContent: { padding: 20, flex: 1, justifyContent: 'center', gap: 6 },
   bookCtaTitle:   { color: '#fff', fontSize: 16, fontWeight: '900' },
   bookCtaSub:     { color: 'rgba(255,255,255,0.8)', fontSize: 12 },
-  bookCtaSubAr:   { color: 'rgba(255,255,255,0.62)', fontSize: 11, lineHeight: 17, textAlign: 'right', writingDirection: 'rtl', alignSelf: 'stretch' },
+  bookCtaSubAr:   { color: 'rgba(255,255,255,0.62)', fontSize: 12, lineHeight: 17, textAlign: 'right', writingDirection: 'rtl', alignSelf: 'stretch' },
   bookCtaBtn:     { minHeight: 40, borderRadius: 12, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
   bookCtaBtnText: { fontSize: 12, fontWeight: '900' },
 
@@ -1461,8 +1477,8 @@ const ss = StyleSheet.create({
     gap: 7,
   },
   catIconWrap:    { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  catLabel:       { fontSize: 11, fontWeight: '800', textAlign: 'center', lineHeight: 14 },
-  catLabelAr:     { fontSize: 10, textAlign: 'center', lineHeight: 14, writingDirection: 'rtl', minHeight: 16 },
+  catLabel:       { fontSize: 12, fontWeight: '800', textAlign: 'center', lineHeight: 14 },
+  catLabelAr:     { fontSize: 12, textAlign: 'center', lineHeight: 14, writingDirection: 'rtl', minHeight: 16 },
 
   // Garage card — consistent internal padding and gap
   garageCard:     { flexDirection: 'row', borderRadius: 16, borderWidth: 1, overflow: 'hidden', alignItems: 'center', padding: 12, gap: 12 },
@@ -1470,18 +1486,18 @@ const ss = StyleSheet.create({
   garageBody:     { flex: 1, minWidth: 0, gap: 4 },
   garageTopRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
   garageName:     { flex: 1, fontSize: 14, fontWeight: '800' },
-  garageSpecialty:{ fontSize: 11, fontWeight: '500' },
+  garageSpecialty:{ fontSize: 12, fontWeight: '500' },
   garageFactRow:  { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
-  garageFact:     { fontSize: 11, fontWeight: '600' },
-  garageDot:      { fontSize: 11 },
+  garageFact:     { fontSize: 12, fontWeight: '600' },
+  garageDot:      { fontSize: 12 },
   tagRow:         { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
   openPill:       { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4 },
   openDot:        { width: 6, height: 6, borderRadius: 3 },
-  openText:       { fontSize: 10, fontWeight: '800' },
+  openText:       { fontSize: 12, fontWeight: '800' },
   verifiedPill:   { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4 },
-  verifiedText:   { fontSize: 10, fontWeight: '800' },
+  verifiedText:   { fontSize: 12, fontWeight: '800' },
   tagPill:        { borderRadius: 20, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4 },
-  tagText:        { fontSize: 10, fontWeight: '600' },
+  tagText:        { fontSize: 12, fontWeight: '600' },
 
   // Garage section header
   garageHeader:   { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
@@ -1494,7 +1510,7 @@ const ss = StyleSheet.create({
   promoOverlay:   { position: 'absolute', left: 0, top: 0, bottom: 0, right: 0, backgroundColor: 'rgba(15,4,6,0.65)' },
   promoContent:   { position: 'absolute', left: 0, top: 0, bottom: 0, padding: 22, justifyContent: 'center', gap: 3 },
   promoEyebrow:   { color: '#FDA4AF', fontSize: 12, fontWeight: '800' },
-  promoSub:       { color: 'rgba(253,164,175,0.7)', fontSize: 11 },
+  promoSub:       { color: 'rgba(253,164,175,0.7)', fontSize: 12 },
   promoDiscount:  { color: '#fff', fontSize: 56, fontWeight: '900', lineHeight: 60, marginTop: 2 },
   promoOff:       { color: '#fff', fontSize: 24, fontWeight: '900', lineHeight: 28 },
   promoBtn:       { marginTop: 10, height: 38, borderRadius: 12, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
@@ -1506,10 +1522,10 @@ const ss = StyleSheet.create({
   offerImgWrap:   { height: 76, position: 'relative' },
   offerImg:       { ...StyleSheet.absoluteFillObject },
   offerImgOverlay:{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.48)' },
-  offerDiscount:  { position: 'absolute', bottom: 7, left: 9, color: '#fff', fontSize: 11, fontWeight: '900' },
+  offerDiscount:  { position: 'absolute', bottom: 7, left: 9, color: '#fff', fontSize: 12, fontWeight: '900' },
   offerInfo:      { padding: 9, gap: 2 },
-  offerService:   { fontSize: 11, fontWeight: '800' },
-  offerUntil:     { fontSize: 10 },
+  offerService:   { fontSize: 12, fontWeight: '800' },
+  offerUntil:     { fontSize: 12 },
 
   // German car section
   brandPills:     { gap: 10, paddingVertical: 2 },
@@ -1524,20 +1540,20 @@ const ss = StyleSheet.create({
   },
   trustIcon:      { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   trustLabel:     { fontSize: 12, fontWeight: '800', lineHeight: 16 },
-  trustLabelAr:   { fontSize: 11, lineHeight: 16, textAlign: 'right', writingDirection: 'rtl' },
+  trustLabelAr:   { fontSize: 12, lineHeight: 16, textAlign: 'right', writingDirection: 'rtl' },
   tagline:        { textAlign: 'center', fontSize: 12, lineHeight: 19, paddingTop: 2 },
   taglineAr:      { fontSize: 12, lineHeight: 18, textAlign: 'center', writingDirection: 'rtl' },
 
   // Search screen
   suggestCard:    { borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
-  suggestHeading: { fontSize: 11, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', padding: 12, paddingBottom: 8 },
+  suggestHeading: { fontSize: 12, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', padding: 12, paddingBottom: 8 },
   suggestRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 13, borderTopWidth: StyleSheet.hairlineWidth },
   suggestText:    { fontSize: 14, fontWeight: '500' },
   trendChip:      { borderRadius: 20, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8 },
   searchInput:    { fontSize: 14, paddingVertical: 0 },
 
   // Page headers — consistent top padding so eyebrow isn't flush against safe area
-  pageEyebrow:    { fontSize: 10, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
+  pageEyebrow:    { fontSize: 12, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
   pageTitle:      { fontSize: 26, fontWeight: '900', letterSpacing: -0.4, lineHeight: 32 },
 
   // Cars screen
@@ -1550,20 +1566,20 @@ const ss = StyleSheet.create({
   garageStatRow:  { flexDirection: 'row', gap: 8 },
   garageStat:     { flex: 1, borderRadius: 14, borderWidth: 1, padding: 10, gap: 4, minHeight: 76 },
   garageStatValue:{ fontSize: 16, fontWeight: '900' },
-  garageStatLabel:{ fontSize: 10, fontWeight: '800' },
+  garageStatLabel:{ fontSize: 12, fontWeight: '800' },
 
   // Summary strip (Bookings / Cars stat bar)
   summaryStrip:   { flexDirection: 'row', borderRadius: 16, borderWidth: 1 },
   summaryStat:    { flex: 1, alignItems: 'center', paddingVertical: 16, gap: 4 },
   summaryVal:     { fontSize: 24, fontWeight: '900' },
-  summaryLbl:     { fontSize: 11, fontWeight: '700' },
+  summaryLbl:     { fontSize: 12, fontWeight: '700' },
 
   // Booking card
-  bookingTabRow:   { gap: 10, paddingRight: spacing.page },
+  bookingTabRow:   { gap: 10, paddingEnd: spacing.page },
   bookingTab:      { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 42, borderRadius: 999, borderWidth: 1, paddingHorizontal: 14 },
   bookingTabText:  { fontSize: 12, fontWeight: '900' },
   bookingTabBadge: { minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  bookingTabBadgeText: { fontSize: 11, fontWeight: '900' },
+  bookingTabBadgeText: { fontSize: 12, fontWeight: '900' },
   bookingCard:    { borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
   bookingTop:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, paddingBottom: 8 },
   statusPill:     { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
@@ -1591,12 +1607,12 @@ const ss = StyleSheet.create({
   carName:        { fontSize: 15, fontWeight: '800' },
   carVin:         { fontSize: 12 },
   healthBadge:    { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, flexShrink: 0 },
-  healthBadgeText:{ fontSize: 11, fontWeight: '900' },
+  healthBadgeText:{ fontSize: 12, fontWeight: '900' },
   carBody:        { paddingHorizontal: 14, paddingBottom: 14, gap: 10 },
   carScoreRow:    { flexDirection: 'row', alignItems: 'center', gap: 12 },
   healthScoreBox: { width: 70, minHeight: 70, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   healthScoreValue: { fontSize: 24, lineHeight: 28, fontWeight: '900' },
-  healthScoreLabel: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
+  healthScoreLabel: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   barRow:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   barLabel:       { fontSize: 12 },
   barVal:         { fontSize: 12, fontWeight: '900' },
@@ -1608,7 +1624,7 @@ const ss = StyleSheet.create({
   carInfoPill:    { flex: 1, minHeight: 42, borderRadius: 13, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 8 },
   carShortcutRow: { flexDirection: 'row', gap: 8 },
   carShortcut:    { flex: 1, minHeight: 48, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  carShortcutText:{ fontSize: 10, fontWeight: '900' },
+  carShortcutText:{ fontSize: 12, fontWeight: '900' },
   // Two equal action buttons with a gap between them — no touching borders
   carActions:     { flexDirection: 'row', gap: 10 },
   carAction:      { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 11, borderWidth: 1 },
@@ -1624,7 +1640,7 @@ const ss = StyleSheet.create({
   carCard2Name:     { fontSize: 16, fontWeight: '900', letterSpacing: -0.2 },
   carCard2Plate:    { fontSize: 12, fontWeight: '600' },
   carCard2Badge:    { borderRadius: 99, paddingHorizontal: 10, paddingVertical: 5, flexShrink: 0 },
-  carCard2BadgeText:{ fontSize: 11, fontWeight: '900' },
+  carCard2BadgeText:{ fontSize: 12, fontWeight: '900' },
   carCard2HealthRow:{ flexDirection: 'row', alignItems: 'center', gap: 10 },
   carCard2HealthTrack: { flex: 1, height: 5, borderRadius: 99, overflow: 'hidden' },
   carCard2HealthFill:  { height: '100%', borderRadius: 99 },
@@ -1657,8 +1673,8 @@ const ss = StyleSheet.create({
   statsStrip:     { flexDirection: 'row', borderRadius: 16, borderWidth: 1 },
   statItem:       { flex: 1, alignItems: 'center', paddingVertical: 16, paddingHorizontal: 5, gap: 5, minHeight: 88 },
   statVal:        { fontSize: 16, fontWeight: '900', textAlign: 'center', lineHeight: 22 },
-  statLbl:        { fontSize: 10, fontWeight: '700', textAlign: 'center' },
-  menuSectionTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', paddingHorizontal: 2 },
+  statLbl:        { fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  menuSectionTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', paddingHorizontal: 2 },
   menuCard:       { borderRadius: 18, borderWidth: 1, overflow: 'hidden' },
   menuRow:        { flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 16, paddingVertical: 16, minHeight: 68 },
   menuIcon:       { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },

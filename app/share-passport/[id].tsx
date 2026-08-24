@@ -6,7 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { findCar } from '@/lib/marketplace';
+import { lookupCar } from '@/lib/marketplace';
+import RecordNotFound from '@/components/RecordNotFound';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheels.com';
 
@@ -16,7 +17,7 @@ export default function SharePassportScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const car = (() => { try { return findCar(id); } catch { return null; } })();
+  const car = lookupCar(id);
 
   const [enabled, setEnabled] = useState<Record<string, boolean>>({
     vin: true, plate: true, mileage: true,
@@ -58,6 +59,10 @@ export default function SharePassportScreen() {
   }
 
   const enabledCount = Object.values(enabled).filter(Boolean).length;
+
+  if (!car) {
+    return <RecordNotFound title="Vehicle not found" message="This vehicle may have been removed from your garage." />;
+  }
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.background }]} edges={['top']}>
@@ -156,24 +161,24 @@ const s = StyleSheet.create({
   },
   navBtn: { width: 40, height: 40, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center', ...shadow.xs },
   navTitle: { ...typography.h4 },
-  navSub: { fontSize: 11, fontWeight: '600' },
+  navSub: { fontSize: 12, fontWeight: '600' },
   content: { padding: spacing.page, gap: spacing.gap, paddingBottom: 40 },
   infoCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: radius.xl, borderWidth: 1, padding: 14 },
   infoText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: '600' },
-  sectionLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  sectionLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 1 },
   fieldList: { borderRadius: radius.xl, borderWidth: 1, overflow: 'hidden', ...shadow.xs },
   fieldRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
   fieldTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
   fieldLabel: { fontSize: 13, fontWeight: '700' },
   fieldValue: { fontSize: 12, fontWeight: '500' },
   sensitiveBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: radius.full, paddingHorizontal: 7, paddingVertical: 3 },
-  sensitiveText: { fontSize: 9, fontWeight: '800' },
+  sensitiveText: { fontSize: 12, fontWeight: '800' },
   toggle: { width: 38, height: 22, borderRadius: 11, justifyContent: 'center', position: 'relative' },
   toggleThumb: { position: 'absolute', width: 18, height: 18, borderRadius: 9, backgroundColor: '#fff' },
   linkCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: radius.xl, borderWidth: 1.5, padding: 12 },
-  linkText: { flex: 1, fontSize: 11, fontWeight: '700' },
+  linkText: { flex: 1, fontSize: 12, fontWeight: '700' },
   shareBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   generateBtn: { height: 52, borderRadius: radius.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   generateBtnText: { color: '#fff', fontSize: 15, fontWeight: '900' },
-  disclaimer: { fontSize: 11, lineHeight: 16, textAlign: 'center' },
+  disclaimer: { fontSize: 12, lineHeight: 16, textAlign: 'center' },
 });

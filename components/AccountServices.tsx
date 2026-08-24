@@ -2,17 +2,28 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import type { ComponentProps, ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { updateProfile } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import { useAuthContext } from '@/lib/AuthContext';
 import { auth, firestore } from '@/lib/firebase';
 import { success, tap } from '@/lib/haptics';
+import { useTranslation } from '@/lib/i18n';
+import { promptRestartForRTL } from '@/lib/i18n/restart';
 import { garages, type Garage } from '@/lib/marketplace';
 import { MotionScreen, MotionSurface } from '@/lib/motion';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import {
+  useQarColors,
+  useQarWheelsStore,
+  type SavedAddress,
+  type StoredInvoice,
+  type VaultDocument,
+  type VaultDocumentKind,
+  type WalletTransaction,
+} from '@/lib/store';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -103,8 +114,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
   const { user } = useAuthContext();
   const bookings = useQarWheelsStore((s) => s.bookings);
   const favorites = useQarWheelsStore((s) => s.favoriteGarageIds);
-  const language = useQarWheelsStore((s) => s.language);
-  const setLanguage = useQarWheelsStore((s) => s.setLanguage);
+  const { language, changeLanguage } = useTranslation();
   const notifications = useQarWheelsStore((s) => s.notifications);
   const markNotificationsRead = useQarWheelsStore((s) => s.markNotificationsRead);
   const [section, setSection] = useState<AccountSection>(initialSection);
@@ -116,16 +126,201 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
     country: 'Qatar',
     area: 'Doha',
   });
-  const [homeAddress, setHomeAddress] = useState('West Bay, Doha');
-  const [workAddress, setWorkAddress] = useState('Msheireb Downtown, Doha');
-  const [defaultPickup, setDefaultPickup] = useState<'home' | 'work'>('home');
   const [pushEnabled, setPushEnabled] = useState(true);
   const [bookingEnabled, setBookingEnabled] = useState(true);
   const [promoEnabled, setPromoEnabled] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(true);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
+  // ── Account domain, from the persisted store ──────────────────────────────
+  const addresses = useQarWheelsStore((s) => s.addresses);
+  const addAddress = useQarWheelsStore((s) => s.addAddress);
+  const updateAddress = useQarWheelsStore((s) => s.updateAddress);
+  const removeAddress = useQarWheelsStore((s) => s.removeAddress);
+  const setDefaultAddress = useQarWheelsStore((s) => s.setDefaultAddress);
+  const walletBalance = useQarWheelsStore((s) => s.walletBalance);
+  const walletTransactions = useQarWheelsStore((s) => s.walletTransactions);
+  const topUpWallet = useQarWheelsStore((s) => s.topUpWallet);
+  const invoices = useQarWheelsStore((s) => s.invoices);
+  const documents = useQarWheelsStore((s) => s.documents);
+  const addDocument = useQarWheelsStore((s) => s.addDocument);
+  const removeDocument = useQarWheelsStore((s) => s.removeDocument);
+
+  const [addressEditor, setAddressEditor] = useState<AddressDraft | null>(null);
+
   useEffect(() => setSection(initialSection), [initialSection]);
+
+  // ── Document vault ────────────────────────────────────────────────────────
+
+  async function handleUploadDocument() {
+    const kind = await pickDocumentKind();
+    if (!kind) return;
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to attach a document.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+    addDocument({
+      kind: kind.id,
+      title: kind.label,
+      uri: asset.uri,
+      mimeType: asset.mimeType,
+      sizeBytes: asset.fileSize,
+    });
+    void success();
+  }
+
+  /** Ask what the file is, so the vault is organised rather than a photo dump. */
+  function pickDocumentKind(): Promise<{ id: VaultDocumentKind; label: string } | null> {
+    const options: Array<{ id: VaultDocumentKind; label: string }> = [
+      { id: 'license', label: 'Driving licence' },
+      { id: 'id', label: 'QID / national ID' },
+      { id: 'insurance', label: 'Insurance certificate' },
+      { id: 'registration', label: 'Vehicle registration' },
+      { id: 'other', label: 'Other document' },
+    ];
+    return new Promise((resolve) => {
+      Alert.alert('What are you adding?', 'This keeps your vault organised.', [
+        ...options.map((option) => ({ text: option.label, onPress: () => resolve(option) })),
+        { text: 'Cancel', style: 'cancel' as const, onPress: () => resolve(null) },
+      ]);
+    });
+  }
+
+  function openDocument(document: VaultDocument) {
+    router.push(route(`/modal?uri=${encodeURIComponent(document.uri)}&title=${encodeURIComponent(document.title)}`));
+  }
+
+  async function shareDocument(document: VaultDocument) {
+    try {
+      await Share.share({ title: document.title, url: document.uri, message: document.title });
+    } catch {
+      Alert.alert('Share failed', 'This document could not be shared.');
+    }
+  }
+
+  function confirmDeleteDocument(document: VaultDocument) {
+    Alert.alert('Delete document', `Remove "${document.title}" from your vault?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => { removeDocument(document.id); void tap(); } },
+    ]);
+  }
+
+  // ── Addresses ─────────────────────────────────────────────────────────────
+
+  function openAddressEditor(address?: SavedAddress) {
+    setAddressEditor(
+      address
+        ? { id: address.id, label: address.label, line: address.line, area: address.area, instructions: address.instructions ?? '' }
+        : { id: null, label: '', line: '', area: '', instructions: '' },
+    );
+  }
+
+  function saveAddressDraft(draft: AddressDraft) {
+    if (!draft.line.trim()) {
+      Alert.alert('Address needed', 'Enter the street or building so a driver can find you.');
+      return;
+    }
+    if (draft.id) {
+      updateAddress(draft.id, {
+        label: draft.label.trim() || 'Address',
+        line: draft.line.trim(),
+        area: draft.area.trim(),
+        instructions: draft.instructions.trim() || undefined,
+      });
+    } else {
+      addAddress({
+        label: draft.label,
+        line: draft.line,
+        area: draft.area,
+        instructions: draft.instructions,
+      });
+    }
+    setAddressEditor(null);
+    void success();
+  }
+
+  function confirmDeleteAddress(address: SavedAddress) {
+    Alert.alert('Delete address', `Remove "${address.label}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => { removeAddress(address.id); void tap(); } },
+    ]);
+  }
+
+  async function handleExportData() {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      profile: { ...profile, email: user?.email ?? profile.email },
+      bookings: bookings.map((b) => ({
+        id: b.id,
+        service: b.service,
+        garage: b.garage,
+        vehicle: b.vehicle,
+        status: b.status,
+        date: b.date,
+      })),
+      savedGarages: favorites,
+    };
+    try {
+      await Share.share({
+        title: 'QarWheels data export',
+        message: JSON.stringify(payload, null, 2),
+      });
+    } catch {
+      Alert.alert('Export failed', 'The data export could not be shared. Please try again.');
+    }
+  }
+
+  // ── Wallet ────────────────────────────────────────────────────────────────
+
+  function handleTopUpWallet() {
+    // Fixed denominations keep this to one tap. A custom amount routes to the
+    // card screen, where the real payment sheet lives.
+    Alert.alert('Top up wallet', 'How much would you like to add?', [
+      ...[50, 100, 250].map((amount) => ({
+        text: `QAR ${amount}`,
+        onPress: () => {
+          const balance = topUpWallet(amount, 'Card');
+          void success();
+          Alert.alert('Wallet topped up', `${money(amount)} added. Your balance is now ${money(balance)}.`);
+        },
+      })),
+      { text: 'Other amount', onPress: () => router.push('/payment-method/new' as never) },
+      { text: 'Cancel', style: 'cancel' as const },
+    ]);
+  }
+
+  async function handleExportStatement() {
+    if (walletTransactions.length === 0) {
+      Alert.alert('Nothing to export', 'There are no transactions on your account yet.');
+      return;
+    }
+    const lines = walletTransactions.map(
+      (t) =>
+        `${new Date(t.createdAt).toLocaleDateString()}  ${t.reference}  ${t.amount > 0 ? '+' : ''}${t.amount.toFixed(2)}  ${t.description}  (balance ${t.balanceAfter.toFixed(2)})`,
+    );
+    const statement = [
+      'QarWheels wallet statement',
+      `Generated ${new Date().toLocaleString()}`,
+      `Closing balance: ${money(walletBalance)}`,
+      '',
+      ...lines,
+    ].join('\n');
+
+    try {
+      await Share.share({ title: 'QarWheels statement', message: statement });
+    } catch {
+      Alert.alert('Export failed', 'The statement could not be shared. Please try again.');
+    }
+  }
 
   useEffect(() => {
     setProfile({
@@ -210,10 +405,27 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
 
     if (section === 'addresses') {
       return (
-        <SectionCard title="Pickup and drop-off" subtitle="Store service addresses and choose the default pickup point." icon="location-outline" c={c}>
-          <AddressBox label="Home" value={homeAddress} selected={defaultPickup === 'home'} onSelect={() => setDefaultPickup('home')} onChangeText={setHomeAddress} c={c} />
-          <AddressBox label="Work" value={workAddress} selected={defaultPickup === 'work'} onSelect={() => setDefaultPickup('work')} onChangeText={setWorkAddress} c={c} />
-          <PrimaryButton label="Use for next booking" icon="navigate-outline" onPress={() => { void success(); router.push(route('/services')); }} c={c} />
+        <SectionCard title="Pickup and drop-off" subtitle="Save as many addresses as you need and label them however you like." icon="location-outline" c={c}>
+          {addresses.length === 0 ? (
+            <EmptyState
+              title="No saved addresses"
+              body="Add a pickup point so drivers know where to collect your car."
+              icon="location-outline"
+              c={c}
+            />
+          ) : (
+            addresses.map((address) => (
+              <AddressCard
+                key={address.id}
+                address={address}
+                c={c}
+                onMakeDefault={() => { setDefaultAddress(address.id); void tap(); }}
+                onEdit={() => openAddressEditor(address)}
+                onDelete={() => confirmDeleteAddress(address)}
+              />
+            ))
+          )}
+          <PrimaryButton label="Add address" icon="add-circle-outline" onPress={() => openAddressEditor()} c={c} />
         </SectionCard>
       );
     }
@@ -230,31 +442,94 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
     }
 
     if (section === 'wallet') {
+      const spent = walletTransactions
+        .filter((t) => t.amount < 0)
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+      const added = walletTransactions
+        .filter((t) => t.amount > 0)
+        .reduce((sum, t) => sum + t.amount, 0);
+      const recent = walletTransactions.slice(0, 3);
+
       return (
         <>
           <MotionSurface style={[styles.walletCard, { backgroundColor: c.dark, borderColor: c.primaryMid }]}>
-            <Text style={styles.walletEyebrow}>Available wallet</Text>
-            <Text style={styles.walletAmount}>QAR 280.00</Text>
-            <Text style={styles.walletMeta}>Credits, refunds, and loyalty rewards are applied at checkout.</Text>
+            <Text style={styles.walletEyebrow}>Available balance</Text>
+            <Text style={styles.walletAmount}>{money(walletBalance)}</Text>
+            <Text style={styles.walletMeta}>
+              {walletTransactions.length === 0
+                ? 'Top up to pay for services without reaching for a card.'
+                : `${money(added)} added · ${money(spent)} spent across ${walletTransactions.length} ${walletTransactions.length === 1 ? 'entry' : 'entries'}.`}
+            </Text>
           </MotionSurface>
+
           <SectionCard title="Wallet actions" subtitle="Move money through credits, refunds, and rewards." icon="wallet-outline" c={c}>
-            <ActionRow label="Top up wallet" meta="Add balance before a service" icon="add-outline" onPress={() => void success()} c={c} />
-            <ActionRow label="View transactions" meta="Credits, refunds, and service payments" icon="receipt-outline" onPress={() => setSection('transactions')} c={c} />
+            <ActionRow label="Top up wallet" meta="Add balance before a service" icon="add-outline" onPress={handleTopUpWallet} c={c} />
+            <ActionRow
+              label="View all transactions"
+              meta={walletTransactions.length ? `${walletTransactions.length} recorded` : 'Nothing recorded yet'}
+              icon="receipt-outline"
+              onPress={() => setSection('transactions')}
+              c={c}
+            />
             <ActionRow label="Coupons and rewards" meta="Apply eligible offers" icon="pricetag-outline" onPress={() => setSection('coupons')} c={c} />
           </SectionCard>
+
+          {recent.length > 0 && (
+            <SectionCard title="Recent activity" subtitle="The last few movements on your balance." icon="time-outline" c={c}>
+              {recent.map((txn) => <TransactionRow key={txn.id} txn={txn} c={c} />)}
+            </SectionCard>
+          )}
         </>
       );
     }
 
     if (section === 'documents') {
+      const expiringSoon = documents.filter((d) => isExpiringSoon(d.expiresAt));
+
       return (
-        <SectionCard title="Document vault" subtitle="Keep account and vehicle paperwork ready for bookings and claims." icon="folder-open-outline" c={c}>
-          <DocumentRow title="Driving license" meta="Verified - expires Oct 2028" icon="id-card-outline" c={c} />
-          <DocumentRow title="QID / Emirates ID" meta="Verified for invoices and vendor checks" icon="finger-print-outline" c={c} />
-          <DocumentRow title="Insurance certificates" meta="2 active policies linked to vehicles" icon="shield-outline" c={c} />
-          <DocumentRow title="Service invoices" meta="Downloadable records from completed bookings" icon="receipt-outline" c={c} />
-          <PrimaryButton label="Upload document" icon="cloud-upload-outline" onPress={() => void success()} c={c} />
-        </SectionCard>
+        <>
+          {expiringSoon.length > 0 && (
+            <MotionSurface style={[styles.noticeCard, { backgroundColor: c.warningBg, borderColor: c.warning + '55' }]}>
+              <Ionicons name="alert-circle-outline" size={20} color={c.warning} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[styles.rowTitle, { color: c.text }]}>
+                  {expiringSoon.length === 1 ? '1 document expires soon' : `${expiringSoon.length} documents expire soon`}
+                </Text>
+                <Text style={[styles.rowMeta, { color: c.textSecondary }]}>
+                  {expiringSoon.map((d) => d.title).join(', ')}
+                </Text>
+              </View>
+            </MotionSurface>
+          )}
+
+          <SectionCard
+            title="Document vault"
+            subtitle="Keep licences, insurance and registration ready for bookings and claims."
+            icon="folder-open-outline"
+            c={c}
+          >
+            {documents.length === 0 ? (
+              <EmptyState
+                title="Your vault is empty"
+                body="Add your licence, insurance certificate or vehicle registration so they're on hand when a garage asks."
+                icon="folder-open-outline"
+                c={c}
+              />
+            ) : (
+              documents.map((document) => (
+                <VaultDocumentRow
+                  key={document.id}
+                  document={document}
+                  c={c}
+                  onOpen={() => openDocument(document)}
+                  onShare={() => shareDocument(document)}
+                  onDelete={() => confirmDeleteDocument(document)}
+                />
+              ))
+            )}
+            <PrimaryButton label="Add document" icon="cloud-upload-outline" onPress={handleUploadDocument} c={c} />
+          </SectionCard>
+        </>
       );
     }
 
@@ -263,7 +538,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
         <SectionCard title="Privacy and security" subtitle="Control sign-in, sharing, data exports, and account protection." icon="shield-checkmark-outline" c={c}>
           <ToggleRow label="Biometric unlock" meta="Prepare native Face ID / Touch ID support" value={biometricEnabled} onValueChange={setBiometricEnabled} c={c} />
           <ToggleRow label="Two-factor login" meta="Require an extra code for sensitive actions" value={twoFactorEnabled} onValueChange={setTwoFactorEnabled} c={c} />
-          <ActionRow label="Export my data" meta="Profile, vehicles, bookings, invoices" icon="download-outline" onPress={() => void success()} c={c} />
+          <ActionRow label="Export my data" meta="Profile, vehicles, bookings, invoices" icon="download-outline" onPress={handleExportData} c={c} />
           <ActionRow label="Delete account request" meta="Starts a secure deletion workflow" icon="trash-outline" onPress={() => Alert.alert('Delete account', 'A production build should require identity verification before this action.')} c={c} danger />
         </SectionCard>
       );
@@ -287,10 +562,15 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
           {(['en', 'ar'] as const).map((lang) => (
             <ActionRow
               key={lang}
-              label={lang === 'en' ? 'English' : 'Arabic'}
-              meta={lang === 'en' ? 'Left-to-right interface' : 'Right-to-left interface preparation'}
+              label={lang === 'en' ? 'English' : 'العربية'}
+              meta={lang === 'en' ? 'Left-to-right interface' : 'Right-to-left interface'}
               icon={language === lang ? 'checkmark-circle' : 'radio-button-off-outline'}
-              onPress={() => { setLanguage(lang); void success(); }}
+              onPress={() => {
+                // Switching direction needs a bundle reload to take effect.
+                const needsRestart = changeLanguage(lang);
+                void success();
+                if (needsRestart) void promptRestartForRTL();
+              }}
               c={c}
             />
           ))}
@@ -327,17 +607,56 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
       );
     }
 
-    if (section === 'transactions' || section === 'invoices') {
+    if (section === 'transactions') {
       return (
-        <SectionCard title={section === 'transactions' ? 'Transactions' : 'Invoices'} subtitle="Payment records connected to services, refunds, and wallet credits." icon="receipt-outline" c={c}>
-          {[
-            ['Oil service', 'QAR 180 - Paid by wallet - INV-2026-0184'],
-            ['AC inspection', 'QAR 95 - Visa ****2481 - INV-2026-0162'],
-            ['Refund credit', 'QAR 40 - Wallet adjustment - CR-2026-0041'],
-          ].map(([title, meta]) => (
-            <DocumentRow key={title} title={title} meta={meta} icon="receipt-outline" c={c} />
-          ))}
-          <PrimaryButton label="Download statement" icon="download-outline" onPress={() => void success()} c={c} />
+        <SectionCard
+          title="Transactions"
+          subtitle="Every movement on your wallet, newest first."
+          icon="receipt-outline"
+          c={c}
+        >
+          {walletTransactions.length === 0 ? (
+            <EmptyState
+              title="No transactions yet"
+              body="Top up your wallet or pay for a service and the record appears here."
+              icon="receipt-outline"
+              c={c}
+            />
+          ) : (
+            <>
+              {walletTransactions.map((txn) => <TransactionRow key={txn.id} txn={txn} c={c} />)}
+              <PrimaryButton label="Export statement" icon="download-outline" onPress={handleExportStatement} c={c} />
+            </>
+          )}
+        </SectionCard>
+      );
+    }
+
+    if (section === 'invoices') {
+      return (
+        <SectionCard
+          title="Invoices"
+          subtitle="Tax invoices issued for completed services."
+          icon="document-text-outline"
+          c={c}
+        >
+          {invoices.length === 0 ? (
+            <EmptyState
+              title="No invoices yet"
+              body="An invoice is issued when a booking is completed and paid."
+              icon="document-text-outline"
+              c={c}
+            />
+          ) : (
+            invoices.map((invoice) => (
+              <InvoiceRow
+                key={invoice.id}
+                invoice={invoice}
+                c={c}
+                onPress={() => router.push(route(`/invoice/${invoice.id}`))}
+              />
+            ))
+          )}
         </SectionCard>
       );
     }
@@ -424,7 +743,110 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
 
         {renderSection()}
       </ScrollView>
+
+      <AddressEditorSheet
+        draft={addressEditor}
+        c={c}
+        onChange={setAddressEditor}
+        onCancel={() => setAddressEditor(null)}
+        onSave={saveAddressDraft}
+      />
     </SafeAreaView>
+  );
+}
+
+/** Bottom sheet for creating or editing a labelled address. */
+function AddressEditorSheet({ draft, c, onChange, onCancel, onSave }: {
+  draft: AddressDraft | null;
+  c: ReturnType<typeof useQarColors>;
+  onChange: (draft: AddressDraft) => void;
+  onCancel: () => void;
+  onSave: (draft: AddressDraft) => void;
+}) {
+  if (!draft) return null;
+  const editing = draft.id !== null;
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onCancel}>
+      <View style={styles.sheetBackdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} accessibilityLabel="Dismiss" />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={[styles.sheet, { backgroundColor: c.surface, borderColor: c.border }]}>
+            <View style={[styles.sheetGrabber, { backgroundColor: c.border }]} />
+            <Text style={[styles.title, { color: c.text }]}>{editing ? 'Edit address' : 'Add address'}</Text>
+            <Text style={[styles.subtitle, { color: c.textSecondary }]}>
+              Label it however you think of it — Home, Villa 12, Mum's place.
+            </Text>
+
+            <SheetField
+              label="Label"
+              value={draft.label}
+              placeholder="Home"
+              onChangeText={(label) => onChange({ ...draft, label })}
+              c={c}
+            />
+            <SheetField
+              label="Street or building"
+              value={draft.line}
+              placeholder="Building 24, Al Sadd Street"
+              onChangeText={(line) => onChange({ ...draft, line })}
+              c={c}
+            />
+            <SheetField
+              label="Area"
+              value={draft.area}
+              placeholder="Doha"
+              onChangeText={(area) => onChange({ ...draft, area })}
+              c={c}
+            />
+            <SheetField
+              label="Notes for the driver (optional)"
+              value={draft.instructions}
+              placeholder="Gate code 4412, park by the blue door"
+              onChangeText={(instructions) => onChange({ ...draft, instructions })}
+              c={c}
+            />
+
+            <View style={styles.sheetActions}>
+              <AnimatedPressable
+                style={[styles.sheetCancel, { borderColor: c.border }]}
+                onPress={onCancel}
+              >
+                <Text style={[styles.rowTitle, { color: c.textSecondary }]}>Cancel</Text>
+              </AnimatedPressable>
+              <AnimatedPressable
+                style={[styles.sheetSave, { backgroundColor: c.primary }]}
+                onPress={() => onSave(draft)}
+              >
+                <Text style={styles.primaryButtonText}>{editing ? 'Save changes' : 'Add address'}</Text>
+              </AnimatedPressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
+}
+
+function SheetField({ label, value, placeholder, onChangeText, c }: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onChangeText: (value: string) => void;
+  c: ReturnType<typeof useQarColors>;
+}) {
+  return (
+    <View style={{ gap: 6 }}>
+      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>{label}</Text>
+      <TextInput
+        style={[styles.input, { backgroundColor: c.surfaceAlt, borderColor: c.border, color: c.text }]}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={c.muted}
+        accessibilityLabel={label}
+      />
+    </View>
   );
 }
 
@@ -533,8 +955,19 @@ function ActionRow({ label, meta, icon, onPress, c, danger }: {
 }) {
   const color = danger ? c.danger : c.primary;
   return (
-    <AnimatedPressable style={[styles.actionRow, { borderColor: c.border }]} onPress={() => { void tap(); onPress(); }}>
-      <View style={[styles.actionIcon, { backgroundColor: danger ? c.dangerBg : c.primaryLight }]}>
+    <AnimatedPressable
+      style={[styles.actionRow, { borderColor: c.border }]}
+      onPress={() => { void tap(); onPress(); }}
+      // Screen readers announce the row as one control: title then detail.
+      // The decorative icon and chevron are hidden so they aren't read out.
+      accessibilityLabel={label}
+      accessibilityHint={meta}
+    >
+      <View
+        importantForAccessibility="no"
+        accessibilityElementsHidden
+        style={[styles.actionIcon, { backgroundColor: danger ? c.dangerBg : c.primaryLight }]}
+      >
         <Ionicons name={icon} size={17} color={color} />
       </View>
       <View style={{ flex: 1, gap: 2 }}>
@@ -546,8 +979,208 @@ function ActionRow({ label, meta, icon, onPress, c, danger }: {
   );
 }
 
-function DocumentRow({ title, meta, icon, c }: { title: string; meta: string; icon: IconName; c: ReturnType<typeof useQarColors> }) {
-  return <ActionRow label={title} meta={meta} icon={icon} onPress={() => void success()} c={c} />;
+// ─── Account domain rows ─────────────────────────────────────────────────────
+
+type AddressDraft = {
+  id: string | null;
+  label: string;
+  line: string;
+  area: string;
+  instructions: string;
+};
+
+/** QAR formatter with grouped thousands and two decimals. */
+function money(amount: number) {
+  return `QAR ${Math.abs(amount).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function relativeDate(iso: string) {
+  const then = new Date(iso);
+  const days = Math.floor((Date.now() - then.getTime()) / 86_400_000);
+  if (days <= 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  return then.toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/** True when a document expires within 60 days — enough notice to renew. */
+function isExpiringSoon(expiresAt?: string) {
+  if (!expiresAt) return false;
+  const days = (new Date(expiresAt).getTime() - Date.now()) / 86_400_000;
+  return days <= 60;
+}
+
+const documentIcons: Record<VaultDocumentKind, IconName> = {
+  license: 'card-outline',
+  id: 'finger-print-outline',
+  insurance: 'shield-checkmark-outline',
+  registration: 'document-text-outline',
+  invoice: 'receipt-outline',
+  other: 'document-attach-outline',
+};
+
+function AddressCard({ address, c, onMakeDefault, onEdit, onDelete }: {
+  address: SavedAddress;
+  c: ReturnType<typeof useQarColors>;
+  onMakeDefault: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <View style={[styles.addressCard, { backgroundColor: c.surfaceAlt, borderColor: address.isDefault ? c.primary : c.border }]}>
+      <View style={styles.addressHead}>
+        <Ionicons name="location" size={16} color={address.isDefault ? c.primary : c.muted} />
+        <Text style={[styles.rowTitle, { color: c.text, flex: 1 }]} numberOfLines={1}>{address.label}</Text>
+        {address.isDefault ? (
+          <View style={[styles.defaultChip, { backgroundColor: c.primaryLight }]}>
+            <Text style={[styles.defaultChipText, { color: c.primary }]}>Default</Text>
+          </View>
+        ) : null}
+      </View>
+
+      <Text style={[styles.rowMeta, { color: c.textSecondary }]}>
+        {[address.line, address.area].filter(Boolean).join(', ')}
+      </Text>
+      {address.instructions ? (
+        <Text style={[styles.rowMeta, { color: c.muted, fontStyle: 'italic' }]}>{address.instructions}</Text>
+      ) : null}
+
+      <View style={styles.addressActions}>
+        {!address.isDefault && (
+          <AnimatedPressable style={[styles.miniAction, { borderColor: c.border }]} onPress={onMakeDefault} accessibilityLabel={`Make ${address.label} the default address`}>
+            <Ionicons name="star-outline" size={13} color={c.textSecondary} />
+            <Text style={[styles.miniActionText, { color: c.textSecondary }]}>Set default</Text>
+          </AnimatedPressable>
+        )}
+        <AnimatedPressable style={[styles.miniAction, { borderColor: c.border }]} onPress={onEdit} accessibilityLabel={`Edit ${address.label}`}>
+          <Ionicons name="create-outline" size={13} color={c.textSecondary} />
+          <Text style={[styles.miniActionText, { color: c.textSecondary }]}>Edit</Text>
+        </AnimatedPressable>
+        <AnimatedPressable style={[styles.miniAction, { borderColor: c.border }]} onPress={onDelete} accessibilityLabel={`Delete ${address.label}`}>
+          <Ionicons name="trash-outline" size={13} color={c.danger} />
+          <Text style={[styles.miniActionText, { color: c.danger }]}>Delete</Text>
+        </AnimatedPressable>
+      </View>
+    </View>
+  );
+}
+
+function TransactionRow({ txn, c }: { txn: WalletTransaction; c: ReturnType<typeof useQarColors> }) {
+  const credit = txn.amount > 0;
+  const tone = credit ? c.success : c.text;
+  const icon: IconName =
+    txn.kind === 'topup' ? 'add-circle-outline'
+    : txn.kind === 'refund' ? 'return-down-back-outline'
+    : txn.kind === 'reward' ? 'gift-outline'
+    : 'car-outline';
+
+  return (
+    <View style={[styles.txnRow, { borderColor: c.border }]}>
+      <View style={[styles.actionIcon, { backgroundColor: credit ? c.successBg : c.surfaceAlt }]}>
+        <Ionicons name={icon} size={16} color={credit ? c.success : c.textSecondary} />
+      </View>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={[styles.rowTitle, { color: c.text }]} numberOfLines={1}>{txn.description}</Text>
+        <Text style={[styles.rowMeta, { color: c.muted }]}>
+          {relativeDate(txn.createdAt)} · {txn.reference}
+        </Text>
+      </View>
+      <View style={{ alignItems: 'flex-end', gap: 2 }}>
+        <Text style={[styles.txnAmount, { color: tone }]}>
+          {credit ? '+' : '−'}{money(txn.amount).replace('QAR ', '')}
+        </Text>
+        <Text style={[styles.txnBalance, { color: c.muted }]}>{money(txn.balanceAfter)}</Text>
+      </View>
+    </View>
+  );
+}
+
+function InvoiceRow({ invoice, c, onPress }: {
+  invoice: StoredInvoice;
+  c: ReturnType<typeof useQarColors>;
+  onPress: () => void;
+}) {
+  const tone = invoice.status === 'Paid' ? c.success : invoice.status === 'Refunded' ? c.warning : c.danger;
+  const toneBg = invoice.status === 'Paid' ? c.successBg : invoice.status === 'Refunded' ? c.warningBg : c.dangerBg;
+
+  return (
+    <AnimatedPressable
+      style={[styles.txnRow, { borderColor: c.border }]}
+      onPress={() => { void tap(); onPress(); }}
+      accessibilityLabel={`Invoice ${invoice.number}, ${invoice.service}, ${money(invoice.amount)}, ${invoice.status}`}
+    >
+      <View style={[styles.actionIcon, { backgroundColor: c.primaryLight }]}>
+        <Ionicons name="document-text-outline" size={16} color={c.primary} />
+      </View>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={[styles.rowTitle, { color: c.text }]} numberOfLines={1}>{invoice.service}</Text>
+        <Text style={[styles.rowMeta, { color: c.muted }]} numberOfLines={1}>
+          {invoice.number} · {invoice.garage}
+        </Text>
+      </View>
+      <View style={{ alignItems: 'flex-end', gap: 4 }}>
+        <Text style={[styles.txnAmount, { color: c.text }]}>{money(invoice.amount).replace('QAR ', '')}</Text>
+        <View style={[styles.defaultChip, { backgroundColor: toneBg }]}>
+          <Text style={[styles.defaultChipText, { color: tone }]}>{invoice.status}</Text>
+        </View>
+      </View>
+    </AnimatedPressable>
+  );
+}
+
+function VaultDocumentRow({ document, c, onOpen, onShare, onDelete }: {
+  document: VaultDocument;
+  c: ReturnType<typeof useQarColors>;
+  onOpen: () => void;
+  onShare: () => void;
+  onDelete: () => void;
+}) {
+  const expiring = isExpiringSoon(document.expiresAt);
+  return (
+    <View style={[styles.addressCard, { backgroundColor: c.surfaceAlt, borderColor: expiring ? c.warning : c.border }]}>
+      <AnimatedPressable
+        style={styles.addressHead}
+        onPress={() => { void tap(); onOpen(); }}
+        accessibilityLabel={`Open ${document.title}`}
+      >
+        <View style={[styles.actionIcon, { backgroundColor: c.primaryLight }]}>
+          <Ionicons name={documentIcons[document.kind]} size={16} color={c.primary} />
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={[styles.rowTitle, { color: c.text }]} numberOfLines={1}>{document.title}</Text>
+          <Text style={[styles.rowMeta, { color: expiring ? c.warning : c.muted }]} numberOfLines={1}>
+            {document.expiresAt
+              ? `Expires ${new Date(document.expiresAt).toLocaleDateString('en', { month: 'short', year: 'numeric' })}`
+              : `Added ${relativeDate(document.addedAt)}`}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={c.muted} />
+      </AnimatedPressable>
+
+      <View style={styles.addressActions}>
+        <AnimatedPressable style={[styles.miniAction, { borderColor: c.border }]} onPress={onShare} accessibilityLabel={`Share ${document.title}`}>
+          <Ionicons name="share-outline" size={13} color={c.textSecondary} />
+          <Text style={[styles.miniActionText, { color: c.textSecondary }]}>Share</Text>
+        </AnimatedPressable>
+        <AnimatedPressable style={[styles.miniAction, { borderColor: c.border }]} onPress={onDelete} accessibilityLabel={`Delete ${document.title}`}>
+          <Ionicons name="trash-outline" size={13} color={c.danger} />
+          <Text style={[styles.miniActionText, { color: c.danger }]}>Delete</Text>
+        </AnimatedPressable>
+      </View>
+    </View>
+  );
+}
+
+function DocumentRow({ title, meta, icon, c, onPress }: { title: string; meta: string; icon: IconName; c: ReturnType<typeof useQarColors>; onPress?: () => void }) {
+  return (
+    <ActionRow
+      label={title}
+      meta={meta}
+      icon={icon}
+      onPress={onPress ?? (() => Alert.alert(title, 'This document is not available on your account yet.'))}
+      c={c}
+    />
+  );
 }
 
 function PrimaryButton({ label, icon, onPress, c, disabled }: {
@@ -628,7 +1261,7 @@ const styles = StyleSheet.create({
   eyebrow: { ...typography.overline },
   title: { ...typography.h2 },
   subtitle: { ...typography.bodySm },
-  tabRow: { gap: 10, paddingRight: spacing.page },
+  tabRow: { gap: 10, paddingEnd: spacing.page },
   tabChip: { minHeight: 40, borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 7 },
   tabText: { ...typography.caption, fontWeight: '900' },
   card: { borderRadius: radius.xl, borderWidth: 1, padding: 18, gap: 14, ...shadow.xs },
@@ -646,7 +1279,7 @@ const styles = StyleSheet.create({
   rowTitle: { ...typography.h4 },
   rowMeta: { ...typography.bodySm },
   summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  summaryTile: { width: '48.4%', minHeight: 104, borderRadius: radius.lg, borderWidth: 1, padding: 14, justifyContent: 'space-between' },
+  summaryTile: { flexBasis: '48%', flexGrow: 1, minHeight: 104, borderRadius: radius.lg, borderWidth: 1, padding: 14, justifyContent: 'space-between' },
   summaryValue: { ...typography.h3 },
   summaryLabel: { ...typography.caption },
   addressBox: { borderRadius: radius.xl, borderWidth: 1, padding: 14, gap: 12 },
@@ -664,6 +1297,62 @@ const styles = StyleSheet.create({
   walletAmount: { color: '#fff', fontSize: 36, lineHeight: 42, fontWeight: '900' },
   walletMeta: { color: 'rgba(255,255,255,0.66)', ...typography.bodySm },
   emptyState: { alignItems: 'center', borderRadius: radius.xl, borderWidth: 1, padding: 22, gap: 8 },
+
+  // ── Account domain ────────────────────────────────────────────────────────
+  noticeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: radius.lg, borderWidth: 1, padding: 14 },
+  addressCard: { borderRadius: radius.lg, borderWidth: 1, padding: 14, gap: 8 },
+  addressHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  addressActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 },
+  miniAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    minHeight: 34,
+    paddingHorizontal: 12,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  miniActionText: { ...typography.caption, fontWeight: '800' },
+  defaultChip: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: radius.full },
+  defaultChipText: { ...typography.caption, fontWeight: '900' },
+  txnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  // Tabular figures keep the amount column aligned down the ledger.
+  txnAmount: { ...typography.h4, fontVariant: ['tabular-nums'] },
+  txnBalance: { ...typography.caption, fontVariant: ['tabular-nums'] },
+
+  // ── Address editor sheet ──────────────────────────────────────────────────
+  sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
+  sheet: {
+    borderTopLeftRadius: radius.xxl,
+    borderTopRightRadius: radius.xxl,
+    borderWidth: 1,
+    padding: spacing.page,
+    paddingBottom: spacing.xxl,
+    gap: 12,
+  },
+  sheetGrabber: { alignSelf: 'center', width: 38, height: 4, borderRadius: 2, marginBottom: 4 },
+  sheetActions: { flexDirection: 'row', gap: 10, marginTop: 6 },
+  sheetCancel: {
+    flex: 1,
+    minHeight: 52,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetSave: {
+    flex: 2,
+    minHeight: 52,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyTitle: { ...typography.h3 },
   emptyBody: { ...typography.bodySm, textAlign: 'center' },
   planCard: { flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: radius.xl, borderWidth: 1, padding: 16, minHeight: 92 },

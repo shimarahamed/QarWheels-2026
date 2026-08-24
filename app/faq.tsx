@@ -177,7 +177,7 @@ const s = StyleSheet.create({
   faqRow: { padding: 14, gap: 8 },
   faqQ: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   faqQText: { flex: 1, fontSize: 14, fontWeight: '700', lineHeight: 20 },
-  faqA: { fontSize: 13, lineHeight: 20, paddingRight: 26 },
+  faqA: { fontSize: 13, lineHeight: 20, paddingEnd: 26 },
   empty: { alignItems: 'center', gap: 14, paddingTop: 40 },
   emptyText: { fontSize: 14, fontWeight: '600' },
   contactBtn: { borderRadius: radius.lg, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 10 },

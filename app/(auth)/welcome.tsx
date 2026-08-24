@@ -15,7 +15,7 @@ export default function WelcomeScreen() {
         />
       }
     >
-      <BrandMark />
+      <BrandMark stacked />
       <StepHeader
         title="Your automotive life, organized"
         body="Manage cars, book trusted services, and discover approved garages from one mobile dashboard."

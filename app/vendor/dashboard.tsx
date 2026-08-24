@@ -117,15 +117,17 @@ export default function VendorDashboard() {
           </View>
 
           {/* Quick actions */}
-          <MotionSurface delay={60}>
+          <MotionSurface delay={20}>
             <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
               <Text style={[s.sectionTitle, { color: c.text }]}>Quick Actions</Text>
               <View style={s.quickRow}>
                 {[
                   { label: 'Bookings', icon: 'calendar-outline' as const, route: '/vendor/bookings' },
+                  { label: 'Calendar', icon: 'today-outline' as const, route: '/vendor/calendar' },
                   { label: 'Inventory', icon: 'cube-outline' as const, route: '/vendor/inventory' },
                   { label: 'Staff', icon: 'people-outline' as const, route: '/vendor/staff' },
                   { label: 'Offers', icon: 'pricetag-outline' as const, route: '/vendor/promotions' },
+                  { label: 'Payouts', icon: 'cash-outline' as const, route: '/vendor/payouts' },
                 ].map((a) => (
                   <Pressable
                     key={a.label}
@@ -141,7 +143,7 @@ export default function VendorDashboard() {
           </MotionSurface>
 
           {/* Today's bookings */}
-          <MotionSurface delay={120}>
+          <MotionSurface delay={40}>
             <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
               <View style={s.sectionHeader}>
                 <Text style={[s.sectionTitle, { color: c.text }]}>Today's Bookings</Text>
@@ -201,7 +203,7 @@ export default function VendorDashboard() {
           </MotionSurface>
 
           {/* Live feed */}
-          <MotionSurface delay={180}>
+          <MotionSurface delay={60}>
             <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
               <Text style={[s.sectionTitle, { color: c.text }]}>Recent Activity</Text>
               <View style={{ gap: 12 }}>
@@ -226,7 +228,7 @@ export default function VendorDashboard() {
           </MotionSurface>
 
           {/* This week */}
-          <MotionSurface delay={240}>
+          <MotionSurface delay={80}>
             <Pressable
               style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}
               onPress={() => router.push('/vendor/analytics' as never)}
@@ -281,9 +283,9 @@ const s = StyleSheet.create({
   },
   navLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   navTitle: { ...typography.h4 },
-  navSub: { fontSize: 11, fontWeight: '600' },
+  navSub: { fontSize: 12, fontWeight: '600' },
   vendorBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full },
-  vendorBadgeText: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  vendorBadgeText: { fontSize: 12, fontWeight: '900', letterSpacing: 1 },
   navActions: { flexDirection: 'row', gap: 8 },
   navBtn: {
     width: 38, height: 38, borderRadius: radius.md,
@@ -300,7 +302,7 @@ const s = StyleSheet.create({
   },
   metricIcon: { width: 36, height: 36, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   metricValue: { ...typography.h4 },
-  metricLabel: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
+  metricLabel: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
 
   section: { borderRadius: radius.xl, borderWidth: 1, padding: 18, gap: 16, ...shadow.sm },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -312,7 +314,7 @@ const s = StyleSheet.create({
     flex: 1, minWidth: '45%', minHeight: 88, borderRadius: radius.lg, borderWidth: 1, paddingVertical: 14,
     alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  quickBtnLabel: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
+  quickBtnLabel: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
 
   emptyState: { alignItems: 'center', gap: 8, paddingVertical: 20 },
   emptyText: { fontSize: 13, fontWeight: '600' },
@@ -327,23 +329,23 @@ const s = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full,
   },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 11, fontWeight: '800' },
-  bookingTime: { fontSize: 11, fontWeight: '600' },
+  statusText: { fontSize: 12, fontWeight: '800' },
+  bookingTime: { fontSize: 12, fontWeight: '600' },
   bookingFooter: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth,
   },
   bookingAmount: { ...typography.h4, flex: 1 },
-  bookingStaff: { fontSize: 11, fontWeight: '600' },
+  bookingStaff: { fontSize: 12, fontWeight: '600' },
   bookingAction: {
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.full, borderWidth: 1,
   },
-  bookingActionText: { fontSize: 11, fontWeight: '800' },
+  bookingActionText: { fontSize: 12, fontWeight: '800' },
 
   feedRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   feedIcon: { width: 32, height: 32, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   feedText: { fontSize: 13, fontWeight: '500', lineHeight: 18 },
-  feedTime: { fontSize: 11, fontWeight: '600' },
+  feedTime: { fontSize: 12, fontWeight: '600' },
 
   perfRow: { flexDirection: 'row', gap: 8 },
   perfCard: {
@@ -351,5 +353,5 @@ const s = StyleSheet.create({
     padding: 10, alignItems: 'center', gap: 3,
   },
   perfValue: { ...typography.h4 },
-  perfLabel: { fontSize: 10, fontWeight: '600' },
+  perfLabel: { fontSize: 12, fontWeight: '600' },
 });

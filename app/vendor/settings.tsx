@@ -1,6 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useRouter } from 'expo-router';
-import { signOut } from 'firebase/auth';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,7 +7,7 @@ import { useQarWheelsStore, useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
-import { auth } from '@/lib/firebase';
+import { signOutCompletely } from '@/lib/session';
 import { getAuth } from 'firebase/auth';
 import { saveVendorProfile } from '@/lib/firestoreOps';;
 const WORK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -91,7 +90,9 @@ export default function VendorSettingsScreen() {
   function handleLogout() {
     async function logoutAndGoToSplash() {
       try {
-        await signOut(auth);
+        // Clears the persisted store too, so vendor and customer data does
+        // not survive into the next session on this device.
+        await signOutCompletely();
       } finally {
         setVendorAuthenticated(false);
         router.replace('/(auth)/splash' as never);
@@ -342,8 +343,8 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.full,
   },
-  verifiedText: { fontSize: 10, fontWeight: '800' },
-  kycStatus: { fontSize: 11, fontWeight: '600' },
+  verifiedText: { fontSize: 12, fontWeight: '800' },
+  kycStatus: { fontSize: 12, fontWeight: '600' },
   editBtn: { width: 36, height: 36, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -357,7 +358,7 @@ const s = StyleSheet.create({
   vacationAlertText: { fontSize: 12, fontWeight: '700', flex: 1 },
 
   hoursRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
-  fieldLabel: { fontSize: 11, fontWeight: '700' },
+  fieldLabel: { fontSize: 12, fontWeight: '700' },
   timeInput: { borderRadius: radius.lg, borderWidth: 1, paddingHorizontal: 12, height: 44, fontSize: 15, fontWeight: '700' },
   timeSep: { fontSize: 18, fontWeight: '300', paddingBottom: 10 },
   daysRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },

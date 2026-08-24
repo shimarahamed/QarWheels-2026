@@ -255,9 +255,9 @@ export default function QuickScreen() {
               {[
                 { icon: 'calendar-outline',     label: 'Book Service',    href: '/services',              color: c.primary },
                 { icon: 'car-sport-outline',    label: 'My Cars',         href: '/(tabs)/cars',           color: c.primary },
-                { icon: 'pricetag-outline',     label: 'Sell My Car',     href: '/vehicle-passport/car_001', color: c.warning },
-                { icon: 'chatbubble-outline',   label: 'Get a Quote',     href: '/quote',                 color: c.ai },
-                { icon: 'receipt-outline',      label: 'My Invoices',     href: '/invoice/inv_001',       color: c.success },
+                { icon: 'pricetag-outline',     label: 'Sell My Car',     href: '/vehicles',              color: c.warning },
+                { icon: 'chatbubble-outline',   label: 'Get a Quote',     href: '/ai-mechanic',           color: c.ai },
+                { icon: 'receipt-outline',      label: 'My Invoices',     href: '/invoices',              color: c.success },
                 { icon: 'person-circle-outline',label: 'Account',         href: '/(tabs)/account',        color: c.muted },
               ].map((item) => (
                 <QuickItem key={item.label} {...item} c={c} />
@@ -311,7 +311,7 @@ const s = StyleSheet.create({
   sosTitle: { fontSize: 17, fontWeight: '900' },
   sosSub: { fontSize: 12, lineHeight: 17, marginTop: 2 },
   sosBadge: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: radius.full },
-  sosBadgeText: { fontSize: 11, fontWeight: '900', color: '#fff', letterSpacing: 1 },
+  sosBadgeText: { fontSize: 12, fontWeight: '900', color: '#fff', letterSpacing: 1 },
 
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { ...typography.h3 },
@@ -322,11 +322,11 @@ const s = StyleSheet.create({
   vinIconWrap: { width: 56, height: 56, borderRadius: radius.lg, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   vinTitle: { fontSize: 16, fontWeight: '900' },
   vinBadge: { borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
-  vinBadgeText: { fontSize: 10, fontWeight: '800' },
+  vinBadgeText: { fontSize: 12, fontWeight: '800' },
   vinSub: { fontSize: 12, lineHeight: 17 },
   vinChipsRow: { flexDirection: 'row', gap: 6, marginTop: 4 },
   vinChip: { borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
-  vinChipText: { fontSize: 10, fontWeight: '700' },
+  vinChipText: { fontSize: 12, fontWeight: '700' },
 
   // Stats
   statsCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: radius.xl, borderWidth: 1, padding: 14, ...shadow.xs },
@@ -334,7 +334,7 @@ const s = StyleSheet.create({
   statsGrid: { flex: 1, flexDirection: 'row' },
   statCell: { flex: 1, alignItems: 'center', paddingVertical: 4 },
   statValue: { fontSize: 22, fontWeight: '900' },
-  statLabel: { fontSize: 10, fontWeight: '600', textAlign: 'center', marginTop: 2 },
+  statLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 2 },
 
   // Quick grid (2 col)
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -359,7 +359,7 @@ const fc = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   iconWrap: { width: 44, height: 44, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   badge: { borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
-  badgeText: { fontSize: 10, fontWeight: '900' },
+  badgeText: { fontSize: 12, fontWeight: '900' },
   label: { fontSize: 14, fontWeight: '900' },
   sub: { fontSize: 12, lineHeight: 17 },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 2 },
@@ -369,7 +369,7 @@ const fc = StyleSheet.create({
 // Quick item
 const qi = StyleSheet.create({
   item: {
-    width: '47%', borderRadius: radius.lg, borderWidth: 1, padding: 14,
+    flexBasis: '47%', flexGrow: 1, borderRadius: radius.lg, borderWidth: 1, padding: 14,
     flexDirection: 'row', alignItems: 'center', gap: 10, ...shadow.xs,
   },
   icon: { width: 34, height: 34, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },

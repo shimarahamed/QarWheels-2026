@@ -2,11 +2,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert, Modal, Pressable, ScrollView, StyleSheet,
+  Alert, Modal, Pressable, ScrollView, Share, StyleSheet,
   Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelsStore, type StoredInvoice } from '@/lib/store';
 import { exportInvoicePdf, printInvoice } from '@/lib/invoice-pdf';
 import { MotionScreen } from '@/lib/motion';
 import { palette, radius, shadow, spacing, typography } from '@/lib/theme';
@@ -131,7 +131,20 @@ function CounterOfferModal({ visible, invoiceTotal, invoiceId, bookingId, custom
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
-export default function CustomerInvoiceScreen() {
+/**
+ * Two kinds of invoice reach this route: rich vendor-issued ones with line
+ * items, VAT and counter offers, and the simpler receipts a customer accrues
+ * through their own bookings. Dispatch before either view mounts its hooks.
+ */
+export default function InvoiceRoute() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const customerInvoice = useQarWheelsStore((s) => s.invoices.find((item) => item.id === id));
+
+  if (customerInvoice) return <CustomerReceiptScreen invoice={customerInvoice} />;
+  return <VendorInvoiceScreen />;
+}
+
+function VendorInvoiceScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -363,6 +376,136 @@ export default function CustomerInvoiceScreen() {
   );
 }
 
+// ─── Customer receipt ─────────────────────────────────────────────────────────
+// The record a customer accrues from their own booking: what was done, where,
+// what it cost, and how it was paid. No line items or VAT breakdown — those
+// belong to a vendor-issued tax invoice.
+
+function CustomerReceiptScreen({ invoice }: { invoice: StoredInvoice }) {
+  const c = useQarColors();
+  const router = useRouter();
+
+  const tone =
+    invoice.status === 'Paid' ? c.success : invoice.status === 'Refunded' ? c.warning : c.danger;
+  const toneBg =
+    invoice.status === 'Paid' ? c.successBg : invoice.status === 'Refunded' ? c.warningBg : c.dangerBg;
+
+  async function handleShare() {
+    const text = [
+      `QarWheels invoice ${invoice.number}`,
+      `${invoice.service} · ${invoice.garage}`,
+      invoice.vehicle ? `Vehicle: ${invoice.vehicle}` : null,
+      `Amount: QAR ${invoice.amount.toFixed(2)}`,
+      `Paid by: ${invoice.method}`,
+      `Status: ${invoice.status}`,
+      `Issued: ${new Date(invoice.issuedAt).toLocaleDateString()}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    try {
+      await Share.share({ title: invoice.number, message: text });
+    } catch {
+      Alert.alert('Share failed', 'This invoice could not be shared.');
+    }
+  }
+
+  return (
+    <SafeAreaView style={[s.safe, { backgroundColor: c.background }]} edges={['top']}>
+      <Stack.Screen options={{ headerShown: false }} />
+
+      <View style={[s.navbar, { borderBottomColor: c.border }]}>
+        <Pressable
+          style={[s.backBtn, { backgroundColor: c.surface, borderColor: c.border }]}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={20} color={c.text} />
+        </Pressable>
+        <Text style={[s.navTitle, { color: c.text }]}>Invoice</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+        <MotionScreen>
+          <View style={[s.headerCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+            <View style={s.headerTop}>
+              <View style={[s.iconWrap, { backgroundColor: c.primaryLight }]}>
+                <Ionicons name="receipt-outline" size={26} color={c.primary} />
+              </View>
+              <View style={[s.statusBadge, { backgroundColor: toneBg }]}>
+                <Text style={[s.statusText, { color: tone }]}>{invoice.status}</Text>
+              </View>
+            </View>
+
+            <Text style={[s.invoiceNum, { color: c.text }]}>{invoice.number}</Text>
+            <Text style={[s.fromGarage, { color: c.textSecondary }]}>{invoice.garage}</Text>
+
+            <View style={[s.divider, { backgroundColor: c.border }]} />
+
+            <View style={s.metaRow}>
+              <View style={s.metaCell}>
+                <Text style={[s.metaLabel, { color: c.muted }]}>Service</Text>
+                <Text style={[s.metaValue, { color: c.text }]}>{invoice.service}</Text>
+                {invoice.vehicle ? (
+                  <Text style={[s.metaSub, { color: c.muted }]}>{invoice.vehicle}</Text>
+                ) : null}
+              </View>
+              <View style={[s.metaCell, { alignItems: 'flex-end' }]}>
+                <Text style={[s.metaLabel, { color: c.muted }]}>Amount</Text>
+                <Text style={[s.metaTotal, { color: c.primary }]}>QAR {invoice.amount.toFixed(2)}</Text>
+              </View>
+            </View>
+
+            <View style={s.datesRow}>
+              <View>
+                <Text style={[s.metaLabel, { color: c.muted }]}>Issued</Text>
+                <Text style={[s.metaValue, { color: c.text }]}>
+                  {new Date(invoice.issuedAt).toLocaleDateString('en', {
+                    day: 'numeric', month: 'short', year: 'numeric',
+                  })}
+                </Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={[s.metaLabel, { color: c.muted }]}>Paid by</Text>
+                <Text style={[s.metaValue, { color: c.text }]}>{invoice.method}</Text>
+              </View>
+            </View>
+          </View>
+
+          {invoice.bookingId ? (
+            <Pressable
+              style={[s.counterOfferCta, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
+              onPress={() => router.push(`/booking/${invoice.bookingId}` as never)}
+              accessibilityRole="button"
+              accessibilityLabel="View the booking this invoice belongs to"
+            >
+              <View style={[s.counterOfferIcon, { backgroundColor: c.primaryLight }]}>
+                <Ionicons name="calendar-outline" size={18} color={c.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.counterOfferCtaTitle, { color: c.text }]}>View booking</Text>
+                <Text style={[s.counterOfferCtaSub, { color: c.muted }]}>
+                  See the service this invoice was issued for.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={c.muted} />
+            </Pressable>
+          ) : null}
+
+          <View style={s.actions}>
+            <Pressable style={[s.actionBtn, { backgroundColor: c.primary }]} onPress={handleShare}>
+              <Ionicons name="share-outline" size={18} color="#fff" />
+              <Text style={s.actionBtnText}>Share invoice</Text>
+            </Pressable>
+          </View>
+        </MotionScreen>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
@@ -385,15 +528,15 @@ const s = StyleSheet.create({
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   iconWrap: { width: 48, height: 48, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.full },
-  statusText: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
+  statusText: { fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
   invoiceNum: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
   fromGarage: { fontSize: 13, fontWeight: '600' },
   divider: { height: 1, marginVertical: 4 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   metaCell: { gap: 2 },
-  metaLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  metaLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   metaValue: { fontSize: 13, fontWeight: '700' },
-  metaSub: { fontSize: 11, fontWeight: '500' },
+  metaSub: { fontSize: 12, fontWeight: '500' },
   metaTotal: { fontSize: 20, fontWeight: '900' },
   datesRow: { flexDirection: 'row', justifyContent: 'space-between' },
 
@@ -402,9 +545,9 @@ const s = StyleSheet.create({
 
   lineItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   typeBadge: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: radius.sm },
-  typeText: { fontSize: 9, fontWeight: '800', textTransform: 'uppercase' },
+  typeText: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
   itemDesc: { fontSize: 13, fontWeight: '700' },
-  itemQty: { fontSize: 11, fontWeight: '500' },
+  itemQty: { fontSize: 12, fontWeight: '500' },
   itemTotal: { fontSize: 13, fontWeight: '800' },
 
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

@@ -1,10 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter, useSegments } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
@@ -52,6 +54,17 @@ const timeSlots = ['08:30 AM', '10:00 AM', '11:30 AM', '01:00 PM', '03:30 PM', '
 const paymentMethods = ['Pay at garage', 'Card ending 4242', 'QarWheels wallet'];
 const bookingSteps = ['Vehicle', 'Service', 'Schedule', 'Review'];
 
+// Maps each route that renders this composer onto its position in the flow,
+// so the step indicator reflects real progress instead of a fixed value.
+const stepBySegment: Record<string, number> = {
+  'choose-vehicle': 0,
+  'choose-date-time': 1,
+  'add-ons': 1,
+  'pickup-dropoff': 2,
+  'booking-summary': 3,
+  checkout: 3,
+};
+
 function route(path: string) {
   return path as never;
 }
@@ -96,9 +109,23 @@ function paymentIcon(method: string): IconName {
 export default function BookingComposer() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const segments = useSegments();
+  // Which step of the flow this route represents (defaults to the last).
+  const activeStep = useMemo(() => {
+    for (const segment of segments) {
+      const match = stepBySegment[segment as string];
+      if (match !== undefined) return match;
+    }
+    return bookingSteps.length - 1;
+  }, [segments]);
   const c = useQarColors();
   const { user } = useAuthContext();
   const createLocalBooking = useQarWheelsStore((s) => s.createBooking);
+  const walletBalance = useQarWheelsStore((s) => s.walletBalance);
+  const chargeWallet = useQarWheelsStore((s) => s.chargeWallet);
+  const addInvoice = useQarWheelsStore((s) => s.addInvoice);
+  const savedAddresses = useQarWheelsStore((s) => s.addresses);
+  const [reviewing, setReviewing] = useState(false);
   const [firestoreCars, setFirestoreCars] = useState<FirestoreCar[]>([]);
   const [loadingCars, setLoadingCars] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -136,7 +163,12 @@ export default function BookingComposer() {
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>(['report']);
   const [pickupEnabled, setPickupEnabled] = useState(id === 'emergency');
   const [dropoffEnabled, setDropoffEnabled] = useState(true);
-  const [address, setAddress] = useState('West Bay, Doha');
+  // Prefill from the user's default saved address rather than a placeholder
+  // that looked like real data.
+  const [address, setAddress] = useState(() => {
+    const preferred = savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0];
+    return preferred ? [preferred.line, preferred.area].filter(Boolean).join(', ') : '';
+  });
   const [notes, setNotes] = useState('');
   const [payment, setPayment] = useState(paymentMethods[0]);
 
@@ -191,6 +223,34 @@ export default function BookingComposer() {
     );
   }
 
+  /**
+   * Opens the review sheet. Nothing is written until the user confirms there —
+   * a booking commits money and a garage slot, so it needs a deliberate second
+   * step rather than firing straight off the primary button.
+   */
+  function handleReview() {
+    if (!canSubmit || submitting) return;
+    if (!selectedCar) {
+      Alert.alert('Vehicle required', 'Choose a vehicle before confirming the booking.');
+      return;
+    }
+    // Catch an unpayable wallet booking here, not after the slot is taken.
+    if (payment === 'Wallet' && walletBalance < estimatedTotal) {
+      Alert.alert(
+        'Not enough wallet balance',
+        `This booking is QAR ${estimatedTotal.toFixed(2)} but your wallet holds QAR ${walletBalance.toFixed(2)}. Top up or pick another payment method.`,
+        [
+          { text: 'Change method', style: 'cancel' },
+          { text: 'Top up', onPress: () => router.push('/wallet' as never) },
+        ],
+      );
+      return;
+    }
+
+    void tap();
+    setReviewing(true);
+  }
+
   async function handleSubmit() {
     if (!canSubmit || submitting) return;
     if (!selectedCar) {
@@ -198,6 +258,7 @@ export default function BookingComposer() {
       return;
     }
 
+    setReviewing(false);
     setSubmitting(true);
     const bookingDate = new Date(selectedDay.iso);
     const [time, period] = selectedTime.split(' ');
@@ -247,6 +308,21 @@ export default function BookingComposer() {
         });
       }
 
+      // Record the money side so Wallet, Transactions and Invoices reflect a
+      // booking that actually happened rather than static sample rows.
+      if (payment === 'Wallet') {
+        chargeWallet(estimatedTotal, `${selectedService?.title ?? 'Service'} · ${selectedGarage?.name ?? ''}`, localBooking.id);
+      }
+      addInvoice({
+        bookingId: localBooking.id,
+        garage: selectedGarage?.name ?? '',
+        service: selectedService?.title ?? 'Service',
+        vehicle: selectedCar.name,
+        amount: estimatedTotal,
+        status: payment === 'Cash' ? 'Unpaid' : 'Paid',
+        method: payment,
+      });
+
       void success();
       router.replace(route(`/booking/${localBooking.id}`));
     } catch (error) {
@@ -272,7 +348,7 @@ export default function BookingComposer() {
       </View>
 
       <ScrollView
-        style={{ backgroundColor: c.background, paddingTop: 60 }}
+        style={{ backgroundColor: c.background }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -291,25 +367,28 @@ export default function BookingComposer() {
             </View>
           </View>
           <View style={styles.stepRow}>
-            {bookingSteps.map((step, index) => (
+            {bookingSteps.map((step, index) => {
+              const reached = index <= activeStep;
+              return (
               <View key={step} style={styles.stepItem}>
-                <View style={[styles.stepDot, { backgroundColor: index < 3 ? c.primary : c.surfaceAlt, borderColor: index < 3 ? c.primary : c.border }]}>
-                  <Text style={[styles.stepNumber, { color: index < 3 ? '#fff' : c.muted }]}>{index + 1}</Text>
+                <View style={[styles.stepDot, { backgroundColor: reached ? c.primary : c.surfaceAlt, borderColor: reached ? c.primary : c.border }]}>
+                  <Text style={[styles.stepNumber, { color: reached ? '#fff' : c.muted }]}>{index + 1}</Text>
                 </View>
                 <Text style={[styles.stepLabel, { color: c.textSecondary }]} numberOfLines={1}>{step}</Text>
               </View>
-            ))}
+              );
+            })}
           </View>
         </MotionScreen>
 
-        <MotionSurface delay={60} style={[styles.summary, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <MotionSurface delay={20} style={[styles.summary, { backgroundColor: c.surface, borderColor: c.border }]}>
           <SummaryItem label="When" value={`${selectedDay.label}, ${selectedTime}`} c={c} icon="time-outline" />
           <SummaryItem label="Vehicle" value={selectedCar?.name ?? 'Select car'} c={c} icon="car-sport-outline" />
           <SummaryItem label="Estimate" value={currency(estimatedTotal)} c={c} icon="wallet-outline" highlight />
         </MotionSurface>
 
         {selectedGarage && (
-          <MotionSurface delay={90} style={[styles.routeCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <MotionSurface delay={30} style={[styles.routeCard, { backgroundColor: c.surface, borderColor: c.border }]}>
             <View style={[styles.routeIcon, { backgroundColor: c.primaryLight }]}>
               <Ionicons name="business-outline" size={18} color={c.primary} />
             </View>
@@ -327,7 +406,7 @@ export default function BookingComposer() {
         )}
 
         {fromContext && selectedService && (
-          <MotionSurface delay={105} style={[styles.routeCard, { backgroundColor: c.primaryLight, borderColor: c.primaryMid }]}>
+          <MotionSurface delay={40} style={[styles.routeCard, { backgroundColor: c.primaryLight, borderColor: c.primaryMid }]}>
             <View style={[styles.routeIcon, { backgroundColor: c.primary }]}>
               <Ionicons name={serviceIcon(selectedService.id)} size={18} color="#fff" />
             </View>
@@ -452,13 +531,42 @@ export default function BookingComposer() {
         <Section title="Pickup and drop-off" subtitle="Keep it optional, clear, and priced" icon="navigate-outline" c={c}>
           <ToggleRow title="Pickup from my location" description="+QAR 40 driver dispatch" value={pickupEnabled} onValueChange={setPickupEnabled} c={c} />
           {pickupEnabled ? (
-            <TextInput
-              value={address}
-              onChangeText={setAddress}
-              placeholder="Pickup address"
-              placeholderTextColor={c.muted}
-              style={[styles.input, { backgroundColor: c.surfaceAlt, borderColor: c.border, color: c.text }]}
-            />
+            <>
+              {/* Saved addresses first — typing a full address on a phone is
+                  the slowest step in this flow. */}
+              {savedAddresses.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.addressRail}>
+                  {savedAddresses.map((saved) => {
+                    const full = [saved.line, saved.area].filter(Boolean).join(', ');
+                    const active = address === full;
+                    return (
+                      <AnimatedPressable
+                        key={saved.id}
+                        style={[
+                          styles.addressChip,
+                          { backgroundColor: active ? c.primary : c.surfaceAlt, borderColor: active ? c.primary : c.border },
+                        ]}
+                        onPress={() => { void tap(); setAddress(full); }}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: active }}
+                        accessibilityLabel={`Use ${saved.label} address`}
+                      >
+                        <Ionicons name="location" size={13} color={active ? '#fff' : c.textSecondary} />
+                        <Text style={[styles.addressChipText, { color: active ? '#fff' : c.text }]}>{saved.label}</Text>
+                      </AnimatedPressable>
+                    );
+                  })}
+                </ScrollView>
+              )}
+              <TextInput
+                value={address}
+                onChangeText={setAddress}
+                placeholder="Pickup address"
+                placeholderTextColor={c.muted}
+                accessibilityLabel="Pickup address"
+                style={[styles.input, { backgroundColor: c.surfaceAlt, borderColor: c.border, color: c.text }]}
+              />
+            </>
           ) : null}
           <ToggleRow title="Drop-off after service" description="+QAR 40 return delivery" value={dropoffEnabled} onValueChange={setDropoffEnabled} c={c} />
         </Section>
@@ -508,7 +616,7 @@ export default function BookingComposer() {
           </View>
         </Section>
 
-        <MotionSurface delay={120} style={[styles.totalCard, { backgroundColor: c.surface, borderColor: c.primaryMid }]}>
+        <MotionSurface delay={40} style={[styles.totalCard, { backgroundColor: c.surface, borderColor: c.primaryMid }]}>
           <Text style={[styles.sectionTitle, { color: c.text }]}>Booking summary</Text>
           <PriceRow label={selectedService?.title ?? 'Service'} value={servicePrice} c={c} />
           <PriceRow label="Add-ons" value={addOnTotal} c={c} />
@@ -522,15 +630,100 @@ export default function BookingComposer() {
 
         <AnimatedPressable
           style={[styles.confirmButton, { backgroundColor: canSubmit ? c.primary : c.muted, opacity: submitting ? 0.75 : 1 }]}
-          onPress={handleSubmit}
+          onPress={handleReview}
           disabled={!canSubmit || submitting}
           scaleValue={0.97}
+          accessibilityLabel="Review booking before confirming"
         >
-          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>Confirm booking request</Text>}
+          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>Review booking</Text>}
           {!submitting ? <Ionicons name="arrow-forward" size={18} color="#fff" /> : null}
         </AnimatedPressable>
       </ScrollView>
+
+      {/* ── Confirmation review ──
+          The last chance to catch a wrong car, date or address before a slot
+          is reserved and money moves. */}
+      <Modal visible={reviewing} transparent animationType="slide" onRequestClose={() => setReviewing(false)}>
+        <View style={styles.reviewBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setReviewing(false)}
+            accessibilityLabel="Dismiss review"
+          />
+          <View style={[styles.reviewSheet, { backgroundColor: c.surface, borderColor: c.border }]}>
+            <View style={[styles.reviewGrabber, { backgroundColor: c.border }]} />
+            <Text style={[styles.reviewTitle, { color: c.text }]}>Confirm your booking</Text>
+            <Text style={[styles.reviewSubtitle, { color: c.textSecondary }]}>
+              Check the details below. Nothing is booked until you confirm.
+            </Text>
+
+            <ScrollView style={styles.reviewScroll} showsVerticalScrollIndicator={false}>
+              <ReviewRow icon="car-sport-outline" label="Vehicle" value={selectedCar?.name ?? '—'} c={c} />
+              <ReviewRow icon="construct-outline" label="Service" value={selectedService?.title ?? '—'} c={c} />
+              <ReviewRow icon="business-outline" label="Garage" value={selectedGarage?.name ?? '—'} c={c} />
+              <ReviewRow icon="calendar-outline" label="When" value={`${selectedDay.label}, ${selectedTime}`} c={c} />
+              {selectedAddOns.length > 0 && (
+                <ReviewRow
+                  icon="add-circle-outline"
+                  label="Add-ons"
+                  value={addOns.filter((a) => selectedAddOns.includes(a.id)).map((a) => a.title).join(', ')}
+                  c={c}
+                />
+              )}
+              {pickupEnabled && <ReviewRow icon="location-outline" label="Pickup from" value={address} c={c} />}
+              {dropoffEnabled && <ReviewRow icon="return-down-back-outline" label="Drop-off" value="After service" c={c} />}
+              <ReviewRow icon={paymentIcon(payment)} label="Payment" value={payment} c={c} />
+              {notes.trim() ? <ReviewRow icon="chatbox-outline" label="Notes" value={notes.trim()} c={c} /> : null}
+
+              <View style={[styles.reviewTotal, { backgroundColor: c.surfaceAlt, borderColor: c.primaryMid }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.reviewTotalLabel, { color: c.textSecondary }]}>Estimated total</Text>
+                  <Text style={[styles.reviewTotalNote, { color: c.muted }]}>
+                    Final price is confirmed by the garage after inspection.
+                  </Text>
+                </View>
+                <Text style={[styles.reviewTotalValue, { color: c.primary }]}>{currency(estimatedTotal)}</Text>
+              </View>
+            </ScrollView>
+
+            <View style={styles.reviewActions}>
+              <AnimatedPressable
+                style={[styles.reviewBack, { borderColor: c.border }]}
+                onPress={() => setReviewing(false)}
+                accessibilityLabel="Go back and edit"
+              >
+                <Text style={[styles.reviewBackText, { color: c.textSecondary }]}>Edit</Text>
+              </AnimatedPressable>
+              <AnimatedPressable
+                style={[styles.reviewConfirm, { backgroundColor: c.primary, opacity: submitting ? 0.7 : 1 }]}
+                onPress={handleSubmit}
+                disabled={submitting}
+                accessibilityLabel="Confirm and send booking request"
+              >
+                {submitting
+                  ? <ActivityIndicator color="#fff" />
+                  : <><Ionicons name="checkmark" size={18} color="#fff" /><Text style={styles.confirmText}>Confirm booking</Text></>}
+              </AnimatedPressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
+  );
+}
+
+function ReviewRow({ icon, label, value, c }: {
+  icon: IconName;
+  label: string;
+  value: string;
+  c: ReturnType<typeof useQarColors>;
+}) {
+  return (
+    <View style={[styles.reviewRow, { borderBottomColor: c.border }]}>
+      <Ionicons name={icon} size={16} color={c.muted} />
+      <Text style={[styles.reviewLabel, { color: c.textSecondary }]}>{label}</Text>
+      <Text style={[styles.reviewValue, { color: c.text }]} numberOfLines={2}>{value}</Text>
+    </View>
   );
 }
 
@@ -630,11 +823,6 @@ function PriceRow({ label, value, c }: { label: string; value: number; c: Return
 
 const styles = StyleSheet.create({
   navbar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -669,8 +857,8 @@ const styles = StyleSheet.create({
   stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
   stepItem: { flex: 1, alignItems: 'center', gap: 6, minWidth: 0 },
   stepDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  stepNumber: { fontSize: 11, fontWeight: '900' },
-  stepLabel: { fontSize: 10, lineHeight: 12, fontWeight: '800' },
+  stepNumber: { fontSize: 12, fontWeight: '900' },
+  stepLabel: { fontSize: 12, lineHeight: 12, fontWeight: '800' },
   summary: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -728,8 +916,8 @@ const styles = StyleSheet.create({
   serviceTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   servicePrice: { ...typography.caption, fontWeight: '900' },
   serviceTitle: { fontSize: 13, lineHeight: 17, fontWeight: '900' },
-  serviceMeta: { fontSize: 11, lineHeight: 15, fontWeight: '600' },
-  dayRow: { gap: 10, paddingRight: spacing.page },
+  serviceMeta: { fontSize: 12, lineHeight: 15, fontWeight: '600' },
+  dayRow: { gap: 10, paddingEnd: spacing.page },
   dayCard: { width: 74, minHeight: 90, borderRadius: radius.lg, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
   dayLabel: { ...typography.caption },
   dayNumber: { fontSize: 24, lineHeight: 28, fontWeight: '900' },
@@ -759,4 +947,73 @@ const styles = StyleSheet.create({
     ...shadow.primary,
   },
   confirmText: { color: '#fff', fontSize: 16, fontWeight: '900' },
+
+  // ── Confirmation review sheet ─────────────────────────────────────────────
+  addressRail: { gap: 8, paddingVertical: 2 },
+  addressChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    minHeight: 38,
+    paddingHorizontal: 13,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  addressChipText: { ...typography.caption, fontWeight: '800' },
+
+  reviewBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  reviewSheet: {
+    borderTopLeftRadius: radius.xxl,
+    borderTopRightRadius: radius.xxl,
+    borderWidth: 1,
+    paddingHorizontal: spacing.page,
+    paddingTop: 10,
+    paddingBottom: spacing.xxl,
+    gap: 6,
+    maxHeight: '86%',
+  },
+  reviewGrabber: { alignSelf: 'center', width: 38, height: 4, borderRadius: 2, marginBottom: 8 },
+  reviewTitle: { ...typography.h2 },
+  reviewSubtitle: { ...typography.bodySm, marginBottom: 6 },
+  reviewScroll: { flexGrow: 0 },
+  reviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  reviewLabel: { ...typography.bodySm, width: 92 },
+  reviewValue: { ...typography.bodySm, fontWeight: '800', flex: 1, textAlign: 'right' },
+  reviewTotal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: 14,
+    marginTop: 14,
+  },
+  reviewTotalLabel: { ...typography.caption, fontWeight: '800' },
+  reviewTotalNote: { ...typography.caption, marginTop: 2 },
+  reviewTotalValue: { ...typography.h2, fontVariant: ['tabular-nums'] },
+  reviewActions: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  reviewBack: {
+    flex: 1,
+    minHeight: 56,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewBackText: { ...typography.h4 },
+  reviewConfirm: {
+    flex: 2,
+    minHeight: 56,
+    borderRadius: radius.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
 });

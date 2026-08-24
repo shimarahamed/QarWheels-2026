@@ -94,6 +94,24 @@ export type QarColors = Record<keyof typeof darkColors, string>;
 
 export const colors: QarColors = darkColors;
 
+/**
+ * Apply an alpha to a hex colour, returning `rgba(...)`.
+ * Useful for tinting a surface with the brand colour without hardcoding a
+ * second constant that drifts out of step with the palette.
+ */
+export function withAlpha(hex: string, alpha: number): string {
+  const normalized = hex.replace('#', '');
+  const full = normalized.length === 3
+    ? normalized.split('').map((ch) => ch + ch).join('')
+    : normalized;
+  const value = Number.parseInt(full, 16);
+  if (Number.isNaN(value) || full.length !== 6) return hex;
+  const r = (value >> 16) & 255;
+  const g = (value >> 8) & 255;
+  const b = value & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 export function getQarColors(mode: QarThemeMode): QarColors {
   return mode === 'light' ? lightColors : darkColors;
 }
@@ -171,9 +189,14 @@ export const typography = {
   bodyLg: { fontSize: 16, fontWeight: '400' as const, lineHeight: 24 },
   body: { fontSize: 15, fontWeight: '400' as const, lineHeight: 22 },
   bodySm: { fontSize: 14, fontWeight: '400' as const, lineHeight: 20 },
+  // 12px is the floor for anything a user has to read. Below that, text is
+  // unreliable in bright daylight and for anyone with mild long-sightedness —
+  // which in a car-service app is a large share of the audience. Uppercase
+  // label/overline styles keep their letter-spacing to stay distinct at the
+  // same size.
   caption: { fontSize: 12, fontWeight: '600' as const, lineHeight: 16 },
-  label: { fontSize: 11, fontWeight: '800' as const, letterSpacing: 0.8, lineHeight: 14 },
-  overline: { fontSize: 10, fontWeight: '900' as const, letterSpacing: 1.2, lineHeight: 13, textTransform: 'uppercase' as const },
+  label: { fontSize: 12, fontWeight: '800' as const, letterSpacing: 0.8, lineHeight: 15 },
+  overline: { fontSize: 12, fontWeight: '900' as const, letterSpacing: 1.2, lineHeight: 15, textTransform: 'uppercase' as const },
 } as const;
 
 export const categoryColors: Record<string, { bg: string; icon: string; text: string }> = {

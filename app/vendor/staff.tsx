@@ -185,7 +185,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full,
   },
-  availText: { fontSize: 10, fontWeight: '800', color: '#fff' },
+  availText: { fontSize: 12, fontWeight: '800', color: '#fff' },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   ratingText: { fontSize: 12, fontWeight: '800' },
   cardFooter: {
@@ -196,6 +196,6 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full, borderWidth: 1,
   },
-  statChipText: { fontSize: 11, fontWeight: '600' },
-  joinedText: { fontSize: 11, fontWeight: '500', marginLeft: 'auto' },
+  statChipText: { fontSize: 12, fontWeight: '600' },
+  joinedText: { fontSize: 12, fontWeight: '500', marginStart: 'auto' },
 });

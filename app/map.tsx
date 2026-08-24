@@ -110,9 +110,9 @@ const mapS = StyleSheet.create({
   userRing: { position: 'absolute', width: 28, height: 28, borderRadius: 14, borderWidth: 2, opacity: 0.4 },
   userDot: { width: 10, height: 10, borderRadius: 5 },
   garagePin: { position: 'absolute', borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4 },
-  pinText: { fontSize: 10, fontWeight: '900' },
+  pinText: { fontSize: 12, fontWeight: '900' },
   notice: { position: 'absolute', bottom: 8, left: 8, right: 8, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 5 },
-  noticeText: { fontSize: 10, fontWeight: '700' },
+  noticeText: { fontSize: 12, fontWeight: '700' },
 });
 
 export default function MapScreen() {
@@ -266,16 +266,16 @@ const s = StyleSheet.create({
   selChips: { flexDirection: 'row', gap: 6, marginTop: 6 },
   bookNow: { borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 8 },
   bookNowText: { color: '#fff', fontSize: 13, fontWeight: '900' },
-  countLabel: { fontSize: 11, fontWeight: '700' },
+  countLabel: { fontSize: 12, fontWeight: '700' },
   listRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     borderRadius: radius.xl, borderWidth: 1, padding: 12, ...shadow.xs,
   },
   listDot: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   listName: { fontSize: 14, fontWeight: '800' },
-  listMeta: { fontSize: 11, fontWeight: '500', marginTop: 2 },
+  listMeta: { fontSize: 12, fontWeight: '500', marginTop: 2 },
   listRight: { flexDirection: 'row', gap: 4 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: radius.full, paddingHorizontal: 7, paddingVertical: 3 },
-  chipText: { fontSize: 10, fontWeight: '700' },
+  chipText: { fontSize: 12, fontWeight: '700' },
   navTitle: { ...typography.h4 },
 });

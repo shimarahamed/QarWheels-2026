@@ -139,7 +139,7 @@ const s = StyleSheet.create({
   contextService: { fontSize: 13, fontWeight: '600' },
   contextDate: { fontSize: 12, fontWeight: '500' },
   currentStaffBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.full, borderWidth: 1, alignSelf: 'flex-start' },
-  currentStaffText: { fontSize: 11, fontWeight: '700' },
+  currentStaffText: { fontSize: 12, fontWeight: '700' },
 
   listHeading: { ...typography.overline, paddingHorizontal: 2 },
 
@@ -151,12 +151,12 @@ const s = StyleSheet.create({
   avatarText: { fontSize: 16, fontWeight: '900' },
   memberName: { ...typography.h4 },
   memberRole: { fontSize: 12, fontWeight: '600' },
-  memberSpecialty: { fontSize: 11, fontWeight: '500' },
+  memberSpecialty: { fontSize: 12, fontWeight: '500' },
   availBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full,
   },
   availDot: { width: 6, height: 6, borderRadius: 3 },
-  availText: { fontSize: 10, fontWeight: '800' },
-  activeText: { fontSize: 11, fontWeight: '600' },
+  availText: { fontSize: 12, fontWeight: '800' },
+  activeText: { fontSize: 12, fontWeight: '600' },
 });

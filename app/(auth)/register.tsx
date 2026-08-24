@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth } from '@/lib/firebase';
 import { createUserProfile } from '@/lib/firestoreOps';
+import { emailSchema, firstError, nameSchema, passwordSchema, qatarPhoneSchema } from '@/lib/validation';
 import { colors, radius, shadow, spacing, typography } from '@/lib/theme';
 
 function mapAuthError(e: unknown): string {
@@ -42,18 +43,25 @@ export default function RegisterScreen() {
   const [showPw, setShowPw] = useState(false);
 
   async function handleRegister() {
-    if (!firstName.trim() || !lastName.trim() || !email.trim() || !phone.trim() || !password) {
-      Alert.alert('Missing fields', 'Please fill in all fields.');
+    // Validate locally first: a typo'd email costs a round-trip and comes back
+    // as an opaque Firebase code, and a weak password is rejected only after
+    // the account attempt.
+    const problem =
+      firstError(nameSchema, firstName) ??
+      firstError(nameSchema, lastName) ??
+      firstError(emailSchema, email) ??
+      firstError(qatarPhoneSchema, phone) ??
+      firstError(passwordSchema, password);
+
+    if (problem) {
+      Alert.alert('Check your details', problem);
       return;
     }
     if (password !== confirmPw) {
       Alert.alert('Passwords do not match', 'Please make sure both passwords are identical.');
       return;
     }
-    if (password.length < 8) {
-      Alert.alert('Weak password', 'Password must be at least 8 characters.');
-      return;
-    }
+
     setLoading(true);
     try {
       const { user } = await createUserWithEmailAndPassword(auth, email.trim(), password);
@@ -230,7 +238,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, height: 54,
     ...typography.body, color: colors.text, ...shadow.xs,
   },
-  inputIcon: { marginRight: 8 },
+  inputIcon: { marginEnd: 8 },
   input: { flex: 1, ...typography.body, color: colors.text },
   eyeBtn: { paddingHorizontal: 8, paddingVertical: 8 },
 

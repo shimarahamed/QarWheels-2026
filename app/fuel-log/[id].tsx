@@ -9,7 +9,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { findCar } from '@/lib/marketplace';
+import { lookupCar } from '@/lib/marketplace';
+import RecordNotFound from '@/components/RecordNotFound';
 
 type FuelEntry = { id: string; date: string; litres: number; pricePerL: number; odometer: number; station: string; isFull: boolean };
 
@@ -25,7 +26,7 @@ export default function FuelLogScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const car = (() => { try { return findCar(id); } catch { return null; } })();
+  const car = lookupCar(id);
 
   const [entries, setEntries] = useState<FuelEntry[]>(DEMO_ENTRIES);
   const [showAdd, setShowAdd] = useState(false);
@@ -60,6 +61,10 @@ export default function FuelLogScreen() {
     const totalL = fullFills.slice(0, -1).reduce((a, e) => a + e.litres, 0);
     return distKm > 0 ? (totalL / distKm) * 100 : 0;
   })() : 0;
+
+  if (!car) {
+    return <RecordNotFound title="Vehicle not found" message="This vehicle may have been removed from your garage." />;
+  }
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.background }]} edges={['top']}>
@@ -153,13 +158,13 @@ const s = StyleSheet.create({
   },
   navBtn: { width: 40, height: 40, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center', ...shadow.xs },
   navTitle: { ...typography.h4 },
-  navSub: { fontSize: 11, fontWeight: '600' },
+  navSub: { fontSize: 12, fontWeight: '600' },
   addBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.page, gap: spacing.gap, paddingBottom: 40 },
   statsRow: { flexDirection: 'row', gap: 8 },
   statCard: { flex: 1, borderRadius: radius.lg, borderWidth: 1, padding: 10, alignItems: 'center', gap: 4, ...shadow.xs },
   statValue: { fontSize: 13, fontWeight: '900', textAlign: 'center' },
-  statLabel: { fontSize: 9, fontWeight: '600', textAlign: 'center' },
+  statLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
   addForm: { borderRadius: radius.xl, borderWidth: 1.5, padding: 14, gap: 10, ...shadow.sm },
   addTitle: { fontSize: 15, fontWeight: '900' },
   inputRow: { flexDirection: 'row', gap: 8 },
@@ -170,12 +175,12 @@ const s = StyleSheet.create({
   fullText: { fontSize: 13, fontWeight: '600' },
   saveBtn: { height: 46, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center' },
   saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '900' },
-  histLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  histLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 1 },
   entryCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderRadius: radius.xl, borderWidth: 1, padding: 12, ...shadow.xs },
   entryIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   entryTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   entryStation: { fontSize: 14, fontWeight: '800', flex: 1 },
   entryCost: { fontSize: 14, fontWeight: '900' },
   entryMeta: { fontSize: 12, fontWeight: '500', marginTop: 2 },
-  entryDate: { fontSize: 11, fontWeight: '500', marginTop: 2 },
+  entryDate: { fontSize: 12, fontWeight: '500', marginTop: 2 },
 });

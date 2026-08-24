@@ -6,8 +6,9 @@ import {
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors } from '@/lib/store';
+import { useQarColors, useQarWheelsStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
+import { reportError } from '@/lib/observability';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheels.com';
@@ -81,6 +82,40 @@ function formatExpiry(raw: string) {
   return digits;
 }
 
+/**
+ * Luhn checksum — the standard card-number check digit. Rejects most
+ * mistyped numbers without contacting the gateway.
+ */
+function passesLuhn(digits: string): boolean {
+  if (!/^\d+$/.test(digits)) return false;
+  let sum = 0;
+  let double = false;
+  for (let i = digits.length - 1; i >= 0; i -= 1) {
+    let value = digits.charCodeAt(i) - 48;
+    if (double) {
+      value *= 2;
+      if (value > 9) value -= 9;
+    }
+    sum += value;
+    double = !double;
+  }
+  return sum % 10 === 0;
+}
+
+/** MM/YY, a real month, and not already past. */
+function isExpiryValid(expiry: string): boolean {
+  const match = /^(\d{2})\/(\d{2})$/.exec(expiry);
+  if (!match) return false;
+  const month = Number(match[1]);
+  const year = 2000 + Number(match[2]);
+  if (month < 1 || month > 12) return false;
+
+  const now = new Date();
+  // A card is valid through the last day of its expiry month.
+  const endOfMonth = new Date(year, month, 0, 23, 59, 59);
+  return endOfMonth >= now;
+}
+
 function detectCardBrand(number: string): 'visa' | 'mastercard' | 'amex' | 'unknown' {
   const n = number.replace(/\s/g, '');
   if (/^4/.test(n)) return 'visa';
@@ -123,15 +158,33 @@ export default function PaymentMethodScreen() {
 
   const hasKey = Boolean(TAP_PUBLIC_KEY);
 
+  // The amount comes from the booking being paid. Previously both charge
+  // calls hardcoded `0`, so the gateway was asked to charge nothing.
+  const booking = useQarWheelsStore((s) => s.bookings.find((b) => b.id === bookingId));
+  const amountQar = booking?.totalAmount ?? 0;
+
   async function handleSavedPay() {
+    if (!hasKey) {
+      Alert.alert(
+        'Payments unavailable',
+        'Card payments are not configured in this build. Choose cash or wallet at checkout.',
+      );
+      return;
+    }
+    if (amountQar <= 0) {
+      Alert.alert('Nothing to pay', 'This payment has no amount attached. Please reopen it from your booking.');
+      return;
+    }
+
     setLoading(true);
     try {
       // In production: look up the stored payment method token on the backend
-      const result = await chargePayment(`saved:${selectedSaved}`, bookingId ?? '', 0);
+      const result = await chargePayment(`saved:${selectedSaved}`, bookingId ?? '', amountQar);
       Alert.alert('Payment confirmed', `Charge ID: ${result.chargeId}`, [
         { text: 'Done', onPress: () => router.back() },
       ]);
     } catch (e) {
+      reportError(e, { scope: 'saved-card-payment' });
       Alert.alert('Payment failed', e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setLoading(false);
@@ -139,31 +192,61 @@ export default function PaymentMethodScreen() {
   }
 
   async function handleNewCardPay() {
-    if (cardNumber.replace(/\s/g, '').length < 13) {
-      Alert.alert('Invalid card', 'Please enter a valid card number.');
+    const digits = cardNumber.replace(/\s/g, '');
+
+    // Luhn catches the overwhelming majority of typos locally, before a
+    // round-trip that would only report "declined".
+    if (digits.length < 13 || !passesLuhn(digits)) {
+      Alert.alert('Invalid card', 'Check the card number and try again.');
       return;
     }
-    if (expiry.length < 5) {
-      Alert.alert('Invalid expiry', 'Enter expiry in MM/YY format.');
+    if (!isExpiryValid(expiry)) {
+      Alert.alert('Invalid expiry', 'Enter a future expiry date in MM/YY format.');
       return;
     }
-    if (cvc.length < 3) {
-      Alert.alert('Invalid CVC', 'Enter the 3 or 4 digit CVC.');
+    // Amex uses a 4-digit CID; everyone else uses 3.
+    const cvcLength = detectCardBrand(digits) === 'amex' ? 4 : 3;
+    if (cvc.length !== cvcLength) {
+      Alert.alert('Invalid CVC', `Enter the ${cvcLength} digit security code.`);
       return;
     }
+    if (!cardName.trim()) {
+      Alert.alert('Name required', "Enter the cardholder's name as printed on the card.");
+      return;
+    }
+
+    // Without a gateway key nothing can actually be charged. Saying so beats
+    // a fake "Payment confirmed" with a demo charge id.
+    if (!hasKey) {
+      Alert.alert(
+        'Payments unavailable',
+        'Card payments are not configured in this build. Choose cash or wallet at checkout.',
+      );
+      return;
+    }
+    if (!amountQar || amountQar <= 0) {
+      Alert.alert('Nothing to pay', 'This payment has no amount attached. Please reopen it from your booking.');
+      return;
+    }
+
     Keyboard.dismiss();
     setLoading(true);
     try {
       const [expMonth, expYear] = expiry.split('/');
-      const token = hasKey
-        ? await tokeniseCard({ number: cardNumber, expMonth, expYear: `20${expYear}`, cvc, name: cardName })
-        : `demo_token_${Date.now()}`; // Demo when no Tap key configured
+      const token = await tokeniseCard({
+        number: cardNumber,
+        expMonth,
+        expYear: `20${expYear}`,
+        cvc,
+        name: cardName,
+      });
 
-      const result = await chargePayment(token, bookingId ?? '', 0);
+      const result = await chargePayment(token, bookingId ?? '', amountQar);
       Alert.alert('Payment confirmed', `Charge ID: ${result.chargeId}`, [
         { text: 'Done', onPress: () => router.back() },
       ]);
     } catch (e) {
+      reportError(e, { scope: 'card-payment' });
       Alert.alert('Payment failed', e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setLoading(false);
@@ -419,7 +502,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.full,
   },
-  secureText: { fontSize: 11, fontWeight: '800' },
+  secureText: { fontSize: 12, fontWeight: '800' },
 
   tabRow: {
     flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth,
@@ -446,7 +529,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     borderRadius: radius.lg, borderWidth: 1, padding: 10,
   },
-  demoText: { fontSize: 11, fontWeight: '600', flex: 1 },
+  demoText: { fontSize: 12, fontWeight: '600', flex: 1 },
 
   section: { borderRadius: radius.xl, borderWidth: 1, padding: 16, gap: 14, ...shadow.xs },
   sectionTitle: { ...typography.h4 },
@@ -469,7 +552,7 @@ const s = StyleSheet.create({
 
   trustRow: { flexDirection: 'row', justifyContent: 'center', gap: 20 },
   trustItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  trustText: { fontSize: 11, fontWeight: '600' },
+  trustText: { fontSize: 12, fontWeight: '600' },
 
   payBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

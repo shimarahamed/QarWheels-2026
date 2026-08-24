@@ -675,13 +675,13 @@ const s = StyleSheet.create({
   customer: { fontSize: 13, fontWeight: '600' },
   vehicle: { fontSize: 12 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.full },
-  statusText: { fontSize: 11, fontWeight: '900' },
+  statusText: { fontSize: 12, fontWeight: '900' },
   statusChangeBtn: { borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
-  statusChangeBtnText: { fontSize: 11, fontWeight: '700' },
+  statusChangeBtnText: { fontSize: 12, fontWeight: '700' },
   paidBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
-  paidBtnText: { fontSize: 11, fontWeight: '800' },
+  paidBtnText: { fontSize: 12, fontWeight: '800' },
   datesRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  dateLabel: { fontSize: 11, fontWeight: '600' },
+  dateLabel: { fontSize: 12, fontWeight: '600' },
   dateValue: { fontSize: 13, fontWeight: '700' },
   divider: { height: 1 },
 
@@ -689,13 +689,13 @@ const s = StyleSheet.create({
   sectionTitle: { ...typography.h4 },
   addBtns: { flexDirection: 'row', gap: 6 },
   addLineBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.full, borderWidth: 1 },
-  addLineBtnText: { fontSize: 11, fontWeight: '800' },
+  addLineBtnText: { fontSize: 12, fontWeight: '800' },
 
   lineItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   typeTag: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: radius.sm },
-  typeText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  typeText: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
   itemDesc: { fontSize: 13, fontWeight: '700' },
-  itemQty: { fontSize: 11 },
+  itemQty: { fontSize: 12 },
   itemTotal: { fontSize: 13, fontWeight: '800' },
   emptyItems: { paddingVertical: 16, alignItems: 'center' },
   emptyItemsText: { fontSize: 13 },
@@ -707,8 +707,8 @@ const s = StyleSheet.create({
   grandValue: { fontSize: 18, fontWeight: '900' },
   discountLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   editTag: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.full },
-  editTagText: { fontSize: 9, fontWeight: '800' },
-  discountBadge: { fontSize: 10, fontWeight: '700' },
+  editTagText: { fontSize: 12, fontWeight: '800' },
+  discountBadge: { fontSize: 12, fontWeight: '700' },
 
   notesInput: { borderRadius: radius.lg, borderWidth: 1, padding: 12, fontSize: 13, minHeight: 72, textAlignVertical: 'top' },
 
@@ -741,14 +741,14 @@ const m = StyleSheet.create({
   cancelText: { fontSize: 14, fontWeight: '700' },
   saveBtn: { flex: 2, height: 44, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
   saveBtnText: { fontSize: 14, fontWeight: '900', color: '#fff' },
-  section: { fontSize: 11, fontWeight: '800', letterSpacing: 0.8, marginBottom: 4 },
+  section: { fontSize: 12, fontWeight: '800', letterSpacing: 0.8, marginBottom: 4 },
 });
 
 // Add from services modal styles
 const as = StyleSheet.create({
-  section: { fontSize: 11, fontWeight: '800', letterSpacing: 0.8, marginBottom: 4, paddingHorizontal: 4 },
+  section: { fontSize: 12, fontWeight: '800', letterSpacing: 0.8, marginBottom: 4, paddingHorizontal: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   name: { fontSize: 14, fontWeight: '700' },
-  sub: { fontSize: 11, marginTop: 2 },
-  price: { fontSize: 13, fontWeight: '900', marginRight: 4 },
+  sub: { fontSize: 12, marginTop: 2 },
+  price: { fontSize: 13, fontWeight: '900', marginEnd: 4 },
 });

@@ -6,7 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { findGarage } from '@/lib/marketplace';
+import { lookupGarage } from '@/lib/marketplace';
+import RecordNotFound from '@/components/RecordNotFound';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CELL_SIZE = (SCREEN_W - spacing.page * 2 - 8) / 3;
@@ -22,10 +23,10 @@ const GARAGE_PHOTOS: Record<string, string[]> = {
     'https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?auto=format&fit=crop&w=600&q=70',
   ],
   garage_002: [
-    'https://images.unsplash.com/photo-1581093196277-9f6e9b964e45?auto=format&fit=crop&w=600&q=70',
+    'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=600&q=70',
     'https://images.unsplash.com/photo-1590674899484-d5640e854abe?auto=format&fit=crop&w=600&q=70',
-    'https://images.unsplash.com/photo-1568844293986-ca9c5c1bc2e8?auto=format&fit=crop&w=600&q=70',
-    'https://images.unsplash.com/photo-1617531653332-bd46c16f4d68?auto=format&fit=crop&w=600&q=70',
+    'https://images.unsplash.com/photo-1600661653561-629509216228?auto=format&fit=crop&w=600&q=70',
+    'https://images.unsplash.com/photo-1486754735734-325b5831c3ad?auto=format&fit=crop&w=600&q=70',
   ],
 };
 
@@ -34,7 +35,7 @@ const FALLBACK_PHOTOS = [
   'https://images.unsplash.com/photo-1549636367-13c144c47063?auto=format&fit=crop&w=600&q=70',
   'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=600&q=70',
   'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=600&q=70',
-  'https://images.unsplash.com/photo-1617531653332-bd46c16f4d68?auto=format&fit=crop&w=600&q=70',
+  'https://images.unsplash.com/photo-1486754735734-325b5831c3ad?auto=format&fit=crop&w=600&q=70',
   'https://images.unsplash.com/photo-1590674899484-d5640e854abe?auto=format&fit=crop&w=600&q=70',
 ];
 
@@ -44,8 +45,12 @@ export default function GaragePhotosScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  const garage = (() => { try { return findGarage(id); } catch { return null; } })();
+  const garage = lookupGarage(id);
   const photos = GARAGE_PHOTOS[id ?? ''] ?? FALLBACK_PHOTOS;
+
+  if (!garage) {
+    return <RecordNotFound title="Garage not found" message="This garage may no longer be listed." />;
+  }
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.background }]} edges={['top']}>
@@ -129,11 +134,11 @@ const s = StyleSheet.create({
   },
   navBtn: { width: 40, height: 40, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center', ...shadow.xs },
   navTitle: { ...typography.h4 },
-  navSub: { fontSize: 11, fontWeight: '600' },
+  navSub: { fontSize: 12, fontWeight: '600' },
   content: { padding: spacing.page, gap: 12, paddingBottom: 40 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   cell: { width: CELL_SIZE, height: CELL_SIZE, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth },
-  note: { fontSize: 11, fontWeight: '600', textAlign: 'center', paddingTop: 8 },
+  note: { fontSize: 12, fontWeight: '600', textAlign: 'center', paddingTop: 8 },
   lightboxBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', alignItems: 'center', justifyContent: 'center' },
   lightboxImg: { width: SCREEN_W, height: SCREEN_W * 1.2 },
   lightboxMeta: { position: 'absolute', bottom: 40, alignItems: 'center' },

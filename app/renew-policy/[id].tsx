@@ -6,7 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { findCar } from '@/lib/marketplace';
+import { lookupCar } from '@/lib/marketplace';
+import RecordNotFound from '@/components/RecordNotFound';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheels.com';
 
@@ -44,7 +45,7 @@ export default function RenewPolicyScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const car = (() => { try { return findCar(id); } catch { return null; } })();
+  const car = lookupCar(id);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [renewed, setRenewed] = useState(false);
@@ -100,6 +101,10 @@ export default function RenewPolicyScreen() {
         </View>
       </SafeAreaView>
     );
+  }
+
+  if (!car) {
+    return <RecordNotFound title="Vehicle not found" message="This vehicle may have been removed from your garage." />;
   }
 
   return (
@@ -218,30 +223,30 @@ const s = StyleSheet.create({
   },
   navBtn: { width: 40, height: 40, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center', ...shadow.xs },
   navTitle: { ...typography.h4 },
-  navSub: { fontSize: 11, fontWeight: '600' },
+  navSub: { fontSize: 12, fontWeight: '600' },
   content: { padding: spacing.page, gap: spacing.gap, paddingBottom: 24 },
   currentCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: radius.lg, borderWidth: 1, padding: 12 },
-  currentLabel: { fontSize: 11, fontWeight: '800' },
+  currentLabel: { fontSize: 12, fontWeight: '800' },
   currentValue: { fontSize: 13, fontWeight: '700' },
-  sectionLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  sectionLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 1 },
   planCard: { borderRadius: radius.xl, padding: 14, gap: 10, ...shadow.xs },
   planTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   planTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   planProvider: { fontSize: 15, fontWeight: '900' },
   planType: { fontSize: 12, fontWeight: '500', marginTop: 2 },
   recommendedBadge: { borderRadius: radius.full, paddingHorizontal: 8, paddingVertical: 3 },
-  recommendedText: { fontSize: 10, fontWeight: '800' },
+  recommendedText: { fontSize: 12, fontWeight: '800' },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   radioFill: { width: 11, height: 11, borderRadius: 5.5 },
   planMeta: { flexDirection: 'row', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10 },
   metaItem: { flex: 1, alignItems: 'center', gap: 2 },
-  metaLabel: { fontSize: 10, fontWeight: '600' },
+  metaLabel: { fontSize: 12, fontWeight: '600' },
   metaValue: { fontSize: 13, fontWeight: '900' },
   metaDivider: { width: 1, height: 28 },
   featureWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   featureItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  featureText: { fontSize: 11, fontWeight: '600' },
-  disclaimer: { fontSize: 11, lineHeight: 16 },
+  featureText: { fontSize: 12, fontWeight: '600' },
+  disclaimer: { fontSize: 12, lineHeight: 16 },
   footer: { padding: spacing.page, paddingBottom: 28, borderTopWidth: StyleSheet.hairlineWidth },
   renewBtn: { height: 52, borderRadius: radius.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   renewBtnText: { color: '#fff', fontSize: 16, fontWeight: '900' },

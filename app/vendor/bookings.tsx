@@ -163,7 +163,7 @@ const s = StyleSheet.create({
   },
   tabLabel: { fontSize: 13, fontWeight: '700' },
   tabBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: radius.full },
-  tabBadgeText: { fontSize: 11, fontWeight: '800' },
+  tabBadgeText: { fontSize: 12, fontWeight: '800' },
 
   content: { padding: spacing.page },
 
@@ -181,8 +181,8 @@ const s = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full,
   },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 11, fontWeight: '800' },
-  dateText: { fontSize: 11, fontWeight: '600' },
+  statusText: { fontSize: 12, fontWeight: '800' },
+  dateText: { fontSize: 12, fontWeight: '600' },
 
   cardFooter: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -193,15 +193,15 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 8, paddingVertical: 5, borderRadius: radius.full, borderWidth: 1,
   },
-  staffText: { fontSize: 11, fontWeight: '600' },
+  staffText: { fontSize: 12, fontWeight: '600' },
   assignBtn: {
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.full, borderWidth: 1,
   },
-  assignText: { fontSize: 11, fontWeight: '700' },
+  assignText: { fontSize: 12, fontWeight: '700' },
   cardActions: { flexDirection: 'row', gap: 6 },
   actionBtn: {
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.full,
     borderWidth: 1, alignItems: 'center', justifyContent: 'center',
   },
-  actionBtnText: { fontSize: 11, fontWeight: '800' },
+  actionBtnText: { fontSize: 12, fontWeight: '800' },
 });

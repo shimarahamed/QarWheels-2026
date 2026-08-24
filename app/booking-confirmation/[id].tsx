@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors, useQarWheelsStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { findGarage } from '@/lib/marketplace';
+import { lookupGarage } from '@/lib/marketplace';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheels.com';
 
@@ -24,7 +24,7 @@ export default function BookingConfirmationScreen() {
 
   const booking = useQarWheelsStore((s) => s.bookings.find((b) => b.id === id));
   const garage = booking?.garageId
-    ? (() => { try { return findGarage(booking.garageId!); } catch { return null; } })()
+    ? lookupGarage(booking.garageId!)
     : null;
 
   const scaleAnim = useRef(new Animated.Value(0)).current;
@@ -173,7 +173,7 @@ const s = StyleSheet.create({
   heroSub: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
   idCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: radius.xl, borderWidth: 1.5, padding: 14, ...shadow.xs },
   idIcon: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  idLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  idLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   idValue: { fontSize: 16, fontWeight: '900', letterSpacing: 1, marginTop: 2 },
   section: { borderRadius: radius.xl, borderWidth: 1, padding: 16, gap: 4, ...shadow.xs },
   sectionTitle: { ...typography.h4, marginBottom: 8 },

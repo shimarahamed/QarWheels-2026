@@ -177,7 +177,7 @@ const s = StyleSheet.create({
   tierBadge: {
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.full, borderWidth: 1,
   },
-  tierText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
+  tierText: { fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
   phone: { fontSize: 13, fontWeight: '600' },
   email: { fontSize: 12, fontWeight: '500' },
 
@@ -187,7 +187,7 @@ const s = StyleSheet.create({
     alignItems: 'center', gap: 4, ...shadow.xs,
   },
   statValue: { ...typography.h4 },
-  statLabel: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
+  statLabel: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
 
   section: { borderRadius: radius.xl, borderWidth: 1, padding: 16, gap: 12, ...shadow.xs },
   sectionTitle: { ...typography.h4 },
@@ -210,6 +210,6 @@ const s = StyleSheet.create({
     borderRadius: radius.lg, borderWidth: 1, padding: 12,
   },
   historyService: { fontSize: 13, fontWeight: '700' },
-  historyDate: { fontSize: 11, fontWeight: '500' },
+  historyDate: { fontSize: 12, fontWeight: '500' },
   historyAmount: { fontSize: 14, fontWeight: '800' },
 });

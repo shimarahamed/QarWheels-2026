@@ -412,26 +412,34 @@ export const bookings: Booking[] = [
   },
 ];
 
-export function findGarage(id: string) {
-  return garages.find((garage) => garage.id === id) ?? garages[0];
+/**
+ * Strict lookups. These return `undefined` when nothing matches so screens can
+ * render a real "not found" state.
+ *
+ * Prefer these over the `find*` helpers below, which substitute the first seed
+ * record on a miss and therefore show one user's data under another user's id.
+ */
+export function lookupGarage(id: string) {
+  return garages.find((garage) => garage.id === id);
 }
 
-export function findCategory(id: string) {
-  return serviceCategories.find((category) => category.id === id) ?? serviceCategories[0];
+export function lookupCategory(id: string) {
+  return serviceCategories.find((category) => category.id === id);
 }
 
-export function findJob(id: string) {
-  return popularJobs.find((job) => job.id === id) ?? popularJobs[0];
+export function lookupJob(id: string) {
+  return popularJobs.find((job) => job.id === id);
 }
 
-export function findOffer(id: string) {
-  return offers.find((offer) => offer.id === id) ?? offers[0];
+export function lookupOffer(id: string) {
+  return offers.find((offer) => offer.id === id);
 }
 
-export function findCar(id: string) {
-  return cars.find((car) => car.id === id) ?? cars[0];
+export function lookupCar(id: string) {
+  return cars.find((car) => car.id === id);
 }
 
-export function findBooking(id: string) {
-  return bookings.find((booking) => booking.id === id) ?? bookings[0];
+export function lookupBooking(id: string) {
+  return bookings.find((booking) => booking.id === id);
 }
+

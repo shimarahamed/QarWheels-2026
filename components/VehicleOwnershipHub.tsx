@@ -247,7 +247,7 @@ export default function VehicleOwnershipHub({ initialSection = 'overview' }: { i
       </View>
 
       <ScrollView
-        style={{ backgroundColor: c.background, paddingTop: 60 }}
+        style={{ backgroundColor: c.background }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
@@ -606,11 +606,6 @@ function SmallButton({ label, icon, onPress, c }: { label: string; icon: IconNam
 
 const styles = StyleSheet.create({
   navbar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -644,11 +639,11 @@ const styles = StyleSheet.create({
   healthBarValue: { ...typography.caption, fontWeight: '900' },
   healthTrack: { height: 9, borderRadius: radius.full, overflow: 'hidden' },
   healthFill: { height: '100%', borderRadius: radius.full },
-  tabRow: { gap: 10, paddingRight: spacing.page },
+  tabRow: { gap: 10, paddingEnd: spacing.page },
   tabChip: { minHeight: 40, borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 7 },
   tabText: { ...typography.caption, fontWeight: '900' },
   metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  metricCard: { width: '48.4%', minHeight: 136, borderRadius: radius.xl, borderWidth: 1, padding: 16, justifyContent: 'space-between', ...shadow.xs },
+  metricCard: { flexBasis: '48%', flexGrow: 1, minHeight: 136, borderRadius: radius.xl, borderWidth: 1, padding: 16, justifyContent: 'space-between', ...shadow.xs },
   metricIcon: { width: 38, height: 38, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   metricValue: { ...typography.h3 },
   metricLabel: { ...typography.caption },

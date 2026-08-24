@@ -204,7 +204,7 @@ const s = StyleSheet.create({
   statusNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   statusName: { fontSize: 14, lineHeight: 20 },
   currentBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
-  currentBadgeText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
+  currentBadgeText: { fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
   statusDesc: { fontSize: 12, fontWeight: '500', lineHeight: 17 },
 
   cancelBtn: {

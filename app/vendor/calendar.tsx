@@ -214,7 +214,7 @@ const s = StyleSheet.create({
     alignItems: 'center', paddingHorizontal: 15, paddingVertical: 10,
     borderRadius: radius.xl, borderWidth: 1, gap: 3, minWidth: 66, minHeight: 74,
   },
-  dayLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  dayLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
   dayDate: { fontSize: 13, fontWeight: '800' },
   dayDot: { width: 5, height: 5, borderRadius: 3 },
 
@@ -239,17 +239,17 @@ const s = StyleSheet.create({
   timeText: { fontSize: 13, fontWeight: '800' },
   bookingName: { ...typography.h4 },
   bookingService: { fontSize: 12, fontWeight: '500' },
-  bookingVehicle: { fontSize: 11, fontWeight: '500' },
+  bookingVehicle: { fontSize: 12, fontWeight: '500' },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full },
-  statusText: { fontSize: 10, fontWeight: '800' },
+  statusText: { fontSize: 12, fontWeight: '800' },
   amountText: { fontSize: 13, fontWeight: '800' },
 
   section: { borderRadius: radius.xl, borderWidth: 1, padding: 16, gap: 12, ...shadow.xs },
   sectionTitle: { ...typography.h4 },
 
   hourRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  hourLabel: { width: 42, fontSize: 11, fontWeight: '700' },
+  hourLabel: { width: 42, fontSize: 12, fontWeight: '700' },
   hourBar: { flex: 1, height: 10, borderRadius: radius.full, overflow: 'hidden' },
   hourFill: { height: '100%', borderRadius: radius.full },
-  hourCount: { width: 36, fontSize: 10, fontWeight: '700', textAlign: 'right' },
+  hourCount: { width: 36, fontSize: 12, fontWeight: '700', textAlign: 'right' },
 });

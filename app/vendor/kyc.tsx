@@ -355,7 +355,7 @@ const s = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14, borderWidth: 1.5,
     alignItems: 'center', justifyContent: 'center',
   },
-  stepNum: { fontSize: 11, fontWeight: '800' },
+  stepNum: { fontSize: 12, fontWeight: '800' },
   stepLine: { position: 'absolute', left: 13, top: 28, width: 2, height: 12, borderRadius: 1 },
   stepLabel: { fontSize: 13, fontWeight: '700' },
 

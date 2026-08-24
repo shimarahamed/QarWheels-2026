@@ -8,7 +8,7 @@ export default function AccountSuccessScreen() {
     <AuthScreen
       footer={<PrimaryButton label="Go to dashboard" icon="arrow-forward" onPress={() => router.replace('/(tabs)' as never)} />}
     >
-      <BrandMark />
+      <BrandMark stacked />
       <StepHeader
         eyebrow="Account ready"
         title="You are all set"

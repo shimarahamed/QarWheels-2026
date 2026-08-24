@@ -240,7 +240,7 @@ const s = StyleSheet.create({
     borderWidth: 1, alignItems: 'center', justifyContent: 'center', ...shadow.xs,
   },
   navTitle: { ...typography.h4 },
-  navSub: { fontSize: 11, fontWeight: '600', marginTop: 1 },
+  navSub: { fontSize: 12, fontWeight: '600', marginTop: 1 },
 
   content: { padding: spacing.page, gap: spacing.gap, paddingBottom: 40 },
 
@@ -253,7 +253,7 @@ const s = StyleSheet.create({
     width: 52, borderRadius: radius.lg, borderWidth: 1,
     paddingVertical: 10, alignItems: 'center', gap: 4,
   },
-  dayName: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  dayName: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
   dayNum: { fontSize: 17, fontWeight: '900' },
   todayDot: { width: 5, height: 5, borderRadius: 2.5 },
 
@@ -262,7 +262,7 @@ const s = StyleSheet.create({
   sectionTitle: { ...typography.h4 },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { fontSize: 11, fontWeight: '600' },
+  legendText: { fontSize: 12, fontWeight: '600' },
 
   slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   slotChip: {
@@ -270,7 +270,7 @@ const s = StyleSheet.create({
     paddingVertical: 12, alignItems: 'center', gap: 2, ...shadow.xs,
   },
   slotText: { fontSize: 15, fontWeight: '800' },
-  slotTakenLabel: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  slotTakenLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
 
   noteCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,

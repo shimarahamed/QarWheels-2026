@@ -156,7 +156,7 @@ const s = StyleSheet.create({
     borderWidth: 1, alignItems: 'center', justifyContent: 'center', ...shadow.xs,
   },
   navTitle: { ...typography.h4 },
-  navSub: { fontSize: 11, fontWeight: '600' },
+  navSub: { fontSize: 12, fontWeight: '600' },
   detailBtn: {
     width: 38, height: 38, borderRadius: radius.md,
     borderWidth: 1, alignItems: 'center', justifyContent: 'center',
@@ -170,7 +170,7 @@ const s = StyleSheet.create({
   },
   bubbleText: { fontSize: 14, lineHeight: 20 },
   bubbleMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-end' },
-  timestamp: { fontSize: 10, fontWeight: '600' },
+  timestamp: { fontSize: 12, fontWeight: '600' },
 
   quickReplies: { flexGrow: 0 },
   quickRepliesContent: { paddingHorizontal: spacing.page, paddingVertical: 8, gap: 8 },

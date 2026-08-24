@@ -8,7 +8,8 @@ import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { collection, getDocs, orderBy, query, where, limit } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
-import { findGarage } from '@/lib/marketplace';
+import { lookupGarage } from '@/lib/marketplace';
+import RecordNotFound from '@/components/RecordNotFound';
 
 type Review = {
   id: string;
@@ -46,7 +47,7 @@ export default function GarageReviewsScreen() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const garage = (() => { try { return findGarage(id); } catch { return null; } })();
+  const garage = lookupGarage(id);
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
@@ -80,6 +81,10 @@ export default function GarageReviewsScreen() {
     count: reviews.filter((r) => r.rating === star).length,
     pct: reviews.length > 0 ? reviews.filter((r) => r.rating === star).length / reviews.length : 0,
   }));
+
+  if (!garage) {
+    return <RecordNotFound title="Garage not found" message="This garage may no longer be listed." />;
+  }
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.background }]} edges={['top']}>
@@ -160,7 +165,7 @@ const s = StyleSheet.create({
   },
   navBtn: { width: 40, height: 40, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center', ...shadow.xs },
   navTitle: { ...typography.h4 },
-  navSub: { fontSize: 11, fontWeight: '600' },
+  navSub: { fontSize: 12, fontWeight: '600' },
   content: { padding: spacing.page, gap: spacing.gap, paddingBottom: 40 },
   loadingWrap: { paddingTop: 40, alignItems: 'center' },
   summaryCard: {
@@ -169,19 +174,19 @@ const s = StyleSheet.create({
   },
   summaryLeft: { alignItems: 'center', gap: 6 },
   bigRating: { fontSize: 40, fontWeight: '900', letterSpacing: -2 },
-  reviewCount: { fontSize: 11, fontWeight: '600' },
+  reviewCount: { fontSize: 12, fontWeight: '600' },
   summaryRight: { flex: 1, gap: 5 },
   distRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  distStar: { fontSize: 11, fontWeight: '700', width: 10 },
+  distStar: { fontSize: 12, fontWeight: '700', width: 10 },
   distTrack: { flex: 1, height: 6, borderRadius: 99, overflow: 'hidden' },
   distFill: { height: '100%', borderRadius: 99 },
-  distCount: { fontSize: 10, fontWeight: '700', width: 18, textAlign: 'right' },
+  distCount: { fontSize: 12, fontWeight: '700', width: 18, textAlign: 'right' },
   reviewCard: { borderRadius: radius.xl, borderWidth: 1, padding: 14, gap: 10, ...shadow.xs },
   reviewTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   reviewerName: { fontSize: 13, fontWeight: '800' },
-  reviewDate: { fontSize: 11, fontWeight: '500' },
+  reviewDate: { fontSize: 12, fontWeight: '500' },
   servicePill: { alignSelf: 'flex-start', borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 4 },
-  servicePillText: { fontSize: 11, fontWeight: '800' },
+  servicePillText: { fontSize: 12, fontWeight: '800' },
   reviewText: { fontSize: 13, lineHeight: 19 },
 });

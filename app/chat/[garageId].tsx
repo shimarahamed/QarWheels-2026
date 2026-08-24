@@ -1,14 +1,26 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { findGarage } from '@/lib/marketplace';
+import { lookupGarage } from '@/lib/marketplace';
+import RecordNotFound from '@/components/RecordNotFound';
 import { colors, radius, spacing } from '@/lib/theme';
 import { success } from '@/lib/haptics';
 
 export default function ChatScreen() {
   const router = useRouter();
   const { garageId } = useLocalSearchParams<{ garageId: string }>();
-  const garage = findGarage(garageId);
+  const garage = lookupGarage(garageId);
+
+  // A stale link must not open a conversation labelled with a different
+  // garage's name and response time.
+  if (!garage) {
+    return (
+      <RecordNotFound
+        title="Conversation unavailable"
+        message="This garage is no longer listed, so the chat cannot be opened."
+      />
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>

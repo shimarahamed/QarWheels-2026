@@ -281,7 +281,7 @@ export default function AddCarScreen() {
 
         <StepBar current={step} c={c} />
 
-        <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" style={{ paddingTop: 60 }}>
+        <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
 
           {/* ── STEP 1: DETAILS ─────────────────────────────────────────── */}
           {step === 'details' && (
@@ -623,11 +623,6 @@ export default function AddCarScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
     flexDirection: 'row', 
     alignItems: 'center', 
     justifyContent: 'space-between',
@@ -686,8 +681,8 @@ const sb = StyleSheet.create({
     width: 24, height: 24, borderRadius: 12, borderWidth: 2,
     alignItems: 'center', justifyContent: 'center', zIndex: 1,
   },
-  dotNum: { fontSize: 11, fontWeight: '800' },
-  label: { fontSize: 10, fontWeight: '600', marginTop: 5, textAlign: 'center' },
+  dotNum: { fontSize: 12, fontWeight: '800' },
+  label: { fontSize: 12, fontWeight: '600', marginTop: 5, textAlign: 'center' },
   line: {
     position: 'absolute', top: 11, left: '60%', right: '-40%',
     height: 2, zIndex: 0,
@@ -705,7 +700,7 @@ const obd = StyleSheet.create({
     width: 22, height: 22, borderRadius: 11,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  instrNumText: { fontSize: 11, fontWeight: '900' },
+  instrNumText: { fontSize: 12, fontWeight: '900' },
   instrText: { flex: 1, fontSize: 13, lineHeight: 18 },
 
   statusCard: {
@@ -724,7 +719,7 @@ const obd = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full,
   },
-  simText: { fontSize: 11, fontWeight: '700' },
+  simText: { fontSize: 12, fontWeight: '700' },
   healthRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   healthLabel: { fontSize: 12 },
   healthScore: { fontSize: 28, fontWeight: '900' },
@@ -747,7 +742,7 @@ const obd = StyleSheet.create({
   smartcarTitle: { fontSize: 13, fontWeight: '800' },
   smartcarSub: { fontSize: 12, lineHeight: 17, marginTop: 3 },
   smartcarBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.full, alignSelf: 'flex-start' },
-  smartcarBadgeText: { fontSize: 10, fontWeight: '800' },
+  smartcarBadgeText: { fontSize: 12, fontWeight: '800' },
 });
 
 // Review step
@@ -766,11 +761,11 @@ const rev = StyleSheet.create({
   obdHeader: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 },
   obdTitle: { fontSize: 14, fontWeight: '800', flex: 1 },
   simTag: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: radius.full },
-  simTagText: { fontSize: 10, fontWeight: '800' },
+  simTagText: { fontSize: 12, fontWeight: '800' },
   obdStats: { flexDirection: 'row', alignItems: 'center' },
   obdStat: { flex: 1, alignItems: 'center', paddingVertical: 8 },
   obdStatNum: { fontSize: 22, fontWeight: '900' },
-  obdStatLabel: { fontSize: 11, marginTop: 2 },
+  obdStatLabel: { fontSize: 12, marginTop: 2 },
   obdStatDivider: { width: 1, height: 40 },
 });
 
