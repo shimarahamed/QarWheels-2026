@@ -652,7 +652,9 @@ export function getStatusColor(status: VendorBookingStatus): { bg: string; text:
     InProgress:      { bg: 'rgba(227,30,36,0.14)', text: '#E31E24', dot: '#E31E24' },
     ReadyForPickup:  { bg: 'rgba(212,175,55,0.14)', text: '#D4AF37', dot: '#D4AF37' },
     Completed:       { bg: 'rgba(34,197,94,0.14)', text: '#22C55E', dot: '#22C55E' },
+    Declined:        { bg: 'rgba(239,68,68,0.14)', text: '#EF4444', dot: '#EF4444' },
     Cancelled:       { bg: 'rgba(239,68,68,0.14)', text: '#EF4444', dot: '#EF4444' },
+    NoShow:          { bg: 'rgba(148,163,184,0.16)', text: '#64748B', dot: '#64748B' },
   };
   return map[status];
 }

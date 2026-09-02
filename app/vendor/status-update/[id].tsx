@@ -1,20 +1,13 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import {
-  findVendorBooking,
-  getStatusColor,
-  getStatusLabel,
-  STATUS_FLOW,
-  type VendorBookingStatus,
-} from '@/lib/vendor-data';
+import { findVendorBooking, getStatusColor, getStatusLabel } from '@/lib/vendor-data';
 import { getBookingStatusDescription } from '@/lib/booking-workflow';
-import { updateVendorBookingStatusInFirestore } from '@/lib/firestoreOps';
-
+import { BookingActionSheet } from '@/components/vendor/BookingActionSheet';
 
 export default function StatusUpdateScreen() {
   const c = useQarColors();
@@ -22,73 +15,7 @@ export default function StatusUpdateScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const storeBooking = useQarWheelStore((state) => state.vendorBookings.find((b) => b.id === id));
   const booking = storeBooking ?? findVendorBooking(id);
-  const updateStatus = useQarWheelStore((s) => s.updateVendorBookingStatus);
-
-  const currentIndex = STATUS_FLOW.indexOf(booking.status);
-
-  // Seed-demo bookings (id starts with "vb_") have no Firestore document to
-  // write to — only live bookings synced via useVendorFirestoreBookings do.
-  const isLiveBooking = !booking.id.startsWith('vb_');
-
-  async function applyStatus(status: VendorBookingStatus) {
-    const previousStatus = booking.status;
-    // Optimistic local update first so the UI responds immediately...
-    updateStatus(booking.id, status);
-    if (!isLiveBooking) return;
-    try {
-      // ...then persist to Firestore. NOTE: this is a temporary direct write —
-      // full transition validation (accept/reject, statusHistory, notifications)
-      // is built in a later phase; this only stops updates from silently
-      // staying local-only.
-      await updateVendorBookingStatusInFirestore(booking.id, status);
-    } catch (e) {
-      // Roll back the optimistic update on failure
-      updateStatus(booking.id, previousStatus);
-      Alert.alert(
-        'Update failed',
-        e instanceof Error ? e.message : 'Could not update the booking. Please try again.',
-      );
-    }
-  }
-
-  function handleSelect(status: VendorBookingStatus) {
-    if (status === booking.status) {
-      router.back();
-      return;
-    }
-    Alert.alert(
-      'Update Status',
-      `Move booking to "${getStatusLabel(status)}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: () => {
-            void applyStatus(status);
-            router.back();
-          },
-        },
-      ],
-    );
-  }
-
-  function handleCancel() {
-    Alert.alert(
-      'Cancel Booking',
-      'Are you sure you want to cancel this booking?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Cancel Booking',
-          style: 'destructive',
-          onPress: () => {
-            void applyStatus('Cancelled');
-            router.back();
-          },
-        },
-      ],
-    );
-  }
+  const sc = getStatusColor(booking.status);
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.background }]} edges={['top']}>
@@ -117,76 +44,23 @@ export default function StatusUpdateScreen() {
             </View>
           </View>
 
-          {/* Status flow */}
-          <View style={{ gap: 10 }}>
-            {STATUS_FLOW.map((status, index) => {
-              const sc = getStatusColor(status);
-              const isCurrent = booking.status === status;
-              const isPast = currentIndex > index;
-              const isFuture = currentIndex < index;
-
-              return (
-                <Pressable
-                  key={status}
-                  style={[
-                    s.statusOption,
-                    { backgroundColor: isCurrent ? `${sc.dot}15` : c.surface, borderColor: isCurrent ? sc.dot : c.border },
-                  ]}
-                  onPress={() => handleSelect(status)}
-                >
-                  <View style={s.statusLeft}>
-                    <View
-                      style={[
-                        s.statusCircle,
-                        {
-                          backgroundColor: isCurrent ? sc.dot : isPast ? `${sc.dot}30` : c.surfaceAlt,
-                          borderColor: isCurrent ? sc.dot : isPast ? `${sc.dot}50` : c.border,
-                        },
-                      ]}
-                    >
-                      {isPast ? (
-                        <Ionicons name="checkmark" size={14} color={sc.dot} />
-                      ) : isCurrent ? (
-                        <View style={[s.statusInnerDot, { backgroundColor: '#fff' }]} />
-                      ) : (
-                        <Text style={[s.statusNumber, { color: c.muted }]}>{index + 1}</Text>
-                      )}
-                    </View>
-                    {index < STATUS_FLOW.length - 1 && (
-                      <View style={[s.stepLine, { backgroundColor: isPast ? sc.dot : c.border }]} />
-                    )}
-                  </View>
-                  <View style={{ flex: 1, gap: 3 }}>
-                    <View style={s.statusNameRow}>
-                      <Text style={[s.statusName, { color: isCurrent ? sc.text : c.text, fontWeight: isCurrent ? '900' : '700' }]}>
-                        {getStatusLabel(status)}
-                      </Text>
-                      {isCurrent && (
-                        <View style={[s.currentBadge, { backgroundColor: `${sc.dot}25` }]}>
-                          <Text style={[s.currentBadgeText, { color: sc.text }]}>Current</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={[s.statusDesc, { color: c.muted }]}>{getBookingStatusDescription(status)}</Text>
-                  </View>
-                  {isFuture && (
-                    <Ionicons name="chevron-forward" size={16} color={c.muted} />
-                  )}
-                </Pressable>
-              );
-            })}
+          {/* Where the booking stands now. Statuses are no longer free-pick —
+              the only moves offered are the ones the server will accept. */}
+          <View style={[s.currentCard, { backgroundColor: sc.bg, borderColor: `${sc.dot}30` }]}>
+            <View style={s.currentRow}>
+              <View style={[s.currentDot, { backgroundColor: sc.dot }]} />
+              <Text style={[s.currentLabel, { color: sc.text }]}>{getStatusLabel(booking.status)}</Text>
+            </View>
+            <Text style={[s.currentDesc, { color: c.textSecondary }]}>
+              {getBookingStatusDescription(booking.status)}
+            </Text>
           </View>
 
-          {/* Cancel */}
-          {booking.status !== 'Completed' && booking.status !== 'Cancelled' && (
-            <Pressable
-              style={[s.cancelBtn, { borderColor: c.danger }]}
-              onPress={handleCancel}
-            >
-              <Ionicons name="close-circle-outline" size={16} color={c.danger} />
-              <Text style={[s.cancelBtnText, { color: c.danger }]}>Cancel Booking</Text>
-            </Pressable>
-          )}
+          <BookingActionSheet
+            booking={booking}
+            showCancel
+            onDone={() => router.back()}
+          />
         </MotionScreen>
       </ScrollView>
     </SafeAreaView>
@@ -215,27 +89,9 @@ const s = StyleSheet.create({
   contextService: { fontSize: 13, fontWeight: '500' },
   contextVehicle: { fontSize: 12, fontWeight: '500' },
 
-  statusOption: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
-    borderRadius: radius.xl, borderWidth: 1, padding: 14, ...shadow.xs,
-  },
-  statusLeft: { alignItems: 'center', gap: 0 },
-  statusCircle: {
-    width: 32, height: 32, borderRadius: 16,
-    borderWidth: 1.5, alignItems: 'center', justifyContent: 'center',
-  },
-  statusInnerDot: { width: 10, height: 10, borderRadius: 5 },
-  statusNumber: { fontSize: 12, fontWeight: '800' },
-  stepLine: { width: 2, height: 16, marginVertical: 2, borderRadius: 1 },
-  statusNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  statusName: { fontSize: 14, lineHeight: 20 },
-  currentBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
-  currentBadgeText: { fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
-  statusDesc: { fontSize: 12, fontWeight: '500', lineHeight: 17 },
-
-  cancelBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, paddingVertical: 14, borderRadius: radius.xl, borderWidth: 1,
-  },
-  cancelBtnText: { fontSize: 14, fontWeight: '800' },
+  currentCard: { borderRadius: radius.xl, borderWidth: 1, padding: 16, gap: 6 },
+  currentRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  currentDot: { width: 10, height: 10, borderRadius: 5 },
+  currentLabel: { fontSize: 15, fontWeight: '900' },
+  currentDesc: { fontSize: 13, fontWeight: '500', lineHeight: 18 },
 });

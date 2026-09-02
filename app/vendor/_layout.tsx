@@ -21,6 +21,7 @@ export default function VendorLayout() {
     >
       <Stack.Screen name="dashboard" options={{ animation: 'none' }} />
       <Stack.Screen name="bookings" options={{ animation: 'none' }} />
+      <Stack.Screen name="requests" options={{ animation: 'none' }} />
       <Stack.Screen name="services" options={{ animation: 'none' }} />
       <Stack.Screen name="calendar" options={{ animation: 'none' }} />
       <Stack.Screen name="analytics" options={{ animation: 'none' }} />

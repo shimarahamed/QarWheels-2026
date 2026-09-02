@@ -34,11 +34,19 @@ export default function VendorDashboard() {
     .filter((b) => b.date === 'Today' && b.status !== 'Cancelled')
     .reduce((sum, b) => sum + b.totalAmount, 0);
 
-  const metrics = [
-    { label: "Today's Revenue", value: `QAR ${todayRevenue}`, icon: 'cash-outline' as const, color: c.success },
-    { label: 'Pending', value: String(pending), icon: 'time-outline' as const, color: c.warning },
-    { label: 'In Progress', value: String(inProgress), icon: 'construct-outline' as const, color: c.primary },
-    { label: 'Ready Pickup', value: String(readyPickup), icon: 'checkmark-circle-outline' as const, color: c.ai },
+  // `route` makes a metric tappable — Pending is the entry point to the new
+  // requests inbox (the tab bar's 5 slots are full, so this is the way in).
+  const metrics: {
+    label: string;
+    value: string;
+    icon: React.ComponentProps<typeof Ionicons>['name'];
+    color: string;
+    route?: string;
+  }[] = [
+    { label: "Today's Revenue", value: `QAR ${todayRevenue}`, icon: 'cash-outline', color: c.success },
+    { label: 'Pending', value: String(pending), icon: 'time-outline', color: c.warning, route: '/vendor/requests' },
+    { label: 'In Progress', value: String(inProgress), icon: 'construct-outline', color: c.primary },
+    { label: 'Ready Pickup', value: String(readyPickup), icon: 'checkmark-circle-outline', color: c.ai },
   ];
 
   return (
@@ -80,15 +88,40 @@ export default function VendorDashboard() {
         <MotionScreen style={s.dashboardStack}>
           {/* Metrics */}
           <View style={s.metricsRow}>
-            {metrics.map((m) => (
-              <View key={m.label} style={[s.metricCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-                <View style={[s.metricIcon, { backgroundColor: `${m.color}20` }]}>
-                  <Ionicons name={m.icon} size={18} color={m.color} />
-                </View>
-                <Text style={[s.metricValue, { color: c.text }]}>{m.value}</Text>
-                <Text style={[s.metricLabel, { color: c.muted }]}>{m.label}</Text>
-              </View>
-            ))}
+            {metrics.map((m) => {
+              const inner = (
+                <>
+                  <View style={[s.metricIcon, { backgroundColor: `${m.color}20` }]}>
+                    <Ionicons name={m.icon} size={18} color={m.color} />
+                  </View>
+                  <Text style={[s.metricValue, { color: c.text }]}>{m.value}</Text>
+                  <View style={s.metricLabelRow}>
+                    <Text style={[s.metricLabel, { color: c.muted }]}>{m.label}</Text>
+                    {m.route ? <Ionicons name="chevron-forward" size={12} color={c.muted} /> : null}
+                  </View>
+                </>
+              );
+
+              if (!m.route) {
+                return (
+                  <View key={m.label} style={[s.metricCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+                    {inner}
+                  </View>
+                );
+              }
+
+              return (
+                <Pressable
+                  key={m.label}
+                  style={[s.metricCard, { backgroundColor: c.surface, borderColor: c.border }]}
+                  onPress={() => router.push(m.route as never)}
+                  accessible accessibilityRole="button"
+                  accessibilityLabel={`${m.label}: ${m.value}. Open new requests`}
+                >
+                  {inner}
+                </Pressable>
+              );
+            })}
           </View>
 
           {/* Quick actions */}
@@ -277,6 +310,7 @@ const s = StyleSheet.create({
   },
   metricIcon: { width: 36, height: 36, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   metricValue: { ...typography.h4 },
+  metricLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   metricLabel: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
 
   section: { borderRadius: radius.xl, borderWidth: 1, padding: 18, gap: 16, ...shadow.sm },
