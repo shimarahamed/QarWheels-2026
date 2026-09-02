@@ -24,6 +24,10 @@ export interface UseDocResult<T> {
   error: FirestoreError | Error | null; // Error object, or null.
 }
 
+type UseDocOptions = {
+  suppressPermissionError?: boolean;
+};
+
 /**
  * React hook to subscribe to a single Firestore document in real-time.
  * Handles nullable references.
@@ -40,6 +44,7 @@ export interface UseDocResult<T> {
  */
 export function useDoc<T = any>(
   memoizedDocRef: DocumentReference<DocumentData> | null | undefined,
+  options: UseDocOptions = {},
 ): UseDocResult<T> {
   type StateDataType = WithId<T> | null;
 
@@ -78,7 +83,9 @@ export function useDoc<T = any>(
               path: memoizedDocRef.path,
             })
             setError(contextualError);
-            errorEmitter.emit('permission-error', contextualError);
+            if (!options.suppressPermissionError) {
+              errorEmitter.emit('permission-error', contextualError);
+            }
         } else {
             setError(error);
         }
@@ -88,7 +95,7 @@ export function useDoc<T = any>(
     );
 
     return () => unsubscribe();
-  }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
+  }, [memoizedDocRef, options.suppressPermissionError]); // Re-run if the memoizedDocRef changes.
 
   return { data, isLoading, error };
 }

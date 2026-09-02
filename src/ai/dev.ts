@@ -1,6 +1,6 @@
 import { config } from 'dotenv';
 config();
 
-import '@/ai/flows/summarize-service-history.ts';
-import '@/ai/flows/predictive-maintenance-suggestions.ts';
-import '@/ai/flows/get-vin-details.ts';
+import '@/ai/flows/summarize-service-history';
+import '@/ai/flows/predictive-maintenance-suggestions';
+import '@/ai/flows/get-vin-details';

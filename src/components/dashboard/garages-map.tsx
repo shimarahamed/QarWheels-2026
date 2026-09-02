@@ -1,127 +1,117 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
+import 'leaflet/dist/leaflet.css';
 import type { Vendor, WithId } from '@/lib/types';
 import { Card } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 
-// Define the map center.
-const center: [number, number] = [25.2854, 51.5310]; // Doha, Qatar
+const DOHA: [number, number] = [25.2854, 51.531];
 
 export function GaragesMap({ vendors }: { vendors: WithId<Vendor>[] | null }) {
-    const mapRef = useRef<HTMLDivElement>(null);
-    const mapInstance = useRef<any>(null);
-    const markersLayerRef = useRef<any>(null);
-    const [isClient, setIsClient] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  // Store the Leaflet map and markers layer across renders
+  const mapRef = useRef<any>(null);
+  const layerRef = useRef<any>(null);
 
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
+  // ── Init map once on mount ──────────────────────────────────────────────
+  useEffect(() => {
+    if (mapRef.current || !containerRef.current) return;
 
-    useEffect(() => {
-        if (!isClient || !mapRef.current) return;
+    import('leaflet').then((L) => {
+      // Guard against StrictMode double-fire
+      if (mapRef.current || !containerRef.current) return;
 
-        // Dynamically import Leaflet only on the client
-        const L = require('leaflet');
+      const map = L.map(containerRef.current, { zoomControl: true }).setView(DOHA, 11);
 
-        // Fix for default marker icons in Next.js
-        const markerIcon = new L.Icon({
-            iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-            iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-            shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-        });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+      }).addTo(map);
 
-        // Initialize map if it doesn't exist
-        if (!mapInstance.current) {
-            // Check if there's already a map initialized on this element
-            // Leaflet attaches a _leaflet_id to the container
-            if ((mapRef.current as any)._leaflet_id) {
-                return;
-            }
+      const layer = L.layerGroup().addTo(map);
+      mapRef.current = map;
+      layerRef.current = layer;
 
-            mapInstance.current = L.map(mapRef.current).setView(center, 11);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(mapInstance.current);
+      // Trigger marker render with whatever vendors are already in state
+      renderMarkers(L, map, layer, vendors);
+    });
 
-            markersLayerRef.current = L.layerGroup().addTo(mapInstance.current);
-        }
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        layerRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — only runs once
 
-        const map = mapInstance.current;
-        const markersLayer = markersLayerRef.current;
+  // ── Update markers when vendors change ─────────────────────────────────
+  useEffect(() => {
+    if (!mapRef.current || !layerRef.current) return;
+    import('leaflet').then((L) => {
+      renderMarkers(L, mapRef.current, layerRef.current, vendors);
+    });
+  }, [vendors]);
 
-        // Clear existing markers
-        markersLayer.clearLayers();
+  return (
+    <Card className="overflow-hidden relative aspect-[16/7] bg-muted border shadow-sm">
+      <div ref={containerRef} className="h-full w-full z-0" />
+    </Card>
+  );
+}
 
-        // Add new markers
-        if (vendors && vendors.length > 0) {
-            const validVendors = vendors.filter(v => v.latitude && v.longitude);
-            const latLngs: [number, number][] = [];
+function renderMarkers(L: any, map: any, layer: any, vendors: WithId<Vendor>[] | null) {
+  layer.clearLayers();
 
-            validVendors.forEach(vendor => {
-                const pos: [number, number] = [vendor.latitude, vendor.longitude];
-                latLngs.push(pos);
+  const icon = L.icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  });
 
-                // Manual HTML for popup content to match ShadCN styling
-                const popupContent = `
-                    <div class="p-1 w-64 font-sans">
-                        <h4 class="font-bold text-base mb-1">${vendor.name}</h4>
-                        <p class="text-sm text-gray-500 line-clamp-1 mb-2">${vendor.address}</p>
-                        <div class="flex items-center gap-1 text-sm mb-3">
-                            <span class="font-semibold text-amber-500">★ ${vendor.rating?.toFixed(1) || 'N/A'}</span>
-                            <span class="text-gray-400">(${vendor.reviewCount || 0} reviews)</span>
-                        </div>
-                        <a href="/dashboard/garages/${vendor.id}" 
-                           class="inline-flex items-center justify-center w-full rounded-md bg-black px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 transition-colors"
-                           style="text-decoration: none;">
-                            View Details
-                        </a>
-                    </div>
-                `;
+  const valid = (vendors ?? []).filter((v) => v.latitude && v.longitude);
+  if (valid.length === 0) {
+    map.setView(DOHA, 11);
+    return;
+  }
 
-                L.marker(pos, { icon: markerIcon })
-                    .bindPopup(popupContent)
-                    .addTo(markersLayer);
-            });
+  const latLngs: [number, number][] = [];
+  valid.forEach((vendor) => {
+    const pos: [number, number] = [vendor.latitude, vendor.longitude];
+    latLngs.push(pos);
 
-            // Recenter and zoom to fit markers
-            if (latLngs.length > 0) {
-                const bounds = L.latLngBounds(latLngs);
-                map.fitBounds(bounds, { padding: [50, 50] });
-            }
-        } else if (!vendors || vendors.length === 0) {
-            map.setView(center, 11);
-        }
+    const popup = `
+      <div style="font-family:sans-serif;width:220px;padding:4px">
+        <p style="font-weight:700;font-size:14px;margin:0 0 4px">${esc(vendor.name)}</p>
+        <p style="font-size:12px;color:#6b7280;margin:0 0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(vendor.address)}</p>
+        <p style="font-size:12px;margin:0 0 10px">
+          <span style="color:#f59e0b;font-weight:600">★ ${vendor.rating?.toFixed(1) ?? 'N/A'}</span>
+          <span style="color:#9ca3af"> (${vendor.reviewCount ?? 0} reviews)</span>
+        </p>
+        <div style="display:flex;gap:8px">
+          <a href="/dashboard/garages/${vendor.id}"
+             style="flex:1;display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-weight:600;color:#111;text-decoration:none;background:#fff">
+            Details
+          </a>
+          <a href="/dashboard/garages/${vendor.id}#services"
+             style="flex:1;display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:600;color:#fff;text-decoration:none;background:#000">
+            Book Now
+          </a>
+        </div>
+      </div>`;
 
-        // Cleanup function: remove map instance when component unmounts
-        return () => {
-            // We only remove the markers on updates, not the whole map
-            // The main map removal happens in the separate unmount effect below
-        };
-    }, [isClient, vendors]);
+    L.marker(pos, { icon }).bindPopup(popup, { maxWidth: 240 }).addTo(layer);
+  });
 
-    // Separate effect for absolute cleanup on unmount
-    useEffect(() => {
-        return () => {
-            if (mapInstance.current) {
-                mapInstance.current.remove();
-                mapInstance.current = null;
-            }
-        };
-    }, []);
+  map.fitBounds(L.latLngBounds(latLngs), { padding: [40, 40], maxZoom: 14 });
+}
 
-    return (
-        <Card className="overflow-hidden relative aspect-[16/7] bg-muted border shadow-sm">
-            {!isClient ? (
-                <Skeleton className="h-full w-full" />
-            ) : (
-                <div ref={mapRef} className="h-full w-full z-0" />
-            )}
-        </Card>
-    );
+/** Minimal HTML escape to prevent XSS in popup strings */
+function esc(s: string) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

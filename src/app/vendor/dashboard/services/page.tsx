@@ -44,7 +44,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, Wrench } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, Wrench, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,12 +56,13 @@ import type { Service, WithId } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from 'zod';
+import { Badge } from "@/components/ui/badge";
 
 
 const serviceSchema = z.object({
     name: z.string().min(1, "Name is required"),
     description: z.string().min(1, "Description is required"),
-    duration: z.coerce.number().min(1, "Duration must be positive"),
+    duration: z.coerce.number().int("Must be a whole number").min(1, "Duration must be positive"),
     price: z.coerce.number().min(0, "Price must be positive"),
 });
 
@@ -133,35 +134,36 @@ export default function VendorServicesPage() {
     setIsFormOpen(true);
   };
 
-  const handleDeleteClick = (e: React.MouseEvent, service: WithId<Service>) => {
-    e.stopPropagation();
+  const handleDeleteClick = (service: WithId<Service>) => {
     setSelectedService(service);
     setIsDeleteConfirmOpen(true);
   };
 
-  const handleSaveService = (data: z.infer<typeof serviceSchema>) => {
+  const handleSaveService = async (data: z.infer<typeof serviceSchema>) => {
     if (!vendor || !servicesRef) return;
     setIsSubmitting(true);
-
-    if (selectedService) {
-        // Update
+    try {
+      if (selectedService) {
         const serviceDocRef = doc(firestore, 'vendors', vendor.id, 'services', selectedService.id);
-        safeUpdateDoc(serviceDocRef, data);
+        await safeUpdateDoc(serviceDocRef, data);
         toast({ title: "Service Updated", description: `"${data.name}" has been updated.` });
-    } else {
-        // Create
-        safeAddDoc(servicesRef, data);
+      } else {
+        await safeAddDoc(servicesRef, data);
         toast({ title: "Service Added", description: `"${data.name}" has been added.` });
+      }
+      setIsFormOpen(false);
+      setSelectedService(null);
+    } catch {
+      toast({ title: "Error", description: "Could not save service. Check your input and try again.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
-    setIsFormOpen(false);
-    setSelectedService(null);
   }
   
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!selectedService || !vendor) return;
     const serviceDocRef = doc(firestore, 'vendors', vendor.id, 'services', selectedService.id);
-    safeDeleteDoc(serviceDocRef);
+    await safeDeleteDoc(serviceDocRef);
     toast({
         title: "Service Deleted",
         description: `The service "${selectedService.name}" has been deleted.`,
@@ -172,20 +174,26 @@ export default function VendorServicesPage() {
   }
   
   return (
-    <div className="space-y-8">
-      <header className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
-        <div>
-          <h1 className="text-3xl font-bold font-headline">Manage Services</h1>
-          <p className="text-muted-foreground">
-            Add, edit, and view the services your garage offers.
-          </p>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+      <header className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <Badge variant="outline" className="mb-4 h-8 gap-2 bg-primary/5 px-3 text-primary">
+              <Sparkles className="h-3.5 w-3.5" />
+              Service catalog
+            </Badge>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Build a clear, bookable service menu.</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+              Keep pricing, duration, and descriptions polished so customers know exactly what they are booking.
+            </p>
+          </div>
+          <Button onClick={handleAddNewClick} className="justify-start">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add New Service
+          </Button>
         </div>
-        <Button onClick={handleAddNewClick}>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Add New Service
-        </Button>
       </header>
-      <Card>
+      <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
           <CardHeader>
               <CardTitle>Your Services</CardTitle>
               <CardDescription>A list of services provided by {vendor?.name}.</CardDescription>
@@ -215,7 +223,7 @@ export default function VendorServicesPage() {
                 <TableRow key={service.id} onClick={() => handleRowClick(service)} className="cursor-pointer">
                   <TableCell className="font-medium">{service.name}</TableCell>
                   <TableCell className="hidden sm:table-cell">{service.duration}</TableCell>
-                  <TableCell className="hidden md:table-cell text-right">{service.price.toFixed(2)}</TableCell>
+                  <TableCell className="hidden md:table-cell text-right">{Number(service.price).toFixed(2)}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -230,7 +238,7 @@ export default function VendorServicesPage() {
                                 <Edit className="mr-2 h-4 w-4" /> Edit
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onSelect={(e) => handleDeleteClick(e, service)} className="text-destructive focus:text-destructive">
+                            <DropdownMenuItem onSelect={() => handleDeleteClick(service)} className="text-destructive focus:text-destructive">
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                             </DropdownMenuItem>
                         </DropdownMenuContent>

@@ -1,17 +1,17 @@
-import { cn } from "@/lib/utils"
+﻿import { cn } from '@/lib/utils';
 
-export function Logo({ hideText = false }: { hideText?: boolean }) {
+export function Logo({ hideText = false, className }: { hideText?: boolean; className?: string }) {
   return (
-    <div className="flex items-center gap-3 group">
-      <div className={cn(
-        "w-10 h-10 rounded-lg bg-primary flex items-center justify-center font-bold text-primary-foreground text-3xl font-headline"
-      )}>
-        Q
+    <div className={cn('flex items-center gap-2.5 group select-none', className)}>
+      {/* Red circle with Q */}
+      <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary shadow-md shadow-primary/30 transition-transform duration-200 group-hover:scale-105">
+        <span className="font-headline text-lg font-black leading-none text-white">Q</span>
       </div>
+
       {!hideText && (
-        <div className="flex flex-col">
-            <span className="font-bold text-xl font-headline leading-none text-foreground">QarWheels</span>
-            <span className="text-xs text-muted-foreground leading-none mt-1">Automotive Intelligence</span>
+        <div className="flex flex-col leading-none">
+          <span className="font-headline text-lg font-black tracking-tight text-foreground">QarWheel</span>
+          <span className="text-[10px] font-medium text-muted-foreground tracking-wide">Your Car. Our Care.</span>
         </div>
       )}
     </div>

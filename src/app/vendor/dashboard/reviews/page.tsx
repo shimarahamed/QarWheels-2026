@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from "react";
 import {
     Card,
     CardContent,
@@ -9,15 +10,17 @@ import {
     CardTitle,
   } from "@/components/ui/card";
   import { Button } from "@/components/ui/button";
-  import { Star, MessageSquare, Loader2 } from "lucide-react";
+  import { Star, MessageSquare, Loader2, Send } from "lucide-react";
   import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+  import { Textarea } from "@/components/ui/textarea";
   import { format } from "date-fns";
   import { cn } from "@/lib/utils";
   import { useVendor } from "@/components/vendor/vendor-provider";
-  import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-  import { collection } from "firebase/firestore";
+  import { useFirebase, useCollection, useMemoFirebase, safeUpdateDoc } from "@/firebase";
+  import { collection, doc } from "firebase/firestore";
   import type { Review, WithId } from "@/lib/types";
   import { Skeleton } from "@/components/ui/skeleton";
+  import { useToast } from "@/hooks/use-toast";
 
 
 function StarRating({ rating, className }: { rating: number, className?: string }) {
@@ -38,6 +41,71 @@ function StarRating({ rating, className }: { rating: number, className?: string 
     );
 }
   
+  function ReplyForm({ vendorId, review }: { vendorId: string; review: WithId<Review> }) {
+    const { firestore } = useFirebase();
+    const { toast } = useToast();
+    const [isOpen, setIsOpen] = useState(false);
+    const [text, setText] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    if (review.vendorReply) {
+      return (
+        <div className="mt-4 w-full rounded-lg border bg-muted/40 p-3">
+          <p className="text-xs font-semibold text-muted-foreground">Your reply</p>
+          <p className="mt-1 text-sm text-foreground/80">{review.vendorReply}</p>
+        </div>
+      );
+    }
+
+    if (!isOpen) {
+      return (
+        <Button variant="ghost" size="sm" onClick={() => setIsOpen(true)}>
+          <MessageSquare className="mr-2 h-4 w-4" />
+          Reply to Review
+        </Button>
+      );
+    }
+
+    async function onSubmit() {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      setIsSubmitting(true);
+      try {
+        await safeUpdateDoc(doc(firestore, 'vendors', vendorId, 'reviews', review.id), {
+          vendorReply: trimmed,
+          vendorReplyDate: new Date().toISOString(),
+        });
+        toast({ title: 'Reply posted' });
+        setIsOpen(false);
+      } catch (e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Could not post reply', description: 'Please try again.' });
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+
+    return (
+      <div className="w-full space-y-2">
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Write a reply to this customer..."
+          maxLength={1000}
+        />
+        <div className="flex gap-2">
+          <Button size="sm" onClick={onSubmit} disabled={isSubmitting || !text.trim()}>
+            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+            Post Reply
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setIsOpen(false)} disabled={isSubmitting}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   export default function VendorReviewsPage() {
     const { firestore } = useFirebase();
     const { vendor } = useVendor();
@@ -86,10 +154,7 @@ function StarRating({ rating, className }: { rating: number, className?: string 
                         <p className="text-foreground/80">{review.comment}</p>
                     </CardContent>
                     <CardFooter>
-                        <Button variant="ghost" size="sm" disabled>
-                            <MessageSquare className="mr-2 h-4 w-4" />
-                            Reply to Review
-                        </Button>
+                        {vendor && <ReplyForm vendorId={vendor.id} review={review} />}
                     </CardFooter>
                 </Card>
             ))}

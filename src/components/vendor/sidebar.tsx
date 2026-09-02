@@ -1,44 +1,48 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarFooter,
-  SidebarContent,
-} from "@/components/ui/sidebar";
-import {
-  LayoutDashboard,
-  Wrench,
-  Book,
-  Users,
-  LogOut,
   AreaChart,
-  Settings,
+  Book,
+  Building2,
+  LayoutDashboard,
+  LogOut,
   Package,
   Percent,
+  Settings,
+  ShieldCheck,
+  Sparkles,
   Star,
+  Users,
+  Wrench,
 } from "lucide-react";
-import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Logo } from "../logo";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useFirebase } from "@/firebase";
+import { Logo } from "../logo";
 import { useVendor } from "./vendor-provider";
-import { Skeleton } from "../ui/skeleton";
 
 const navItems = [
-  { href: "/vendor/dashboard", icon: <LayoutDashboard size={20} />, label: "Overview" },
-  { href: "/vendor/dashboard/bookings", icon: <Book size={20} />, label: "Bookings" },
-  { href: "/vendor/dashboard/customers", icon: <Users size={20}/>, label: "Customers" },
-  { href: "/vendor/dashboard/services", icon: <Wrench size={20}/>, label: "Services" },
-  { href: "/vendor/dashboard/inventory", icon: <Package size={20}/>, label: "Inventory" },
-  { href: "/vendor/dashboard/staff", icon: <Users size={20}/>, label: "Staff" },
-  { href: "/vendor/dashboard/promotions", icon: <Percent size={20}/>, label: "Promotions" },
-  { href: "/vendor/dashboard/reviews", icon: <Star size={20}/>, label: "Reviews" },
-  { href: "/vendor/dashboard/analytics", icon: <AreaChart size={20}/>, label: "Analytics" },
+  { href: "/vendor/dashboard",            icon: LayoutDashboard, label: "Overview",   hint: "Command center",  iconBg: "bg-primary/10 text-primary",        activeGradient: "from-primary/20 to-sky-500/10" },
+  { href: "/vendor/dashboard/bookings",   icon: Book,            label: "Bookings",   hint: "Jobs and visits", iconBg: "bg-amber-500/10 text-amber-600",     activeGradient: "from-amber-500/20 to-orange-500/10" },
+  { href: "/vendor/dashboard/customers",  icon: Users,           label: "Customers",  hint: "Client profiles", iconBg: "bg-violet-500/10 text-violet-600",   activeGradient: "from-violet-500/20 to-indigo-500/10" },
+  { href: "/vendor/dashboard/services",   icon: Wrench,          label: "Services",   hint: "Menu and pricing",iconBg: "bg-emerald-500/10 text-emerald-600", activeGradient: "from-emerald-500/20 to-teal-500/10" },
+  { href: "/vendor/dashboard/inventory",  icon: Package,         label: "Inventory",  hint: "Parts and stock", iconBg: "bg-sky-500/10 text-sky-600",         activeGradient: "from-sky-500/20 to-cyan-500/10" },
+  { href: "/vendor/dashboard/staff",      icon: Users,           label: "Staff",      hint: "Team roles",      iconBg: "bg-indigo-500/10 text-indigo-600",   activeGradient: "from-indigo-500/20 to-violet-500/10" },
+  { href: "/vendor/dashboard/promotions", icon: Percent,         label: "Promotions", hint: "Offers",          iconBg: "bg-rose-500/10 text-rose-600",       activeGradient: "from-rose-500/20 to-pink-500/10" },
+  { href: "/vendor/dashboard/reviews",    icon: Star,            label: "Reviews",    hint: "Reputation",      iconBg: "bg-amber-500/10 text-amber-600",     activeGradient: "from-amber-500/20 to-yellow-500/10" },
+  { href: "/vendor/dashboard/analytics",  icon: AreaChart,       label: "Analytics",  hint: "Performance",     iconBg: "bg-teal-500/10 text-teal-600",       activeGradient: "from-teal-500/20 to-emerald-500/10" },
 ];
 
 export function VendorSidebar() {
@@ -46,77 +50,194 @@ export function VendorSidebar() {
   const { auth, user } = useFirebase();
   const { vendor, isLoading } = useVendor();
 
+  const vendorStatus = vendor?.status || "Pending Approval";
+  const isApproved = vendorStatus === "Approved";
+
+  const initials = (user?.displayName || vendor?.name || "Vendor")
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
-    <>
-      <SidebarHeader className="border-b border-sidebar-border h-20">
-        <Logo />
-        {isLoading && (
-          <div className="space-y-2 group-data-[collapsible=icon]:hidden">
-            <Skeleton className="h-4 w-32" />
+    <div className="flex h-full flex-col overflow-hidden border-r border-border/50 bg-background/95 backdrop-blur-xl">
+      {/* Header */}
+      <SidebarHeader className="border-b border-border/50 px-4 py-4">
+        <div className="rounded-2xl border bg-card/80 p-3 shadow-sm">
+          <Logo />
+        </div>
+
+        {/* Workspace card */}
+        <div className="relative mt-4 overflow-hidden rounded-2xl border bg-card p-4 shadow-sm">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-transparent" />
+
+          <div className="relative flex items-start justify-between gap-3">
+            <span className="icon-pill h-10 w-10 bg-primary/10 text-primary">
+              <Building2 className="h-5 w-5" />
+            </span>
+            <Badge
+              variant={isApproved ? "default" : "outline"}
+              className={`shrink-0 text-[11px] ${isApproved ? "bg-emerald-500 hover:bg-emerald-500" : "border-amber-500/30 bg-amber-500/8 text-amber-600"}`}
+            >
+              <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${isApproved ? "bg-emerald-200" : "bg-amber-500"}`} />
+              {vendorStatus}
+            </Badge>
           </div>
-        )}
-        {vendor && (
-            <p className="text-sm text-sidebar-foreground/80 pt-1 group-data-[collapsible=icon]:hidden truncate">
-                {vendor.name}
-            </p>
-        )}
-        
+
+          {isLoading ? (
+            <div className="relative mt-4 space-y-2">
+              <Skeleton className="h-5 w-36" />
+              <Skeleton className="h-4 w-28" />
+            </div>
+          ) : (
+            <div className="relative mt-4">
+              <h2 className="truncate text-base font-bold">{vendor?.name || "Vendor workspace"}</h2>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                {vendor ? `${vendor.city}, ${vendor.country}` : "Complete your workshop profile"}
+              </p>
+            </div>
+          )}
+
+          <div className="relative mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-xl border bg-background/70 p-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Rating</p>
+              <p className="mt-1 text-sm font-bold text-amber-600">{(vendor?.rating || 0).toFixed(1)}</p>
+            </div>
+            <div className="rounded-xl border bg-background/70 p-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Reviews</p>
+              <p className="mt-1 text-sm font-bold">{vendor?.reviewCount || 0}</p>
+            </div>
+          </div>
+        </div>
       </SidebarHeader>
-      <SidebarContent className="p-4">
-        <SidebarMenu>
-          {navItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-               <SidebarMenuButton
+
+      <SidebarContent className="overflow-y-auto px-3 py-4 no-scrollbar" style={{ gap: 0 }}>
+        {/* AI insights shortcut */}
+        <Link
+          href="/vendor/dashboard/analytics"
+          className="group mx-1 mb-4 flex items-center gap-3 rounded-2xl border bg-card p-3 shadow-sm transition-all duration-300 hover:border-amber-500/40 hover:shadow-md"
+        >
+          <span className="icon-pill h-9 w-9 bg-amber-500/10 text-amber-600">
+            <Sparkles className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold">AI business insights</p>
+            <p className="truncate text-xs text-muted-foreground">Demand, revenue, retention</p>
+          </div>
+          <span className="h-2 w-2 rounded-full bg-amber-500 animate-glow-breathe" />
+        </Link>
+
+        {/* Workspace nav */}
+        <div className="mb-2 flex items-center gap-3 px-3">
+          <p className="section-label">Workspace</p>
+          <span className="h-px flex-1 bg-border/60" />
+        </div>
+
+        <SidebarMenu className="mb-5 gap-1">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive =
+              item.href === "/vendor/dashboard"
+                ? pathname === item.href
+                : pathname.startsWith(item.href);
+
+            return (
+              <SidebarMenuItem key={item.href} className="px-1">
+                <SidebarMenuButton
                   asChild
                   size="lg"
-                  isActive={item.href === '/vendor/dashboard' ? pathname === item.href : pathname.startsWith(item.href)}
-                  tooltip={{ children: item.label }}
+                  isActive={isActive}
+                  tooltip={item.label}
+                  className={`relative h-14 overflow-hidden rounded-2xl px-3 transition-all duration-300
+                    ${isActive ? "bg-primary text-primary-foreground nav-glow" : "hover:bg-muted/70"}`}
                 >
-                  <Link href={item.href}>
-                    {item.icon}
-                    <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                  <Link href={item.href} className="flex items-center gap-3">
+                    {isActive && (
+                      <span className={`absolute inset-0 bg-gradient-to-r ${item.activeGradient} opacity-40`} />
+                    )}
+                    <span
+                      className={`relative icon-pill h-9 w-9 ${
+                        isActive ? "bg-primary-foreground/15 text-primary-foreground" : item.iconBg
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className="relative min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold">{item.label}</span>
+                      <span className={`block truncate text-[11px] ${isActive ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                        {item.hint}
+                      </span>
+                    </span>
+                    {isActive && (
+                      <span className="relative h-1.5 w-1.5 rounded-full bg-primary-foreground/70" />
+                    )}
                   </Link>
                 </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+              </SidebarMenuItem>
+            );
+          })}
         </SidebarMenu>
-      </SidebarContent>
-      <SidebarFooter className="p-4 border-t mt-auto border-sidebar-border space-y-2">
-        {user && (
-          <>
-             <SidebarMenu>
-                <SidebarMenuItem>
-                    <SidebarMenuButton asChild size="lg" tooltip={{children: "Settings"}} isActive={pathname.startsWith("/vendor/dashboard/settings")}>
-                         <Link href="/vendor/dashboard/settings">
-                            <Settings size={20}/>
-                             <span className="group-data-[collapsible=icon]:hidden">Settings</span>
-                         </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </SidebarMenu>
 
-            <div className="p-2 rounded-md group-data-[collapsible=icon]:p-0">
-                <div className="flex items-center gap-3">
-                     <Avatar className="h-10 w-10 border-2 border-primary/50">
-                        <AvatarImage src={user.photoURL || `https://api.dicebear.com/8.x/initials/svg?seed=${user?.displayName || 'User'}`} alt={user?.displayName || 'User'} />
-                        <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
-                    </Avatar>
-                     <div className="flex flex-col group-data-[collapsible=icon]:hidden overflow-hidden">
-                        <span className="text-sm font-semibold truncate">{user?.displayName || "Vendor Admin"}</span>
-                        <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
-                    </div>
-                </div>
+        {/* 2026 readiness card */}
+        <div className="mx-1 overflow-hidden rounded-2xl border bg-card p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className="icon-pill h-9 w-9 bg-emerald-500/10 text-emerald-600">
+              <ShieldCheck className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-bold">2026 readiness</p>
+              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                Add services, staff, inventory, and promotions for better visibility.
+              </p>
             </div>
-            
-            <Button onClick={() => auth.signOut()} variant="ghost" className="w-full justify-start gap-3 p-2 h-auto text-muted-foreground hover:text-foreground">
-                <LogOut size={20} />
-                <span className="group-data-[collapsible=icon]:hidden">Logout</span>
-            </Button>
-          </>
+          </div>
+          <div className="mt-4 progress-bar">
+            <div className="progress-fill bg-gradient-to-r from-emerald-500 to-teal-400" style={{ width: "66%" }} />
+          </div>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-[11px] text-muted-foreground">Profile complete</span>
+            <span className="text-[11px] font-bold text-emerald-600">66%</span>
+          </div>
+        </div>
+      </SidebarContent>
+
+      {/* Footer */}
+      <SidebarFooter className="mt-auto border-t border-border/50 p-3">
+        {user && (
+          <div className="overflow-hidden rounded-2xl border bg-card p-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-11 w-11 border-2 border-primary/20 ring-2 ring-primary/5">
+                <AvatarImage
+                  src={user.photoURL || `https://api.dicebear.com/8.x/initials/svg?seed=${user.displayName || vendor?.name || "Vendor"}`}
+                />
+                <AvatarFallback className="bg-primary/10 text-primary font-bold">{initials || "V"}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold">{user.displayName || "Vendor Admin"}</p>
+                <p className="truncate text-[11px] text-muted-foreground">{user.email}</p>
+              </div>
+            </div>
+
+            <div className="mt-3 space-y-1 border-t border-border/50 pt-3">
+              <Button asChild variant="ghost" className="h-9 w-full justify-start gap-3 rounded-xl px-2 text-sm hover:bg-primary/5 hover:text-primary">
+                <Link href="/vendor/dashboard/settings">
+                  <Settings size={16} />
+                  Settings
+                </Link>
+              </Button>
+              <Button
+                onClick={() => auth.signOut()}
+                variant="ghost"
+                className="h-9 w-full justify-start gap-3 rounded-xl px-2 text-sm text-destructive hover:bg-destructive/8 hover:text-destructive"
+              >
+                <LogOut size={16} />
+                Sign Out
+              </Button>
+            </div>
+          </div>
         )}
       </SidebarFooter>
-    </>
+    </div>
   );
 }
-
-  

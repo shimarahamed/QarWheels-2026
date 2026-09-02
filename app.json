@@ -1,0 +1,8 @@
+{
+  "android": {
+    "package": "com.shimarahamed.nextn"
+  },
+  "plugins": [
+    "react-native-ble-plx"
+  ]
+}

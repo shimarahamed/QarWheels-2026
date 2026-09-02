@@ -1,6 +1,6 @@
-# QarWheels
+﻿# QarWheel
 
-**QarWheels** is a modern, AI-powered web application designed to help car owners in Qatar intelligently manage their vehicles. It provides predictive maintenance suggestions, a digital service passport, and a curated directory of trusted local garages.
+**QarWheel** is a modern, AI-powered mobile and web application designed to help car owners in Qatar intelligently manage their vehicles. It provides predictive maintenance suggestions, a digital service passport, and a curated directory of trusted local garages.
 
 ## ✨ Features
 
@@ -39,7 +39,7 @@ Clone the repository and install the dependencies:
 
 ```bash
 git clone <repository-url>
-cd qarwheels
+cd qarwheel
 npm install
 ```
 

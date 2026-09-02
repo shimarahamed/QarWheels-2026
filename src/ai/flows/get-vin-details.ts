@@ -1,80 +1,65 @@
-'use server';
-/**
- * @fileOverview A flow to retrieve vehicle details from an external API using a VIN.
- *
- * - getVinDetails - A function that fetches car data for a given VIN.
- * - VinDetailsInput - The input type for the getVinDetails function.
- * - VinDetailsOutput - The return type for the getVinDetails function.
- */
+import { z } from 'zod';
+import { ai, withRetry } from '../genkit';
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-
-const VinDetailsInputSchema = z.object({
-  vin: z.string().length(17).describe('The 17-character Vehicle Identification Number.'),
+const InputSchema = z.object({
+  vin: z.string().length(17).regex(/^[A-HJ-NPR-Z0-9]{17}$/),
 });
-export type VinDetailsInput = z.infer<typeof VinDetailsInputSchema>;
 
-const VinDetailsOutputSchema = z.object({
-  make: z.string().describe('The manufacturer of the vehicle.'),
-  model: z.string().describe('The model of the vehicle.'),
-  year: z.number().describe('The manufacturing year of the vehicle.'),
+const OutputSchema = z.object({
+  make: z.string(),
+  model: z.string(),
+  year: z.number().int().min(1900).max(2030),
 });
-export type VinDetailsOutput = z.infer<typeof VinDetailsOutputSchema>;
 
-// This tool simulates calling the external DB.VIN API.
+export type VinDetailsInput = z.infer<typeof InputSchema>;
+export type VinDetailsOutput = z.infer<typeof OutputSchema>;
+
 const getVinDataFromApi = ai.defineTool(
-    {
-        name: 'getVinDataFromApi',
-        description: 'Fetches vehicle details (make, model, year) for a given VIN from an external API.',
-        inputSchema: z.object({ vin: z.string().length(17) }),
-        outputSchema: VinDetailsOutputSchema,
-    },
-    async ({ vin }) => {
-        // For this demo, we'll return mock data to simulate the API call.
-        console.log(`[Tool] Simulating API call for VIN: ${vin}`);
-        if (vin.toUpperCase().startsWith('JN1')) {
-            return { make: 'Nissan', model: 'Patrol', year: 2023 };
-        }
-        if (vin.toUpperCase().startsWith('SAL')) {
-            return { make: 'Land Rover', model: 'Range Rover', year: 2022 };
-        }
-        if (vin.toUpperCase().startsWith('WBA')) {
-            return { make: 'BMW', model: 'X5', year: 2021 };
-        }
-        return { make: 'Toyota', model: 'Camry', year: 2020 };
-    }
-);
+  {
+    name: 'getVinDataFromApi',
+    description: 'Fetches vehicle make, model, and year for a given VIN from the NHTSA vPIC API.',
+    inputSchema: z.object({ vin: z.string().length(17) }),
+    outputSchema: OutputSchema,
+  },
+  async ({ vin }) => {
+    const url = `https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${vin}?format=json`;
+    const res = await fetch(url, { next: { revalidate: 86400 } });
+    if (!res.ok) throw new Error(`NHTSA API error: ${res.status}`);
 
+    const data = (await res.json()) as {
+      Results?: Array<{ Make?: string; Model?: string; ModelYear?: string; ErrorCode?: string }>;
+    };
+
+    const result = data.Results?.[0];
+    if (!result || result.ErrorCode !== '0') {
+      throw new Error('VIN not found or invalid');
+    }
+
+    const year = parseInt(result.ModelYear ?? '', 10);
+    if (!result.Make || !result.Model || isNaN(year)) {
+      throw new Error('Incomplete VIN data from NHTSA');
+    }
+
+    return {
+      make: result.Make,
+      model: result.Model,
+      year,
+    };
+  }
+);
 
 const getVinDetailsFlow = ai.defineFlow(
   {
     name: 'getVinDetailsFlow',
-    inputSchema: VinDetailsInputSchema,
-    outputSchema: VinDetailsOutputSchema,
+    inputSchema: InputSchema,
+    outputSchema: OutputSchema,
   },
   async (input) => {
-    // We instruct the LLM to use our tool to fulfill the request.
-    const response = await ai.generate({
-        prompt: `A user wants to know the details for the VIN: ${input.vin}. Use the getVinDataFromApi tool to fetch this information.`,
-        tools: [getVinDataFromApi],
-    });
-
-    const toolResponse = response.toolRequest?.tool.output;
-
-    if (!toolResponse) {
-        console.error("LLM failed to call the tool. Response:", response.text);
-        // As a fallback, we can call the tool directly.
-        return getVinDataFromApi(input);
-    }
-    
-    return toolResponse;
+    // Use the tool directly — no need to involve the LLM for a structured lookup
+    return withRetry(() => getVinDataFromApi(input));
   }
 );
 
-
-export async function getVinDetails(
-  input: VinDetailsInput
-): Promise<VinDetailsOutput> {
+export async function getVinDetails(input: VinDetailsInput): Promise<VinDetailsOutput> {
   return getVinDetailsFlow(input);
 }

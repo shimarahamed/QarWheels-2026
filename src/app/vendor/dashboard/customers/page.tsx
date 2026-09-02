@@ -25,27 +25,15 @@ import {
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu";
   import { format } from "date-fns";
-  import { useFirebase, useCollection, useDoc, useMemoFirebase } from "@/firebase";
+  import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
   import { useVendor } from "@/components/vendor/vendor-provider";
-  import { collection, query, where, doc, Timestamp } from "firebase/firestore";
-  import type { Booking, WithId, UserProfile, Car as CarType } from "@/lib/types";
+  import { collection, query, where, Timestamp } from "firebase/firestore";
+  import type { Booking, WithId } from "@/lib/types";
   import { Skeleton } from "@/components/ui/skeleton";
 
 
-function CustomerRow({ userId }: { userId: string }) {
-    const { firestore } = useFirebase();
-
-    const userRef = useMemoFirebase(
-        () => doc(firestore, 'users', userId),
-        [firestore, userId]
-    );
-    const { data: user, isLoading: isLoadingUser } = useDoc<UserProfile>(userRef);
-
-    const firstBookingQuery = useMemoFirebase(
-        () => query(collection(firestore, 'bookings'), where('userId', '==', userId)),
-        [firestore, userId]
-    )
-    const { data: bookings, isLoading: isLoadingBookings } = useCollection<WithId<Booking>>(firstBookingQuery);
+function CustomerRow({ userId, bookings, isLoadingBookings }: { userId: string; bookings: WithId<Booking>[] | null; isLoadingBookings: boolean }) {
+    const firstBooking = bookings?.[0];
 
     const firstVisit = useMemo(() => {
         if (!bookings || bookings.length === 0) return null;
@@ -56,7 +44,7 @@ function CustomerRow({ userId }: { userId: string }) {
         }).bookingDate;
     }, [bookings]);
 
-    if (isLoadingUser || isLoadingBookings) {
+    if (isLoadingBookings) {
         return (
             <TableRow>
                 <TableCell><Skeleton className="h-5 w-32" /></TableCell>
@@ -68,14 +56,14 @@ function CustomerRow({ userId }: { userId: string }) {
         )
     }
 
-    if (!user) return null; // or show some fallback
+    if (!firstBooking) return null;
 
     return (
         <TableRow>
-            <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
+            <TableCell className="font-medium">{firstBooking.customerName || 'Customer'}</TableCell>
             <TableCell className="hidden md:table-cell">
-                <div>{user.phoneNumber || 'N/A'}</div>
-                <div className="text-sm text-muted-foreground">{user.email}</div>
+                <div>{firstBooking.customerPhone || 'N/A'}</div>
+                <div className="text-sm text-muted-foreground">{firstBooking.customerEmail}</div>
             </TableCell>
             <TableCell className="hidden sm:table-cell">{firstVisit ? format(firstVisit instanceof Timestamp ? firstVisit.toDate() : new Date(firstVisit), "PPP") : 'N/A'}</TableCell>
             <TableCell>{bookings?.length || 0}</TableCell>
@@ -107,11 +95,17 @@ export default function VendorCustomersPage() {
     );
     const { data: bookings, isLoading: isLoadingBookings } = useCollection<WithId<Booking>>(bookingsQuery);
 
-    const uniqueCustomerIds = useMemo(() => {
-        if (!bookings) return [];
-        const userIds = bookings.map(b => b.userId);
-        return [...new Set(userIds)];
+    const bookingsByCustomer = useMemo(() => {
+        const map = new Map<string, WithId<Booking>[]>();
+        for (const booking of bookings || []) {
+            const existing = map.get(booking.userId);
+            if (existing) existing.push(booking);
+            else map.set(booking.userId, [booking]);
+        }
+        return map;
     }, [bookings]);
+
+    const uniqueCustomerIds = useMemo(() => [...bookingsByCustomer.keys()], [bookingsByCustomer]);
 
     const isLoading = isLoadingVendor || isLoadingBookings;
 
@@ -156,7 +150,12 @@ export default function VendorCustomersPage() {
                     ))
                 )}
                 {!isLoading && uniqueCustomerIds.map((userId) => (
-                  <CustomerRow key={userId} userId={userId} />
+                  <CustomerRow
+                    key={userId}
+                    userId={userId}
+                    bookings={bookingsByCustomer.get(userId) || null}
+                    isLoadingBookings={false}
+                  />
                 ))}
               </TableBody>
             </Table>

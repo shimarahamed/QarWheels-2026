@@ -79,23 +79,32 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     const unsubscribe = onAuthStateChanged(
       auth,
-      (firebaseUser) => { // Auth state determined
+      async (firebaseUser) => {
         setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
-        if (!firebaseUser) {
-            // If user logs out, redirect them to the appropriate login page
-            // This prevents protected routes from flashing or showing error states.
-            const isUserDashboard = pathname.startsWith('/dashboard');
-            const isVendorDashboard = pathname.startsWith('/vendor');
+        if (firebaseUser) {
+          // Set a lightweight session cookie so middleware can guard routes server-side.
+          // The actual token is verified by Firebase rules on every Firestore operation.
+          try {
+            const token = await firebaseUser.getIdToken();
+            document.cookie = `qw-session=${token}; path=/; SameSite=Strict; max-age=3600`;
+          } catch {
+            // Non-fatal — client auth still works via onAuthStateChanged
+          }
+        } else {
+          // Clear session cookie on logout
+          document.cookie = 'qw-session=; path=/; max-age=0';
 
-            if (isUserDashboard) {
-                router.replace('/login');
-            } else if (isVendorDashboard) {
-                router.replace('/vendor/login');
-            }
+          const isUserDashboard = pathname.startsWith('/dashboard');
+          const isVendorDashboard = pathname.startsWith('/vendor/dashboard');
+          if (isUserDashboard) {
+            router.replace('/login');
+          } else if (isVendorDashboard) {
+            router.replace('/vendor/login');
+          }
         }
       },
-      (error) => { // Auth listener error
-        console.error("FirebaseProvider: onAuthStateChanged error:", error);
+      (error) => {
+        console.error('FirebaseProvider: onAuthStateChanged error:', error);
         setUserAuthState({ user: null, isUserLoading: false, userError: error });
       }
     );

@@ -1,6 +1,6 @@
 'use client';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AuthForm } from '@/components/auth-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -8,15 +8,17 @@ import { Logo } from '@/components/logo';
 import { useFirebase } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 
-export default function VendorLoginPage() {
+function VendorLoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isUserLoading } = useFirebase();
+  const redirectTo = searchParams.get('redirect') || '/vendor/dashboard';
   
   useEffect(() => {
     if (!isUserLoading && user) {
-      router.replace('/vendor/dashboard');
+      router.replace(redirectTo);
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, redirectTo, router]);
 
   if (isUserLoading || user) {
     return (
@@ -37,7 +39,7 @@ export default function VendorLoginPage() {
           <CardDescription>Sign in to your garage dashboard.</CardDescription>
         </CardHeader>
         <CardContent>
-          <AuthForm type="login" userType="vendor" onResult={() => router.replace('/vendor/dashboard')} />
+          <AuthForm type="login" userType="vendor" onResult={() => router.replace(redirectTo)} />
         </CardContent>
         <CardFooter className="flex justify-center text-sm">
           <p>Need to register your garage?&nbsp;</p>
@@ -47,5 +49,13 @@ export default function VendorLoginPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+export default function VendorLoginPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+      <VendorLoginContent />
+    </Suspense>
   );
 }

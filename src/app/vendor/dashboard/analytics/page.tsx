@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import {
   Card,
   CardContent,
@@ -14,10 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { OverviewChart } from "@/components/vendor/overview-chart";
-import { BookingChart } from "@/components/vendor/booking-chart";
-import { RetentionChart } from "@/components/vendor/retention-chart";
-import { PeakHoursChart } from "@/components/vendor/peak-hours-chart";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const chartLoading = () => <Skeleton className="h-[300px] w-full" />;
+const OverviewChart = dynamic(() => import("@/components/vendor/overview-chart").then(m => m.OverviewChart), { ssr: false, loading: chartLoading });
+const BookingChart = dynamic(() => import("@/components/vendor/booking-chart").then(m => m.BookingChart), { ssr: false, loading: chartLoading });
+const RetentionChart = dynamic(() => import("@/components/vendor/retention-chart").then(m => m.RetentionChart), { ssr: false, loading: chartLoading });
+const PeakHoursChart = dynamic(() => import("@/components/vendor/peak-hours-chart").then(m => m.PeakHoursChart), { ssr: false, loading: chartLoading });
 
 
 export default function VendorAnalyticsPage() {

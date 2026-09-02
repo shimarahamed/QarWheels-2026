@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getMaintenancePredictions } from "@/lib/actions";
 import type { PredictiveMaintenanceOutput } from "@/ai/flows/predictive-maintenance-suggestions";
 import { Loader2, Sparkles, Wrench } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -38,13 +37,23 @@ export function CarMaintenancePredictions({ car }: { car: WithId<Car> }) {
       setIsLoading(true);
       setPrediction(null);
       try {
-        const result = await getMaintenancePredictions({
-          vin: car.vin,
-          mileage: car.currentMileage,
-          serviceHistory: JSON.stringify(serviceHistory || []),
-          qatarClimate: `Hot and arid desert climate. Summer (May-Sep) temperatures average 42°C, can exceed 50°C. High humidity along the coast. Winter (Dec-Feb) is milder, around 23°C. Sand and dust storms are common.`,
+        const response = await fetch('/api/ai/maintenance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vin: car.vin,
+            mileage: car.currentMileage,
+            serviceHistory: JSON.stringify(serviceHistory || []),
+          }),
         });
-        setPrediction(result);
+
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error((body as { error?: string }).error ?? 'Maintenance forecast failed');
+        }
+
+        const body = await response.json() as { data: PredictiveMaintenanceOutput };
+        setPrediction(body.data);
       } catch (error) {
         console.error("Failed to get predictions:", error);
         toast({

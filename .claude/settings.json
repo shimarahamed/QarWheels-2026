@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npm --prefix mobile start)",
+      "PowerShell(eas whoami)",
+      "PowerShell(eas build:list --platform android --limit 1 --non-interactive --json 2>$null)",
+      "PowerShell(git -C mobile ls-files .env .env.example)",
+      "PowerShell(git -C mobile check-ignore -v .env)",
+      "PowerShell(git add app.json)",
+      "PowerShell(npx eas-cli build:cancel fa66a96e-c6da-4961-8e9f-58dcfefacebb --non-interactive)",
+      "WebFetch(domain:docs.expo.dev)",
+      "Bash(node --help)",
+      "Bash(NODE_OPTIONS=\"--no-strip-types\" timeout 25 npx expo start -c)",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./node_modules/expo-modules-core/package.json'\\).exports, null, 2\\)\\)\")",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/expo-modules-core/package.json'\\).main\\)\")",
+      "PowerShell(winget install -e --id CoreyButler.NVMforWindows --accept-source-agreements --accept-package-agreements)",
+      "Read(//c/nvm4w/nodejs/**)",
+      "Bash(\"/c/nvm4w/nodejs/node.exe\" --version)",
+      "Bash(npm view *)",
+      "Bash(npm uninstall *)",
+      "PowerShell(npm uninstall react-leaflet)",
+      "Bash(npm run *)",
+      "Bash(xxd .git/refs/heads/main)",
+      "Bash(git fsck *)",
+      "Bash(git ls-remote *)",
+      "Bash(python3 -c \"import datetime; print\\(datetime.datetime.fromtimestamp\\(1778526815\\)\\)\")",
+      "Bash(git fetch *)",
+      "Bash(git update-ref *)"
+    ]
+  }
+}

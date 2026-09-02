@@ -1,84 +1,344 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Utility functions
-    function isAuthenticated() {
+
+    // ─── SEED BYPASS — remove after running npm run seed:demo ─────────────────
+    // match /{document=**} { allow read, write: if true; }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+    function isSignedIn() {
       return request.auth != null;
     }
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-    function isAdmin() {
-      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
-    }
-    function isVendorOwner(vendorId) {
-      return get(/databases/$(database)/documents/vendors/$(vendorId)).data.ownerId == request.auth.uid;
+
+    // Custom claims minted by src/lib/auth/claims.ts (syncClaimsForUser),
+    // shape: { qw: { r: role, b: businessId, br: [branchId, ...], lvl: adminLevel } }.
+    // Absent entirely for plain customers.
+    function hasClaims() {
+      return isSignedIn() && 'qw' in request.auth.token;
     }
 
-    // User Profiles
+    function claims() {
+      return request.auth.token.qw;
+    }
+
+    function role() {
+      return hasClaims() ? claims().r : 'customer';
+    }
+
+    function isMasterAdmin() {
+      return role() == 'master_admin';
+    }
+
+    // Legacy admin check, kept for the (soon retired) roles_admin collection
+    // and anything not yet migrated onto claims.
+    function isLegacyAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return isMasterAdmin() || isLegacyAdmin();
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Any member of this business (owner, admin, manager, staff)
+    function isBusinessMember(bid) {
+      return hasClaims() && claims().b == bid;
+    }
+
+    // Owner or business-admin of this business — spans all branches
+    function isBusinessAdmin(bid) {
+      return isBusinessMember(bid) && role() in ['business_owner', 'business_admin'];
+    }
+
+    // Scoped to a specific branch: owners/admins pass for every branch of
+    // their business; managers/staff must have the branch in their claim list
+    function isBranchStaff(bid, brid) {
+      return isBusinessMember(bid)
+        && (role() in ['business_owner', 'business_admin'] || brid in claims().br);
+    }
+
+    function isBranchManager(bid, brid) {
+      return isBusinessAdmin(bid)
+        || (isBusinessMember(bid) && role() == 'branch_manager' && brid in claims().br);
+    }
+
+    // Returns true when a field would change between the existing and incoming document
+    function changing(field) {
+      return field in request.resource.data
+        && request.resource.data[field] != resource.data[field];
+    }
+
+    function notChanging(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function hasAllRequired(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // Booking status machine (mirrors src/lib/types.ts BOOKING_TRANSITIONS) —
+    // the datastore-level floor so a direct SDK write can never skip a step,
+    // independent of whatever the client/API route enforces.
+    function canTransitionBooking(from, to) {
+      return (from == to)
+        || (from == 'Pending'         && to in ['Confirmed', 'Declined', 'Cancelled'])
+        || (from == 'Confirmed'       && to in ['VehicleReceived', 'Cancelled', 'NoShow'])
+        || (from == 'VehicleReceived' && to in ['InProgress', 'Cancelled'])
+        || (from == 'InProgress'      && to == 'ReadyForPickup')
+        || (from == 'ReadyForPickup'  && to == 'Completed');
+    }
+
+    // ─── Users ────────────────────────────────────────────────────────────────
     match /users/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
-      
-      // Car Subcollection
+      allow read: if isOwner(userId) || isAdmin();
+
+      allow create: if isOwner(userId)
+        && hasAllRequired(['firstName', 'lastName', 'email', 'createdAt', 'updatedAt'])
+        && request.resource.data.firstName is string
+        && request.resource.data.firstName.size() >= 1
+        && request.resource.data.firstName.size() <= 50
+        && request.resource.data.lastName is string
+        && request.resource.data.lastName.size() >= 1
+        && request.resource.data.lastName.size() <= 50
+        && request.resource.data.email is string;
+
+      allow update: if isAdmin()
+        || (isOwner(userId)
+        && notChanging(['email', 'createdAt'])
+        && (!('firstName' in request.resource.data) || (request.resource.data.firstName is string && request.resource.data.firstName.size() <= 50))
+        && (!('lastName' in request.resource.data) || (request.resource.data.lastName is string && request.resource.data.lastName.size() <= 50)));
+
+      allow delete: if isAdmin();
+
+      // ─── Cars (subcollection — will migrate to flat collection) ─────────────
       match /cars/{carId} {
-        allow read, write: if isOwner(userId) || isAdmin();
-        
-        // Service Records (Nested access)
+        allow read: if isOwner(userId) || isAdmin();
+
+        allow create: if isOwner(userId)
+          && hasAllRequired(['vin', 'make', 'model', 'year', 'currentMileage', 'createdAt', 'updatedAt'])
+          && request.resource.data.vin is string
+          && request.resource.data.vin.size() == 17
+          && request.resource.data.year is int
+          && request.resource.data.year >= 1900
+          && request.resource.data.year <= 2027
+          && request.resource.data.currentMileage is int
+          && request.resource.data.currentMileage >= 0
+          && request.resource.data.currentMileage <= 1000000;
+
+        allow update: if isOwner(userId)
+          && notChanging(['vin', 'userId', 'createdAt'])
+          && (!('currentMileage' in request.resource.data) || (request.resource.data.currentMileage is int && request.resource.data.currentMileage >= 0));
+
+        allow delete: if isOwner(userId) || isAdmin();
+
+        // ─── Service Records ─────────────────────────────────────────────────
         match /serviceRecords/{recordId} {
-          allow read, write: if isOwner(userId) || isAdmin();
+          allow read: if isOwner(userId) || isAdmin();
+
+          allow create: if isOwner(userId)
+            && hasAllRequired(['serviceType', 'serviceDate', 'mileageAtService', 'cost', 'carId', 'userId', 'createdAt', 'updatedAt'])
+            && request.resource.data.userId == userId
+            && request.resource.data.carId == carId
+            && request.resource.data.cost is number
+            && request.resource.data.cost >= 0
+            && request.resource.data.mileageAtService is int
+            && request.resource.data.mileageAtService >= 0;
+
+          // Service records are immutable — only admins can correct them
+          allow update, delete: if isAdmin();
         }
-        
-        // Service Predictions
+
+        // ─── Service Predictions ─────────────────────────────────────────────
         match /servicePredictions/{predictionId} {
           allow read: if isOwner(userId) || isAdmin();
-          allow write: if isAdmin(); // AI/System managed
+          allow write: if isAdmin();
         }
       }
     }
 
-    // Collection Group rule for serviceRecords
-    // This is CRITICAL for the dashboard stats to work across multiple cars.
+    // ─── Collection-group read for dashboard stats ────────────────────────────
     match /{path=**}/serviceRecords/{recordId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if isSignedIn()
+        && (isOwner(resource.data.userId) || isAdmin());
     }
 
-    // Vendors
-    match /vendors/{vendorId} {
-      allow read: if (resource.data.status == 'Approved') || isVendorOwner(vendorId) || isAdmin();
-      allow create: if isAuthenticated();
-      allow update, delete: if isVendorOwner(vendorId) || isAdmin();
+    // ─── Businesses ─────────────────────────────────────────────────────────────
+    // The tenant boundary. businessId is always an auto-generated ID — never
+    // a Firebase Auth UID (that fusion is exactly what this schema replaces).
+    match /businesses/{businessId} {
+      allow get: if isBusinessMember(businessId) || isAdmin();
+      allow list: if isAdmin();
 
-      match /services/{serviceId} { allow read: if true; allow write: if isVendorOwner(vendorId); }
-      match /inventory/{itemId} { allow read, write: if isVendorOwner(vendorId); }
-      match /staff/{staffId} { allow read, write: if isVendorOwner(vendorId); }
-      match /promotions/{promotionId} { allow read: if true; allow write: if isVendorOwner(vendorId); }
-      match /reviews/{reviewId} { 
-        allow read: if true; 
-        allow create: if isAuthenticated();
-        allow update, delete: if isAdmin();
-      }
-    }
+      // Self-signup goes through /api/vendor/register (Admin SDK, transactional:
+      // creates the Auth user, the business, the first branch, and the owner
+      // membership together) — not a direct client create.
+      allow create: if isAdmin();
 
-    // Bookings
-    match /bookings/{bookingId} {
-      allow read: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || 
-        isVendorOwner(resource.data.vendorId) || 
-        isAdmin()
-      );
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || 
-        isVendorOwner(resource.data.vendorId) || 
-        isAdmin()
-      );
+      allow update: if isAdmin()
+        || (isBusinessAdmin(businessId)
+        && notChanging(['ownerId', 'status', 'kyc', 'payout', 'commissionRateBps', 'createdAt', 'branchCount']));
+
       allow delete: if isAdmin();
     }
 
-    // Admin Roles
+    // ─── Branches ─────────────────────────────────────────────────────────────
+    // The customer-facing garage location; unit of scheduling, inventory, staff.
+    match /branches/{branchId} {
+      // Customers see approved + listed branches; members see their own regardless of status
+      allow get: if resource.data.isListed == true
+        || isBusinessMember(resource.data.businessId)
+        || isAdmin();
+
+      allow list: if resource.data.isListed == true
+        || isBusinessMember(resource.data.businessId)
+        || isAdmin();
+
+      allow create: if isAdmin()
+        || (isBusinessAdmin(request.resource.data.businessId)
+        && request.resource.data.status == 'Pending Approval'
+        && request.resource.data.isListed == false);
+
+      allow update: if isAdmin()
+        || (isBranchManager(resource.data.businessId, branchId)
+        && notChanging(['businessId', 'status', 'isListed', 'rating', 'reviewCount', 'approvedAt', 'approvedBy', 'createdAt']));
+
+      allow delete: if isAdmin();
+    }
+
+    // ─── Memberships (staff/auth link) ─────────────────────────────────────────
+    // Admin-SDK only — written exclusively via the staff invite/accept/revoke
+    // API routes, never directly by a client, so role assignment can never be
+    // self-granted or tampered with.
+    match /memberships/{membershipId} {
+      allow get: if isOwner(resource.data.userId)
+        || isBusinessAdmin(resource.data.businessId)
+        || isAdmin();
+      // A business-scoped list query (where businessId == claims.b) is safe
+      // to allow broadly since every matched doc still satisfies isBusinessMember
+      // in principle, but Firestore can't express "every result matches X" for
+      // `list` beyond resource-level checks on a single doc — so list is
+      // deliberately narrow: business admins list via a server route
+      // (src/app/api/vendor/staff/*) using the Admin SDK, which bypasses rules
+      // entirely and can safely filter server-side.
+      allow list: if isAdmin();
+      allow write: if false;
+    }
+
+    // ─── Staff invites ──────────────────────────────────────────────────────────
+    // Same Admin-SDK-only posture as memberships — tokens must never be
+    // readable/writable by a client.
+    match /staff_invites/{inviteId} {
+      allow read, write: if false;
+    }
+
+    // ─── Branch Services (public read, branch-manager write) ────────────────────
+    match /branch_services/{serviceId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        || (isBranchManager(request.resource.data.businessId, request.resource.data.branchId)
+        && hasAllRequired(['businessId', 'branchId', 'name', 'price', 'duration'])
+        && request.resource.data.price is number
+        && request.resource.data.price >= 0
+        && request.resource.data.duration is int
+        && request.resource.data.duration > 0);
+      allow delete: if isBranchManager(resource.data.businessId, resource.data.branchId) || isAdmin();
+    }
+
+    // ─── Branch Inventory ─────────────────────────────────────────────────────
+    match /branch_inventory/{itemId} {
+      allow read, write: if isBranchStaff(resource.data.businessId, resource.data.branchId) || isAdmin();
+      allow create: if isAdmin()
+        || (isBranchStaff(request.resource.data.businessId, request.resource.data.branchId)
+        && hasAllRequired(['businessId', 'branchId']));
+    }
+
+    // ─── Branch Promotions (admin can also create/update for any business) ────
+    match /branch_promotions/{promotionId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        || (isBusinessAdmin(request.resource.data.businessId)
+        && hasAllRequired(['businessId', 'title', 'code', 'discount', 'startDate', 'endDate', 'status'])
+        && request.resource.data.status in ['Active', 'Expired', 'Scheduled']);
+      allow delete: if isBusinessAdmin(resource.data.businessId) || isAdmin();
+    }
+
+    // ─── Reviews (flat, business/branch/booking-keyed) ─────────────────────────
+    match /reviews/{reviewId} {
+      allow read: if true;
+
+      // Any signed-in user can create a review — booking-gate enforced at
+      // the application layer (ReviewService checks completed booking exists)
+      allow create: if isSignedIn()
+        && hasAllRequired(['userId', 'businessId', 'branchId', 'bookingId', 'rating', 'comment'])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && request.resource.data.comment is string
+        && request.resource.data.comment.size() >= 10
+        && request.resource.data.comment.size() <= 1000;
+
+      // Branch staff can only attach a reply — everything else is admin-only
+      allow update: if isAdmin()
+        || (isBranchStaff(resource.data.businessId, resource.data.branchId)
+        && notChanging(['userId', 'businessId', 'branchId', 'bookingId', 'customerName', 'rating', 'comment', 'service', 'date'])
+        && request.resource.data.vendorReply is string
+        && request.resource.data.vendorReply.size() >= 1
+        && request.resource.data.vendorReply.size() <= 1000);
+
+      allow delete: if isAdmin();
+    }
+
+    // ─── Bookings ─────────────────────────────────────────────────────────────
+    match /bookings/{bookingId} {
+      allow read: if isSignedIn() && (
+        isOwner(resource.data.userId)
+        || isBranchStaff(resource.data.businessId, resource.data.branchId)
+        || isAdmin()
+      );
+
+      allow create: if isSignedIn()
+        && hasAllRequired([
+             'userId', 'customerName', 'customerEmail', 'businessId', 'branchId',
+             'branchName', 'carId', 'serviceName', 'bookingDate', 'status',
+             'statusHistory', 'createdAt', 'updatedAt'
+           ])
+        && request.resource.data.userId == request.auth.uid
+        // New bookings always start Pending — no self-confirming a booking.
+        && request.resource.data.status == 'Pending'
+        && request.resource.data.statusHistory.size() == 1
+        && (!('cost' in request.resource.data) || (request.resource.data.cost is number && request.resource.data.cost >= 0));
+
+      allow update: if isSignedIn() && (
+        // Customers can only cancel their own booking, and only before it's
+        // reached a terminal state.
+        (isOwner(resource.data.userId)
+          && request.resource.data.status == 'Cancelled'
+          && !(resource.data.status in ['Completed', 'Cancelled', 'Declined', 'NoShow'])
+          && notChanging(['userId', 'customerName', 'customerEmail', 'customerPhone', 'businessId', 'branchId', 'carId', 'carDescription', 'serviceName', 'bookingDate', 'createdAt']))
+        // Branch staff can only make a legal forward transition; identity
+        // fields are immutable, statusHistory must grow by exactly one entry.
+        || (isBranchStaff(resource.data.businessId, resource.data.branchId)
+          && notChanging(['userId', 'customerName', 'customerEmail', 'customerPhone', 'businessId', 'branchId', 'carId', 'carDescription', 'createdAt'])
+          && canTransitionBooking(resource.data.status, request.resource.data.status)
+          && request.resource.data.statusHistory.size() == resource.data.statusHistory.size() + 1
+          && (!('cost' in request.resource.data) || (request.resource.data.cost is number && request.resource.data.cost >= 0)))
+        || isAdmin()
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ─── Admin roles (read-only — managed via Firebase Console / Admin SDK) ───
+    // Superseded by master_admin custom claims; kept during the transition as
+    // the fallback isAdmin() checks while claims are backfilled.
     match /roles_admin/{adminId} {
-      allow read: if isAuthenticated();
-      allow write: if false; // Only manageable via Firebase Console/Admin SDK
+      allow read: if isAdmin() || isOwner(adminId);
+      allow write: if false;
     }
   }
 }

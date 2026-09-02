@@ -17,7 +17,7 @@ import {
     TableRow,
   } from "@/components/ui/table";
   import { Button } from "@/components/ui/button";
-  import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, Package } from "lucide-react";
+  import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, Package, Sparkles } from "lucide-react";
   import {
     DropdownMenu,
     DropdownMenuContent,
@@ -137,8 +137,7 @@ export default function VendorInventoryPage() {
         setIsFormOpen(true);
     };
 
-    const handleDeleteClick = (e: React.MouseEvent, item: WithId<InventoryItem>) => {
-        e.stopPropagation();
+    const handleDeleteClick = (item: WithId<InventoryItem>) => {
         setSelectedItem(item);
         setIsDeleteConfirmOpen(true);
     };
@@ -175,20 +174,26 @@ export default function VendorInventoryPage() {
     }
 
     return (
-      <div className="space-y-8">
-        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold font-headline">Inventory Management</h1>
-            <p className="text-muted-foreground">
-              Track stock levels, suppliers, and part prices.
-            </p>
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+        <header className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <Badge variant="outline" className="mb-4 h-8 gap-2 bg-primary/5 px-3 text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Parts intelligence
+              </Badge>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Inventory that feels under control.</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+                Track stock, suppliers, SKU details, and prices with a cleaner operational view.
+              </p>
+            </div>
+            <Button onClick={handleAddNewClick} className="justify-start">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add New Item
+            </Button>
           </div>
-          <Button onClick={handleAddNewClick}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add New Item
-          </Button>
         </header>
-        <Card>
+        <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
             <CardHeader>
                 <CardTitle>Stock Items</CardTitle>
                 <CardDescription>A list of all parts and supplies in your inventory.</CardDescription>
@@ -243,7 +248,7 @@ export default function VendorInventoryPage() {
                                 <Edit className="mr-2 h-4 w-4" /> Adjust Stock/Edit
                                 </DropdownMenuItem>
                                <DropdownMenuSeparator />
-                              <DropdownMenuItem onSelect={(e) => handleDeleteClick(e, item)} className="text-destructive focus:text-destructive">
+                              <DropdownMenuItem onSelect={() => handleDeleteClick(item)} className="text-destructive focus:text-destructive">
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                               </DropdownMenuItem>
                           </DropdownMenuContent>

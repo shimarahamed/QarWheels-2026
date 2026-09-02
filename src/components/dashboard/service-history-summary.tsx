@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { summarizeServiceHistory as summarize } from "@/lib/actions";
 import type { SummarizeServiceHistoryOutput } from "@/ai/flows/summarize-service-history";
 import { Loader2, Sparkles, Terminal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -33,14 +32,25 @@ export function ServiceHistorySummary({ car, serviceHistory }: { car: WithId<Car
       setIsLoading(true);
       setSummary(null);
       try {
-        const result = await summarize({
-          vin: car.vin,
-          serviceHistory: JSON.stringify(serviceHistory),
-          make: car.make,
-          model: car.model,
-          year: car.year,
+        const response = await fetch('/api/ai/summarize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vin: car.vin,
+            serviceHistory: JSON.stringify(serviceHistory),
+            make: car.make,
+            model: car.model,
+            year: car.year,
+          }),
         });
-        setSummary(result);
+
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error((body as { error?: string }).error ?? 'Service summary failed');
+        }
+
+        const body = await response.json() as { data: SummarizeServiceHistoryOutput };
+        setSummary(body.data);
       } catch (error) {
         console.error("Failed to get summary:", error);
         toast({

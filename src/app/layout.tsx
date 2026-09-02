@@ -1,9 +1,9 @@
-import './globals.css';
-import 'leaflet/dist/leaflet.css';
-import type { Metadata } from 'next';
+﻿import './globals.css';
+import type { Metadata, Viewport } from 'next';
 import { DM_Sans, Outfit } from 'next/font/google';
 import { FirebaseClientProvider } from '@/firebase';
 import { Toaster } from '@/components/ui/toaster';
+import { ThemeProvider } from '@/components/theme-provider';
 
 const fontBody = DM_Sans({
   subsets: ['latin'],
@@ -18,8 +18,14 @@ const fontHeadline = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: 'QarWheels - Intelligent Car Management',
+  title: 'QarWheel - Intelligent Car Management',
   description: 'Predictive maintenance, digital service records, and trusted garages—all redesigned for Qatar.',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -29,13 +35,25 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${fontBody.variable} ${fontHeadline.variable}`} suppressHydrationWarning>
-       <head>
+      <head>
+        {/* Inline script prevents theme flash before React hydrates */}
+        <script
+          key="theme-init"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('qw-theme');if(t==='dark'||((!t||t==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}`,
+          }}
+        />
       </head>
       <body>
-        <FirebaseClientProvider>
-          {children}
-        </FirebaseClientProvider>
-        <Toaster />
+        <ThemeProvider defaultTheme="system">
+          <FirebaseClientProvider>
+            <div className="app-motion-root">
+              {children}
+            </div>
+          </FirebaseClientProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

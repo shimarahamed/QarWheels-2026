@@ -162,8 +162,7 @@ export default function VendorStaffPage() {
         setIsFormOpen(true);
     };
 
-    const handleDeleteClick = (e: React.MouseEvent, staffMember: WithId<StaffMember>) => {
-        e.stopPropagation();
+    const handleDeleteClick = (staffMember: WithId<StaffMember>) => {
         setSelectedStaff(staffMember);
         setIsDeleteConfirmOpen(true);
     };
@@ -271,7 +270,7 @@ export default function VendorStaffPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem disabled>Reset Password</DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onSelect={(e) => handleDeleteClick(e, staffMember)} className="text-destructive focus:text-destructive">
+                              <DropdownMenuItem onSelect={() => handleDeleteClick(staffMember)} className="text-destructive focus:text-destructive">
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                                </DropdownMenuItem>
                           </DropdownMenuContent>

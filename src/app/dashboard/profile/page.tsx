@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
@@ -17,9 +17,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Loader2 } from 'lucide-react';
-import { useFirebase, useDoc, useMemoFirebase, safeUpdateDoc } from '@/firebase';
-import { doc, serverTimestamp } from 'firebase/firestore';
+import { Camera, Info, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { updatePassword } from 'firebase/auth';
@@ -29,6 +30,12 @@ const profileSchema = z.object({
   lastName: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email address'),
   phoneNumber: z.string().optional(),
+});
+
+const preferencesSchema = z.object({
+  bookingConfirmations: z.boolean(),
+  serviceReminders: z.boolean(),
+  promotionalOffers: z.boolean(),
 });
 
 const passwordSchema = z.object({
@@ -44,6 +51,7 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [isPreferencesSaving, setIsPreferencesSaving] = useState(false);
 
   const userProfileRef = useMemoFirebase(
     () => (user ? doc(firestore, 'users', user.uid) : null),
@@ -69,6 +77,15 @@ export default function ProfilePage() {
     },
   });
 
+  const preferencesForm = useForm<z.infer<typeof preferencesSchema>>({
+    resolver: zodResolver(preferencesSchema),
+    defaultValues: {
+      bookingConfirmations: true,
+      serviceReminders: true,
+      promotionalOffers: false,
+    },
+  });
+
   useEffect(() => {
     if (userProfile) {
       profileForm.reset({
@@ -77,29 +94,72 @@ export default function ProfilePage() {
         email: userProfile.email,
         phoneNumber: userProfile.phoneNumber || '',
       });
+      preferencesForm.reset({
+        bookingConfirmations: userProfile.notificationPreferences?.bookingConfirmations ?? true,
+        serviceReminders: userProfile.notificationPreferences?.serviceReminders ?? true,
+        promotionalOffers: userProfile.notificationPreferences?.promotionalOffers ?? false,
+      });
     } else if (user) {
         profileForm.reset({
             email: user.email || '',
         })
     }
-  }, [userProfile, user, profileForm]);
+  }, [userProfile, user, profileForm, preferencesForm]);
 
-  const onProfileSubmit = (data: z.infer<typeof profileSchema>) => {
+  const onProfileSubmit = async (data: z.infer<typeof profileSchema>) => {
     if (!userProfileRef) return;
     setIsProfileSaving(true);
     
     const updatedData = {
         ...data,
         updatedAt: serverTimestamp(),
+        ...(!userProfile ? { createdAt: serverTimestamp() } : {}),
     };
 
-    safeUpdateDoc(userProfileRef, updatedData);
-    
-    toast({
-      title: 'Profile Updated',
-      description: 'Your profile information has been saved.',
-    });
-    setIsProfileSaving(false);
+    try {
+      await setDoc(userProfileRef, updatedData, { merge: true });
+      toast({
+        title: 'Profile Updated',
+        description: 'Your profile information has been saved.',
+      });
+    } catch {
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: 'Could not save your profile. Please try again.',
+      });
+    } finally {
+      setIsProfileSaving(false);
+    }
+  };
+
+  const onPreferencesSubmit = async (data: z.infer<typeof preferencesSchema>) => {
+    if (!userProfileRef || !user) return;
+    setIsPreferencesSaving(true);
+    try {
+      const fallbackNames = (user.displayName || 'QarWheel User').split(' ');
+      await setDoc(userProfileRef, {
+        firstName: userProfile?.firstName || fallbackNames[0] || 'User',
+        lastName: userProfile?.lastName || fallbackNames.slice(1).join(' ') || 'Customer',
+        email: userProfile?.email || user.email || '',
+        phoneNumber: userProfile?.phoneNumber || '',
+        notificationPreferences: data,
+        ...(!userProfile ? { createdAt: serverTimestamp() } : {}),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      toast({
+        title: 'Preferences Saved',
+        description: 'Your notification settings have been updated.',
+      });
+    } catch {
+      toast({
+        variant: 'destructive',
+        title: 'Save Failed',
+        description: 'Could not save notification preferences.',
+      });
+    } finally {
+      setIsPreferencesSaving(false);
+    }
   };
 
   const onPasswordSubmit = async (data: z.infer<typeof passwordSchema>) => {
@@ -240,32 +300,60 @@ export default function ProfilePage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Notification Settings</CardTitle>
-                    <CardDescription>Manage how you receive notifications from us. (UI Only)</CardDescription>
+                    <CardDescription>Manage how you receive booking, service, and offer updates.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                   <form className="space-y-6">
+                   <Alert className="mb-6">
+                     <Info className="h-4 w-4" />
+                     <AlertTitle>Preferences saved — delivery coming soon</AlertTitle>
+                     <AlertDescription>
+                       Your choices are stored and will take effect once email and push delivery are wired up. No notifications are currently being sent.
+                     </AlertDescription>
+                   </Alert>
+                   <form onSubmit={preferencesForm.handleSubmit(onPreferencesSubmit)} className="space-y-6">
                         <div className="flex items-center justify-between p-4 rounded-lg border">
                             <div>
                                 <Label htmlFor="bookingConfirmations" className="font-semibold">Booking Confirmations</Label>
                                 <p className="text-sm text-muted-foreground">Receive alerts for new bookings and status changes.</p>
                             </div>
-                            <Switch id="bookingConfirmations" defaultChecked/>
+                            <Controller
+                              control={preferencesForm.control}
+                              name="bookingConfirmations"
+                              render={({ field }) => (
+                                <Switch id="bookingConfirmations" checked={field.value} onCheckedChange={field.onChange} />
+                              )}
+                            />
                         </div>
                         <div className="flex items-center justify-between p-4 rounded-lg border">
                              <div>
                                 <Label htmlFor="serviceReminders" className="font-semibold">Service Reminders</Label>
                                 <p className="text-sm text-muted-foreground">Get reminders for upcoming service appointments.</p>
                             </div>
-                            <Switch id="serviceReminders" defaultChecked/>
+                            <Controller
+                              control={preferencesForm.control}
+                              name="serviceReminders"
+                              render={({ field }) => (
+                                <Switch id="serviceReminders" checked={field.value} onCheckedChange={field.onChange} />
+                              )}
+                            />
                         </div>
                         <div className="flex items-center justify-between p-4 rounded-lg border">
                              <div>
                                 <Label htmlFor="promotionalOffers" className="font-semibold">Promotional Offers</Label>
                                 <p className="text-sm text-muted-foreground">Receive news about special offers and discounts.</p>
                             </div>
-                             <Switch id="promotionalOffers"/>
+                             <Controller
+                              control={preferencesForm.control}
+                              name="promotionalOffers"
+                              render={({ field }) => (
+                                <Switch id="promotionalOffers" checked={field.value} onCheckedChange={field.onChange} />
+                              )}
+                            />
                         </div>
-                        <Button type="submit" disabled>Save Preferences</Button>
+                        <Button type="submit" disabled={isPreferencesSaving}>
+                          {isPreferencesSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Save Preferences
+                        </Button>
                    </form>
                 </CardContent>
             </Card>

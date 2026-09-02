@@ -12,8 +12,10 @@ import { useFirebase } from '@/firebase';
 import { 
     createUserWithEmailAndPassword, 
     signInWithEmailAndPassword,
-    signInAnonymously
+    signInAnonymously,
+    updateProfile
 } from 'firebase/auth';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -21,9 +23,23 @@ const loginSchema = z.object({
 });
 
 const signupSchema = z.object({
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
 });
+
+const customerSignupSchema = signupSchema.extend({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+});
+
+type AuthFormValues = {
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+};
 
 type AuthFormProps = {
   type: 'login' | 'signup';
@@ -32,24 +48,41 @@ type AuthFormProps = {
 };
 
 export function AuthForm({ type, userType, onResult }: AuthFormProps) {
-  const { auth } = useFirebase();
+  const { auth, firestore } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const schema = type === 'login' ? loginSchema : signupSchema;
+  const schema = type === 'login' ? loginSchema : userType === 'customer' ? customerSignupSchema : signupSchema;
 
-  const form = useForm<z.infer<typeof schema>>({
+  const form = useForm<AuthFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: '', password: '', firstName: '', lastName: '' },
   });
 
-  const onSubmit = async (values: z.infer<typeof schema>) => {
+  const onSubmit = async (values: AuthFormValues) => {
     setIsSubmitting(true);
     try {
         if (type === 'login') {
             await signInWithEmailAndPassword(auth, values.email, values.password);
         } else {
-            await createUserWithEmailAndPassword(auth, values.email, values.password);
+            const credential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+            if (userType === 'customer') {
+                const firstName = values.firstName || '';
+                const lastName = values.lastName || '';
+                await updateProfile(credential.user, { displayName: `${firstName} ${lastName}`.trim() });
+                await setDoc(doc(firestore, 'users', credential.user.uid), {
+                    firstName,
+                    lastName,
+                    email: values.email,
+                    notificationPreferences: {
+                        bookingConfirmations: true,
+                        serviceReminders: true,
+                        promotionalOffers: false,
+                    },
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                });
+            }
         }
         toast({
             title: type === 'login' ? 'Login Successful' : 'Signup Successful',
@@ -98,14 +131,28 @@ export function AuthForm({ type, userType, onResult }: AuthFormProps) {
   return (
     <div className="space-y-6">
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {type === 'signup' && userType === 'customer' && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                        <Label htmlFor="firstName">First Name</Label>
+                        <Input id="firstName" type="text" autoComplete="given-name" {...form.register('firstName')} />
+                        {'firstName' in form.formState.errors && form.formState.errors.firstName && <p className="text-sm text-destructive">{String(form.formState.errors.firstName.message)}</p>}
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="lastName">Last Name</Label>
+                        <Input id="lastName" type="text" autoComplete="family-name" {...form.register('lastName')} />
+                        {'lastName' in form.formState.errors && form.formState.errors.lastName && <p className="text-sm text-destructive">{String(form.formState.errors.lastName.message)}</p>}
+                    </div>
+                </div>
+            )}
             <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="m@example.com" {...form.register('email')} />
+                <Input id="email" type="email" inputMode="email" placeholder="m@example.com" autoComplete="email" {...form.register('email')} />
                 {form.formState.errors.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
             </div>
             <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" {...form.register('password')} />
+                <Input id="password" type="password" autoComplete={type === 'login' ? 'current-password' : 'new-password'} {...form.register('password')} />
                 {form.formState.errors.password && <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>}
             </div>
             <Button type="submit" className="w-full" disabled={isSubmitting}>

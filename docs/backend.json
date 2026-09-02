@@ -1,10 +1,10 @@
-{
+﻿{
   "entities": {
     "UserProfile": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UserProfile",
       "type": "object",
-      "description": "Represents a user registered on the QarWheels platform, holding their basic profile information.",
+      "description": "Represents a user registered on the QarWheel platform, holding their basic profile information.",
       "properties": {
         "email": {
           "type": "string",
@@ -126,7 +126,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Vendor",
       "type": "object",
-      "description": "Represents a service provider or parts store registered on the QarWheels platform, including their location and approval status.",
+      "description": "Represents a service provider or parts store registered on the QarWheel platform, including their location and approval status.",
       "properties": {
         "ownerId": {
           "type": "string",

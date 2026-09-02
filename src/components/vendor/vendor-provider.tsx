@@ -1,8 +1,8 @@
 'use client';
 
-import { createContext, useContext, ReactNode, useState, useEffect, useMemo } from 'react';
-import { useFirebase, useCollection, useMemoFirebase, safeAddDoc } from '@/firebase';
-import { collection, query, where, serverTimestamp } from 'firebase/firestore';
+import { createContext, useContext, ReactNode, useState, useMemo } from 'react';
+import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import type { Vendor, WithId } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
@@ -58,7 +58,7 @@ function CreateVendorForm() {
             type: 'Garage',
             city: 'Doha',
             country: 'Qatar',
-            status: 'Approved',
+            status: 'Pending Approval',
             latitude: 25.2854, // Default lat for Doha
             longitude: 51.5310, // Default lng for Doha
             createdAt: serverTimestamp(),
@@ -68,14 +68,11 @@ function CreateVendorForm() {
         };
 
         try {
-            const vendorsCollection = collection(firestore, 'vendors');
-            // The useCollection hook in VendorProvider will automatically pick up the new vendor.
-            // We don't need to manually set state here.
-            await safeAddDoc(vendorsCollection, newVendorData);
+            await setDoc(doc(firestore, 'vendors', user.uid), newVendorData);
             
             toast({
-                title: "Profile Created!",
-                description: "Your garage profile is ready. Loading dashboard...",
+                title: "Profile Submitted!",
+                description: "Your garage profile is pending admin approval. Loading dashboard...",
             });
              // The form remains in a submitting state while the provider re-renders.
         } catch (e: any) {
@@ -134,14 +131,15 @@ function CreateVendorForm() {
 export function VendorProvider({ children }: { children: ReactNode }) {
   const { firestore, user, isUserLoading } = useFirebase();
   
-  const vendorQuery = useMemoFirebase(
-    () => (user ? query(collection(firestore, 'vendors'), where('ownerId', '==', user.uid)) : null),
+  const vendorRef = useMemoFirebase(
+    () => (user ? doc(firestore, 'vendors', user.uid) : null),
     [firestore, user]
   );
   
-  const { data: vendors, isLoading: isLoadingVendor } = useCollection<WithId<Vendor>>(vendorQuery);
-  
-  const vendor = (vendors && vendors.length > 0) ? vendors[0] : null;
+  const { data: vendor, isLoading: isLoadingVendor, error: vendorError } = useDoc<Vendor>(
+    vendorRef,
+    { suppressPermissionError: true }
+  );
   const isLoading = isUserLoading || isLoadingVendor;
 
   const value = useMemo(() => ({ vendor, isLoading }), [vendor, isLoading]);
@@ -165,7 +163,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       )
   }
 
-  if (!vendor) {
+  if (!vendor || vendorError) {
     return <CreateVendorForm />;
   }
   

@@ -1,0 +1,48 @@
+{
+  "name": "@ventur8/react-native-liquid-glass-tab-bar",
+  "version": "1.0.1",
+  "description": "A beautiful, floating liquid glass IOS 26 tab bar for React Native and Expo Router",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ventur8/react-native-liquid-glass-tab-bar.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Ventur8/react-native-liquid-glass-tab-bar/issues"
+  },
+  "homepage": "https://github.com/Ventur8/react-native-liquid-glass-tab-bar#readme",
+  "keywords": [
+    "react-native",
+    "expo",
+    "tabbar",
+    "floating",
+    "glassmorphism",
+    "liquid",
+    "ios",
+    "liquid-glass-tab-bar",
+    "flutter",
+    "tab-bar",
+    "flutter-tab-bar",
+    "ios-tab-bar",
+    "ios-tab-bar-26",
+    "bottom-tabs"
+  ],
+  "author": "Ventur8",
+  "license": "MIT",
+  "peerDependencies": {
+    "@react-navigation/bottom-tabs": "*",
+    "expo-blur": "*",
+    "react": "*",
+    "react-native": "*",
+    "react-native-reanimated": "*",
+    "react-native-safe-area-context": "*"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,126 +1,274 @@
 'use client';
-import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import type { Car, ServiceRecord, WithId } from "@/lib/types";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
+
+import Image from 'next/image';
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
+import { format, isValid } from 'date-fns';
+import { collection } from 'firebase/firestore';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
+} from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ServiceHistorySummary } from '@/components/dashboard/service-history-summary';
+import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
+import type { Car, ServiceRecord, WithId } from '@/lib/types';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Car as CarIcon, History, Loader2 } from "lucide-react";
-import { format } from "date-fns";
-import Image from "next/image";
-import { ServiceHistorySummary } from "@/components/dashboard/service-history-summary";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { Skeleton } from "@/components/ui/skeleton";
+  ArrowRight,
+  Calendar,
+  Car as CarIcon,
+  CircleDollarSign,
+  Download,
+  FileText,
+  Gauge,
+  History,
+  Loader2,
+  Printer,
+  PlusCircle,
+  Search,
+  Sparkles,
+  Wrench,
+} from 'lucide-react';
 
-function CarServiceHistory({ car }: { car: WithId<Car> }) {
+function exportCsv(car: WithId<Car>, records: WithId<ServiceRecord>[]) {
+  const rows = [
+    ['Date', 'Service Type', 'Description', 'Mileage (km)', 'Cost (QAR)', 'Notes'],
+    ...records
+      .sort((a, b) => new Date(b.serviceDate).getTime() - new Date(a.serviceDate).getTime())
+      .map((r) => [
+        r.serviceDate,
+        r.serviceType,
+        r.serviceDescription,
+        String(r.mileageAtService),
+        String(r.cost),
+        r.notes ?? '',
+      ]),
+  ];
+  const csv = rows
+    .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `service-history-${car.year}-${car.make}-${car.model}-${car.vin}.csv`.replace(/\s+/g, '-');
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function printPassport(car: WithId<Car>, records: WithId<ServiceRecord>[]) {
+  const rows = records
+    .sort((a, b) => new Date(b.serviceDate).getTime() - new Date(a.serviceDate).getTime())
+    .map(
+      (r) => `<tr>
+        <td>${r.serviceDate}</td>
+        <td>${r.serviceType}</td>
+        <td>${r.serviceDescription}</td>
+        <td>${r.mileageAtService.toLocaleString()} km</td>
+        <td>QAR ${r.cost.toLocaleString()}</td>
+        <td>${r.notes ?? ''}</td>
+      </tr>`
+    )
+    .join('');
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+    <title>Service Passport – ${car.year} ${car.make} ${car.model}</title>
+    <style>
+      body{font-family:sans-serif;padding:32px;color:#111}
+      h1{font-size:1.4rem;margin-bottom:4px}
+      p{color:#555;font-size:.85rem;margin:0 0 20px}
+      table{width:100%;border-collapse:collapse;font-size:.85rem}
+      th{background:#f3f4f6;text-align:left;padding:8px 10px;border-bottom:2px solid #e5e7eb}
+      td{padding:7px 10px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+    </style></head><body>
+    <h1>Service Passport — ${car.year} ${car.make} ${car.model}</h1>
+    <p>VIN: ${car.vin} &nbsp;|&nbsp; Odometer: ${car.currentMileage.toLocaleString()} km${car.licensePlate ? ` &nbsp;|&nbsp; Plate: ${car.licensePlate}` : ''}</p>
+    <table><thead><tr>
+      <th>Date</th><th>Type</th><th>Description</th><th>Mileage</th><th>Cost</th><th>Notes</th>
+    </tr></thead><tbody>${rows}</tbody></table>
+    <script>window.onload=()=>{window.print();window.close()}</script>
+    </body></html>`;
+  const w = window.open('', '_blank');
+  if (w) { w.document.write(html); w.document.close(); }
+}
+
+function toDate(value: string) {
+  const date = new Date(value);
+  return isValid(date) ? date : null;
+}
+
+function getCarImage(car: WithId<Car>) {
+  return (
+    (car.imageId ? PlaceHolderImages.find((img) => img.id === car.imageId) : undefined) ||
+    PlaceHolderImages.find((img) => car.make.toLowerCase().includes(img.imageHint.split(' ')[1] || '')) ||
+    PlaceHolderImages[1]
+  );
+}
+
+function RecordTimeline({ records }: { records: WithId<ServiceRecord>[] }) {
+  return (
+    <div className="space-y-3">
+      {[...records]
+        .sort((a, b) => new Date(b.serviceDate).getTime() - new Date(a.serviceDate).getTime())
+        .map((record) => {
+          const date = toDate(record.serviceDate);
+          return (
+            <div key={record.id} className="rounded-2xl border bg-background/70 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className="bg-primary/5 text-primary">{record.serviceType}</Badge>
+                    <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                      {date ? format(date, 'MMM d, yyyy') : 'Date unavailable'}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{record.serviceDescription}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:w-64">
+                  <div className="rounded-xl border bg-card p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Mileage</p>
+                    <p className="mt-1 text-sm font-bold">{record.mileageAtService.toLocaleString()} km</p>
+                  </div>
+                  <div className="rounded-xl border bg-card p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Cost</p>
+                    <p className="mt-1 text-sm font-bold">QAR {record.cost.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+              {record.notes && (
+                <div className="mt-3 rounded-xl bg-muted/60 p-3 text-sm text-muted-foreground">
+                  {record.notes}
+                </div>
+              )}
+            </div>
+          );
+        })}
+    </div>
+  );
+}
+
+function CarServiceHistory({ car, searchTerm }: { car: WithId<Car>; searchTerm: string }) {
   const { firestore, user } = useFirebase();
-  const serviceHistoryRef = useMemoFirebase(() => 
-    user ? collection(firestore, `users/${user.uid}/cars/${car.id}/serviceRecords`) : null,
+  const serviceHistoryRef = useMemoFirebase(
+    () => (user ? collection(firestore, `users/${user.uid}/cars/${car.id}/serviceRecords`) : null),
     [firestore, user, car.id]
   );
   const { data: carServiceHistory, isLoading } = useCollection<WithId<ServiceRecord>>(serviceHistoryRef);
-  
+
+  const filteredRecords = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return (carServiceHistory || []).filter((record) => {
+      if (!term) return true;
+      return (
+        record.serviceType.toLowerCase().includes(term) ||
+        record.serviceDescription.toLowerCase().includes(term) ||
+        record.notes?.toLowerCase().includes(term)
+      );
+    });
+  }, [carServiceHistory, searchTerm]);
+
   if (isLoading) {
     return (
-      <div className="p-6">
-        <Skeleton className="h-40 w-full" />
-      </div>
+      <AccordionContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+        <Skeleton className="h-48 w-full rounded-2xl" />
+      </AccordionContent>
     );
   }
 
+  const totalSpent = filteredRecords.reduce((acc, record) => acc + (record.cost || 0), 0);
+  const lastRecord = [...filteredRecords].sort((a, b) => new Date(b.serviceDate).getTime() - new Date(a.serviceDate).getTime())[0];
+
   return (
-    <AccordionContent className="p-6 pt-0">
-        {carServiceHistory && carServiceHistory.length > 0 ? (
-            <div className="grid lg:grid-cols-3 gap-6 items-start">
-                <div className="lg:col-span-2">
-                      <Card>
-                        <CardHeader>
-                            <CardTitle>Service Log</CardTitle>
-                            <CardDescription>A record of all maintenance performed on this vehicle.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                <TableRow>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Service</TableHead>
-                                    <TableHead>Description</TableHead>
-                                    <TableHead className="text-right">Cost</TableHead>
-                                </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                {carServiceHistory
-                                    .sort((a, b) => new Date(b.serviceDate).getTime() - new Date(a.serviceDate).getTime())
-                                    .map((record) => (
-                                    <TableRow key={record.id}>
-                                        <TableCell className="font-medium whitespace-nowrap">
-                                        {format(new Date(record.serviceDate), "PPP")}
-                                        </TableCell>
-                                        <TableCell>{record.serviceType}</TableCell>
-                                        <TableCell>{record.serviceDescription}</TableCell>
-                                        <TableCell className="text-right whitespace-nowrap">
-                                        QAR {record.cost.toFixed(2)}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-                </div>
-                <div className="lg:col-span-1 space-y-6">
-                      <Card>
-                        <CardHeader>
-                            <CardTitle>Summary</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4 text-sm">
-                            <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Total Services</span>
-                                <span className="font-bold">{carServiceHistory.length}</span>
-                            </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Total Spent</span>
-                                <span className="font-bold">QAR {carServiceHistory.reduce((acc, s) => acc + s.cost, 0).toFixed(2)}</span>
-                            </div>
-                        </CardContent>
-                      </Card>
-                    <ServiceHistorySummary car={car} serviceHistory={carServiceHistory} />
-                </div>
+    <AccordionContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+      {filteredRecords.length > 0 ? (
+        <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => exportCsv(car, filteredRecords)}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => printPassport(car, filteredRecords)}
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Save as PDF
+              </Button>
             </div>
-        ) : (
-        <div className="text-center text-muted-foreground py-12 px-8 rounded-lg bg-muted/50">
-          <History className="mx-auto h-12 w-12 mb-4 text-primary/50" />
-          <h3 className="font-semibold text-lg">No History Found</h3>
-          <p>No service history has been recorded for this vehicle yet.</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border bg-background/70 p-4">
+                <History className="mb-3 h-5 w-5 text-primary" />
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Records</p>
+                <p className="mt-1 text-2xl font-bold">{filteredRecords.length}</p>
+              </div>
+              <div className="rounded-xl border bg-background/70 p-4">
+                <CircleDollarSign className="mb-3 h-5 w-5 text-emerald-600" />
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Spend</p>
+                <p className="mt-1 text-2xl font-bold">QAR {totalSpent.toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl border bg-background/70 p-4">
+                <Calendar className="mb-3 h-5 w-5 text-amber-600" />
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Last visit</p>
+                <p className="mt-1 text-base font-bold">{lastRecord ? format(toDate(lastRecord.serviceDate) || new Date(), 'MMM d, yyyy') : 'N/A'}</p>
+              </div>
+            </div>
+            <RecordTimeline records={filteredRecords} />
+          </div>
+
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Passport summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">Current odometer</span>
+                  <span className="font-bold">{car.currentMileage.toLocaleString()} km</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">VIN</span>
+                  <span className="truncate font-mono text-xs">{car.vin}</span>
+                </div>
+                <Button asChild variant="outline" className="w-full justify-between">
+                  <Link href={`/dashboard/my-cars/${car.id}/add-record`}>
+                    Add maintenance record
+                    <PlusCircle className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+            <ServiceHistorySummary car={car} serviceHistory={filteredRecords} />
+          </div>
         </div>
-        )}
+      ) : (
+        <div className="rounded-2xl border border-dashed bg-muted/40 px-6 py-12 text-center text-muted-foreground">
+          <History className="mx-auto mb-4 h-12 w-12 text-primary/50" />
+          <h3 className="text-lg font-semibold text-foreground">No matching records</h3>
+          <p className="mt-1 text-sm">Try a different search term or add the first service record for this vehicle.</p>
+          <Button asChild className="mt-5">
+            <Link href={`/dashboard/my-cars/${car.id}/add-record`}>Add Record</Link>
+          </Button>
+        </div>
+      )}
     </AccordionContent>
   );
 }
 
-
 export default function ServiceHistoryPage() {
   const { firestore, user } = useFirebase();
+  const [searchTerm, setSearchTerm] = useState('');
 
   const carsCollectionRef = useMemoFirebase(
     () => (user ? collection(firestore, 'users', user.uid, 'cars') : null),
@@ -128,65 +276,119 @@ export default function ServiceHistoryPage() {
   );
   const { data: cars, isLoading: isLoadingCars } = useCollection<WithId<Car>>(carsCollectionRef);
 
+  const visibleCars = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return cars || [];
+    return (cars || []).filter((car) =>
+      `${car.year} ${car.make} ${car.model} ${car.vin} ${car.licensePlate || ''}`.toLowerCase().includes(term)
+    );
+  }, [cars, searchTerm]);
+
   if (isLoadingCars) {
     return (
-        <div className="flex h-64 w-full items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-    )
+      <div className="flex h-64 w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-8">
-      <header>
-        <h1 className="text-3xl font-bold font-headline">Service History</h1>
-        <p className="text-muted-foreground">
-          A complete, detailed log of all maintenance for your vehicles.
-        </p>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+      <header className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <Badge variant="outline" className="mb-4 h-8 gap-2 bg-primary/5 px-3 text-primary">
+              <Sparkles className="h-3.5 w-3.5" />
+              Digital service passport
+            </Badge>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">History built for proof, planning, and resale.</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+              Search across vehicles, inspect service timelines, summarize maintenance, and keep every important record close.
+            </p>
+          </div>
+          <Button asChild className="justify-start">
+            <Link href="/dashboard/my-cars">
+              Manage Vehicles
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
       </header>
 
-      {cars && cars.length > 0 ? (
+      <section className="rounded-2xl border bg-card p-3 shadow-sm sm:p-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search vehicle, VIN, plate, service type, notes..."
+            className="h-11 pl-10 text-base"
+          />
+        </div>
+      </section>
+
+      {visibleCars.length > 0 ? (
         <Accordion type="single" collapsible className="w-full space-y-4">
-          {cars.map((car) => {
-            const image = car.imageId ? PlaceHolderImages.find((img) => img.id === car.imageId) : (PlaceHolderImages.find((img) => car.make.toLowerCase().includes(img.imageHint.split(' ')[1])) || PlaceHolderImages[1]);
-            
+          {visibleCars.map((car) => {
+            const image = getCarImage(car);
+
             return (
-              <AccordionItem value={car.id} key={car.id} className="border-b-0 rounded-lg bg-card border shadow-sm overflow-hidden transition-shadow hover:shadow-lg hover:border-primary">
-                <AccordionTrigger className="p-6 hover:no-underline">
-                  <div className="flex items-center gap-6 text-left w-full">
+              <AccordionItem
+                value={car.id}
+                key={car.id}
+                className="overflow-hidden rounded-2xl border bg-card shadow-sm transition-all hover:border-primary/40 hover:shadow-md"
+              >
+                <AccordionTrigger className="p-4 hover:no-underline sm:p-5">
+                  <div className="flex min-w-0 flex-1 items-center gap-4 text-left">
                     {image && (
                       <Image
                         src={car.imageUrl || image.imageUrl}
                         alt={car.make}
-                        width={120}
-                        height={80}
-                        className="rounded-lg aspect-video object-cover hidden sm:block"
+                        width={112}
+                        height={76}
+                        className="hidden aspect-video rounded-xl object-cover sm:block"
                         data-ai-hint={image.imageHint}
                       />
                     )}
-                    <div className="flex-grow">
-                      <h3 className="text-xl font-bold font-headline">
-                        {car.year} {car.make} {car.model}
-                      </h3>
-                      <p className="text-sm text-muted-foreground font-mono">{car.vin}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="truncate text-lg font-bold sm:text-xl">
+                          {car.year} {car.make} {car.model}
+                        </h2>
+                        {car.licensePlate && <Badge variant="outline" className="bg-primary/5 text-primary">{car.licensePlate}</Badge>}
+                      </div>
+                      <div className="mt-2 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <FileText className="h-4 w-4 shrink-0 text-primary" />
+                          <span className="truncate font-mono">{car.vin}</span>
+                        </span>
+                        <span className="flex items-center gap-2">
+                          <Gauge className="h-4 w-4 shrink-0 text-primary" />
+                          {car.currentMileage.toLocaleString()} km
+                        </span>
+                        <span className="flex items-center gap-2">
+                          <Wrench className="h-4 w-4 shrink-0 text-primary" />
+                          {car.engineType || 'Engine not set'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </AccordionTrigger>
-                <CarServiceHistory car={car} />
+                <CarServiceHistory car={car} searchTerm={searchTerm} />
               </AccordionItem>
-            )
+            );
           })}
         </Accordion>
       ) : (
         <Card>
-            <CardContent className="text-center text-muted-foreground py-16">
-                <CarIcon className="mx-auto h-12 w-12 mb-4 text-primary/50" />
-                <h3 className="text-lg font-semibold">No Cars Added</h3>
-                <p>You haven't added any cars to your profile yet.</p>
-                 <Button asChild className="mt-4">
-                  <Link href="/dashboard/my-cars/add">Add Your First Car</Link>
-                </Button>
-            </CardContent>
+          <CardContent className="py-16 text-center text-muted-foreground">
+            <CarIcon className="mx-auto mb-4 h-12 w-12 text-primary/50" />
+            <h3 className="text-lg font-semibold text-foreground">No vehicles found</h3>
+            <p className="mt-1 text-sm">Add a vehicle or clear your search to see the full service passport.</p>
+            <Button asChild className="mt-5">
+              <Link href="/dashboard/my-cars/add">Add Your First Car</Link>
+            </Button>
+          </CardContent>
         </Card>
       )}
     </div>

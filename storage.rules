@@ -1,0 +1,27 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    function isVendorOwner(vendorId) {
+      return isSignedIn()
+        && firestore.get(/databases/(default)/documents/vendors/$(vendorId)).data.ownerId == request.auth.uid;
+    }
+
+    // ─── KYC documents ────────────────────────────────────────────────────────
+    // Uploaded by mobile/app/vendor/kyc.tsx to kyc/{vendorId}/doc_*.{ext}.
+    // Only the vendor owner (during submission) and admins (during review) may
+    // read or write — no public access, since these are compliance documents.
+    match /kyc/{vendorId}/{fileName} {
+      allow read, write: if isVendorOwner(vendorId) || isAdmin();
+    }
+  }
+}

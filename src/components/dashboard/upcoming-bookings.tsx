@@ -1,7 +1,7 @@
 'use client';
 
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, Timestamp } from "firebase/firestore";
+import { collection, limit as queryLimit, query, where, Timestamp } from "firebase/firestore";
 import type { Booking, WithId } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,7 +34,7 @@ export function UpcomingBookings() {
     const { firestore, user } = useFirebase();
 
     const upcomingBookingsQuery = useMemoFirebase(
-    () => (user ? query(collection(firestore, 'bookings'), where('userId', '==', user.uid), where('status', '==', 'Confirmed')) : null),
+    () => (user ? query(collection(firestore, 'bookings'), where('userId', '==', user.uid), where('status', '==', 'Confirmed'), queryLimit(10)) : null),
     [firestore, user]
   );
   const { data: bookings, isLoading } = useCollection<WithId<Booking>>(upcomingBookingsQuery);

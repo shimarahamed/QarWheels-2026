@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from "react";
 import { notFound, useParams } from "next/navigation";
 import {
   Card,
@@ -9,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Calendar, Car, CircleDollarSign, Wrench, Loader2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Calendar, Car, CircleDollarSign, Wrench, Loader2, AlertTriangle, XCircle } from "lucide-react";
 import { format, isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -17,13 +18,27 @@ import { Badge } from "@/components/ui/badge";
 import { Booking, Car as CarType, WithId } from "@/lib/types";
 import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
+import { useFirebase, useDoc, useMemoFirebase, safeUpdateDoc } from "@/firebase";
 import { doc, Timestamp } from "firebase/firestore";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 export default function BookingDetailsPage() {
     const params = useParams();
     const { bookingId } = params as { bookingId: string };
     const { firestore, user, isUserLoading } = useFirebase();
+    const { toast } = useToast();
+    const [isCancelling, setIsCancelling] = useState(false);
 
     const bookingRef = useMemoFirebase(
       () => (bookingId ? doc(firestore, 'bookings', bookingId) : null),
@@ -92,6 +107,20 @@ export default function BookingDetailsPage() {
     }
 
     const bookingDate = getBookingDate();
+    const canCancel = booking.status === 'Pending' || booking.status === 'Confirmed';
+
+    async function onCancel() {
+        if (!bookingRef) return;
+        setIsCancelling(true);
+        try {
+            await safeUpdateDoc(bookingRef, { status: 'Cancelled', updatedAt: Timestamp.now() });
+            toast({ title: 'Booking cancelled' });
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsCancelling(false);
+        }
+    }
 
     const getStatusVariant = (status: Booking["status"]) => {
         switch (status) {
@@ -124,14 +153,38 @@ export default function BookingDetailsPage() {
 
             <Card>
                 <CardHeader>
-                    <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start gap-4">
                         <div>
                             <CardTitle>{booking.serviceName}</CardTitle>
                             <CardDescription>at {booking.vendorName}</CardDescription>
                         </div>
-                        <Badge variant={getStatusVariant(booking.status)}>
-                            {booking.status}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-2">
+                            <Badge variant={getStatusVariant(booking.status)}>
+                                {booking.status}
+                            </Badge>
+                            {canCancel && (
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="outline" size="sm" disabled={isCancelling}>
+                                            {isCancelling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
+                                            Cancel Booking
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will cancel your {booking.serviceName} appointment at {booking.vendorName}. This cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Keep Booking</AlertDialogCancel>
+                                            <AlertDialogAction onClick={onCancel}>Yes, Cancel</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            )}
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
