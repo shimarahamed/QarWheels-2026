@@ -17,10 +17,8 @@
     "mobile:export:web": "npm --prefix mobile run export:web",
     "check:all": "npm run typecheck && npm run build && npm run mobile:typecheck && npm run mobile:export:web",
     "test:rules": "firebase emulators:exec --only firestore \"vitest run tests/rules\"",
-    "seed:demo": "node --env-file=.env.local scripts/seed-demo.mjs",
-    "seed:services": "node --env-file=.env.local scripts/seed-services.mjs",
-    "migrate:vendors:dry": "node scripts/migrate-vendors-to-owner-id.mjs",
-    "migrate:vendors:write": "node scripts/migrate-vendors-to-owner-id.mjs --write"
+    "seed:reset": "node --env-file=.env.local scripts/reset-firestore.mjs --yes-i-mean-it",
+    "seed:demo": "node --env-file=.env.local scripts/seed-demo.mjs"
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.3",

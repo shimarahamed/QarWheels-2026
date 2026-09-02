@@ -300,7 +300,7 @@ export default function AdminUsersPage() {
                         <div key={b.id} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/70 p-3">
                           <div className="min-w-0">
                             <p className="text-sm font-bold truncate">{b.serviceName}</p>
-                            <p className="text-xs text-muted-foreground truncate">{b.vendorName}</p>
+                            <p className="text-xs text-muted-foreground truncate">{b.branchName}</p>
                             <p className="text-xs text-muted-foreground">{format(toDate(b.bookingDate), "MMM d, yyyy")}</p>
                           </div>
                           <div className="flex flex-col items-end gap-1 shrink-0">

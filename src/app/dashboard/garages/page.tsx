@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import type { Vendor, WithId } from '@/lib/types';
+import type { Branch, WithId } from '@/lib/types';
 import {
   ArrowRight,
   Building,
@@ -32,9 +32,7 @@ const GaragesMap = dynamic(() => import('@/components/dashboard/garages-map').th
   loading: () => <Skeleton className="h-[320px] w-full rounded-2xl" />,
 });
 
-const specialtyTerms = ['All', 'Garage', 'Parts Store', 'Both'];
-
-function GarageCard({ garage }: { garage: WithId<Vendor> }) {
+function GarageCard({ garage }: { garage: WithId<Branch> }) {
   const image = PlaceHolderImages.find((p) => p.id === garage.imageId) ?? PlaceHolderImages.find((p) => p.id === 'garage-exterior');
 
   return (
@@ -53,7 +51,7 @@ function GarageCard({ garage }: { garage: WithId<Vendor> }) {
               />
             )}
             <div className="absolute left-3 top-3">
-              <Badge className="bg-background/90 text-foreground shadow-sm backdrop-blur">{garage.type}</Badge>
+              <Badge className="bg-background/90 text-foreground shadow-sm backdrop-blur">{garage.city}</Badge>
             </div>
           </div>
 
@@ -70,7 +68,7 @@ function GarageCard({ garage }: { garage: WithId<Vendor> }) {
             </div>
 
             <p className="line-clamp-2 text-sm leading-6 text-muted-foreground">
-              {garage.description || 'Trusted service center with verified profile details and customer feedback.'}
+              {garage.tags?.join(' · ') || 'Trusted service center with verified profile details and customer feedback.'}
             </p>
 
             <div className="grid grid-cols-3 gap-2">
@@ -103,16 +101,17 @@ function GarageCard({ garage }: { garage: WithId<Vendor> }) {
 export default function GaragesPage() {
   const { firestore } = useFirebase();
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('All');
+  const [pickupFilter, setPickupFilter] = useState('All');
   const [cityFilter, setCityFilter] = useState('All');
   const [sortBy, setSortBy] = useState('rating');
 
+  // The marketplace lists individual approved branches, not businesses.
   const vendorsQuery = useMemoFirebase(
-    () => query(collection(firestore, 'vendors'), where('status', '==', 'Approved')),
+    () => query(collection(firestore, 'branches'), where('status', '==', 'Approved')),
     [firestore]
   );
 
-  const { data: vendors, isLoading } = useCollection<WithId<Vendor>>(vendorsQuery);
+  const { data: vendors, isLoading } = useCollection<WithId<Branch>>(vendorsQuery);
 
   const cities = useMemo(() => {
     const allCities = new Set((vendors || []).map((vendor) => vendor.city).filter(Boolean));
@@ -127,19 +126,21 @@ export default function GaragesPage() {
         const matchesSearch =
           !term ||
           vendor.name.toLowerCase().includes(term) ||
-          vendor.description?.toLowerCase().includes(term) ||
+          vendor.address.toLowerCase().includes(term) ||
           vendor.city.toLowerCase().includes(term) ||
-          vendor.type.toLowerCase().includes(term);
-        const matchesType = typeFilter === 'All' || vendor.type === typeFilter;
+          (vendor.tags || []).some((tag) => tag.toLowerCase().includes(term));
+        const matchesPickup =
+          pickupFilter === 'All' ||
+          (pickupFilter === 'Pickup' ? Boolean(vendor.pickupAvailable) : !vendor.pickupAvailable);
         const matchesCity = cityFilter === 'All' || vendor.city === cityFilter;
-        return matchesSearch && matchesType && matchesCity;
+        return matchesSearch && matchesPickup && matchesCity;
       })
       .sort((a, b) => {
         if (sortBy === 'reviews') return (b.reviewCount || 0) - (a.reviewCount || 0);
         if (sortBy === 'name') return a.name.localeCompare(b.name);
         return (b.rating || 0) - (a.rating || 0);
       });
-  }, [cityFilter, searchTerm, sortBy, typeFilter, vendors]);
+  }, [cityFilter, searchTerm, sortBy, pickupFilter, vendors]);
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
@@ -175,13 +176,15 @@ export default function GaragesPage() {
               className="h-11 pl-10 text-base"
             />
           </div>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <Select value={pickupFilter} onValueChange={setPickupFilter}>
             <SelectTrigger className="h-11">
               <Filter className="mr-2 h-4 w-4" />
-              <SelectValue placeholder="Type" />
+              <SelectValue placeholder="Pickup" />
             </SelectTrigger>
             <SelectContent>
-              {specialtyTerms.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+              <SelectItem value="All">All services</SelectItem>
+              <SelectItem value="Pickup">Pickup available</SelectItem>
+              <SelectItem value="NoPickup">Drop-off only</SelectItem>
             </SelectContent>
           </Select>
           <Select value={cityFilter} onValueChange={setCityFilter}>

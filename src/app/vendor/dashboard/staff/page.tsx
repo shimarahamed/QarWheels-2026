@@ -54,7 +54,18 @@ import {
   import { useVendor } from "@/components/vendor/vendor-provider";
   import { useFirebase, useCollection, useMemoFirebase, safeAddDoc, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
   import { collection, doc } from "firebase/firestore";
-  import type { StaffMember, WithId } from "@/lib/types";
+  import type { WithId } from "@/lib/types";
+
+// NOTE: staff/membership is intentionally deferred to a later phase. Until the
+// memberships-backed invite flow lands, this page keeps reading the legacy
+// `businesses/{id}/staff` subcollection with a local shape stand-in for the
+// deleted `StaffMember` type. Do not build on this — it is scaffolding.
+type StaffMember = {
+  name: string;
+  email: string;
+  role: 'Technician' | 'Service Advisor' | 'Admin';
+  status: 'Active' | 'Inactive';
+};
   import { Skeleton } from "@/components/ui/skeleton";
   import { zodResolver } from "@hookform/resolvers/zod";
   import * as z from "zod";
@@ -142,14 +153,14 @@ function StaffForm({ staffMember, onSave, onCancel, isSubmitting }: { staffMembe
 
 export default function VendorStaffPage() {
     const { firestore } = useFirebase();
-    const { vendor } = useVendor();
+    const { business } = useVendor();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [selectedStaff, setSelectedStaff] = useState<WithId<StaffMember> | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
 
-    const staffRef = useMemoFirebase(() => vendor ? collection(firestore, 'vendors', vendor.id, 'staff') : null, [firestore, vendor]);
+    const staffRef = useMemoFirebase(() => collection(firestore, 'vendors', business.id, 'staff'), [firestore, business]);
     const { data: staff, isLoading } = useCollection<WithId<StaffMember>>(staffRef);
 
     const handleRowClick = (staffMember: WithId<StaffMember>) => {
@@ -168,11 +179,11 @@ export default function VendorStaffPage() {
     };
     
     const handleSaveStaff = (data: z.infer<typeof staffSchema>) => {
-        if (!vendor || !staffRef) return;
+        if (!staffRef) return;
         setIsSubmitting(true);
         if (selectedStaff) {
             // Update
-            const staffDocRef = doc(firestore, 'vendors', vendor.id, 'staff', selectedStaff.id);
+            const staffDocRef = doc(firestore, 'vendors', business.id, 'staff', selectedStaff.id);
             safeUpdateDoc(staffDocRef, data);
             toast({ title: "Staff Member Updated", description: `${data.name}'s profile has been updated.`});
         } else {
@@ -186,8 +197,8 @@ export default function VendorStaffPage() {
     }
     
     const handleDeleteConfirm = () => {
-        if (!selectedStaff || !vendor) return;
-        const staffDocRef = doc(firestore, 'vendors', vendor.id, 'staff', selectedStaff.id);
+        if (!selectedStaff) return;
+        const staffDocRef = doc(firestore, 'vendors', business.id, 'staff', selectedStaff.id);
         safeDeleteDoc(staffDocRef);
         toast({
             title: "Staff Member Removed",
@@ -216,7 +227,7 @@ export default function VendorStaffPage() {
         <Card>
             <CardHeader>
                 <CardTitle>Your Team</CardTitle>
-                <CardDescription>A list of all staff members at {vendor?.name}.</CardDescription>
+                <CardDescription>A list of all staff members at {business.displayName}.</CardDescription>
             </CardHeader>
           <CardContent>
             <Table>

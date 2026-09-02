@@ -94,7 +94,7 @@ function BookingCard({ booking, car }: { booking: WithId<Booking>; car?: WithId<
               <h2 className="truncate text-xl font-bold">{booking.serviceName}</h2>
               <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
                 <MapPin className="h-4 w-4 shrink-0 text-primary" />
-                <span className="truncate">{booking.vendorName}</span>
+                <span className="truncate">{booking.branchName}</span>
               </p>
             </div>
             {booking.cost ? (

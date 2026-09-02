@@ -28,7 +28,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useFirebase } from "@/firebase";
 import { Logo } from "../logo";
 import { useVendor } from "./vendor-provider";
@@ -48,12 +47,12 @@ const navItems = [
 export function VendorSidebar() {
   const pathname = usePathname();
   const { auth, user } = useFirebase();
-  const { vendor, isLoading } = useVendor();
+  const { business, activeBranch } = useVendor();
 
-  const vendorStatus = vendor?.status || "Pending Approval";
-  const isApproved = vendorStatus === "Approved";
+  const branchStatus = activeBranch?.status || "Pending Approval";
+  const isApproved = branchStatus === "Approved";
 
-  const initials = (user?.displayName || vendor?.name || "Vendor")
+  const initials = (user?.displayName || business.displayName || "Vendor")
     .split(" ")
     .map((p) => p[0])
     .join("")
@@ -81,32 +80,25 @@ export function VendorSidebar() {
               className={`shrink-0 text-[11px] ${isApproved ? "bg-emerald-500 hover:bg-emerald-500" : "border-amber-500/30 bg-amber-500/8 text-amber-600"}`}
             >
               <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${isApproved ? "bg-emerald-200" : "bg-amber-500"}`} />
-              {vendorStatus}
+              {branchStatus}
             </Badge>
           </div>
 
-          {isLoading ? (
-            <div className="relative mt-4 space-y-2">
-              <Skeleton className="h-5 w-36" />
-              <Skeleton className="h-4 w-28" />
-            </div>
-          ) : (
-            <div className="relative mt-4">
-              <h2 className="truncate text-base font-bold">{vendor?.name || "Vendor workspace"}</h2>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {vendor ? `${vendor.city}, ${vendor.country}` : "Complete your workshop profile"}
-              </p>
-            </div>
-          )}
+          <div className="relative mt-4">
+            <h2 className="truncate text-base font-bold">{business.displayName || "Vendor workspace"}</h2>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {activeBranch ? `${activeBranch.city}, ${activeBranch.country}` : "Complete your branch profile"}
+            </p>
+          </div>
 
           <div className="relative mt-4 grid grid-cols-2 gap-2">
             <div className="rounded-xl border bg-background/70 p-2.5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Rating</p>
-              <p className="mt-1 text-sm font-bold text-amber-600">{(vendor?.rating || 0).toFixed(1)}</p>
+              <p className="mt-1 text-sm font-bold text-amber-600">{(activeBranch?.rating || 0).toFixed(1)}</p>
             </div>
             <div className="rounded-xl border bg-background/70 p-2.5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Reviews</p>
-              <p className="mt-1 text-sm font-bold">{vendor?.reviewCount || 0}</p>
+              <p className="mt-1 text-sm font-bold">{activeBranch?.reviewCount || 0}</p>
             </div>
           </div>
         </div>
@@ -209,7 +201,7 @@ export function VendorSidebar() {
             <div className="flex items-center gap-3">
               <Avatar className="h-11 w-11 border-2 border-primary/20 ring-2 ring-primary/5">
                 <AvatarImage
-                  src={user.photoURL || `https://api.dicebear.com/8.x/initials/svg?seed=${user.displayName || vendor?.name || "Vendor"}`}
+                  src={user.photoURL || `https://api.dicebear.com/8.x/initials/svg?seed=${user.displayName || business.displayName || "Vendor"}`}
                 />
                 <AvatarFallback className="bg-primary/10 text-primary font-bold">{initials || "V"}</AvatarFallback>
               </Avatar>

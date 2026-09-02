@@ -19,14 +19,14 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import type { Booking, Vendor, BusinessInsightsResult, WithId } from '@/lib/types';
+import type { Booking, Business, BusinessInsightsResult, WithId } from '@/lib/types';
 
 interface Props {
-  vendor: Vendor;
+  business: Business;
   bookings: WithId<Booking>[];
 }
 
-export function AIBusinessInsights({ vendor, bookings }: Props) {
+export function AIBusinessInsights({ business, bookings }: Props) {
   const [insights, setInsights] = useState<BusinessInsightsResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +45,7 @@ export function AIBusinessInsights({ vendor, bookings }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          vendorName: vendor.name,
+          vendorName: business.displayName,
           bookings: bookings.slice(-20).map((b) => ({
             serviceName: b.serviceName,
             cost: b.cost ?? 0,
@@ -76,7 +76,7 @@ export function AIBusinessInsights({ vendor, bookings }: Props) {
     } finally {
       setIsLoading(false);
     }
-  }, [vendor.name, bookings]);
+  }, [business.displayName, bookings]);
 
   if (isLoading) {
     return (

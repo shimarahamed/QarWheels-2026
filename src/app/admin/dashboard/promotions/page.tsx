@@ -24,10 +24,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useCollection, useFirebase, useMemoFirebase, safeAddDoc, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-import type { Promotion, PromotionStatus, Vendor, Booking, WithId } from "@/lib/types";
+import type { Promotion, PromotionStatus, Branch, Booking, WithId } from "@/lib/types";
 
 interface EnrichedPromotion extends Promotion {
   id: string;
+  /** Branch this campaign is attached to (first entry of branchIds). */
   vendorId: string;
   vendorName: string;
   timesUsed: number;
@@ -79,9 +80,9 @@ export default function AdminPromotionsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const vendorsQuery = useMemoFirebase(() => query(collection(firestore, "vendors")), [firestore]);
+  const vendorsQuery = useMemoFirebase(() => query(collection(firestore, "branches")), [firestore]);
   const bookingsQuery = useMemoFirebase(() => query(collection(firestore, "bookings")), [firestore]);
-  const { data: vendors } = useCollection<WithId<Vendor>>(vendorsQuery);
+  const { data: vendors } = useCollection<WithId<Branch>>(vendorsQuery);
   const { data: bookings } = useCollection<WithId<Booking>>(bookingsQuery);
 
   const usedCodes = useMemo(() => {
@@ -93,21 +94,30 @@ export default function AdminPromotionsPage() {
     return map;
   }, [bookings]);
 
+  // Promotions are a single flat collection now, so one read replaces the old
+  // per-vendor subcollection fan-out; branch names come from the branches list.
   async function fetchPromos() {
-    if (!vendors || vendors.length === 0) return;
     setLoading(true);
-    const all: EnrichedPromotion[] = [];
-    for (const vendor of vendors) {
-      try {
-        const snap = await getDocs(collection(firestore, "vendors", vendor.id, "promotions"));
-        for (const d of snap.docs) {
-          const data = d.data() as Promotion;
-          all.push({ ...data, id: d.id, vendorId: vendor.id, vendorName: vendor.name, timesUsed: usedCodes[data.code] || 0 });
-        }
-      } catch { /* skip */ }
+    const branchNames = new Map((vendors || []).map((v) => [v.id, v.name]));
+    try {
+      const snap = await getDocs(collection(firestore, "branch_promotions"));
+      const all: EnrichedPromotion[] = snap.docs.map((d) => {
+        const data = d.data() as Promotion;
+        const branchId = data.branchIds?.[0] ?? "";
+        return {
+          ...data,
+          id: d.id,
+          vendorId: branchId,
+          vendorName: branchNames.get(branchId) ?? "All branches",
+          timesUsed: usedCodes[data.code] || 0,
+        };
+      });
+      setPromos(all);
+    } catch {
+      setPromos([]);
+    } finally {
+      setLoading(false);
     }
-    setPromos(all);
-    setLoading(false);
   }
 
   useEffect(() => { fetchPromos(); }, [vendors, firestore, usedCodes]);
@@ -159,19 +169,25 @@ export default function AdminPromotionsPage() {
 
   async function handleSave(data: PromoForm) {
     setIsSubmitting(true);
+    // vendorId is the selected branch; the promotion doc stores it as an array.
+    const { vendorId, ...promoFields } = data;
     const payload = {
-      ...data,
+      ...promoFields,
       startDate: new Date(data.startDate).toISOString(),
       endDate: new Date(data.endDate).toISOString(),
     };
     try {
       if (editPromo) {
-        const ref = doc(firestore, "vendors", editPromo.vendorId, "promotions", editPromo.id);
+        const ref = doc(firestore, "branch_promotions", editPromo.id);
         await safeUpdateDoc(ref, payload);
         toast({ title: "Promotion updated" });
       } else {
-        const ref = collection(firestore, "vendors", data.vendorId, "promotions");
-        await safeAddDoc(ref, payload);
+        const branch = (vendors || []).find((v) => v.id === vendorId);
+        await safeAddDoc(collection(firestore, "branch_promotions"), {
+          ...payload,
+          businessId: branch?.businessId ?? "",
+          branchIds: [vendorId],
+        });
         toast({ title: "Promotion created" });
       }
       await fetchPromos();
@@ -187,7 +203,7 @@ export default function AdminPromotionsPage() {
   async function handleDelete() {
     if (!deletePromo) return;
     try {
-      await safeDeleteDoc(doc(firestore, "vendors", deletePromo.vendorId, "promotions", deletePromo.id));
+      await safeDeleteDoc(doc(firestore, "branch_promotions", deletePromo.id));
       toast({ title: "Promotion deleted", variant: "destructive" });
       await fetchPromos();
       setDeletePromo(null);

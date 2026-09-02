@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { Building2, Loader2, MapPin, ShieldCheck } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -16,14 +15,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useFirebase } from '@/firebase';
-import type { Vendor } from '@/lib/types';
+import { useFirebase, useUser } from '@/firebase';
 
 const vendorSignupSchema = z.object({
   ownerName: z.string().min(2, 'Owner name is required'),
   email: z.string().email('Enter a valid email'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   name: z.string().min(2, 'Garage name is required').max(100, 'Garage name is too long'),
+  legalName: z.string().min(2, 'Legal business name is required').max(150, 'Legal name is too long'),
   type: z.enum(['Garage', 'Parts Store', 'Both']),
   address: z.string().min(5, 'Address is required'),
   city: z.string().min(2, 'City is required'),
@@ -34,7 +33,8 @@ type VendorSignupValues = z.infer<typeof vendorSignupSchema>;
 
 export default function VendorSignupPage() {
   const router = useRouter();
-  const { auth, firestore, user, isUserLoading } = useFirebase();
+  const { auth, user, isUserLoading } = useFirebase();
+  const { refreshClaims } = useUser();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -45,6 +45,7 @@ export default function VendorSignupPage() {
       email: '',
       password: '',
       name: '',
+      legalName: '',
       type: 'Garage',
       address: '',
       city: 'Doha',
@@ -65,30 +66,45 @@ export default function VendorSignupPage() {
       const credential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       await updateProfile(credential.user, { displayName: values.ownerName });
 
-      const newVendorData: Omit<Vendor, 'id'> = {
-        ownerId: credential.user.uid,
-        name: values.name,
-        type: values.type,
-        description: `${values.name} vendor profile`,
-        address: values.address,
-        city: values.city,
-        country: 'Qatar',
-        phoneNumber: values.phoneNumber,
-        email: values.email,
-        latitude: 25.2854,
-        longitude: 51.5310,
-        status: 'Pending Approval',
-        rating: 0,
-        reviewCount: 0,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
+      // The business, its first branch, the owner membership, and the custom
+      // claim are all created server-side via the Admin SDK.
+      const token = await credential.user.getIdToken();
+      const res = await fetch('/api/vendor/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          business: {
+            legalName: values.legalName,
+            displayName: values.name,
+            type: values.type,
+            contactEmail: values.email,
+            contactPhone: values.phoneNumber,
+          },
+          branch: {
+            name: values.name,
+            address: values.address,
+            city: values.city,
+            country: 'Qatar',
+            phoneNumber: values.phoneNumber,
+            // Doha center by default — the owner pins the exact location from
+            // branch settings after registering.
+            latitude: 25.2854,
+            longitude: 51.531,
+          },
+        }),
+      });
 
-      await setDoc(doc(firestore, 'vendors', credential.user.uid), newVendorData);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? 'Vendor registration failed');
+      }
+
+      // Pick up the freshly minted `qw` claim before the dashboard mounts.
+      await refreshClaims();
 
       toast({
         title: 'Vendor account created',
-        description: 'Your vendor profile is pending admin approval.',
+        description: 'Your garage profile is pending admin approval.',
       });
       router.replace('/vendor/dashboard');
     } catch (error: any) {
@@ -178,6 +194,11 @@ export default function VendorSignupPage() {
                 <Label htmlFor="name">Garage Name</Label>
                 <Input id="name" {...form.register('name')} />
                 {form.formState.errors.name && <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="legalName">Legal Business Name</Label>
+                <Input id="legalName" {...form.register('legalName')} />
+                {form.formState.errors.legalName && <p className="text-sm text-destructive">{form.formState.errors.legalName.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Business Type</Label>

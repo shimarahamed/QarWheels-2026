@@ -30,7 +30,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCollection, useDoc, useFirebase, useMemoFirebase, safeAddDoc, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-import type { Booking, BookingStatus, Promotion, Service, UserProfile, Vendor, WithId } from "@/lib/types";
+import { BOOKING_TRANSITIONS } from "@/lib/types";
+import type { Booking, BookingStatus, Promotion, Service, UserProfile, Branch, WithId } from "@/lib/types";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -48,12 +49,17 @@ function statusBadgeClass(s: BookingStatus) {
   return "bg-amber-500/10 text-amber-600 border-amber-500/20";
 }
 
-const VALID_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
-  Pending: ["Pending", "Confirmed", "Cancelled"],
-  Confirmed: ["Confirmed", "Completed", "Cancelled"],
-  Completed: ["Completed"],
-  Cancelled: ["Cancelled"],
-};
+const BOOKING_STATUSES = [
+  "Pending",
+  "Confirmed",
+  "VehicleReceived",
+  "InProgress",
+  "ReadyForPickup",
+  "Completed",
+  "Declined",
+  "Cancelled",
+  "NoShow",
+] as const;
 
 // ─── schemas ─────────────────────────────────────────────────────────────────
 
@@ -66,7 +72,7 @@ const serviceSchema = z.object({
 type ServiceForm = z.infer<typeof serviceSchema>;
 
 const bookingEditSchema = z.object({
-  status: z.enum(["Pending", "Confirmed", "Completed", "Cancelled"]),
+  status: z.enum(BOOKING_STATUSES),
   cost: z.coerce.number().min(0),
   notes: z.string().optional(),
   assignedStaffName: z.string().optional(),
@@ -109,13 +115,13 @@ export default function VendorDetailPage() {
   const router = useRouter();
 
   // ── data refs — guard against undefined vendorId on first render
-  const vendorRef = useMemoFirebase(() => vendorId ? doc(firestore, "vendors", vendorId) : null, [firestore, vendorId]);
-  const servicesRef = useMemoFirebase(() => vendorId ? collection(firestore, "vendors", vendorId, "services") : null, [firestore, vendorId]);
-  const promotionsRef = useMemoFirebase(() => vendorId ? collection(firestore, "vendors", vendorId, "promotions") : null, [firestore, vendorId]);
-  const bookingsQuery = useMemoFirebase(() => vendorId ? query(collection(firestore, "bookings"), where("vendorId", "==", vendorId)) : null, [firestore, vendorId]);
+  const vendorRef = useMemoFirebase(() => vendorId ? doc(firestore, "branches", vendorId) : null, [firestore, vendorId]);
+  const servicesRef = useMemoFirebase(() => vendorId ? query(collection(firestore, "branch_services"), where("branchId", "==", vendorId)) : null, [firestore, vendorId]);
+  const promotionsRef = useMemoFirebase(() => vendorId ? query(collection(firestore, "branch_promotions"), where("branchIds", "array-contains", vendorId)) : null, [firestore, vendorId]);
+  const bookingsQuery = useMemoFirebase(() => vendorId ? query(collection(firestore, "bookings"), where("branchId", "==", vendorId)) : null, [firestore, vendorId]);
   const usersQuery = useMemoFirebase(() => query(collection(firestore, "users")), [firestore]);
 
-  const { data: vendor, isLoading: loadingVendor } = useDoc<Vendor>(vendorRef);
+  const { data: vendor, isLoading: loadingVendor } = useDoc<Branch>(vendorRef);
   const { data: services, isLoading: loadingServices, error: servicesError } = useCollection<WithId<Service>>(servicesRef);
   const { data: promotions, isLoading: loadingPromos } = useCollection<WithId<Promotion>>(promotionsRef);
   const { data: bookings, isLoading: loadingBookings } = useCollection<WithId<Booking>>(bookingsQuery);
@@ -161,10 +167,15 @@ export default function VendorDetailPage() {
     setServiceSubmitting(true);
     try {
       if (editService) {
-        await safeUpdateDoc(doc(firestore, "vendors", vendorId, "services", editService.id), data);
+        await safeUpdateDoc(doc(firestore, "branch_services", editService.id), data);
         toast({ title: "Service updated" });
       } else {
-        await safeAddDoc(servicesRef, data);
+        await safeAddDoc(collection(firestore, "branch_services"), {
+          ...data,
+          businessId: vendor?.businessId ?? "",
+          branchId: vendorId,
+          active: true,
+        });
         toast({ title: "Service created" });
       }
       setShowServiceForm(false); setEditService(null);
@@ -173,7 +184,7 @@ export default function VendorDetailPage() {
   }
   async function handleDeleteService() {
     if (!deleteService) return;
-    await safeDeleteDoc(doc(firestore, "vendors", vendorId, "services", deleteService.id));
+    await safeDeleteDoc(doc(firestore, "branch_services", deleteService.id));
     toast({ title: "Service deleted", variant: "destructive" });
     setDeleteService(null);
   }
@@ -241,10 +252,14 @@ export default function VendorDetailPage() {
     const payload = { ...data, startDate: new Date(data.startDate).toISOString(), endDate: new Date(data.endDate).toISOString() };
     try {
       if (editPromo) {
-        await safeUpdateDoc(doc(firestore, "vendors", vendorId, "promotions", editPromo.id), payload);
+        await safeUpdateDoc(doc(firestore, "branch_promotions", editPromo.id), payload);
         toast({ title: "Promotion updated" });
       } else if (promotionsRef) {
-        await safeAddDoc(promotionsRef, payload);
+        await safeAddDoc(collection(firestore, "branch_promotions"), {
+          ...payload,
+          businessId: vendor?.businessId ?? "",
+          branchIds: [vendorId],
+        });
         toast({ title: "Promotion created" });
       }
       setShowPromoForm(false); setEditPromo(null);
@@ -253,7 +268,7 @@ export default function VendorDetailPage() {
   }
   async function handleDeletePromo() {
     if (!deletePromo) return;
-    await safeDeleteDoc(doc(firestore, "vendors", vendorId, "promotions", deletePromo.id));
+    await safeDeleteDoc(doc(firestore, "branch_promotions", deletePromo.id));
     toast({ title: "Promotion deleted", variant: "destructive" });
     setDeletePromo(null);
   }
@@ -297,7 +312,7 @@ export default function VendorDetailPage() {
             <span className="icon-pill h-14 w-14 bg-emerald-500/10 text-emerald-600 shrink-0"><Building2 className="h-7 w-7" /></span>
             <div>
               <h1 className="text-2xl font-bold tracking-tight">{vendor.name}</h1>
-              <p className="text-sm text-muted-foreground mt-1">{vendor.type}</p>
+              <p className="text-sm text-muted-foreground mt-1">{vendor.city}, {vendor.country}</p>
               <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{vendor.address}, {vendor.city}</span>
                 <span className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" />{vendor.phoneNumber}</span>
@@ -312,7 +327,7 @@ export default function VendorDetailPage() {
               : <Badge className="bg-amber-500 hover:bg-amber-500">Pending</Badge>}
           </div>
         </div>
-        {vendor.description && <p className="relative mt-4 text-sm text-muted-foreground border-t border-border/60 pt-4">{vendor.description}</p>}
+        {vendor.tags && vendor.tags.length > 0 && <p className="relative mt-4 text-sm text-muted-foreground border-t border-border/60 pt-4">{vendor.tags.join(' · ')}</p>}
       </div>
 
       {/* KPI row */}
@@ -624,7 +639,7 @@ export default function VendorDetailPage() {
                 <Select onValueChange={field.onChange} value={field.value}>
                   <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                   <SelectContent className="rounded-2xl">
-                    {(editBooking ? VALID_TRANSITIONS[editBooking.status] : ["Pending", "Confirmed", "Completed", "Cancelled"]).map(s => (
+                    {(editBooking ? [editBooking.status, ...BOOKING_TRANSITIONS[editBooking.status]] : [...BOOKING_STATUSES]).map(s => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))}
                   </SelectContent>

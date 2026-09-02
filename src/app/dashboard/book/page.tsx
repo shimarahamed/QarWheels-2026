@@ -5,7 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useFirebase, useCollection, useDoc, useMemoFirebase, safeAddDoc } from '@/firebase';
-import { collection, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
@@ -40,6 +40,7 @@ function BookingForm() {
   const { toast } = useToast();
 
   const garageId = searchParams.get('garageId');
+  const businessId = searchParams.get('businessId');
   const garageName = searchParams.get('garageName');
   const serviceName = searchParams.get('serviceName');
   const price = searchParams.get('price');
@@ -127,13 +128,23 @@ function BookingForm() {
       customerName: userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : (user.displayName || 'Customer'),
       customerEmail: userProfile?.email || user.email || '',
       customerPhone: userProfile?.phoneNumber || '',
-      vendorId: garageId,
-      vendorName: garageName,
+      businessId: businessId || '',
+      branchId: garageId,
+      branchName: garageName,
       carId: pendingValues.carId,
       carDescription: selectedCar ? `${selectedCar.year} ${selectedCar.make} ${selectedCar.model}` : '',
       serviceName,
       bookingDate: appointmentDate,
       status: 'Pending' as const,
+      // Rules require a new booking to open with exactly one history entry.
+      statusHistory: [
+        {
+          status: 'Pending' as const,
+          at: Timestamp.now(),
+          byUid: user.uid,
+          byRole: 'customer' as const,
+        },
+      ],
       cost: price ? parseFloat(price) : 0,
       notes: pendingValues.notes?.trim() || '',
       createdAt: serverTimestamp(),

@@ -17,7 +17,7 @@ import {
   import { cn } from "@/lib/utils";
   import { useVendor } from "@/components/vendor/vendor-provider";
   import { useFirebase, useCollection, useMemoFirebase, safeUpdateDoc } from "@/firebase";
-  import { collection, doc } from "firebase/firestore";
+  import { collection, doc, query, where } from "firebase/firestore";
   import type { Review, WithId } from "@/lib/types";
   import { Skeleton } from "@/components/ui/skeleton";
   import { useToast } from "@/hooks/use-toast";
@@ -41,7 +41,7 @@ function StarRating({ rating, className }: { rating: number, className?: string 
     );
 }
   
-  function ReplyForm({ vendorId, review }: { vendorId: string; review: WithId<Review> }) {
+  function ReplyForm({ review }: { review: WithId<Review> }) {
     const { firestore } = useFirebase();
     const { toast } = useToast();
     const [isOpen, setIsOpen] = useState(false);
@@ -71,7 +71,7 @@ function StarRating({ rating, className }: { rating: number, className?: string 
       if (!trimmed) return;
       setIsSubmitting(true);
       try {
-        await safeUpdateDoc(doc(firestore, 'vendors', vendorId, 'reviews', review.id), {
+        await safeUpdateDoc(doc(firestore, 'reviews', review.id), {
           vendorReply: trimmed,
           vendorReplyDate: new Date().toISOString(),
         });
@@ -108,10 +108,13 @@ function StarRating({ rating, className }: { rating: number, className?: string 
 
   export default function VendorReviewsPage() {
     const { firestore } = useFirebase();
-    const { vendor } = useVendor();
+    const { activeBranch } = useVendor();
 
-    const reviewsRef = useMemoFirebase(() => vendor ? collection(firestore, 'vendors', vendor.id, 'reviews') : null, [firestore, vendor]);
-    const { data: reviews, isLoading } = useCollection<WithId<Review>>(reviewsRef);
+    const reviewsQuery = useMemoFirebase(
+      () => activeBranch ? query(collection(firestore, 'reviews'), where('branchId', '==', activeBranch.id)) : null,
+      [firestore, activeBranch],
+    );
+    const { data: reviews, isLoading } = useCollection<WithId<Review>>(reviewsQuery);
 
     return (
       <div className="space-y-8">
@@ -154,7 +157,7 @@ function StarRating({ rating, className }: { rating: number, className?: string 
                         <p className="text-foreground/80">{review.comment}</p>
                     </CardContent>
                     <CardFooter>
-                        {vendor && <ReplyForm vendorId={vendor.id} review={review} />}
+                        <ReplyForm review={review} />
                     </CardFooter>
                 </Card>
             ))}

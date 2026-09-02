@@ -92,14 +92,18 @@ function UpcomingBooking({ booking }: { booking: WithId<Booking> }) {
 
 export default function VendorDashboard() {
   const { firestore } = useFirebase();
-  const { vendor, isLoading: isLoadingVendor } = useVendor();
+  const { business, activeBranch, canSeeAllBranches } = useVendor();
 
   const bookingsQuery = useMemoFirebase(
-    () => (vendor ? query(collection(firestore, "bookings"), where("vendorId", "==", vendor.id)) : null),
-    [firestore, vendor]
+    () =>
+      canSeeAllBranches
+        ? query(collection(firestore, "bookings"), where("businessId", "==", business.id))
+        : activeBranch
+        ? query(collection(firestore, "bookings"), where("branchId", "==", activeBranch.id))
+        : null,
+    [firestore, business, activeBranch, canSeeAllBranches]
   );
-  const { data: bookings, isLoading: isLoadingBookings } = useCollection<WithId<Booking>>(bookingsQuery);
-  const isLoading = isLoadingVendor || isLoadingBookings;
+  const { data: bookings, isLoading } = useCollection<WithId<Booking>>(bookingsQuery);
 
   const upcomingBookings = bookings
     ?.filter((b) => b.status === "Confirmed" && toDate(b.bookingDate) >= new Date())
@@ -144,7 +148,7 @@ export default function VendorDashboard() {
     },
     {
       label: "Reviews",
-      value: vendor?.reviewCount || 0,
+      value: activeBranch?.reviewCount || 0,
       icon: Star,
       iconBg: "bg-amber-500/10",
       iconColor: "text-amber-600",
@@ -178,7 +182,7 @@ export default function VendorDashboard() {
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
               Track jobs, revenue, customers, services, inventory, and reviews for{" "}
-              <span className="font-semibold text-foreground">{vendor?.name || "your garage"}</span>.
+              <span className="font-semibold text-foreground">{business.displayName || "your garage"}</span>.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
@@ -202,9 +206,9 @@ export default function VendorDashboard() {
             {[
               {
                 label: "Approval",
-                value: vendor?.status || "Pending",
-                dotColor: vendor?.status === "Approved" ? "bg-emerald-500" : "bg-amber-500",
-                valueColor: vendor?.status === "Approved" ? "text-emerald-600" : "text-amber-600",
+                value: activeBranch?.status || "Pending",
+                dotColor: activeBranch?.status === "Approved" ? "bg-emerald-500" : "bg-amber-500",
+                valueColor: activeBranch?.status === "Approved" ? "text-emerald-600" : "text-amber-600",
               },
               {
                 label: "Open Jobs",
@@ -214,7 +218,7 @@ export default function VendorDashboard() {
               },
               {
                 label: "Rating",
-                value: `${(vendor?.rating || 0).toFixed(1)} / 5`,
+                value: `${(activeBranch?.rating || 0).toFixed(1)} / 5`,
                 dotColor: "bg-amber-500",
                 valueColor: "text-amber-600",
               },
@@ -258,12 +262,12 @@ export default function VendorDashboard() {
         </Card>
 
         <div className="flex flex-col gap-4">
-          {vendor && bookings && <AIBusinessInsights vendor={vendor} bookings={bookings} />}
+          {bookings && <AIBusinessInsights business={business} bookings={bookings} />}
 
           <OnboardingChecklist
             title="Vendor setup"
             items={[
-              { label: "Complete workshop settings", href: "/vendor/dashboard/settings", done: !!vendor?.address },
+              { label: "Complete workshop settings", href: "/vendor/dashboard/settings", done: !!activeBranch?.address },
               { label: "Add services and pricing", href: "/vendor/dashboard/services" },
               { label: "Add stock items", href: "/vendor/dashboard/inventory" },
               { label: "Review booking pipeline", href: "/vendor/dashboard/bookings", done: (bookings?.length || 0) > 0 },

@@ -1,11 +1,12 @@
 'use client';
 
-import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
+import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect, useCallback } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged } from 'firebase/auth';
+import { Auth, User, onIdTokenChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
 import { useRouter, usePathname } from 'next/navigation';
+import { readQwClaims, type QwClaims } from '@/lib/auth/qw-claims';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -19,6 +20,7 @@ interface UserAuthState {
   user: User | null;
   isUserLoading: boolean;
   userError: Error | null;
+  claims: QwClaims | null;
 }
 
 // Combined state for the Firebase context
@@ -31,6 +33,12 @@ export interface FirebaseContextState {
   user: User | null;
   isUserLoading: boolean; // True during initial auth check
   userError: Error | null; // Error from auth listener
+  // Role/tenant claims — see src/lib/auth/claims.ts for how these get minted
+  claims: QwClaims | null;
+  // Forces a fresh ID token fetch (picks up a just-synced claims change) and
+  // re-derives claims/cookie from it. Call after any action that changes the
+  // caller's own role (accepting a staff invite, business registration).
+  refreshClaims: () => Promise<void>;
 }
 
 // Return type for useFirebase()
@@ -48,6 +56,8 @@ export interface UserHookResult { // Renamed from UserAuthHookResult for consist
   user: User | null;
   isUserLoading: boolean;
   userError: Error | null;
+  claims: QwClaims | null;
+  refreshClaims: () => Promise<void>;
 }
 
 // React Context
@@ -68,29 +78,36 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     user: null,
     isUserLoading: true, // Start loading until first auth event
     userError: null,
+    claims: null,
   });
 
-  // Effect to subscribe to Firebase auth state changes
+  // Effect to subscribe to Firebase auth + ID token changes. onIdTokenChanged
+  // (rather than onAuthStateChanged) also fires when the token is refreshed
+  // with a new value — e.g. after syncClaimsForUser mints an updated `qw`
+  // custom claim — which is what lets refreshClaims() below actually work.
   useEffect(() => {
     if (!auth) { // If no Auth service instance, cannot determine user state
-      setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
+      setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided."), claims: null });
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(
+    const unsubscribe = onIdTokenChanged(
       auth,
       async (firebaseUser) => {
-        setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
         if (firebaseUser) {
           // Set a lightweight session cookie so middleware can guard routes server-side.
           // The actual token is verified by Firebase rules on every Firestore operation.
+          let claims: QwClaims | null = null;
           try {
-            const token = await firebaseUser.getIdToken();
-            document.cookie = `qw-session=${token}; path=/; SameSite=Strict; max-age=3600`;
+            const tokenResult = await firebaseUser.getIdTokenResult();
+            document.cookie = `qw-session=${tokenResult.token}; path=/; SameSite=Strict; max-age=3600`;
+            claims = readQwClaims(tokenResult.claims);
           } catch {
-            // Non-fatal — client auth still works via onAuthStateChanged
+            // Non-fatal — client auth still works via onIdTokenChanged
           }
+          setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null, claims });
         } else {
+          setUserAuthState({ user: null, isUserLoading: false, userError: null, claims: null });
           // Clear session cookie on logout
           document.cookie = 'qw-session=; path=/; max-age=0';
 
@@ -104,12 +121,19 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
         }
       },
       (error) => {
-        console.error('FirebaseProvider: onAuthStateChanged error:', error);
-        setUserAuthState({ user: null, isUserLoading: false, userError: error });
+        console.error('FirebaseProvider: onIdTokenChanged error:', error);
+        setUserAuthState({ user: null, isUserLoading: false, userError: error, claims: null });
       }
     );
     return () => unsubscribe(); // Cleanup
   }, [auth, pathname, router]);
+
+  const refreshClaims = useCallback(async () => {
+    if (!auth?.currentUser) return;
+    // getIdToken(true) forces a fetch from the server rather than the cached
+    // token — onIdTokenChanged then fires with the new claims automatically.
+    await auth.currentUser.getIdToken(true);
+  }, [auth]);
 
   // Memoize the context value
   const contextValue = useMemo((): FirebaseContextState => {
@@ -122,8 +146,10 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       user: userAuthState.user,
       isUserLoading: userAuthState.isUserLoading,
       userError: userAuthState.userError,
+      claims: userAuthState.claims,
+      refreshClaims,
     };
-  }, [firebaseApp, firestore, auth, userAuthState]);
+  }, [firebaseApp, firestore, auth, userAuthState, refreshClaims]);
 
   return (
     <FirebaseContext.Provider value={contextValue}>
@@ -192,6 +218,15 @@ export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T {
  * @returns {UserHookResult} Object with user, isUserLoading, userError.
  */
 export const useUser = (): UserHookResult => { // Renamed from useAuthUser
-  const { user, isUserLoading, userError } = useFirebase(); // Leverages the main hook
-  return { user, isUserLoading, userError };
+  const context = useContext(FirebaseContext);
+  if (context === undefined) {
+    throw new Error('useUser must be used within a FirebaseProvider.');
+  }
+  return {
+    user: context.user,
+    isUserLoading: context.isUserLoading,
+    userError: context.userError,
+    claims: context.claims,
+    refreshClaims: context.refreshClaims,
+  };
 };

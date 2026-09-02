@@ -26,7 +26,28 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useCollection, useFirebase, useMemoFirebase, safeAddDoc, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-import type { Vendor, Booking, VendorStatus, WithId } from "@/lib/types";
+import type { Booking, BranchStatus, WithId } from "@/lib/types";
+
+// The full businesses/branches admin console is a later-phase rewrite. Until
+// then this page administers branches (the approvable unit) through a local
+// view type covering only the fields it reads and writes.
+type AdminVendor = {
+  name: string;
+  type?: "Garage" | "Parts Store" | "Both";
+  description?: string;
+  address: string;
+  city: string;
+  country: string;
+  phoneNumber: string;
+  email?: string;
+  status: BranchStatus;
+  latitude: number;
+  longitude: number;
+  rating?: number;
+  reviewCount?: number;
+};
+
+type VendorStatus = BranchStatus;
 
 function toDate(v: unknown) {
   if (v instanceof Timestamp) return v.toDate();
@@ -63,19 +84,20 @@ export default function AdminVendorsPage() {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("All");
-  const [editVendor, setEditVendor] = useState<WithId<Vendor> | null>(null);
-  const [deleteVendor, setDeleteVendor] = useState<WithId<Vendor> | null>(null);
+  const [editVendor, setEditVendor] = useState<WithId<AdminVendor> | null>(null);
+  const [deleteVendor, setDeleteVendor] = useState<WithId<AdminVendor> | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const vendorsQuery = useMemoFirebase(() => query(collection(firestore, "vendors")), [firestore]);
+  const vendorsQuery = useMemoFirebase(() => query(collection(firestore, "branches")), [firestore]);
   const bookingsQuery = useMemoFirebase(() => query(collection(firestore, "bookings")), [firestore]);
-  const { data: vendors, isLoading: loadingVendors } = useCollection<WithId<Vendor>>(vendorsQuery);
+  const { data: vendors, isLoading: loadingVendors } = useCollection<WithId<AdminVendor>>(vendorsQuery);
   const { data: bookings } = useCollection<WithId<Booking>>(bookingsQuery);
 
   const bookingsByVendor = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const b of bookings || []) map[b.vendorId] = (map[b.vendorId] || 0) + 1;
+    // Per-garage count keys on the branch, which is what this page lists.
+    for (const b of bookings || []) map[b.branchId] = (map[b.branchId] || 0) + 1;
     return map;
   }, [bookings]);
 
@@ -89,7 +111,7 @@ export default function AdminVendorsPage() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return (vendors || []).filter(v => {
-      const matchSearch = !q || v.name.toLowerCase().includes(q) || v.city.toLowerCase().includes(q) || v.email.toLowerCase().includes(q);
+      const matchSearch = !q || v.name.toLowerCase().includes(q) || v.city.toLowerCase().includes(q) || (v.email || '').toLowerCase().includes(q);
       const matchStatus = filterStatus === "All" || v.status === filterStatus;
       return matchSearch && matchStatus;
     });
@@ -106,7 +128,7 @@ export default function AdminVendorsPage() {
     setShowCreate(true);
   }
 
-  function openEdit(v: WithId<Vendor>) {
+  function openEdit(v: WithId<AdminVendor>) {
     setEditVendor(v);
     reset({ name: v.name, type: v.type, description: v.description || "", address: v.address, city: v.city, country: v.country, phoneNumber: v.phoneNumber, email: v.email, status: v.status, latitude: v.latitude, longitude: v.longitude });
     setShowCreate(true);
@@ -116,10 +138,10 @@ export default function AdminVendorsPage() {
     setIsSubmitting(true);
     try {
       if (editVendor) {
-        await safeUpdateDoc(doc(firestore, "vendors", editVendor.id), { ...data, updatedAt: serverTimestamp() });
+        await safeUpdateDoc(doc(firestore, "branches", editVendor.id), { ...data, updatedAt: serverTimestamp() });
         toast({ title: "Vendor updated", description: `${data.name} saved.` });
       } else {
-        await safeAddDoc(collection(firestore, "vendors"), {
+        await safeAddDoc(collection(firestore, "branches"), {
           ...data,
           ownerId: "",
           rating: 0,
@@ -140,7 +162,7 @@ export default function AdminVendorsPage() {
 
   async function handleStatusChange(vendorId: string, status: VendorStatus) {
     try {
-      await safeUpdateDoc(doc(firestore, "vendors", vendorId), { status, updatedAt: serverTimestamp() });
+      await safeUpdateDoc(doc(firestore, "branches", vendorId), { status, updatedAt: serverTimestamp() });
       toast({ title: `Vendor ${status}` });
     } catch {
       toast({ title: "Error", description: "Could not update status.", variant: "destructive" });
@@ -150,7 +172,7 @@ export default function AdminVendorsPage() {
   async function handleDelete() {
     if (!deleteVendor) return;
     try {
-      await safeDeleteDoc(doc(firestore, "vendors", deleteVendor.id));
+      await safeDeleteDoc(doc(firestore, "branches", deleteVendor.id));
       toast({ title: "Vendor deleted", variant: "destructive" });
       setDeleteVendor(null);
     } catch {

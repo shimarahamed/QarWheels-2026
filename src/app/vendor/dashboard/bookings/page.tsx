@@ -32,17 +32,39 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useFirebase, useCollection, useMemoFirebase, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
+import { useFirebase, useCollection, useMemoFirebase, useUser, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
 import { useVendor } from "@/components/vendor/vendor-provider";
-import { collection, limit as queryLimit, query, where, doc, Timestamp, serverTimestamp } from "firebase/firestore";
-import type { Booking, BookingPart, InventoryItem, StaffMember, WithId } from "@/lib/types";
+import { collection, limit as queryLimit, query, where, doc, Timestamp, serverTimestamp, arrayUnion } from "firebase/firestore";
+import { BOOKING_TRANSITIONS, canTransitionBooking } from "@/lib/types";
+import type { Booking, BookingStatus, InventoryItem, WithId } from "@/lib/types";
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Skeleton } from "@/components/ui/skeleton";
 
+// NOTE: staff/membership is deferred to a later phase — this stands in for the
+// deleted StaffMember type so the assignment picker keeps compiling against the
+// legacy `vendors/{businessId}/staff` subcollection.
+type StaffMember = {
+    name: string;
+    email: string;
+    role: string;
+    status: 'Active' | 'Inactive';
+};
+
+const BOOKING_STATUSES = [
+    'Pending',
+    'Confirmed',
+    'VehicleReceived',
+    'InProgress',
+    'ReadyForPickup',
+    'Completed',
+    'Declined',
+    'Cancelled',
+    'NoShow',
+] as const;
 
 const editBookingSchema = z.object({
-    status: z.enum(['Pending', 'Confirmed', 'Completed', 'Cancelled']),
+    status: z.enum(BOOKING_STATUSES),
     cost: z.coerce.number().min(0, "Cost must be a positive number"),
     assignedStaffId: z.string().optional(),
     assignedStaffName: z.string().optional(),
@@ -53,17 +75,6 @@ const editBookingSchema = z.object({
         unitPrice: z.number(),
     })).optional(),
 });
-
-const VALID_STATUS_TRANSITIONS: Record<Booking['status'], Booking['status'][]> = {
-    Pending: ['Pending', 'Confirmed', 'Cancelled'],
-    Confirmed: ['Confirmed', 'Completed', 'Cancelled'],
-    Completed: ['Completed'],
-    Cancelled: ['Cancelled'],
-};
-
-function canTransitionBookingStatus(from: Booking['status'], to: Booking['status']) {
-    return VALID_STATUS_TRANSITIONS[from].includes(to);
-}
 
 function EditBookingForm({
     booking,
@@ -90,7 +101,8 @@ function EditBookingForm({
             partsUsed: booking.partsUsed || [],
         },
     });
-    const statusOptions = VALID_STATUS_TRANSITIONS[booking.status];
+    // Current status stays selectable (a no-op save), plus every legal next state.
+    const statusOptions: BookingStatus[] = [booking.status, ...BOOKING_TRANSITIONS[booking.status]];
     const partsUsed = watch('partsUsed') || [];
 
     function addPart(item: WithId<InventoryItem>) {
@@ -250,11 +262,18 @@ function BookingTableRow({
   onEditClick: (booking: WithId<Booking>) => void;
   onDeleteClick: (booking: WithId<Booking>) => void;
 }) {
-  const getStatusVariant = (status: Booking['status']) => {
+  const getStatusVariant = (status: BookingStatus) => {
     switch (status) {
-        case 'Confirmed': return 'default';
+        case 'Confirmed':
+        case 'VehicleReceived':
+        case 'InProgress':
+        case 'ReadyForPickup':
+            return 'default';
         case 'Completed': return 'secondary';
-        case 'Cancelled': return 'destructive';
+        case 'Cancelled':
+        case 'Declined':
+        case 'NoShow':
+            return 'destructive';
         default: return 'outline';
     }
   }
@@ -374,19 +393,30 @@ function BookingsTable({ bookings, onEditClick, onDeleteClick, isLoading }: { bo
 
 export default function VendorBookingsPage() {
     const { firestore } = useFirebase();
-    const { vendor, isLoading: isLoadingVendor } = useVendor();
+    const { user } = useUser();
+    const { business, activeBranch, canSeeAllBranches, role } = useVendor();
     const { toast } = useToast();
 
     const bookingsQuery = useMemoFirebase(
-        () => (vendor ? query(collection(firestore, 'bookings'), where('vendorId', '==', vendor.id), queryLimit(100)) : null),
-        [firestore, vendor]
+        () =>
+            canSeeAllBranches
+                ? query(collection(firestore, 'bookings'), where('businessId', '==', business.id), queryLimit(100))
+                : activeBranch
+                ? query(collection(firestore, 'bookings'), where('branchId', '==', activeBranch.id), queryLimit(100))
+                : null,
+        [firestore, business, activeBranch, canSeeAllBranches]
     );
     const { data: bookings, isLoading: isLoadingBookings } = useCollection<WithId<Booking>>(bookingsQuery);
 
-    const inventoryRef = useMemoFirebase(() => vendor ? collection(firestore, 'vendors', vendor.id, 'inventory') : null, [firestore, vendor]);
-    const { data: inventory } = useCollection<WithId<InventoryItem>>(inventoryRef);
+    const inventoryQuery = useMemoFirebase(
+        () => activeBranch ? query(collection(firestore, 'branch_inventory'), where('branchId', '==', activeBranch.id)) : null,
+        [firestore, activeBranch]
+    );
+    const { data: inventory } = useCollection<WithId<InventoryItem>>(inventoryQuery);
 
-    const staffRef = useMemoFirebase(() => vendor ? collection(firestore, 'vendors', vendor.id, 'staff') : null, [firestore, vendor]);
+    // Staff still reads the legacy subcollection — the memberships migration is
+    // a later phase.
+    const staffRef = useMemoFirebase(() => collection(firestore, 'vendors', business.id, 'staff'), [firestore, business]);
     const { data: staff } = useCollection<WithId<StaffMember>>(staffRef);
 
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -406,18 +436,19 @@ export default function VendorBookingsPage() {
 
     const handleSaveBooking = async (data: z.infer<typeof editBookingSchema>) => {
         if (!selectedBooking) return;
-        if (!canTransitionBookingStatus(selectedBooking.status, data.status)) {
+        if (!canTransitionBooking(selectedBooking.status, data.status)) {
             toast({
                 title: "Invalid status change",
-                description: `A ${selectedBooking.status.toLowerCase()} booking cannot be changed to ${data.status.toLowerCase()}.`,
+                description: `A booking in ${selectedBooking.status} cannot be changed to ${data.status}.`,
                 variant: "destructive",
             });
             return;
         }
-        
+
         setIsSubmitting(true);
         const bookingRef = doc(firestore, 'bookings', selectedBooking.id);
-        
+        const statusChanged = data.status !== selectedBooking.status;
+
         try {
             await safeUpdateDoc(bookingRef, {
                 status: data.status,
@@ -425,6 +456,20 @@ export default function VendorBookingsPage() {
                 assignedStaffId: data.assignedStaffId || null,
                 assignedStaffName: data.assignedStaffName || null,
                 partsUsed: data.partsUsed || [],
+                // Security rules require statusHistory to grow by exactly one
+                // entry whenever branch staff touch the booking.
+                ...(statusChanged
+                    ? {
+                          statusHistory: arrayUnion({
+                              status: data.status,
+                              at: Timestamp.now(),
+                              byUid: user?.uid ?? '',
+                              // branch_manager has no history role of its own —
+                              // it records as branch_staff.
+                              byRole: role === 'business_owner' ? 'business_owner' : role === 'business_admin' ? 'business_admin' : 'branch_staff',
+                          }),
+                      }
+                    : {}),
                 updatedAt: serverTimestamp(),
             });
             toast({
@@ -471,7 +516,7 @@ export default function VendorBookingsPage() {
         }
     }
 
-    const isLoading = isLoadingVendor || isLoadingBookings;
+    const isLoading = isLoadingBookings;
     const now = new Date();
     
     const pending = bookings?.filter(b => b.status === "Pending").sort((a,b) => (a.bookingDate instanceof Timestamp ? a.bookingDate.toDate() : new Date(a.bookingDate)).getTime() - (b.bookingDate instanceof Timestamp ? b.bookingDate.toDate() : new Date(b.bookingDate)).getTime());

@@ -87,11 +87,16 @@ function CustomerRow({ userId, bookings, isLoadingBookings }: { userId: string; 
 
 export default function VendorCustomersPage() {
     const { firestore } = useFirebase();
-    const { vendor, isLoading: isLoadingVendor } = useVendor();
+    const { business, activeBranch, canSeeAllBranches } = useVendor();
 
     const bookingsQuery = useMemoFirebase(
-        () => (vendor ? query(collection(firestore, 'bookings'), where('vendorId', '==', vendor.id)) : null),
-        [firestore, vendor]
+        () =>
+            canSeeAllBranches
+                ? query(collection(firestore, 'bookings'), where('businessId', '==', business.id))
+                : activeBranch
+                ? query(collection(firestore, 'bookings'), where('branchId', '==', activeBranch.id))
+                : null,
+        [firestore, business, activeBranch, canSeeAllBranches]
     );
     const { data: bookings, isLoading: isLoadingBookings } = useCollection<WithId<Booking>>(bookingsQuery);
 
@@ -107,7 +112,7 @@ export default function VendorCustomersPage() {
 
     const uniqueCustomerIds = useMemo(() => [...bookingsByCustomer.keys()], [bookingsByCustomer]);
 
-    const isLoading = isLoadingVendor || isLoadingBookings;
+    const isLoading = isLoadingBookings;
 
     return (
       <div className="space-y-8">

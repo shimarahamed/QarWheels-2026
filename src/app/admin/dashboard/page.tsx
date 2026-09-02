@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
-import type { Booking, UserProfile, Vendor, Promotion, WithId } from "@/lib/types";
+import type { Booking, UserProfile, Branch, Promotion, WithId } from "@/lib/types";
 
 function toDate(value: Booking["bookingDate"]) {
   return value instanceof Timestamp ? value.toDate() : new Date(value);
@@ -84,11 +84,11 @@ export default function AdminOverviewPage() {
 
   const bookingsQuery = useMemoFirebase(() => query(collection(firestore, "bookings")), [firestore]);
   const usersQuery = useMemoFirebase(() => query(collection(firestore, "users")), [firestore]);
-  const vendorsQuery = useMemoFirebase(() => query(collection(firestore, "vendors")), [firestore]);
+  const vendorsQuery = useMemoFirebase(() => query(collection(firestore, "branches")), [firestore]);
 
   const { data: bookings, isLoading: loadingBookings } = useCollection<WithId<Booking>>(bookingsQuery);
   const { data: users, isLoading: loadingUsers } = useCollection<WithId<UserProfile>>(usersQuery);
-  const { data: vendors, isLoading: loadingVendors } = useCollection<WithId<Vendor>>(vendorsQuery);
+  const { data: vendors, isLoading: loadingVendors } = useCollection<WithId<Branch>>(vendorsQuery);
 
   const isLoading = loadingBookings || loadingUsers || loadingVendors;
 
@@ -237,7 +237,7 @@ export default function AdminOverviewPage() {
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold">{b.serviceName}</p>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{b.vendorName}</p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{b.branchName}</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
                       <span className="hidden text-xs text-muted-foreground sm:block">

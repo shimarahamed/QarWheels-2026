@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { useVendor } from "@/components/vendor/vendor-provider";
 import { useFirebase, safeUpdateDoc } from "@/firebase";
 import { doc } from "firebase/firestore";
@@ -18,51 +17,72 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 
 const settingsSchema = z.object({
-  name: z.string().min(1, "Garage name is required"),
+  displayName: z.string().min(1, "Business name is required"),
+  name: z.string().min(1, "Branch name is required"),
   address: z.string().min(1, "Address is required"),
-  description: z.string().optional(),
+  city: z.string().min(1, "City is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
   email: z.string().email("Invalid email address"),
 });
 
 
 export default function VendorSettingsPage() {
-  const { vendor, isLoading: isLoadingVendor } = useVendor();
+  const { business, activeBranch } = useVendor();
   const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const form = useForm<z.infer<typeof settingsSchema>>({
     resolver: zodResolver(settingsSchema),
   });
 
   useEffect(() => {
-    if (vendor) {
-      form.reset({
-        name: vendor.name || '',
-        address: vendor.address || '',
-        description: vendor.description || '',
-        phoneNumber: vendor.phoneNumber || '',
-        email: vendor.email || '',
-      });
-    }
-  }, [vendor, form]);
-
-  const onSubmit = (data: z.infer<typeof settingsSchema>) => {
-    if (!vendor) return;
-    setIsSubmitting(true);
-    
-    const vendorDocRef = doc(firestore, 'vendors', vendor.id);
-    safeUpdateDoc(vendorDocRef, data);
-    
-    toast({
-      title: "Settings Saved",
-      description: "Your garage profile has been updated.",
+    form.reset({
+      displayName: business.displayName || '',
+      name: activeBranch?.name || '',
+      address: activeBranch?.address || '',
+      city: activeBranch?.city || '',
+      phoneNumber: activeBranch?.phoneNumber || business.contactPhone || '',
+      email: business.contactEmail || '',
     });
-    setIsSubmitting(false);
+  }, [business, activeBranch, form]);
+
+  const onSubmit = async (data: z.infer<typeof settingsSchema>) => {
+    setIsSubmitting(true);
+    try {
+      // Business-level fields live on businesses/{businessId}...
+      await safeUpdateDoc(doc(firestore, 'businesses', business.id), {
+        displayName: data.displayName,
+        contactEmail: data.email,
+        contactPhone: data.phoneNumber,
+      });
+
+      // ...while location-specific fields belong to the active branch.
+      if (activeBranch) {
+        await safeUpdateDoc(doc(firestore, 'branches', activeBranch.id), {
+          name: data.name,
+          address: data.address,
+          city: data.city,
+          phoneNumber: data.phoneNumber,
+        });
+      }
+
+      toast({
+        title: "Settings Saved",
+        description: "Your garage profile has been updated.",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Could not save settings. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
-  
-  if (isLoadingVendor) {
+
+  if (!activeBranch) {
     return (
         <div className="space-y-8">
             <header><Skeleton className="h-9 w-64" /><Skeleton className="h-5 w-80 mt-2" /></header>
@@ -94,8 +114,13 @@ export default function VendorSettingsPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="garageName">Garage Name</Label>
-                            <Input id="garageName" {...form.register('name')} />
+                            <Label htmlFor="businessName">Business Name</Label>
+                            <Input id="businessName" {...form.register('displayName')} />
+                            {form.formState.errors.displayName && <p className="text-sm text-destructive">{form.formState.errors.displayName.message}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="branchName">Branch Name</Label>
+                            <Input id="branchName" {...form.register('name')} />
                             {form.formState.errors.name && <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>}
                         </div>
                         <div className="space-y-2">
@@ -104,8 +129,9 @@ export default function VendorSettingsPage() {
                             {form.formState.errors.address && <p className="text-sm text-destructive">{form.formState.errors.address.message}</p>}
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="garageDescription">Description</Label>
-                            <Textarea id="garageDescription" placeholder="Tell customers what makes your garage special." rows={4} {...form.register('description')} />
+                            <Label htmlFor="garageCity">City</Label>
+                            <Input id="garageCity" {...form.register('city')} />
+                            {form.formState.errors.city && <p className="text-sm text-destructive">{form.formState.errors.city.message}</p>}
                         </div>
                     </CardContent>
                 </Card>

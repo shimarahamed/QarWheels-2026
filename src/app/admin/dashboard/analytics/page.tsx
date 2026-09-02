@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
-import type { Booking, UserProfile, Vendor, WithId } from "@/lib/types";
+import type { Booking, UserProfile, Branch, WithId } from "@/lib/types";
 
 const MonthlyBarChart = dynamic(
   () => import("@/components/admin/monthly-bar-chart").then((m) => m.MonthlyBarChart),
@@ -27,11 +27,11 @@ export default function AdminAnalyticsPage() {
 
   const bookingsQuery = useMemoFirebase(() => query(collection(firestore, "bookings")), [firestore]);
   const usersQuery = useMemoFirebase(() => query(collection(firestore, "users")), [firestore]);
-  const vendorsQuery = useMemoFirebase(() => query(collection(firestore, "vendors")), [firestore]);
+  const vendorsQuery = useMemoFirebase(() => query(collection(firestore, "branches")), [firestore]);
 
   const { data: bookings, isLoading: lb } = useCollection<WithId<Booking>>(bookingsQuery);
   const { data: users, isLoading: lu } = useCollection<WithId<UserProfile>>(usersQuery);
-  const { data: vendors, isLoading: lv } = useCollection<WithId<Vendor>>(vendorsQuery);
+  const { data: vendors, isLoading: lv } = useCollection<WithId<Branch>>(vendorsQuery);
 
   const isLoading = lb || lu || lv;
 
@@ -61,13 +61,14 @@ export default function AdminAnalyticsPage() {
     return months;
   }, [bookings]);
 
-  // Top vendors by completed revenue
+  // Top garages by completed revenue — keyed per branch, which is the unit a
+  // booking is actually fulfilled by and the name the booking carries.
   const topVendors = useMemo(() => {
     const map: Record<string, { name: string; revenue: number; bookings: number }> = {};
     for (const b of bookings || []) {
-      if (!map[b.vendorId]) map[b.vendorId] = { name: b.vendorName, revenue: 0, bookings: 0 };
-      map[b.vendorId].bookings += 1;
-      if (b.status === "Completed") map[b.vendorId].revenue += b.cost || 0;
+      if (!map[b.branchId]) map[b.branchId] = { name: b.branchName, revenue: 0, bookings: 0 };
+      map[b.branchId].bookings += 1;
+      if (b.status === "Completed") map[b.branchId].revenue += b.cost || 0;
     }
     return Object.entries(map)
       .map(([id, v]) => ({ id, ...v }))

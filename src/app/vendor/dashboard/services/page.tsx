@@ -51,7 +51,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useVendor } from "@/components/vendor/vendor-provider";
 import { useFirebase, useCollection, useMemoFirebase, safeAddDoc, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
-import { collection, doc } from "firebase/firestore";
+import { collection, doc, query, where } from "firebase/firestore";
 import type { Service, WithId } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -114,15 +114,18 @@ function ServiceForm({ service, onSave, onCancel, isSubmitting }: { service?: Wi
 
 export default function VendorServicesPage() {
   const { firestore } = useFirebase();
-  const { vendor } = useVendor();
+  const { business, activeBranch } = useVendor();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<WithId<Service> | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const servicesRef = useMemoFirebase(() => vendor ? collection(firestore, 'vendors', vendor.id, 'services') : null, [firestore, vendor]);
-  const { data: services, isLoading } = useCollection<WithId<Service>>(servicesRef);
+  const servicesQuery = useMemoFirebase(
+    () => activeBranch ? query(collection(firestore, 'branch_services'), where('branchId', '==', activeBranch.id)) : null,
+    [firestore, activeBranch],
+  );
+  const { data: services, isLoading } = useCollection<WithId<Service>>(servicesQuery);
 
   const handleRowClick = (service: WithId<Service>) => {
     setSelectedService(service);
@@ -140,15 +143,20 @@ export default function VendorServicesPage() {
   };
 
   const handleSaveService = async (data: z.infer<typeof serviceSchema>) => {
-    if (!vendor || !servicesRef) return;
+    if (!activeBranch) return;
     setIsSubmitting(true);
     try {
       if (selectedService) {
-        const serviceDocRef = doc(firestore, 'vendors', vendor.id, 'services', selectedService.id);
+        const serviceDocRef = doc(firestore, 'branch_services', selectedService.id);
         await safeUpdateDoc(serviceDocRef, data);
         toast({ title: "Service Updated", description: `"${data.name}" has been updated.` });
       } else {
-        await safeAddDoc(servicesRef, data);
+        await safeAddDoc(collection(firestore, 'branch_services'), {
+          ...data,
+          businessId: business.id,
+          branchId: activeBranch.id,
+          active: true,
+        });
         toast({ title: "Service Added", description: `"${data.name}" has been added.` });
       }
       setIsFormOpen(false);
@@ -159,10 +167,10 @@ export default function VendorServicesPage() {
       setIsSubmitting(false);
     }
   }
-  
+
   const handleDeleteConfirm = async () => {
-    if (!selectedService || !vendor) return;
-    const serviceDocRef = doc(firestore, 'vendors', vendor.id, 'services', selectedService.id);
+    if (!selectedService) return;
+    const serviceDocRef = doc(firestore, 'branch_services', selectedService.id);
     await safeDeleteDoc(serviceDocRef);
     toast({
         title: "Service Deleted",
@@ -196,7 +204,7 @@ export default function VendorServicesPage() {
       <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
           <CardHeader>
               <CardTitle>Your Services</CardTitle>
-              <CardDescription>A list of services provided by {vendor?.name}.</CardDescription>
+              <CardDescription>A list of services provided by {business.displayName}.</CardDescription>
           </CardHeader>
         <CardContent>
           <Table>

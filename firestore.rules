@@ -2,9 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ─── SEED BYPASS — remove after running npm run seed:demo ─────────────────
-    // match /{document=**} { allow read, write: if true; }
-
     // ─── Helpers ──────────────────────────────────────────────────────────────
     function isSignedIn() {
       return request.auth != null;

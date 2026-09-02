@@ -39,7 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useVendor } from "@/components/vendor/vendor-provider";
 import { useFirebase, useCollection, useMemoFirebase, safeAddDoc, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
-import { collection, doc } from "firebase/firestore";
+import { collection, doc, query, where } from "firebase/firestore";
 import type { Promotion, WithId } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -172,15 +172,18 @@ function getStatusVariant(status: string) {
   
 export default function VendorPromotionsPage() {
     const { firestore } = useFirebase();
-    const { vendor } = useVendor();
+    const { business, activeBranch } = useVendor();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [selectedPromotion, setSelectedPromotion] = useState<WithId<Promotion> | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
 
-    const promotionsRef = useMemoFirebase(() => vendor ? collection(firestore, 'vendors', vendor.id, 'promotions') : null, [firestore, vendor]);
-    const { data: promotions, isLoading } = useCollection<WithId<Promotion>>(promotionsRef);
+    const promotionsQuery = useMemoFirebase(
+      () => activeBranch ? query(collection(firestore, 'branch_promotions'), where('branchIds', 'array-contains', activeBranch.id)) : null,
+      [firestore, activeBranch],
+    );
+    const { data: promotions, isLoading } = useCollection<WithId<Promotion>>(promotionsQuery);
 
     const handleEditClick = (promotion: WithId<Promotion>) => {
         setSelectedPromotion(promotion);
@@ -198,16 +201,20 @@ export default function VendorPromotionsPage() {
     };
 
     const handleSavePromotion = (data: z.infer<typeof promotionSchema>) => {
-        if (!vendor || !promotionsRef) return;
+        if (!activeBranch) return;
         setIsSubmitting(true);
         if (selectedPromotion) {
             // Update
-            const promoDocRef = doc(firestore, 'vendors', vendor.id, 'promotions', selectedPromotion.id);
+            const promoDocRef = doc(firestore, 'branch_promotions', selectedPromotion.id);
             safeUpdateDoc(promoDocRef, data);
             toast({ title: "Promotion Updated", description: `"${data.title}" has been updated.`});
         } else {
             // Create
-            safeAddDoc(promotionsRef, data);
+            safeAddDoc(collection(firestore, 'branch_promotions'), {
+                ...data,
+                businessId: business.id,
+                branchIds: [activeBranch.id],
+            });
             toast({ title: "Promotion Created", description: `"${data.title}" has been created.` });
         }
         setIsSubmitting(false);
@@ -216,8 +223,8 @@ export default function VendorPromotionsPage() {
     };
 
     const handleDeleteConfirm = () => {
-        if (!selectedPromotion || !vendor) return;
-        const promoDocRef = doc(firestore, 'vendors', vendor.id, 'promotions', selectedPromotion.id);
+        if (!selectedPromotion) return;
+        const promoDocRef = doc(firestore, 'branch_promotions', selectedPromotion.id);
         safeDeleteDoc(promoDocRef);
         toast({
             title: "Promotion Deleted",

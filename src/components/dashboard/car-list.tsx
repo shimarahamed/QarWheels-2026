@@ -347,7 +347,7 @@ function DetailedCarRow({
                 {metrics.nextBooking?.serviceName || "Nothing scheduled"}
               </p>
               <p className="text-xs text-muted-foreground">
-                {nextBookingDate ? `${format(nextBookingDate, "MMM d, yyyy")} with ${metrics.nextBooking?.vendorName}` : "Ready when you are"}
+                {nextBookingDate ? `${format(nextBookingDate, "MMM d, yyyy")} with ${metrics.nextBooking?.branchName}` : "Ready when you are"}
               </p>
             </div>
             <div className="min-w-0">

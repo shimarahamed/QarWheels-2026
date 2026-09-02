@@ -2,12 +2,12 @@
 
 import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
-import type { Vendor, WithId } from '@/lib/types';
+import type { Branch, WithId } from '@/lib/types';
 import { Card } from '@/components/ui/card';
 
 const DOHA: [number, number] = [25.2854, 51.531];
 
-export function GaragesMap({ vendors }: { vendors: WithId<Vendor>[] | null }) {
+export function GaragesMap({ vendors }: { vendors: WithId<Branch>[] | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
   // Store the Leaflet map and markers layer across renders
   const mapRef = useRef<any>(null);
@@ -61,7 +61,7 @@ export function GaragesMap({ vendors }: { vendors: WithId<Vendor>[] | null }) {
   );
 }
 
-function renderMarkers(L: any, map: any, layer: any, vendors: WithId<Vendor>[] | null) {
+function renderMarkers(L: any, map: any, layer: any, vendors: WithId<Branch>[] | null) {
   layer.clearLayers();
 
   const icon = L.icon({

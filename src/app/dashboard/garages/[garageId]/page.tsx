@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { notFound, useParams } from 'next/navigation';
 import { useFirebase, useDoc, useCollection, useMemoFirebase, safeAddDoc } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
-import type { Vendor, Service, Review, Promotion, Booking, WithId } from '@/lib/types';
+import type { Branch, Service, Review, Promotion, Booking, WithId } from '@/lib/types';
 import { Star, MapPin, Phone, Globe, Wrench, MessageSquare, Loader2, ArrowLeft, AlertTriangle, Percent, Tag, Send } from 'lucide-react';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -73,7 +73,7 @@ function ReviewItem({ review }: { review: WithId<Review> }) {
   );
 }
 
-function WriteReviewCard({ garageId }: { garageId: string }) {
+function WriteReviewCard({ garageId, businessId }: { garageId: string; businessId: string }) {
   const { firestore, user } = useFirebase();
   const { toast } = useToast();
   const [rating, setRating] = useState(0);
@@ -87,7 +87,7 @@ function WriteReviewCard({ garageId }: { garageId: string }) {
         ? query(
             collection(firestore, 'bookings'),
             where('userId', '==', user.uid),
-            where('vendorId', '==', garageId),
+            where('branchId', '==', garageId),
             where('status', '==', 'Completed')
           )
         : null,
@@ -112,7 +112,10 @@ function WriteReviewCard({ garageId }: { garageId: string }) {
     if (!user || !completedBookings || rating < 1 || comment.trim().length < 10) return;
     setIsSubmitting(true);
     try {
-      await safeAddDoc(collection(firestore, 'vendors', garageId, 'reviews'), {
+      await safeAddDoc(collection(firestore, 'reviews'), {
+        businessId,
+        branchId: garageId,
+        bookingId: completedBookings[0].id,
         userId: user.uid,
         customerName: user.displayName || user.email || 'QarWheel Customer',
         rating,
@@ -165,12 +168,13 @@ export default function GarageDetailsPage() {
     const garageId = params.garageId as string;
     const { firestore, isUserLoading } = useFirebase();
 
-    const garageRef = useMemoFirebase(() => garageId ? doc(firestore, 'vendors', garageId) : null, [firestore, garageId]);
-    const servicesRef = useMemoFirebase(() => garageId ? collection(firestore, 'vendors', garageId, 'services') : null, [firestore, garageId]);
-    const reviewsRef = useMemoFirebase(() => garageId ? collection(firestore, 'vendors', garageId, 'reviews') : null, [firestore, garageId]);
-    const promotionsRef = useMemoFirebase(() => garageId ? collection(firestore, 'vendors', garageId, 'promotions') : null, [firestore, garageId]);
+    // A "garage" in the customer marketplace is a single Branch of a Business.
+    const garageRef = useMemoFirebase(() => garageId ? doc(firestore, 'branches', garageId) : null, [firestore, garageId]);
+    const servicesRef = useMemoFirebase(() => garageId ? query(collection(firestore, 'branch_services'), where('branchId', '==', garageId)) : null, [firestore, garageId]);
+    const reviewsRef = useMemoFirebase(() => garageId ? query(collection(firestore, 'reviews'), where('branchId', '==', garageId)) : null, [firestore, garageId]);
+    const promotionsRef = useMemoFirebase(() => garageId ? query(collection(firestore, 'branch_promotions'), where('branchIds', 'array-contains', garageId)) : null, [firestore, garageId]);
 
-    const { data: garage, isLoading: isLoadingGarage, error: garageError } = useDoc<WithId<Vendor>>(garageRef);
+    const { data: garage, isLoading: isLoadingGarage, error: garageError } = useDoc<WithId<Branch>>(garageRef);
     const { data: services, isLoading: isLoadingServices, error: servicesError } = useCollection<WithId<Service>>(servicesRef);
     const { data: reviews, isLoading: isLoadingReviews, error: reviewsError } = useCollection<WithId<Review>>(reviewsRef);
     const { data: allPromotions } = useCollection<WithId<Promotion>>(promotionsRef);
@@ -256,7 +260,7 @@ export default function GarageDetailsPage() {
                         )}
                         <CardHeader>
                             <CardTitle>{garage.name}</CardTitle>
-                            <CardDescription>{garage.description}</CardDescription>
+                            <CardDescription>{garage.city}{garage.warranty ? ` · ${garage.warranty}` : ''}</CardDescription>
                              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 text-sm text-muted-foreground">
                                 <StarRating rating={garage.rating || 0} reviewCount={garage.reviewCount || 0} />
                                 <div className="flex items-center gap-2">
@@ -335,7 +339,7 @@ export default function GarageDetailsPage() {
                                                     <div className="text-right shrink-0">
                                                         <p className="font-bold text-lg">QAR {price.toFixed(2)}</p>
                                                         <Button asChild size="sm" className="mt-1">
-                                                            <Link href={`/dashboard/book?garageId=${garage.id}&garageName=${encodeURIComponent(garage.name)}&serviceName=${encodeURIComponent(service.name)}&price=${price}`}>
+                                                            <Link href={`/dashboard/book?garageId=${garage.id}&businessId=${garage.businessId}&garageName=${encodeURIComponent(garage.name)}&serviceName=${encodeURIComponent(service.name)}&price=${price}`}>
                                                                 Book Now
                                                             </Link>
                                                         </Button>
@@ -369,15 +373,15 @@ export default function GarageDetailsPage() {
                                 <MapPin className="h-4 w-4 mt-1 text-primary"/>
                                 <span>{garage.address}, {garage.city}</span>
                              </div>
-                             {garage.websiteUrl && (
+                             {garage.pickupAvailable && (
                                 <div className="flex items-start gap-3">
                                     <Globe className="h-4 w-4 mt-1 text-primary"/>
-                                    <a href={garage.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80 break-all">{garage.websiteUrl}</a>
+                                    <span>Pickup &amp; delivery available</span>
                                 </div>
                              )}
                         </CardContent>
                     </Card>
-                     <WriteReviewCard garageId={garage.id} />
+                     <WriteReviewCard garageId={garage.id} businessId={garage.businessId} />
                      <Card>
                         <CardHeader>
                             <CardTitle>Customer Reviews</CardTitle>

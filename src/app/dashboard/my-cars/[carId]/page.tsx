@@ -115,7 +115,7 @@ function VehicleBookingPanel({ bookings, isLoading }: { bookings?: WithId<Bookin
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold">{booking.serviceName}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {booking.vendorName} {date ? `- ${format(date, "MMM d, h:mm a")}` : ""}
+                      {booking.branchName} {date ? `- ${format(date, "MMM d, h:mm a")}` : ""}
                     </p>
                   </div>
                   <Badge variant={booking.status === "Cancelled" ? "destructive" : booking.status === "Confirmed" ? "default" : "outline"}>

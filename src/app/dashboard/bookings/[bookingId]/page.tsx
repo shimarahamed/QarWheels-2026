@@ -156,7 +156,7 @@ export default function BookingDetailsPage() {
                     <div className="flex justify-between items-start gap-4">
                         <div>
                             <CardTitle>{booking.serviceName}</CardTitle>
-                            <CardDescription>at {booking.vendorName}</CardDescription>
+                            <CardDescription>at {booking.branchName}</CardDescription>
                         </div>
                         <div className="flex flex-col items-end gap-2">
                             <Badge variant={getStatusVariant(booking.status)}>
@@ -174,7 +174,7 @@ export default function BookingDetailsPage() {
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                                This will cancel your {booking.serviceName} appointment at {booking.vendorName}. This cannot be undone.
+                                                This will cancel your {booking.serviceName} appointment at {booking.branchName}. This cannot be undone.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>

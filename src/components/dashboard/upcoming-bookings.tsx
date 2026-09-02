@@ -20,7 +20,7 @@ function BookingItem({ booking }: { booking: WithId<Booking> }) {
         <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
                 <p className="font-semibold">{booking.serviceName}</p>
-                <p className="text-sm text-muted-foreground">{booking.vendorName}</p>
+                <p className="text-sm text-muted-foreground">{booking.branchName}</p>
             </div>
             <div className="text-sm text-right text-muted-foreground whitespace-nowrap">
                 {format(bookingDate, "MMM d, yyyy")}

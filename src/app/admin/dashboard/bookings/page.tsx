@@ -26,6 +26,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Textarea } from "@/components/ui/textarea";
 import { useCollection, useFirebase, useMemoFirebase, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { BOOKING_TRANSITIONS } from "@/lib/types";
 import type { Booking, BookingStatus, UserProfile, WithId } from "@/lib/types";
 
 function toDate(v: Booking["bookingDate"]) {
@@ -36,20 +37,29 @@ function toDate(v: Booking["bookingDate"]) {
 
 function statusBadgeClass(status: BookingStatus) {
   if (status === "Completed") return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
-  if (status === "Confirmed") return "bg-primary/10 text-primary border-primary/20";
-  if (status === "Cancelled") return "bg-destructive/10 text-destructive border-destructive/20";
+  if (status === "Confirmed" || status === "VehicleReceived" || status === "InProgress" || status === "ReadyForPickup") {
+    return "bg-primary/10 text-primary border-primary/20";
+  }
+  if (status === "Cancelled" || status === "Declined" || status === "NoShow") {
+    return "bg-destructive/10 text-destructive border-destructive/20";
+  }
   return "bg-amber-500/10 text-amber-600 border-amber-500/20";
 }
 
-const VALID_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
-  Pending: ["Pending", "Confirmed", "Cancelled"],
-  Confirmed: ["Confirmed", "Completed", "Cancelled"],
-  Completed: ["Completed"],
-  Cancelled: ["Cancelled"],
-};
+const BOOKING_STATUSES = [
+  "Pending",
+  "Confirmed",
+  "VehicleReceived",
+  "InProgress",
+  "ReadyForPickup",
+  "Completed",
+  "Declined",
+  "Cancelled",
+  "NoShow",
+] as const;
 
 const bookingEditSchema = z.object({
-  status: z.enum(["Pending", "Confirmed", "Completed", "Cancelled"]),
+  status: z.enum(BOOKING_STATUSES),
   cost: z.coerce.number().min(0, "Cost must be non-negative"),
   notes: z.string().optional(),
   assignedStaffName: z.string().optional(),
@@ -99,7 +109,7 @@ export default function AdminBookingsPage() {
         const customer = usersMap[b.userId];
         const matchSearch = !q ||
           b.serviceName.toLowerCase().includes(q) ||
-          b.vendorName.toLowerCase().includes(q) ||
+          b.branchName.toLowerCase().includes(q) ||
           (customer ? `${customer.firstName} ${customer.lastName}`.toLowerCase().includes(q) : false);
         return matchTab && matchSearch;
       })
@@ -239,7 +249,7 @@ export default function AdminBookingsPage() {
                           <p className="text-sm font-semibold">{customer ? `${customer.firstName} ${customer.lastName}` : "—"}</p>
                           <p className="text-xs text-muted-foreground">{b.userId.slice(0, 8)}…</p>
                         </TableCell>
-                        <TableCell className="text-sm">{b.vendorName}</TableCell>
+                        <TableCell className="text-sm">{b.branchName}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {format(toDate(b.bookingDate), "MMM d, yyyy")}
                           <span className="block text-[11px]">{format(toDate(b.bookingDate), "h:mm a")}</span>
@@ -270,7 +280,7 @@ export default function AdminBookingsPage() {
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle>Edit Booking</DialogTitle>
-            <DialogDescription>{editBooking?.serviceName} · {editBooking?.vendorName}</DialogDescription>
+            <DialogDescription>{editBooking?.serviceName} · {editBooking?.branchName}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit(handleSaveBooking)} className="space-y-4 pt-2">
             <div className="space-y-2">
@@ -279,7 +289,7 @@ export default function AdminBookingsPage() {
                 <Select onValueChange={field.onChange} value={field.value}>
                   <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                   <SelectContent className="rounded-2xl">
-                    {(editBooking ? VALID_TRANSITIONS[editBooking.status] : ["Pending", "Confirmed", "Completed", "Cancelled"]).map(s => (
+                    {(editBooking ? [editBooking.status, ...BOOKING_TRANSITIONS[editBooking.status]] : [...BOOKING_STATUSES]).map(s => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))}
                   </SelectContent>
@@ -315,7 +325,7 @@ export default function AdminBookingsPage() {
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete booking?</AlertDialogTitle>
-            <AlertDialogDescription>Permanently removes <strong>{deleteBooking?.serviceName}</strong> at <strong>{deleteBooking?.vendorName}</strong>.</AlertDialogDescription>
+            <AlertDialogDescription>Permanently removes <strong>{deleteBooking?.serviceName}</strong> at <strong>{deleteBooking?.branchName}</strong>.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
@@ -329,7 +339,7 @@ export default function AdminBookingsPage() {
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader className="mb-6">
             <SheetTitle>{viewBooking?.serviceName}</SheetTitle>
-            <SheetDescription>{viewBooking?.vendorName}</SheetDescription>
+            <SheetDescription>{viewBooking?.branchName}</SheetDescription>
           </SheetHeader>
           {viewBooking && (
             <div className="space-y-5">
@@ -339,7 +349,7 @@ export default function AdminBookingsPage() {
                   { label: "Date", value: format(toDate(viewBooking.bookingDate), "MMM d, yyyy · h:mm a") },
                   { label: "Cost", value: viewBooking.cost ? `QAR ${viewBooking.cost.toLocaleString()}` : "—" },
                   { label: "Customer UID", value: viewBooking.userId.slice(0, 16) + "…" },
-                  { label: "Vendor", value: viewBooking.vendorName },
+                  { label: "Vendor", value: viewBooking.branchName },
                   { label: "Assigned Staff", value: viewBooking.assignedStaffName || "—" },
                   { label: "Notes", value: viewBooking.notes || "—" },
                 ].map(row => (

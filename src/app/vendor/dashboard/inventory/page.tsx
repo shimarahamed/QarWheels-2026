@@ -50,7 +50,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useVendor } from "@/components/vendor/vendor-provider";
 import { useFirebase, useCollection, useMemoFirebase, safeAddDoc, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
-import { collection, doc } from "firebase/firestore";
+import { collection, doc, query, where } from "firebase/firestore";
 import type { InventoryItem, WithId } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -117,15 +117,18 @@ function InventoryForm({ item, onSave, onCancel, isSubmitting }: { item?: WithId
 
 export default function VendorInventoryPage() {
     const { firestore } = useFirebase();
-    const { vendor } = useVendor();
+    const { business, activeBranch } = useVendor();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<WithId<InventoryItem> | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
 
-    const inventoryRef = useMemoFirebase(() => vendor ? collection(firestore, 'vendors', vendor.id, 'inventory') : null, [firestore, vendor]);
-    const { data: inventory, isLoading } = useCollection<WithId<InventoryItem>>(inventoryRef);
+    const inventoryQuery = useMemoFirebase(
+      () => activeBranch ? query(collection(firestore, 'branch_inventory'), where('branchId', '==', activeBranch.id)) : null,
+      [firestore, activeBranch],
+    );
+    const { data: inventory, isLoading } = useCollection<WithId<InventoryItem>>(inventoryQuery);
 
     const handleRowClick = (item: WithId<InventoryItem>) => {
         setSelectedItem(item);
@@ -143,16 +146,20 @@ export default function VendorInventoryPage() {
     };
 
     const handleSaveItem = (data: z.infer<typeof inventorySchema>) => {
-        if (!vendor || !inventoryRef) return;
+        if (!activeBranch) return;
         setIsSubmitting(true);
         if (selectedItem) {
             // Update
-            const itemDocRef = doc(firestore, 'vendors', vendor.id, 'inventory', selectedItem.id);
+            const itemDocRef = doc(firestore, 'branch_inventory', selectedItem.id);
             safeUpdateDoc(itemDocRef, data);
             toast({ title: "Item Updated", description: `"${data.name}" has been updated.`});
         } else {
             // Create
-            safeAddDoc(inventoryRef, data);
+            safeAddDoc(collection(firestore, 'branch_inventory'), {
+                ...data,
+                businessId: business.id,
+                branchId: activeBranch.id,
+            });
             toast({ title: "Item Added", description: `"${data.name}" has been added to inventory.` });
         }
         setIsSubmitting(false);
@@ -161,8 +168,8 @@ export default function VendorInventoryPage() {
     }
 
      const handleDeleteConfirm = () => {
-        if (!selectedItem || !vendor) return;
-        const itemDocRef = doc(firestore, 'vendors', vendor.id, 'inventory', selectedItem.id);
+        if (!selectedItem) return;
+        const itemDocRef = doc(firestore, 'branch_inventory', selectedItem.id);
         safeDeleteDoc(itemDocRef);
         toast({
             title: "Item Deleted",
