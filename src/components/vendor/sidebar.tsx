@@ -28,9 +28,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useFirebase } from "@/firebase";
+import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { collection, query, where } from "firebase/firestore";
 import { Logo } from "../logo";
 import { useVendor } from "./vendor-provider";
+import type { Booking, WithId } from "@/lib/types";
 
 const navItems = [
   { href: "/vendor/dashboard",            icon: LayoutDashboard, label: "Overview",   hint: "Command center",  iconBg: "bg-primary/10 text-primary",        activeGradient: "from-primary/20 to-sky-500/10" },
@@ -46,11 +48,23 @@ const navItems = [
 
 export function VendorSidebar() {
   const pathname = usePathname();
-  const { auth, user } = useFirebase();
-  const { business, activeBranch } = useVendor();
+  const { auth, user, firestore } = useFirebase();
+  const { business, activeBranch, canSeeAllBranches } = useVendor();
 
   const branchStatus = activeBranch?.status || "Pending Approval";
   const isApproved = branchStatus === "Approved";
+
+  const pendingBookingsQuery = useMemoFirebase(
+    () =>
+      canSeeAllBranches
+        ? query(collection(firestore, "bookings"), where("businessId", "==", business.id), where("status", "==", "Pending"))
+        : activeBranch
+        ? query(collection(firestore, "bookings"), where("branchId", "==", activeBranch.id), where("status", "==", "Pending"))
+        : null,
+    [firestore, business, activeBranch, canSeeAllBranches],
+  );
+  const { data: pendingBookings } = useCollection<WithId<Booking>>(pendingBookingsQuery);
+  const pendingCount = pendingBookings?.length ?? 0;
 
   const initials = (user?.displayName || business.displayName || "Vendor")
     .split(" ")
@@ -161,6 +175,15 @@ export function VendorSidebar() {
                         {item.hint}
                       </span>
                     </span>
+                    {item.href === "/vendor/dashboard/bookings" && pendingCount > 0 && (
+                      <span
+                        className={`relative flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
+                          isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-destructive text-destructive-foreground"
+                        }`}
+                      >
+                        {pendingCount}
+                      </span>
+                    )}
                     {isActive && (
                       <span className="relative h-1.5 w-1.5 rounded-full bg-primary-foreground/70" />
                     )}

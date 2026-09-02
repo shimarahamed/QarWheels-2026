@@ -40,6 +40,7 @@ import type { Booking, BookingStatus, InventoryItem, WithId } from "@/lib/types"
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Skeleton } from "@/components/ui/skeleton";
+import { BookingActions } from "@/components/vendor/bookings/booking-actions";
 
 // NOTE: staff/membership is deferred to a later phase — this stands in for the
 // deleted StaffMember type so the assignment picker keeps compiling against the
@@ -307,24 +308,27 @@ function BookingTableRow({
         <Badge variant={getStatusVariant(booking.status)}>{booking.status}</Badge>
       </TableCell>
       <TableCell className="text-right">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
-              <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Toggle menu</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={() => onEditClick(booking)}>
-              <Edit className="mr-2 h-4 w-4" /> Update Status/Cost
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => onDeleteClick(booking)} className="text-destructive focus:text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" /> Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center justify-end gap-1.5">
+          <BookingActions booking={booking} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">Toggle menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => onEditClick(booking)}>
+                <Edit className="mr-2 h-4 w-4" /> Update Status/Cost
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => onDeleteClick(booking)} className="text-destructive focus:text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </TableCell>
     </TableRow>
   );
@@ -568,7 +572,14 @@ export default function VendorBookingsPage() {
           <Tabs defaultValue="pending">
               <div className="p-4 border-b">
                   <TabsList className="grid w-full grid-cols-3 gap-1 sm:grid-cols-5 h-auto">
-                        <TabsTrigger value="pending" className="text-xs sm:text-sm px-1.5 sm:px-3">Pending</TabsTrigger>
+                        <TabsTrigger value="pending" className="relative text-xs sm:text-sm px-1.5 sm:px-3">
+                          Requests
+                          {!!pending?.length && (
+                            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                              {pending.length}
+                            </span>
+                          )}
+                        </TabsTrigger>
                         <TabsTrigger value="upcoming" className="text-xs sm:text-sm px-1.5 sm:px-3">Upcoming</TabsTrigger>
                         <TabsTrigger value="completed" className="text-xs sm:text-sm px-1.5 sm:px-3">Completed</TabsTrigger>
                         <TabsTrigger value="cancelled" className="text-xs sm:text-sm px-1.5 sm:px-3">Cancelled</TabsTrigger>

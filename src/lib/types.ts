@@ -75,6 +75,32 @@ export function canTransitionBooking(from: BookingStatus, to: BookingStatus): bo
   return from === to || BOOKING_TRANSITIONS[from].includes(to);
 }
 
+/**
+ * Transitions a given actor role may perform from the current status —
+ * drives both UIs (customer only ever sees "Cancel"; branch staff see the
+ * forward-moving set). Distinct from BOOKING_TRANSITIONS, which is the full
+ * set the datastore allows regardless of actor.
+ */
+export function actorAllowedTransitions(
+  role: 'customer' | 'branch_staff' | 'business_owner' | 'business_admin' | 'master_admin',
+  from: BookingStatus,
+): BookingStatus[] {
+  if (role === 'customer') {
+    return BOOKING_TRANSITIONS[from].includes('Cancelled') ? ['Cancelled'] : [];
+  }
+  // Staff/owner/admin roles get every forward transition except the
+  // customer-only Cancelled path stays available to them too.
+  return BOOKING_TRANSITIONS[from];
+}
+
+/** The single next forward-progress status, if any (excludes Cancelled/Declined/NoShow side-exits). */
+export function nextForwardStatus(from: BookingStatus): BookingStatus | null {
+  const forward = BOOKING_TRANSITIONS[from].filter(
+    (s) => s !== 'Cancelled' && s !== 'Declined' && s !== 'NoShow',
+  );
+  return forward[0] ?? null;
+}
+
 export type BookingStatusHistoryEntry = {
   status: BookingStatus;
   at: FirestoreDate;
