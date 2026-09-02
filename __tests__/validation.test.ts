@@ -9,7 +9,7 @@ import {
 } from '@/lib/validation';
 
 describe('emailSchema', () => {
-  it.each(['a@b.co', 'ahmad.al-rashid@qarwheels.com', 'user+tag@example.co.uk'])(
+  it.each(['a@b.co', 'ahmad.al-rashid@qarwheel.qa', 'user+tag@example.co.uk'])(
     'accepts %s',
     (value) => expect(isValid(emailSchema, value)).toBe(true),
   );
@@ -41,14 +41,14 @@ describe('qatarPhoneSchema', () => {
 
 describe('passwordSchema', () => {
   it('accepts a password meeting every rule', () => {
-    expect(isValid(passwordSchema, 'Qarwheels1')).toBe(true);
+    expect(isValid(passwordSchema, 'Qarwheel1')).toBe(true);
   });
 
   it.each([
     ['short', 'Ab1'],
-    ['no uppercase', 'qarwheels1'],
-    ['no lowercase', 'QARWHEELS1'],
-    ['no digit', 'Qarwheels'],
+    ['no uppercase', 'qarwheel1'],
+    ['no lowercase', 'QARWHEEL1'],
+    ['no digit', 'Qarwheel'],
   ])('rejects one that is %s', (_label, value) => {
     expect(isValid(passwordSchema, value)).toBe(false);
   });

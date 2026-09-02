@@ -1,5 +1,5 @@
 /**
- * QarWheels 2026 — Detail & modal screen components
+ * QarWheel 2026 — Detail & modal screen components
  * All push/modal destination screens.
  */
 
@@ -23,7 +23,7 @@ import { useQarColors } from '@/lib/store';
 import { success, tap } from '@/lib/haptics';
 import { useTranslation } from '@/lib/i18n';
 import { promptRestartForRTL } from '@/lib/i18n/restart';
-import { useQarWheelsStore } from '@/lib/store';
+import { useQarWheelStore } from '@/lib/store';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import { MotionScreen } from '@/lib/motion';
 import {
@@ -165,14 +165,14 @@ export function GarageDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const garage = lookupGarage(id);
   // Hooks must run before the guard below, so read favourites defensively.
-  const isFav = useQarWheelsStore((s) => (garage ? s.favoriteGarageIds.includes(garage.id) : false));
-  const toggleFav = useQarWheelsStore((s) => s.toggleFavoriteGarage);
+  const isFav = useQarWheelStore((s) => (garage ? s.favoriteGarageIds.includes(garage.id) : false));
+  const toggleFav = useQarWheelStore((s) => s.toggleFavoriteGarage);
 
   if (!garage) {
     return (
       <RecordNotFound
         title="Garage not found"
-        message="This garage may no longer be listed on QarWheels."
+        message="This garage may no longer be listed on QarWheel."
       />
     );
   }
@@ -631,7 +631,7 @@ export function CarDetailScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={cds.bookCtaTitle}>Book maintenance</Text>
-            <Text style={cds.bookCtaSub}>Schedule a service at a QarWheels garage</Text>
+            <Text style={cds.bookCtaSub}>Schedule a service at a QarWheel garage</Text>
           </View>
           <Icon name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
         </AnimatedPressable>
@@ -647,12 +647,12 @@ export function BookingDetailScreen() {
   const router = useRouter();
   const c = useQarColors();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const storeBooking = useQarWheelsStore((s) => s.bookings.find((b) => b.id === id));
-  const vendorInvoices = useQarWheelsStore((s) => s.vendorInvoices);
-  const createVendorInvoice = useQarWheelsStore((s) => s.createVendorInvoice);
-  const cancelBooking = useQarWheelsStore((s) => s.cancelBooking);
-  const rescheduleBooking = useQarWheelsStore((s) => s.rescheduleBooking);
-  const themeMode = useQarWheelsStore((s) => s.themeMode);
+  const storeBooking = useQarWheelStore((s) => s.bookings.find((b) => b.id === id));
+  const vendorInvoices = useQarWheelStore((s) => s.vendorInvoices);
+  const createVendorInvoice = useQarWheelStore((s) => s.createVendorInvoice);
+  const cancelBooking = useQarWheelStore((s) => s.cancelBooking);
+  const rescheduleBooking = useQarWheelStore((s) => s.rescheduleBooking);
+  const themeMode = useQarWheelStore((s) => s.themeMode);
   const themedStatusColors = getThemedStatusColors(themeMode);
   // Prefer the user's own booking; the seed lookup is strict so a stale link
   // cannot render somebody else's appointment under this id.
@@ -908,8 +908,8 @@ export function BookingDetailScreen() {
 // ═══════════════════════════════════════════════════════════════
 export function NotificationsScreen() {
   const c = useQarColors();
-  const notifications = useQarWheelsStore((s) => s.notifications);
-  const markRead      = useQarWheelsStore((s) => s.markNotificationsRead);
+  const notifications = useQarWheelStore((s) => s.notifications);
+  const markRead      = useQarWheelStore((s) => s.markNotificationsRead);
   const unread        = notifications.filter((n) => !n.read).length;
 
   return (
@@ -958,7 +958,7 @@ export function SettingsDetailScreen() {
   const { section } = useLocalSearchParams<{ section: string }>();
   const normalized  = decodeURIComponent(section ?? 'settings').replaceAll('-', ' ');
   const { language, changeLanguage } = useTranslation();
-  const favorites   = useQarWheelsStore((s) => s.favoriteGarageIds);
+  const favorites   = useQarWheelStore((s) => s.favoriteGarageIds);
 
   return (
     <Page title={normalized.replace(/\b\w/g, (ch) => ch.toUpperCase())}>

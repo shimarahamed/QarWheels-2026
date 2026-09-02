@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarWheelsStore, useQarColors } from '@/lib/store';
+import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import {
@@ -13,17 +13,43 @@ import {
   type VendorBookingStatus,
 } from '@/lib/vendor-data';
 import { getBookingStatusDescription } from '@/lib/booking-workflow';
+import { updateVendorBookingStatusInFirestore } from '@/lib/firestoreOps';
 
 
 export default function StatusUpdateScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const storeBooking = useQarWheelsStore((state) => state.vendorBookings.find((b) => b.id === id));
+  const storeBooking = useQarWheelStore((state) => state.vendorBookings.find((b) => b.id === id));
   const booking = storeBooking ?? findVendorBooking(id);
-  const updateStatus = useQarWheelsStore((s) => s.updateVendorBookingStatus);
+  const updateStatus = useQarWheelStore((s) => s.updateVendorBookingStatus);
 
   const currentIndex = STATUS_FLOW.indexOf(booking.status);
+
+  // Seed-demo bookings (id starts with "vb_") have no Firestore document to
+  // write to — only live bookings synced via useVendorFirestoreBookings do.
+  const isLiveBooking = !booking.id.startsWith('vb_');
+
+  async function applyStatus(status: VendorBookingStatus) {
+    const previousStatus = booking.status;
+    // Optimistic local update first so the UI responds immediately...
+    updateStatus(booking.id, status);
+    if (!isLiveBooking) return;
+    try {
+      // ...then persist to Firestore. NOTE: this is a temporary direct write —
+      // full transition validation (accept/reject, statusHistory, notifications)
+      // is built in a later phase; this only stops updates from silently
+      // staying local-only.
+      await updateVendorBookingStatusInFirestore(booking.id, status);
+    } catch (e) {
+      // Roll back the optimistic update on failure
+      updateStatus(booking.id, previousStatus);
+      Alert.alert(
+        'Update failed',
+        e instanceof Error ? e.message : 'Could not update the booking. Please try again.',
+      );
+    }
+  }
 
   function handleSelect(status: VendorBookingStatus) {
     if (status === booking.status) {
@@ -38,7 +64,7 @@ export default function StatusUpdateScreen() {
         {
           text: 'Confirm',
           onPress: () => {
-            updateStatus(booking.id, status);
+            void applyStatus(status);
             router.back();
           },
         },
@@ -56,7 +82,7 @@ export default function StatusUpdateScreen() {
           text: 'Cancel Booking',
           style: 'destructive',
           onPress: () => {
-            updateStatus(booking.id, 'Cancelled');
+            void applyStatus('Cancelled');
             router.back();
           },
         },

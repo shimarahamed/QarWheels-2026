@@ -3,7 +3,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import {
@@ -39,7 +39,7 @@ export default function JobProgressScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const storeBooking = useQarWheelsStore((s) => s.bookings.find((b) => b.id === id));
+  const storeBooking = useQarWheelStore((s) => s.bookings.find((b) => b.id === id));
   const [status, setStatus] = useState<BookingWorkflowStatus>(storeBooking?.status ?? 'Pending');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const pulseAnim = useRef(new Animated.Value(1)).current;

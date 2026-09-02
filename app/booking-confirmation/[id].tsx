@@ -3,12 +3,12 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { lookupGarage } from '@/lib/marketplace';
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheels.com';
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheel.qa';
 
 async function addToCalendar(bookingId: string) {
   await fetch(`${BACKEND_URL}/api/bookings/${bookingId}/calendar`, {
@@ -22,7 +22,7 @@ export default function BookingConfirmationScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const booking = useQarWheelsStore((s) => s.bookings.find((b) => b.id === id));
+  const booking = useQarWheelStore((s) => s.bookings.find((b) => b.id === id));
   const garage = booking?.garageId
     ? lookupGarage(booking.garageId!)
     : null;

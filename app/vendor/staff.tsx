@@ -3,7 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarWheelsStore, useQarColors } from '@/lib/store';
+import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { useVendorTabBottom } from '@/components/VendorTabBar';
@@ -12,14 +12,14 @@ export default function StaffScreen() {
   const c = useQarColors();
   const vendorTabBottom = useVendorTabBottom();
   const router = useRouter();
-  const staff = useQarWheelsStore((s) => s.vendorStaff);
-  const vendorBookings = useQarWheelsStore((s) => s.vendorBookings);
+  const staff = useQarWheelStore((s) => s.vendorStaff);
+  const vendorBookings = useQarWheelStore((s) => s.vendorBookings);
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const [phone, setPhone] = useState('');
   const [specialty, setSpecialty] = useState('');
-  const addStaff = useQarWheelsStore((s) => s.addVendorStaff);
+  const addStaff = useQarWheelStore((s) => s.addVendorStaff);
 
   function handleAdd() {
     if (!name.trim() || !role.trim()) {

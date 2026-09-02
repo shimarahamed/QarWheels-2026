@@ -1,5 +1,5 @@
 /**
- * QarWheels 2026 marketplace discovery.
+ * QarWheel 2026 marketplace discovery.
  * Shared service, search, category, compare, map, offer, and saved screens.
  */
 
@@ -23,7 +23,7 @@ import {
   type Garage,
   type PopularJob,
 } from '@/lib/marketplace';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { tap } from '@/lib/haptics';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 
@@ -253,8 +253,8 @@ function DiscoveryControls({
 function GarageCard({ garage, compare }: { garage: Garage; compare?: boolean }) {
   const router = useRouter();
   const c = useQarColors();
-  const isFav = useQarWheelsStore((state) => state.favoriteGarageIds.includes(garage.id));
-  const toggleFav = useQarWheelsStore((state) => state.toggleFavoriteGarage);
+  const isFav = useQarWheelStore((state) => state.favoriteGarageIds.includes(garage.id));
+  const toggleFav = useQarWheelStore((state) => state.toggleFavoriteGarage);
 
   // Two rows rather than three columns: details on top, price and CTA on a
   // dedicated footer. The old layout squeezed price, availability and a Book
@@ -668,7 +668,7 @@ export function ServiceDetailScreen() {
     return (
       <RecordNotFound
         title="Service not found"
-        message="This service is no longer offered on QarWheels."
+        message="This service is no longer offered on QarWheel."
       />
     );
   }
@@ -762,7 +762,7 @@ export function CompareGaragesScreen() {
 }
 
 export function SavedItemsScreen() {
-  const favoriteIds = useQarWheelsStore((state) => state.favoriteGarageIds);
+  const favoriteIds = useQarWheelStore((state) => state.favoriteGarageIds);
   const savedGarages = garages.filter((garage) => favoriteIds.includes(garage.id));
   const list = savedGarages.length > 0 ? savedGarages : garages.slice(0, 2);
 

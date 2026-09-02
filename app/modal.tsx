@@ -51,7 +51,7 @@ export default function QuoteRequestModal() {
       Alert.alert('Permission needed', 'Allow location access to match nearby garages.');
       return;
     }
-    Alert.alert('Location ready', 'QarWheels will use your location to find nearby garages.');
+    Alert.alert('Location ready', 'QarWheel will use your location to find nearby garages.');
   }
 
   async function handleSubmit() {
@@ -76,6 +76,8 @@ export default function QuoteRequestModal() {
     setLoading(true);
     try {
       const ref = await createBooking(user.uid, {
+        customerName: user.displayName ?? 'QarWheel Customer',
+        customerEmail: user.email ?? '',
         vendorId: garage.id,
         vendorName: garage.name,
         carId: car.id,

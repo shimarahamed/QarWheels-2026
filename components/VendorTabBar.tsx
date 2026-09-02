@@ -13,7 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { getQarColors } from '@/lib/theme';
-import { useQarWheelsStore } from '@/lib/store';
+import { useQarWheelStore } from '@/lib/store';
 import { tap } from '@/lib/haptics';
 import { motion } from '@/lib/motion';
 
@@ -148,7 +148,7 @@ export function VendorTabBar() {
   const router    = useRouter();
   const pathname  = usePathname();
   const insets    = useSafeAreaInsets();
-  const themeMode = useQarWheelsStore((s) => s.themeMode);
+  const themeMode = useQarWheelStore((s) => s.themeMode);
   const c         = getQarColors(themeMode);
   const isDark    = themeMode === 'dark';
 

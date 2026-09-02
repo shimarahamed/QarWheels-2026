@@ -17,7 +17,7 @@ import { garages, type Garage } from '@/lib/marketplace';
 import { MotionScreen, MotionSurface } from '@/lib/motion';
 import {
   useQarColors,
-  useQarWheelsStore,
+  useQarWheelStore,
   type SavedAddress,
   type StoredInvoice,
   type VaultDocument,
@@ -112,15 +112,15 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
   const router = useRouter();
   const c = useQarColors();
   const { user } = useAuthContext();
-  const bookings = useQarWheelsStore((s) => s.bookings);
-  const favorites = useQarWheelsStore((s) => s.favoriteGarageIds);
+  const bookings = useQarWheelStore((s) => s.bookings);
+  const favorites = useQarWheelStore((s) => s.favoriteGarageIds);
   const { language, changeLanguage } = useTranslation();
-  const notifications = useQarWheelsStore((s) => s.notifications);
-  const markNotificationsRead = useQarWheelsStore((s) => s.markNotificationsRead);
+  const notifications = useQarWheelStore((s) => s.notifications);
+  const markNotificationsRead = useQarWheelStore((s) => s.markNotificationsRead);
   const [section, setSection] = useState<AccountSection>(initialSection);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<AccountProfile>({
-    name: 'QarWheels User',
+    name: 'QarWheel User',
     email: '',
     phone: '+974 ',
     country: 'Qatar',
@@ -133,18 +133,18 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
   // ── Account domain, from the persisted store ──────────────────────────────
-  const addresses = useQarWheelsStore((s) => s.addresses);
-  const addAddress = useQarWheelsStore((s) => s.addAddress);
-  const updateAddress = useQarWheelsStore((s) => s.updateAddress);
-  const removeAddress = useQarWheelsStore((s) => s.removeAddress);
-  const setDefaultAddress = useQarWheelsStore((s) => s.setDefaultAddress);
-  const walletBalance = useQarWheelsStore((s) => s.walletBalance);
-  const walletTransactions = useQarWheelsStore((s) => s.walletTransactions);
-  const topUpWallet = useQarWheelsStore((s) => s.topUpWallet);
-  const invoices = useQarWheelsStore((s) => s.invoices);
-  const documents = useQarWheelsStore((s) => s.documents);
-  const addDocument = useQarWheelsStore((s) => s.addDocument);
-  const removeDocument = useQarWheelsStore((s) => s.removeDocument);
+  const addresses = useQarWheelStore((s) => s.addresses);
+  const addAddress = useQarWheelStore((s) => s.addAddress);
+  const updateAddress = useQarWheelStore((s) => s.updateAddress);
+  const removeAddress = useQarWheelStore((s) => s.removeAddress);
+  const setDefaultAddress = useQarWheelStore((s) => s.setDefaultAddress);
+  const walletBalance = useQarWheelStore((s) => s.walletBalance);
+  const walletTransactions = useQarWheelStore((s) => s.walletTransactions);
+  const topUpWallet = useQarWheelStore((s) => s.topUpWallet);
+  const invoices = useQarWheelStore((s) => s.invoices);
+  const documents = useQarWheelStore((s) => s.documents);
+  const addDocument = useQarWheelStore((s) => s.addDocument);
+  const removeDocument = useQarWheelStore((s) => s.removeDocument);
 
   const [addressEditor, setAddressEditor] = useState<AddressDraft | null>(null);
 
@@ -271,7 +271,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
     };
     try {
       await Share.share({
-        title: 'QarWheels data export',
+        title: 'QarWheel data export',
         message: JSON.stringify(payload, null, 2),
       });
     } catch {
@@ -308,7 +308,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
         `${new Date(t.createdAt).toLocaleDateString()}  ${t.reference}  ${t.amount > 0 ? '+' : ''}${t.amount.toFixed(2)}  ${t.description}  (balance ${t.balanceAfter.toFixed(2)})`,
     );
     const statement = [
-      'QarWheels wallet statement',
+      'QarWheel wallet statement',
       `Generated ${new Date().toLocaleString()}`,
       `Closing balance: ${money(walletBalance)}`,
       '',
@@ -316,7 +316,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
     ].join('\n');
 
     try {
-      await Share.share({ title: 'QarWheels statement', message: statement });
+      await Share.share({ title: 'QarWheel statement', message: statement });
     } catch {
       Alert.alert('Export failed', 'The statement could not be shared. Please try again.');
     }
@@ -324,7 +324,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
 
   useEffect(() => {
     setProfile({
-      name: user?.displayName ?? 'QarWheels User',
+      name: user?.displayName ?? 'QarWheel User',
       email: user?.email ?? '',
       phone: user?.phoneNumber ?? '+974 ',
       country: 'Qatar',
@@ -350,7 +350,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
     }
     setSaving(true);
     try {
-      await updateProfile(auth.currentUser ?? user, { displayName: profile.name.trim() || 'QarWheels User' });
+      await updateProfile(auth.currentUser ?? user, { displayName: profile.name.trim() || 'QarWheel User' });
       await setDoc(
         doc(firestore, 'users', user.uid),
         {
@@ -550,7 +550,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
         <SectionCard title="Notification center" subtitle="Choose what reaches the mobile app, email, and SMS." icon="notifications-outline" c={c}>
           <ToggleRow label="Push notifications" meta="Booking, quote, service, and payment updates" value={pushEnabled} onValueChange={setPushEnabled} c={c} />
           <ToggleRow label="Booking reminders" meta="Before pickup, drop-off, and service completion" value={bookingEnabled} onValueChange={setBookingEnabled} c={c} />
-          <ToggleRow label="Promotions" meta="Offers from saved garages and QarWheels" value={promoEnabled} onValueChange={setPromoEnabled} c={c} />
+          <ToggleRow label="Promotions" meta="Offers from saved garages and QarWheel" value={promoEnabled} onValueChange={setPromoEnabled} c={c} />
           <ActionRow label={`Mark ${unread} unread as read`} meta="Clear notification badges" icon="checkmark-done-outline" onPress={() => { markNotificationsRead(); void success(); }} c={c} />
         </SectionCard>
       );
@@ -664,7 +664,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
     if (section === 'subscriptions') {
       return (
         <SectionCard title="Subscriptions" subtitle="Care plans for regular service, inspections, and priority support." icon="repeat-outline" c={c}>
-          <PlanCard title="QarWheels Care" price="QAR 49 / month" meta="Priority slots, annual inspection reminder, 2 free pickup credits." active c={c} />
+          <PlanCard title="QarWheel Care" price="QAR 49 / month" meta="Priority slots, annual inspection reminder, 2 free pickup credits." active c={c} />
           <PlanCard title="Family garage plan" price="QAR 89 / month" meta="Up to 4 vehicles, shared wallet, consolidated invoices." c={c} />
         </SectionCard>
       );

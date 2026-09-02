@@ -10,7 +10,7 @@ import { useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheels.com';
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheel.qa';
 
 type ContactChannel = {
   icon: 'call-outline' | 'mail-outline' | 'chatbubbles-outline' | 'logo-whatsapp';
@@ -32,7 +32,7 @@ export default function ContactUsScreen() {
   const CHANNELS: ContactChannel[] = [
     { icon: 'call-outline',        label: 'Call us',     value: '+974 4000 1234',         action: () => Linking.openURL('tel:+97440001234'),          available: 'Sun–Thu 8 AM – 8 PM' },
     { icon: 'logo-whatsapp',       label: 'WhatsApp',    value: '+974 5000 5678',         action: () => Linking.openURL('https://wa.me/97450005678'),  available: '24/7 automated + agent' },
-    { icon: 'mail-outline',        label: 'Email',       value: 'support@qarwheels.com',  action: () => Linking.openURL('mailto:support@qarwheels.com'), available: 'Response within 24 hrs' },
+    { icon: 'mail-outline',        label: 'Email',       value: 'support@qarwheel.qa',  action: () => Linking.openURL('mailto:support@qarwheel.qa'), available: 'Response within 24 hrs' },
     { icon: 'chatbubbles-outline', label: 'AI Support',  value: 'Instant answers',        action: () => router.push('/ai-support' as never),           available: 'Always on' },
   ];
 
@@ -141,7 +141,7 @@ export default function ContactUsScreen() {
             <View style={[s.officeCard, { backgroundColor: c.surface, borderColor: c.border }]}>
               <Ionicons name="business-outline" size={18} color={c.muted} />
               <View style={{ flex: 1 }}>
-                <Text style={[s.officeTitle, { color: c.text }]}>QarWheels HQ</Text>
+                <Text style={[s.officeTitle, { color: c.text }]}>QarWheel HQ</Text>
                 <Text style={[s.officeAddr, { color: c.muted }]}>West Bay, Doha, Qatar · P.O. Box 12345</Text>
               </View>
             </View>

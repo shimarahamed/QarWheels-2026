@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "QarWheels",
-    "slug": "qarwheels",
+    "name": "QarWheel",
+    "slug": "qarwheel",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "qarwheels",
+    "scheme": "qarwheel",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,17 +15,17 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.qarwheels.app",
+      "bundleIdentifier": "com.qarwheel.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "QarWheels uses your location to show nearby garages and service providers.",
-        "NSPhotoLibraryUsageDescription": "QarWheels lets you attach service invoices and car photos to requests.",
-        "NSCameraUsageDescription": "QarWheels uses the camera to scan your VIN and photograph vehicle damage.",
-        "NSUserNotificationsUsageDescription": "QarWheels sends booking updates and maintenance reminders.",
+        "NSLocationWhenInUseUsageDescription": "QarWheel uses your location to show nearby garages and service providers.",
+        "NSPhotoLibraryUsageDescription": "QarWheel lets you attach service invoices and car photos to requests.",
+        "NSCameraUsageDescription": "QarWheel uses the camera to scan your VIN and photograph vehicle damage.",
+        "NSUserNotificationsUsageDescription": "QarWheel sends booking updates and maintenance reminders.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "qarwheel.com",
+      "package": "com.qarwheel.app",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",

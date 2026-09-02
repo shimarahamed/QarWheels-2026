@@ -12,7 +12,7 @@ export default function AccountSuccessScreen() {
       <StepHeader
         eyebrow="Account ready"
         title="You are all set"
-        body="Your QarWheels account is ready. You can now add cars, discover garages, book services, and track reminders."
+        body="Your QarWheel account is ready. You can now add cars, discover garages, book services, and track reminders."
         icon="checkmark-done-circle-outline"
       />
     </AuthScreen>

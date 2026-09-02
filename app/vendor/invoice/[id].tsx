@@ -6,7 +6,7 @@ import {
   Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { exportInvoicePdf, printInvoice } from '@/lib/invoice-pdf';
 import { MotionScreen } from '@/lib/motion';
 import { palette, radius, shadow, spacing, typography } from '@/lib/theme';
@@ -159,8 +159,8 @@ function AddFromServicesModal({ visible, onAdd, onClose, c }: {
   onClose: () => void;
   c: ReturnType<typeof useQarColors>;
 }) {
-  const services = useQarWheelsStore((s) => s.vendorServices).filter((s) => s.active);
-  const inventory = useQarWheelsStore((s) => s.vendorInventory);
+  const services = useQarWheelStore((s) => s.vendorServices).filter((s) => s.active);
+  const inventory = useQarWheelStore((s) => s.vendorInventory);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -290,15 +290,15 @@ export default function InvoiceScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const storeInvoice = useQarWheelsStore((s) => s.vendorInvoices.find((item) => item.id === id));
-  const vendorProfile = useQarWheelsStore((s) => s.vendorProfile);
-  const counterOffers = useQarWheelsStore((s) => s.counterOffers);
-  const updateInvoice = useQarWheelsStore((s) => s.updateVendorInvoice);
-  const addLineItem = useQarWheelsStore((s) => s.addInvoiceLineItem);
-  const removeLineItem = useQarWheelsStore((s) => s.removeInvoiceLineItem);
-  const updateLineItem = useQarWheelsStore((s) => s.updateInvoiceLineItem);
-  const resolveOffer = useQarWheelsStore((s) => s.resolveCounterOffer);
-  const themeMode = useQarWheelsStore((s) => s.themeMode);
+  const storeInvoice = useQarWheelStore((s) => s.vendorInvoices.find((item) => item.id === id));
+  const vendorProfile = useQarWheelStore((s) => s.vendorProfile);
+  const counterOffers = useQarWheelStore((s) => s.counterOffers);
+  const updateInvoice = useQarWheelStore((s) => s.updateVendorInvoice);
+  const addLineItem = useQarWheelStore((s) => s.addInvoiceLineItem);
+  const removeLineItem = useQarWheelStore((s) => s.removeInvoiceLineItem);
+  const updateLineItem = useQarWheelStore((s) => s.updateInvoiceLineItem);
+  const resolveOffer = useQarWheelStore((s) => s.resolveCounterOffer);
+  const themeMode = useQarWheelStore((s) => s.themeMode);
   const pdfTheme = themeMode === 'dark' ? 'dark' : 'light';
 
   const invoice = storeInvoice ?? findVendorInvoice(id);

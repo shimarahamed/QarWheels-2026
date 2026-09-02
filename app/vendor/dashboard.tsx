@@ -1,55 +1,30 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getAuth } from 'firebase/auth';
-import { useQarWheelsStore, useQarColors } from '@/lib/store';
+import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen, MotionSurface } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { getStatusColor, getStatusLabel } from '@/lib/vendor-data';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
-import { saveVendorProfile, useVendorFirestoreBookings } from '@/lib/firestoreOps';
+import { useVendorFirestoreBookings } from '@/lib/firestoreOps';
 
 export default function VendorDashboard() {
   const c = useQarColors();
   const router = useRouter();
   const vendorTabBottom = useVendorTabBottom();
-  const profile = useQarWheelsStore((s) => s.vendorProfile);
-  const bookings = useQarWheelsStore((s) => s.vendorBookings);
+  const profile = useQarWheelStore((s) => s.vendorProfile);
+  const bookings = useQarWheelStore((s) => s.vendorBookings);
 
   const uid = getAuth().currentUser?.uid ?? null;
 
   // Sync live bookings from Firestore into the vendor dashboard
   useVendorFirestoreBookings(uid);
 
-  // Publish this vendor's profile to Firestore so they appear in the customer marketplace
-  useEffect(() => {
-    if (!uid) return;
-    void saveVendorProfile(uid, {
-      businessName: profile.businessName,
-      ownerName: profile.ownerName,
-      email: profile.email,
-      phone: profile.phone,
-      category: profile.category,
-      area: profile.area,
-      city: profile.city,
-      rating: profile.rating,
-      totalReviews: profile.totalReviews,
-      verified: profile.verified,
-      openNow: !profile.vacationMode,
-      vacationMode: profile.vacationMode,
-      openTime: profile.openTime,
-      closeTime: profile.closeTime,
-      workDays: profile.workDays,
-      startingPrice: 'QAR 100+',
-      startingPriceValue: 100,
-      responseTime: '15 min',
-      pickupAvailable: true,
-      warranty: '7-day warranty',
-      tags: profile.verified ? ['Verified'] : [],
-    });
-  }, [uid, profile.businessName, profile.vacationMode, profile.verified]);
+  // Profile publishing is an explicit action on the settings screen, not a
+  // side effect of viewing the dashboard — this used to overwrite real
+  // Firestore data with hardcoded placeholder values on every mount.
 
   const todayBookings = bookings.filter((b) => b.date === 'Today');
   const pending = bookings.filter((b) => b.status === 'Pending').length;

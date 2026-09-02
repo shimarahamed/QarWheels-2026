@@ -10,7 +10,7 @@ import { useQarColors } from '@/lib/store';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { Stack as RouterStack } from 'expo-router';
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheels.com';
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheel.qa';
 
 type Message = { id: string; role: 'user' | 'assistant'; text: string; ts: Date };
 
@@ -35,7 +35,7 @@ function pickCanned(text: string): string {
   if (t.includes('payment') || t.includes('pay') || t.includes('charge') || t.includes('fail')) return CANNED.payment;
   if (t.includes('reschedule') || t.includes('change') || t.includes('move')) return CANNED.reschedule;
   if (t.includes('vehicle') || t.includes('car') || t.includes('where') || t.includes('track')) return CANNED.vehicle;
-  return 'I\'m looking into that for you. Based on typical QarWheels questions, I\'d recommend checking the FAQ or opening a support ticket so our team can investigate directly. Is there anything else I can help clarify?';
+  return 'I\'m looking into that for you. Based on typical QarWheel questions, I\'d recommend checking the FAQ or opening a support ticket so our team can investigate directly. Is there anything else I can help clarify?';
 }
 
 export default function AiSupportScreen() {
@@ -43,7 +43,7 @@ export default function AiSupportScreen() {
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<Message[]>([
-    { id: 'sys0', role: 'assistant', text: 'Hi! I\'m QarWheels AI support. Ask me anything about your bookings, payments, or services.', ts: new Date() },
+    { id: 'sys0', role: 'assistant', text: 'Hi! I\'m QarWheel AI support. Ask me anything about your bookings, payments, or services.', ts: new Date() },
   ]);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);

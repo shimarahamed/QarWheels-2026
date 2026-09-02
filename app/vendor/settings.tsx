@@ -3,7 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarWheelsStore, useQarColors } from '@/lib/store';
+import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
@@ -16,12 +16,12 @@ export default function VendorSettingsScreen() {
   const c = useQarColors();
   const router = useRouter();
   const vendorTabBottom = useVendorTabBottom();
-  const profile = useQarWheelsStore((s) => s.vendorProfile);
-  const updateProfile = useQarWheelsStore((s) => s.updateVendorProfile);
-  const toggleVacation = useQarWheelsStore((s) => s.toggleVendorVacationMode);
-  const themeMode = useQarWheelsStore((s) => s.themeMode);
-  const setThemeMode = useQarWheelsStore((s) => s.setThemeMode);
-  const setVendorAuthenticated = useQarWheelsStore((s) => s.setVendorAuthenticated);
+  const profile = useQarWheelStore((s) => s.vendorProfile);
+  const updateProfile = useQarWheelStore((s) => s.updateVendorProfile);
+  const toggleVacation = useQarWheelStore((s) => s.toggleVendorVacationMode);
+  const themeMode = useQarWheelStore((s) => s.themeMode);
+  const setThemeMode = useQarWheelStore((s) => s.setThemeMode);
+  const setVendorAuthenticated = useQarWheelStore((s) => s.setVendorAuthenticated);
 
   const [openTime, setOpenTime] = useState(profile.openTime);
   const [closeTime, setCloseTime] = useState(profile.closeTime);

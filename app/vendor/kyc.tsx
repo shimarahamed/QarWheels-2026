@@ -5,13 +5,15 @@ import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { doc, updateDoc } from 'firebase/firestore';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { firebaseApp, firestore, auth } from '@/lib/firebase';
+import { firebaseApp, auth } from '@/lib/firebase';
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheels.com';
+// KYC is served by our own Next.js app (src/app/api/vendor/kyc), not the
+// external EXPO_PUBLIC_BACKEND_URL other screens use — so it reaches the app
+// the same way mobile/lib/api.ts does.
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:9002';
 
 const STATUS_CONFIG = {
   Pending:  { bg: 'rgba(245,158,11,0.15)',  text: '#F59E0B', icon: 'time-outline' as const, label: 'Under Review' },
@@ -37,17 +39,22 @@ async function uploadDocuments(uris: string[], vendorId: string): Promise<string
   return urls;
 }
 
-async function submitKycToBackend(payload: {
-  vendorId: string;
-  crNumber: string;
-  licenseNumber: string;
-  bankName: string;
-  iban: string;
-  documentUrls: string[];
-}) {
-  const res = await fetch(`${BACKEND_URL}/api/vendor/kyc`, {
+async function submitKycToBackend(
+  token: string,
+  payload: {
+    crNumber: string;
+    licenseNumber: string;
+    bankName: string;
+    iban: string;
+    documentUrls: string[];
+  },
+) {
+  const res = await fetch(`${API_BASE_URL}/api/vendor/kyc`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(20_000),
   });
@@ -55,14 +62,15 @@ async function submitKycToBackend(payload: {
     const body = await res.text().catch(() => '');
     throw new Error(`KYC submission failed (${res.status})${body ? `: ${body}` : ''}`);
   }
-  return res.json() as Promise<{ kycId: string; status: string }>;
+  const { data } = (await res.json()) as { data: { status: string; submittedAt: string } };
+  return data;
 }
 
 export default function KYCScreen() {
   const c = useQarColors();
   const router = useRouter();
-  const vendorProfile = useQarWheelsStore((s) => s.vendorProfile);
-  const submitVendorKyc = useQarWheelsStore((s) => s.submitVendorKyc);
+  const vendorProfile = useQarWheelStore((s) => s.vendorProfile);
+  const submitVendorKyc = useQarWheelStore((s) => s.submitVendorKyc);
   const { kyc, businessName, ownerName, email, phone } = vendorProfile;
   const statusCfg = STATUS_CONFIG[kyc.status];
 
@@ -97,6 +105,11 @@ export default function KYCScreen() {
       Alert.alert('Missing info', 'CR number, license number, and IBAN are required.');
       return;
     }
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      Alert.alert('Sign in required', 'Please sign in as a vendor to submit KYC.');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -104,13 +117,12 @@ export default function KYCScreen() {
       let documentUrls: string[] = [];
       if (documentUris.length > 0) {
         setUploadProgress(`Uploading ${documentUris.length} document${documentUris.length > 1 ? 's' : ''}…`);
-        const vendorId = auth.currentUser?.uid ?? 'anonymous';
-        documentUrls = await uploadDocuments(documentUris, vendorId);
+        documentUrls = await uploadDocuments(documentUris, currentUser.uid);
       }
 
       setUploadProgress('Submitting for review…');
 
-      // Update local store state immediately
+      // Update local store state immediately (optimistic UI only)
       submitVendorKyc({
         crNumber: crNumber.trim(),
         licenseNumber: licenseNumber.trim(),
@@ -118,24 +130,10 @@ export default function KYCScreen() {
         iban: iban.trim().toUpperCase(),
       });
 
-      // Persist to Firestore if authenticated
-      const uid = auth.currentUser?.uid;
-      if (uid) {
-        await updateDoc(doc(firestore, 'vendors', uid), {
-          'kyc.crNumber': crNumber.trim(),
-          'kyc.licenseNumber': licenseNumber.trim(),
-          'kyc.bankName': bankName.trim(),
-          'kyc.iban': iban.trim().toUpperCase(),
-          'kyc.documentUrls': documentUrls,
-          'kyc.status': 'Pending',
-          'kyc.submittedAt': new Date().toISOString(),
-        });
-      }
-
-      // Notify backend to trigger compliance review workflow
-      const vendorId = uid ?? 'anonymous';
-      await submitKycToBackend({
-        vendorId,
+      // The server route is the ONLY writer of kyc.* on the vendor doc — it
+      // always sets status back to 'Pending', so a client can never self-approve.
+      const token = await currentUser.getIdToken();
+      await submitKycToBackend(token, {
         crNumber: crNumber.trim(),
         licenseNumber: licenseNumber.trim(),
         bankName: bankName.trim(),

@@ -9,7 +9,7 @@ export default function RoleSelectionScreen() {
       <BackButton onPress={() => router.back()} />
       <StepHeader
         eyebrow="Step 2"
-        title="How will you use QarWheels?"
+        title="How will you use QarWheel?"
         body="Choose the experience that matches what you need today."
         icon="people-outline"
       />

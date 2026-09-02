@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, Pressable, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import {
@@ -26,9 +26,9 @@ export default function BookingDetailScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const storeBooking = useQarWheelsStore((state) => state.vendorBookings.find((b) => b.id === id));
-  const storeInvoices = useQarWheelsStore((state) => state.vendorInvoices);
-  const createVendorInvoice = useQarWheelsStore((state) => state.createVendorInvoice);
+  const storeBooking = useQarWheelStore((state) => state.vendorBookings.find((b) => b.id === id));
+  const storeInvoices = useQarWheelStore((state) => state.vendorInvoices);
+  const createVendorInvoice = useQarWheelStore((state) => state.createVendorInvoice);
   const booking = storeBooking ?? findVendorBooking(id);
   const sc = getStatusColor(booking.status);
   const customer = vendorCustomers.find((cu) => cu.name === booking.customerName);

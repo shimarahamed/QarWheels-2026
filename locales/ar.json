@@ -1,7 +1,7 @@
 {
   "CFBundleDisplayName": "قار ويلز",
-  "NSLocationWhenInUseUsageDescription": "يستخدم QarWheels موقعك لعرض الورش ومزودي الخدمة القريبين منك.",
-  "NSPhotoLibraryUsageDescription": "يتيح لك QarWheels إرفاق فواتير الصيانة وصور السيارة بالطلبات.",
-  "NSUserNotificationsUsageDescription": "يرسل QarWheels تحديثات الحجز وتذكيرات الصيانة.",
-  "NSCameraUsageDescription": "يستخدم QarWheels الكاميرا لمسح رقم الهيكل وتصوير أضرار السيارة."
+  "NSLocationWhenInUseUsageDescription": "يستخدم QarWheel موقعك لعرض الورش ومزودي الخدمة القريبين منك.",
+  "NSPhotoLibraryUsageDescription": "يتيح لك QarWheel إرفاق فواتير الصيانة وصور السيارة بالطلبات.",
+  "NSUserNotificationsUsageDescription": "يرسل QarWheel تحديثات الحجز وتذكيرات الصيانة.",
+  "NSCameraUsageDescription": "يستخدم QarWheel الكاميرا لمسح رقم الهيكل وتصوير أضرار السيارة."
 }

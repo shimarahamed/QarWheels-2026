@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { notifyBookingStatusChange } from '@/lib/notifications';
@@ -141,7 +141,7 @@ export type VaultDocument = {
   addedAt: string;
 };
 
-type QarWheelsState = {
+type QarWheelState = {
   // ── Customer ──────────────────────────────────────────────────────────────
   favoriteGarageIds: string[];
   quoteRequests: QuoteRequest[];
@@ -235,7 +235,7 @@ type QarWheelsState = {
   archiveVendorPromotion: (id: string) => void;
 };
 
-export const useQarWheelsStore = create<QarWheelsState>()(
+export const useQarWheelStore = create<QarWheelState>()(
   persist(
     (set, get) => ({
       favoriteGarageIds: [],
@@ -472,7 +472,7 @@ export const useQarWheelsStore = create<QarWheelsState>()(
         };
         const vendorBooking: VendorBooking = {
           id: vendorBookingId,
-          customerName: input.customerName ?? 'QarWheels Customer',
+          customerName: input.customerName ?? 'QarWheel Customer',
           customerPhone: input.customerPhone ?? '+974 pending',
           vehicle: input.vehicle,
           vehiclePlate: input.vehiclePlate ?? 'Plate pending',
@@ -890,7 +890,7 @@ export const useQarWheelsStore = create<QarWheelsState>()(
         })),
     }),
     {
-      name: 'qarwheels-store-v2',
+      name: 'qarwheel-store-v2',
       storage: createJSONStorage(() => AsyncStorage),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
@@ -942,6 +942,6 @@ export const useQarWheelsStore = create<QarWheelsState>()(
 );
 
 export function useQarColors(): QarColors {
-  const themeMode = useQarWheelsStore((s) => s.themeMode);
+  const themeMode = useQarWheelStore((s) => s.themeMode);
   return getQarColors(themeMode);
 }

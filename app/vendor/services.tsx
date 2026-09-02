@@ -6,7 +6,7 @@ import {
   Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarWheelsStore, useQarColors } from '@/lib/store';
+import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { useVendorTabBottom } from '@/components/VendorTabBar';
@@ -128,10 +128,10 @@ function EditServiceModal({ visible, service, onSave, onClose, c }: {
 export default function ServicesScreen() {
   const c = useQarColors();
   const vendorTabBottom = useVendorTabBottom();
-  const services = useQarWheelsStore((s) => s.vendorServices);
-  const addService = useQarWheelsStore((s) => s.addVendorService);
-  const updateService = useQarWheelsStore((s) => s.updateVendorService);
-  const toggleService = useQarWheelsStore((s) => s.toggleVendorService);
+  const services = useQarWheelStore((s) => s.vendorServices);
+  const addService = useQarWheelStore((s) => s.addVendorService);
+  const updateService = useQarWheelStore((s) => s.updateVendorService);
+  const toggleService = useQarWheelStore((s) => s.toggleVendorService);
 
   const [activeCategory, setActiveCategory] = useState('All');
   const [editingService, setEditingService] = useState<Partial<VendorService> | null>(null);

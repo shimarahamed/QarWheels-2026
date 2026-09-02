@@ -39,7 +39,7 @@ export function promptRestartForRTL(): Promise<void> {
             if (!restarted) {
               Alert.alert(
                 t('account.restartRequired'),
-                'Please close and reopen QarWheels to finish switching the layout.',
+                'Please close and reopen QarWheel to finish switching the layout.',
               );
             }
             resolve();

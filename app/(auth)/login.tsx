@@ -156,7 +156,7 @@ export default function LoginScreen() {
           </Pressable>
 
           <Text style={s.footerText}>
-            By continuing you agree to QarWheels' Terms of Service and Privacy Policy.
+            By continuing you agree to QarWheel' Terms of Service and Privacy Policy.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

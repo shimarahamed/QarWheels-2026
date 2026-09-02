@@ -3,7 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarWheelsStore, useQarColors } from '@/lib/store';
+import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { getStatusColor, getStatusLabel } from '@/lib/vendor-data';
@@ -17,8 +17,8 @@ export default function VendorCalendar() {
   const c = useQarColors();
   const router = useRouter();
   const vendorTabBottom = useVendorTabBottom();
-  const bookings = useQarWheelsStore((s) => s.vendorBookings);
-  const profile = useQarWheelsStore((s) => s.vendorProfile);
+  const bookings = useQarWheelStore((s) => s.vendorBookings);
+  const profile = useQarWheelStore((s) => s.vendorProfile);
   const [selectedDay, setSelectedDay] = useState(0);
 
   const dayBookings = bookings.filter((b) => {

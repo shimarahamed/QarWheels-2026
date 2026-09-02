@@ -19,7 +19,7 @@ export default function BiometricScreen() {
       <StepHeader
         eyebrow="Biometric login"
         title="Unlock faster next time"
-        body="Use Face ID or fingerprint login for quicker, safer access to QarWheels."
+        body="Use Face ID or fingerprint login for quicker, safer access to QarWheel."
         icon="finger-print-outline"
       />
       <OptionCard

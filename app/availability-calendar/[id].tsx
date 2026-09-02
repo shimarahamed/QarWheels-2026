@@ -5,7 +5,7 @@ import {
   Alert, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 
@@ -51,7 +51,7 @@ export default function AvailabilityCalendarScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id: garageId } = useLocalSearchParams<{ id: string }>();
-  const vendorProfile = useQarWheelsStore((s) => s.vendorProfile);
+  const vendorProfile = useQarWheelStore((s) => s.vendorProfile);
 
   const days = useMemo(() => generateDays(14), []);
   const today = days[0];

@@ -13,7 +13,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider, useAuthContext } from '@/lib/AuthContext';
 import { applyLanguage } from '@/lib/i18n';
 import { AppQueryProvider } from '@/lib/query-client';
-import { useQarWheelsStore } from '@/lib/store';
+import { useQarWheelStore } from '@/lib/store';
 import { motion } from '@/lib/motion';
 import { syncPushTokenToProfile } from '@/lib/notifications';
 import { assertConfig, identifyUser, initObservability, trackScreen } from '@/lib/observability';
@@ -29,7 +29,7 @@ assertConfig();
 
 // Apply the persisted language's layout direction during module evaluation,
 // i.e. before the first render. Calling this later would require a restart.
-applyLanguage(useQarWheelsStore.getState().language);
+applyLanguage(useQarWheelStore.getState().language);
 
 SplashScreen.preventAutoHideAsync();
 
@@ -54,7 +54,7 @@ export default function RootLayout() {
 
 function AuthGuard({ children }: { children: ReactNode }) {
   const { user, loading, wasAuthenticated } = useAuthContext();
-  const vendorAuthenticated = useQarWheelsStore((state) => state.vendorAuthenticated);
+  const vendorAuthenticated = useQarWheelStore((state) => state.vendorAuthenticated);
   const segments = useSegments();
   const router = useRouter();
 
@@ -104,7 +104,7 @@ function AuthGuard({ children }: { children: ReactNode }) {
 
 function RootLayoutNav() {
   const systemScheme = useColorScheme();
-  const themeMode = useQarWheelsStore((state) => state.themeMode);
+  const themeMode = useQarWheelStore((state) => state.themeMode);
   const colorScheme = themeMode ?? systemScheme;
 
   const routeAnimation = Platform.OS === 'android' ? 'ios_from_right' : 'default';

@@ -1,10 +1,10 @@
 import { Stack } from 'expo-router';
-import { useQarWheelsStore } from '@/lib/store';
+import { useQarWheelStore } from '@/lib/store';
 import { getQarColors } from '@/lib/theme';
 import { motion } from '@/lib/motion';
 
 export default function VendorLayout() {
-  const themeMode = useQarWheelsStore((s) => s.themeMode);
+  const themeMode = useQarWheelStore((s) => s.themeMode);
   const c = getQarColors(themeMode);
 
   return (

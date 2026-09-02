@@ -10,7 +10,7 @@ describe('BrandMark', () => {
   it('renders the Q glyph, wordmark and tagline by default', () => {
     render(<BrandMark />);
     expect(screen.getByText('Q')).toBeTruthy();
-    expect(screen.getByText('QarWheels')).toBeTruthy();
+    expect(screen.getByText('QarWheel')).toBeTruthy();
     expect(screen.getByText('Your Car. Our Care.')).toBeTruthy();
   });
 
@@ -27,13 +27,13 @@ describe('BrandMark', () => {
   it('drops the whole text block, disc included, only for hideText', () => {
     render(<BrandMark hideText />);
     expect(screen.getByText('Q')).toBeTruthy();
-    expect(screen.queryByText('QarWheels')).toBeNull();
+    expect(screen.queryByText('QarWheel')).toBeNull();
     expect(screen.queryByText('Your Car. Our Care.')).toBeNull();
   });
 
   it('exposes the full brand to screen readers as one label', () => {
     render(<BrandMark />);
-    expect(screen.getByLabelText('QarWheels — Your Car. Our Care.')).toBeTruthy();
+    expect(screen.getByLabelText('QarWheel — Your Car. Our Care.')).toBeTruthy();
   });
 
   it('does not scale the glyph with system text size, which would break the disc', () => {

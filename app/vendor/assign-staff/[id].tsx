@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarWheelsStore, useQarColors } from '@/lib/store';
+import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { findVendorBooking } from '@/lib/vendor-data';
@@ -12,9 +12,9 @@ export default function AssignStaffScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const booking = findVendorBooking(id);
-  const staff = useQarWheelsStore((s) => s.vendorStaff);
-  const vendorBookings = useQarWheelsStore((s) => s.vendorBookings);
-  const assignStaff = useQarWheelsStore((s) => s.assignVendorBookingStaff);
+  const staff = useQarWheelStore((s) => s.vendorStaff);
+  const vendorBookings = useQarWheelStore((s) => s.vendorBookings);
+  const assignStaff = useQarWheelStore((s) => s.assignVendorBookingStaff);
 
   function handleAssign(staffId: string, staffName: string) {
     Alert.alert(

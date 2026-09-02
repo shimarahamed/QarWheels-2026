@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { tap } from '@/lib/haptics';
 
 const TAB_BOTTOM = Platform.OS === 'ios' ? 98 : 70;
@@ -100,12 +100,12 @@ export default function QuickScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const c = useQarColors();
-  const themeMode = useQarWheelsStore((s) => s.themeMode);
-  const toggleTheme = useQarWheelsStore((s) => s.toggleThemeMode);
-  const bookings = useQarWheelsStore((s) => s.bookings);
-  const notifications = useQarWheelsStore((s) => s.notifications);
-  const quoteRequests = useQarWheelsStore((s) => s.quoteRequests);
-  const favoriteGarageIds = useQarWheelsStore((s) => s.favoriteGarageIds);
+  const themeMode = useQarWheelStore((s) => s.themeMode);
+  const toggleTheme = useQarWheelStore((s) => s.toggleThemeMode);
+  const bookings = useQarWheelStore((s) => s.bookings);
+  const notifications = useQarWheelStore((s) => s.notifications);
+  const quoteRequests = useQarWheelStore((s) => s.quoteRequests);
+  const favoriteGarageIds = useQarWheelStore((s) => s.favoriteGarageIds);
 
   const upcomingBookings = bookings.filter((b) => b.status !== 'Completed' && b.status !== 'Cancelled').length;
   const unreadCount = notifications.filter((n) => !n.read).length;

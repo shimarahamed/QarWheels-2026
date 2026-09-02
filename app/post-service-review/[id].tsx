@@ -6,7 +6,7 @@ import {
   Text, TextInput, View, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { saveReview } from '@/lib/firestoreOps';
@@ -30,7 +30,7 @@ export default function PostServiceReviewScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuthContext();
-  const booking = useQarWheelsStore((s) => s.bookings.find((b) => b.id === id));
+  const booking = useQarWheelStore((s) => s.bookings.find((b) => b.id === id));
 
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);

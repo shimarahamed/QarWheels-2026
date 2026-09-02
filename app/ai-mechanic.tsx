@@ -24,7 +24,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { tap } from '@/lib/haptics';
 
@@ -36,7 +36,7 @@ type UrgencyLevel = 'safe' | 'monitor' | 'soon' | 'now';
 
 // ─── Backend API ──────────────────────────────────────────────────────────────
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheels.com';
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheel.qa';
 
 async function sendToAI(messages: { role: Role; content: string }[]): Promise<string> {
   const res = await fetch(`${BACKEND_URL}/api/ai/mechanic`, {
@@ -155,7 +155,7 @@ const SUGGESTIONS = [
 export default function AiMechanicScreen() {
   const c = useQarColors();
   const router = useRouter();
-  const cars = useQarWheelsStore((s) => s.bookings);
+  const cars = useQarWheelStore((s) => s.bookings);
 
   const [messages, setMessages] = useState<Message[]>([
     {

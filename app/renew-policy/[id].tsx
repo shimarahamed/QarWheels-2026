@@ -9,7 +9,7 @@ import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { lookupCar } from '@/lib/marketplace';
 import RecordNotFound from '@/components/RecordNotFound';
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheels.com';
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheel.qa';
 
 type InsurancePlan = {
   id: string;
@@ -193,7 +193,7 @@ export default function RenewPolicyScreen() {
           ))}
 
           <Text style={[s.disclaimer, { color: c.muted }]}>
-            Premiums are indicative. Final price is confirmed after vehicle inspection. QarWheels earns a referral fee from insurance partners.
+            Premiums are indicative. Final price is confirmed after vehicle inspection. QarWheel earns a referral fee from insurance partners.
           </Text>
         </MotionScreen>
       </ScrollView>

@@ -23,7 +23,7 @@ export default function ResetPasswordScreen() {
       <StepHeader
         eyebrow="Reset password"
         title="Create a new password"
-        body="Choose a strong password to protect your QarWheels account."
+        body="Choose a strong password to protect your QarWheel account."
         icon="lock-closed-outline"
       />
       <AuthField label="New password" value={password} onChangeText={setPassword} placeholder="Min. 8 characters" icon="lock-closed-outline" secureTextEntry />

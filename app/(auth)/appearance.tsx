@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import { tap } from '@/lib/haptics';
 import { MotionScreen } from '@/lib/motion';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { getQarColors, radius, spacing, typography, type QarThemeMode } from '@/lib/theme';
 
 // ─── Appearance ──────────────────────────────────────────────────────────────
@@ -22,8 +22,8 @@ const options: Array<{ mode: QarThemeMode; label: string; body: string; icon: 'm
 export default function AppearanceScreen() {
   const router = useRouter();
   const c = useQarColors();
-  const themeMode = useQarWheelsStore((s) => s.themeMode);
-  const chooseThemeMode = useQarWheelsStore((s) => s.chooseThemeMode);
+  const themeMode = useQarWheelStore((s) => s.themeMode);
+  const chooseThemeMode = useQarWheelStore((s) => s.chooseThemeMode);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: c.background }]}>

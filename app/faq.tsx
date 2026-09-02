@@ -45,7 +45,7 @@ const FAQ_DATA: FaqCategory[] = [
     label: 'Account & Security', icon: 'shield-checkmark-outline',
     items: [
       { q: 'How do I change my password?', a: 'Go to Profile → Settings → Change password. You\'ll receive a reset link by email.' },
-      { q: 'Is my payment data safe?', a: 'QarWheels uses Tap Payments for tokenisation. We never store raw card numbers on our servers.' },
+      { q: 'Is my payment data safe?', a: 'QarWheel uses Tap Payments for tokenisation. We never store raw card numbers on our servers.' },
       { q: 'How do I delete my account?', a: 'Contact support via the Help Center. Account deletion removes your data within 30 days, subject to legal retention requirements.' },
     ],
   },

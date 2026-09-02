@@ -58,7 +58,7 @@ export default function PayoutsScreen() {
           <View style={[s.noteCard, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
             <Ionicons name="information-circle-outline" size={16} color={c.muted} />
             <Text style={[s.noteText, { color: c.muted }]}>
-              QarWheels charges 10% commission on each completed booking. Payouts are processed within 2–3 business days.
+              QarWheel charges 10% commission on each completed booking. Payouts are processed within 2–3 business days.
             </Text>
           </View>
 

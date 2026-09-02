@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+﻿import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { useEffect, useMemo, useState } from 'react';
@@ -69,7 +69,7 @@ function toneColor(tone: HubMetric['tone'], c: ReturnType<typeof useQarColors>) 
 }
 
 function makePassportNumber(carId: string, vin: string) {
-  const seed = `${carId}-${vin}-qarwheels-passport`;
+  const seed = `${carId}-${vin}-qarwheel-passport`;
   let hash = 2166136261;
   const digits: string[] = [];
 
@@ -88,7 +88,7 @@ function makePassportNumber(carId: string, vin: string) {
 
 function passportPayload(input: { passportNumber: string; carName: string; vin: string; plate: string; health: number }) {
   return [
-    'QarWheels Digital Vehicle Passport',
+    'QarWheel Digital Vehicle Passport',
     `Passport No: ${input.passportNumber}`,
     `Vehicle: ${input.carName}`,
     `VIN: ${input.vin}`,
@@ -182,7 +182,7 @@ export default function VehicleOwnershipHub({ initialSection = 'overview' }: { i
 
     try {
       await Share.share({
-        title: 'QarWheels vehicle passport',
+        title: 'QarWheel vehicle passport',
         message: payload,
       });
     } catch {
@@ -192,7 +192,7 @@ export default function VehicleOwnershipHub({ initialSection = 'overview' }: { i
 
   function handleDownloadPassport() {
     const payload = {
-      type: 'QarWheels Digital Vehicle Passport',
+      type: 'QarWheel Digital Vehicle Passport',
       passportNumber,
       vehicle: car.name,
       vin: car.vin,
@@ -223,7 +223,7 @@ export default function VehicleOwnershipHub({ initialSection = 'overview' }: { i
         const url = browser.URL.createObjectURL(blob);
         const link = browser.document.createElement('a');
         link.href = url;
-        link.download = `qarwheels-passport-${passportNumber.replaceAll(' ', '-')}.json`;
+        link.download = `qarwheel-passport-${passportNumber.replaceAll(' ', '-')}.json`;
         link.click();
         browser.URL.revokeObjectURL(url);
         return;
@@ -362,8 +362,8 @@ function DigitalPassportCard({
       <View style={styles.passportGlow} />
       <View style={styles.passportTop}>
         <View style={{ flex: 1, gap: 3 }}>
-          <Text style={styles.passportEyebrow}>QarWheels vehicle passport</Text>
-          <Text style={styles.passportBrand}>QARWHEELS PASS</Text>
+          <Text style={styles.passportEyebrow}>QarWheel vehicle passport</Text>
+          <Text style={styles.passportBrand}>QARWHEEL PASS</Text>
         </View>
         <View style={styles.verifiedPill}>
           <Ionicons name="checkmark-circle" size={14} color="#fff" />

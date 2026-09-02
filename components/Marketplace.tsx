@@ -1,5 +1,5 @@
 /**
- * QarWheels 2026 — Marketplace screens
+ * QarWheel 2026 — Marketplace screens
  * Pixel-accurate reimplementation matching the uploaded design.
  * Light + dark theme fully supported via useQarColors().
  */
@@ -30,7 +30,7 @@ import { auth, firestore } from '@/lib/firebase';
 import { useAuthContext } from '@/lib/AuthContext';
 import { getQarColors, getThemedStatusColors, type QarColors, radius, shadow, spacing, typography } from '@/lib/theme';
 import { tap } from '@/lib/haptics';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { signOutCompletely } from '@/lib/session';
 import { RemoteImage } from '@/components/RemoteImage';
 import { MotionScreen } from '@/lib/motion';
@@ -225,8 +225,8 @@ function ScreenWrap({ c, children, onRefresh }: { c: QarColors; children: React.
 // ── GarageListCard ─────────────────────────────────────────────────
 function GarageListCard({ garage, c }: { garage: Garage; c: QarColors }) {
   const router = useRouter();
-  const isFav = useQarWheelsStore((s) => s.favoriteGarageIds.includes(garage.id));
-  const toggleFav = useQarWheelsStore((s) => s.toggleFavoriteGarage);
+  const isFav = useQarWheelStore((s) => s.favoriteGarageIds.includes(garage.id));
+  const toggleFav = useQarWheelStore((s) => s.toggleFavoriteGarage);
 
   return (
     <Pressable
@@ -290,7 +290,7 @@ export function HomeScreen() {
   const c = useQarColors();
   const { user } = useAuthContext();
   const { width: screenWidth } = useWindowDimensions();
-  const unread = useQarWheelsStore((s) => s.notifications.filter((n) => !n.read).length);
+  const unread = useQarWheelStore((s) => s.notifications.filter((n) => !n.read).length);
   const [activeBrand, setActiveBrand] = useState('All');
   const { vendors: liveVendors, loading: vendorsLoading } = useVendors();
 
@@ -312,7 +312,7 @@ export function HomeScreen() {
           <View style={[ss.logoQ, { backgroundColor: c.primary }]}>
             <Text style={ss.logoQText}>Q</Text>
           </View>
-          <Text style={[ss.logoText, { color: c.text }]}>QarWheels</Text>
+          <Text style={[ss.logoText, { color: c.text }]}>QarWheel</Text>
         </View>
 
         <View style={ss.headerRight}>
@@ -640,7 +640,7 @@ export function HomeScreen() {
           ))}
         </View>
         <Text style={[ss.tagline, { color: c.muted }]}>
-          QarWheels — Your Car. Our Care.{'\n'}
+          QarWheel — Your Car. Our Care.{'\n'}
           <Text style={[ss.taglineAr, { color: c.muted }]}>قارويلز - سيارتك، رعايتنا.</Text>
         </Text>
       </View>
@@ -802,11 +802,11 @@ export function SearchScreen() {
 export function BookingsScreen() {
   const router = useRouter();
   const c = useQarColors();
-  const themeMode = useQarWheelsStore((s) => s.themeMode);
+  const themeMode = useQarWheelStore((s) => s.themeMode);
   const statusColorsThemed = getThemedStatusColors(themeMode);
-  const bookings = useQarWheelsStore((s) => s.bookings);
-  const cancelBooking = useQarWheelsStore((s) => s.cancelBooking);
-  const rescheduleBooking = useQarWheelsStore((s) => s.rescheduleBooking);
+  const bookings = useQarWheelStore((s) => s.bookings);
+  const cancelBooking = useQarWheelStore((s) => s.cancelBooking);
+  const rescheduleBooking = useQarWheelStore((s) => s.rescheduleBooking);
   const [activeTab, setActiveTab] = useState<'Active' | BookingWorkflowStatus | 'History'>('Active');
 
   // Live sync from Firestore — merges into Zustand on top of local/seed bookings
@@ -1190,11 +1190,11 @@ export function AccountScreen() {
   const router = useRouter();
   const c = useQarColors();
   const { user } = useAuthContext();
-  const themeMode = useQarWheelsStore((s) => s.themeMode);
-  const toggleTheme = useQarWheelsStore((s) => s.toggleThemeMode);
-  const bookings = useQarWheelsStore((s) => s.bookings);
-  const favoriteGarageIds = useQarWheelsStore((s) => s.favoriteGarageIds);
-  const vendorInvoices = useQarWheelsStore((s) => s.vendorInvoices);
+  const themeMode = useQarWheelStore((s) => s.themeMode);
+  const toggleTheme = useQarWheelStore((s) => s.toggleThemeMode);
+  const bookings = useQarWheelStore((s) => s.bookings);
+  const favoriteGarageIds = useQarWheelStore((s) => s.favoriteGarageIds);
+  const vendorInvoices = useQarWheelStore((s) => s.vendorInvoices);
 
   // Live car count from Firestore (mirrors CarsScreen)
   const [accountCarList, setAccountCarList] = useState<FirestoreCar[]>([]);
@@ -1215,7 +1215,7 @@ export function AccountScreen() {
   const spentLabel = totalSpent > 0 ? `QAR ${totalSpent.toLocaleString()}` : 'QAR 0';
 
   const initial = user?.displayName?.[0] ?? user?.email?.[0]?.toUpperCase() ?? 'U';
-  const name = user?.displayName ?? 'QarWheels User';
+  const name = user?.displayName ?? 'QarWheel User';
   const email = user?.email ?? '';
 
   const menuSections = [
@@ -1259,7 +1259,7 @@ export function AccountScreen() {
         refreshControl={<RefreshControl refreshing={false} onRefresh={() => {}} tintColor={c.primary} colors={[c.primary]} />}
       >
         <View style={{ gap: 2 }}>
-          <Text style={[ss.pageEyebrow, { color: c.primary }]}>QarWheels</Text>
+          <Text style={[ss.pageEyebrow, { color: c.primary }]}>QarWheel</Text>
           <Text style={[ss.pageTitle, { color: c.text }]}>Account</Text>
         </View>
 
@@ -1366,7 +1366,7 @@ export function AccountScreen() {
           <Text style={[ss.signOutText, { color: '#EF4444' }]}>Sign out</Text>
         </Pressable>
 
-        <Text style={[ss.version, { color: c.muted }]}>QarWheels v2.0.0 · Qatar & UAE</Text>
+        <Text style={[ss.version, { color: c.muted }]}>QarWheel v2.0.0 · Qatar & UAE</Text>
       </ScrollView>
     </SafeAreaView>
   );

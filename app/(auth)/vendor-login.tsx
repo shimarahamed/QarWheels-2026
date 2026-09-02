@@ -19,11 +19,12 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen, MotionSurface, motion } from '@/lib/motion';
-import { auth } from '@/lib/firebase';
+import { auth, firestore } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { vendorProfile } from '@/lib/vendor-data';
+import { readQwClaims, isVendorClaims } from '@/lib/roles';
 
 function mapVendorAuthError(e: unknown): string {
   const code = (e as { code?: string }).code;
@@ -46,7 +47,7 @@ const firebaseConfigured = Boolean(process.env.EXPO_PUBLIC_FIREBASE_API_KEY);
 export default function VendorLoginScreen() {
   const c = useQarColors();
   const router = useRouter();
-  const setVendorAuthenticated = useQarWheelsStore((state) => state.setVendorAuthenticated);
+  const setVendorAuthenticated = useQarWheelStore((state) => state.setVendorAuthenticated);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -67,11 +68,29 @@ export default function VendorLoginScreen() {
     }
     setLoading(true);
     try {
-      if (firebaseConfigured) {
-        await signInWithEmailAndPassword(auth, email.trim(), password);
+      if (!firebaseConfigured) {
+        Alert.alert('Firebase not configured', 'Add Firebase env values to enable vendor sign in.');
+        return;
       }
+      const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      // Force a fresh token so a just-synced qw claim (e.g. right after an
+      // owner registers) is picked up rather than a stale cached one.
+      const tokenResult = await credential.user.getIdTokenResult(true);
+      const claims = readQwClaims(tokenResult.claims);
+
+      if (!isVendorClaims(claims)) {
+        await auth.signOut();
+        Alert.alert(
+          'Not a vendor account',
+          'This account is not registered as a garage/vendor user. Use the customer app instead, or register your garage first.',
+        );
+        return;
+      }
+
       setVendorAuthenticated(true);
-      if (vendorProfile.kyc.status === 'Verified') {
+      const businessSnap = await getDoc(doc(firestore, 'businesses', claims.b));
+      const kycStatus = businessSnap.exists() ? businessSnap.data()?.kyc?.status : 'Pending';
+      if (kycStatus === 'Verified') {
         router.replace('/vendor/dashboard' as never);
       } else {
         router.replace('/vendor/kyc' as never);
@@ -247,7 +266,7 @@ export default function VendorLoginScreen() {
                   <Ionicons name="shield-outline" size={16} color={c.primary} />
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={[s.kycNoteTitle, { color: c.text }]}>New to QarWheels?</Text>
+                  <Text style={[s.kycNoteTitle, { color: c.text }]}>New to QarWheel?</Text>
                   <Text style={[s.kycNoteSub, { color: c.muted }]}>
                     Complete KYC verification to get your garage listed and start receiving bookings.
                   </Text>
@@ -268,7 +287,7 @@ export default function VendorLoginScreen() {
             <Ionicons name="chevron-forward" size={14} color={c.muted} />
           </Pressable>
           <Text style={[s.footerNote, { color: c.muted }]}>
-            By signing in you agree to QarWheels{' '}
+            By signing in you agree to QarWheel{' '}
             <Text style={{ color: c.primary }}>Terms</Text> &{' '}
             <Text style={{ color: c.primary }}>Privacy Policy</Text>
           </Text>

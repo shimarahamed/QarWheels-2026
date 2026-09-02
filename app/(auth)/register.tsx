@@ -91,7 +91,7 @@ export default function RegisterScreen() {
           </Pressable>
 
           <Text style={s.heading}>Create account</Text>
-          <Text style={s.sub}>Join QarWheels to manage your cars and book trusted garages.</Text>
+          <Text style={s.sub}>Join QarWheel to manage your cars and book trusted garages.</Text>
 
           {/* Name row */}
           <View style={s.nameRow}>
@@ -205,7 +205,7 @@ export default function RegisterScreen() {
           </Pressable>
 
           <Text style={s.footerText}>
-            By creating an account you agree to QarWheels' Terms of Service and Privacy Policy.
+            By creating an account you agree to QarWheel' Terms of Service and Privacy Policy.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

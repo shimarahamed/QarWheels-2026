@@ -3,7 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarWheelsStore, useQarColors } from '@/lib/store';
+import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { getStatusColor, getStatusLabel, type VendorBookingStatus } from '@/lib/vendor-data';
@@ -24,7 +24,7 @@ export default function VendorBookings() {
   const c = useQarColors();
   const router = useRouter();
   const vendorTabBottom = useVendorTabBottom();
-  const bookings = useQarWheelsStore((s) => s.vendorBookings);
+  const bookings = useQarWheelStore((s) => s.vendorBookings);
   const [activeTab, setActiveTab] = useState<VendorBookingStatus | 'All'>('All');
 
   const filtered = activeTab === 'All' ? bookings : bookings.filter((b) => b.status === activeTab);

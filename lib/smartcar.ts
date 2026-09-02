@@ -4,7 +4,7 @@
  * Production flow:
  *   1. User taps "Connect via Smartcar" → we open Smartcar Connect OAuth URL
  *   2. User logs into their car manufacturer account (BMW, Ford, Tesla, etc.)
- *   3. Smartcar redirects back to qarwheels:// with ?code=AUTH_CODE
+ *   3. Smartcar redirects back to qarwheel:// with ?code=AUTH_CODE
  *   4. Our backend exchanges the code for access_token
  *   5. We call Smartcar vehicle endpoints to pull live data
  *
@@ -36,10 +36,10 @@ const SMARTCAR_CLIENT_ID =
   process.env.EXPO_PUBLIC_SMARTCAR_CLIENT_ID ?? 'YOUR_SMARTCAR_CLIENT_ID';
 
 const SMARTCAR_BACKEND_URL =
-  process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheels.com';
+  process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheel.qa';
 
 // Deep link that Smartcar redirects to after OAuth (register this in Smartcar dashboard)
-const REDIRECT_URI = 'qarwheels://smartcar-callback';
+const REDIRECT_URI = 'qarwheel://smartcar-callback';
 
 // Scopes we request — request only what you need
 const SCOPES = [

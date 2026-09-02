@@ -9,7 +9,7 @@ import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { lookupCar } from '@/lib/marketplace';
 import RecordNotFound from '@/components/RecordNotFound';
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheels.com';
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheel.qa';
 
 type SharedField = { id: string; label: string; value: string; sensitive: boolean };
 
@@ -48,7 +48,7 @@ export default function SharePassportScreen() {
       const data = await res.json() as { url: string };
       setLink(data.url);
     } catch {
-      setLink(`https://app.qarwheels.com/passport/${id}?t=${Date.now()}`);
+      setLink(`https://app.qarwheel.qa/passport/${id}?t=${Date.now()}`);
     } finally {
       setGenerating(false);
     }

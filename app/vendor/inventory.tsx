@@ -3,7 +3,7 @@ import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarWheelsStore, useQarColors } from '@/lib/store';
+import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { useVendorTabBottom } from '@/components/VendorTabBar';
@@ -13,9 +13,9 @@ const CATEGORIES = ['All', 'Fluids', 'Filters', 'Brakes', 'Electrical', 'Ignitio
 export default function InventoryScreen() {
   const c = useQarColors();
   const vendorTabBottom = useVendorTabBottom();
-  const inventory = useQarWheelsStore((s) => s.vendorInventory);
-  const updateQty = useQarWheelsStore((s) => s.updateVendorInventoryQty);
-  const addInventoryItem = useQarWheelsStore((s) => s.addVendorInventoryItem);
+  const inventory = useQarWheelStore((s) => s.vendorInventory);
+  const updateQty = useQarWheelStore((s) => s.updateVendorInventoryQty);
+  const addInventoryItem = useQarWheelStore((s) => s.addVendorInventoryItem);
   const [activeCategory, setActiveCategory] = useState('All');
 
   const filtered = activeCategory === 'All' ? inventory : inventory.filter((i) => i.category === activeCategory);

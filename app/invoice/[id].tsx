@@ -6,7 +6,7 @@ import {
   Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors, useQarWheelsStore, type StoredInvoice } from '@/lib/store';
+import { useQarColors, useQarWheelStore, type StoredInvoice } from '@/lib/store';
 import { exportInvoicePdf, printInvoice } from '@/lib/invoice-pdf';
 import { MotionScreen } from '@/lib/motion';
 import { palette, radius, shadow, spacing, typography } from '@/lib/theme';
@@ -38,7 +38,7 @@ function CounterOfferModal({ visible, invoiceTotal, invoiceId, bookingId, custom
   onClose: () => void;
   c: ReturnType<typeof useQarColors>;
 }) {
-  const submitOffer = useQarWheelsStore((s) => s.submitCounterOffer);
+  const submitOffer = useQarWheelStore((s) => s.submitCounterOffer);
   const [amount, setAmount] = useState('');
   const [message, setMessage] = useState('');
 
@@ -138,7 +138,7 @@ function CounterOfferModal({ visible, invoiceTotal, invoiceId, bookingId, custom
  */
 export default function InvoiceRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const customerInvoice = useQarWheelsStore((s) => s.invoices.find((item) => item.id === id));
+  const customerInvoice = useQarWheelStore((s) => s.invoices.find((item) => item.id === id));
 
   if (customerInvoice) return <CustomerReceiptScreen invoice={customerInvoice} />;
   return <VendorInvoiceScreen />;
@@ -149,10 +149,10 @@ function VendorInvoiceScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const storeInvoice = useQarWheelsStore((s) => s.vendorInvoices.find((item) => item.id === id));
-  const vendorProfile = useQarWheelsStore((s) => s.vendorProfile);
-  const counterOffers = useQarWheelsStore((s) => s.counterOffers);
-  const themeMode = useQarWheelsStore((s) => s.themeMode);
+  const storeInvoice = useQarWheelStore((s) => s.vendorInvoices.find((item) => item.id === id));
+  const vendorProfile = useQarWheelStore((s) => s.vendorProfile);
+  const counterOffers = useQarWheelStore((s) => s.counterOffers);
+  const themeMode = useQarWheelStore((s) => s.themeMode);
   const pdfTheme = themeMode === 'dark' ? 'dark' : 'light';
   const invoice = storeInvoice ?? findVendorInvoice(id);
   const sc = statusColors(invoice.status);
@@ -392,7 +392,7 @@ function CustomerReceiptScreen({ invoice }: { invoice: StoredInvoice }) {
 
   async function handleShare() {
     const text = [
-      `QarWheels invoice ${invoice.number}`,
+      `QarWheel invoice ${invoice.number}`,
       `${invoice.service} · ${invoice.garage}`,
       invoice.vehicle ? `Vehicle: ${invoice.vehicle}` : null,
       `Amount: QAR ${invoice.amount.toFixed(2)}`,

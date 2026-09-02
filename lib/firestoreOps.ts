@@ -15,10 +15,10 @@ import {
 import { getAuth } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 import { firestore } from './firebase';
-import { useQarWheelsStore } from './store';
+import { useQarWheelStore } from './store';
 import type { Booking, Garage, PopularJob } from './marketplace';
 import type { BookingWorkflowStatus } from './booking-workflow';
-import { garages as seedGarages, popularJobs as seedJobs } from './marketplace';
+import { popularJobs as seedJobs } from './marketplace';
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -76,6 +76,8 @@ export type FirestoreCar = {
 export async function createBooking(
   userId: string,
   input: {
+    customerName: string;
+    customerEmail: string;
     vendorId: string;
     vendorName: string;
     carId: string;
@@ -89,10 +91,13 @@ export async function createBooking(
   const tomorrow = new Date(Date.now() + 86_400_000);
   return addDoc(collection(firestore, 'bookings'), {
     userId,
+    customerName: input.customerName,
+    customerEmail: input.customerEmail,
     vendorId: input.vendorId,
     vendorName: input.vendorName,
     carId: input.carId,
     carName: input.carName,
+    carDescription: input.carName,
     serviceName: input.serviceName,
     bookingDate: input.bookingDate ?? tomorrow.toISOString(),
     status: 'Pending',
@@ -226,7 +231,7 @@ function toIsoString(value: unknown): string {
  * them into the Zustand store in real time. Unmounts cleanly.
  */
 export function useFirestoreBookings(userId: string | null) {
-  const mergeFirestoreBookings = useQarWheelsStore((s) => s.mergeFirestoreBookings);
+  const mergeFirestoreBookings = useQarWheelStore((s) => s.mergeFirestoreBookings);
 
   useEffect(() => {
     if (!userId) return;
@@ -381,25 +386,28 @@ export function useVendors(): { vendors: Garage[]; jobs: PopularJob[]; loading: 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Real-time listener on vendors collection (non-vacation vendors only)
-    const q = query(collection(firestore, 'vendors'), where('vacationMode', '==', false));
+    // Real-time listener on vendors collection — only vendors the admin has
+    // approved are visible to customers (matches web's marketplace filter and
+    // the firestore.rules `list` condition, which also requires status ==
+    // 'Approved' for non-owner/non-admin readers).
+    const q = query(collection(firestore, 'vendors'), where('status', '==', 'Approved'));
     const unsub = onSnapshot(
       q,
       async (snap) => {
-        if (snap.empty) {
-          // No vendors yet → fall back to seed data
-          setVendors(seedGarages);
-          setJobs(seedJobs);
+        const listedDocs = snap.docs.filter((d) => !d.data().vacationMode);
+
+        if (listedDocs.length === 0) {
+          setVendors([]);
+          setJobs([]);
           setLoading(false);
           return;
         }
-        const liveVendors = snap.docs.map(docToGarage);
-        setVendors(liveVendors);
+        setVendors(listedDocs.map(docToGarage));
 
-        // Load services for each vendor
+        // Load services for each listed vendor
         const allJobs: PopularJob[] = [];
         await Promise.all(
-          snap.docs.map(async (vDoc) => {
+          listedDocs.map(async (vDoc) => {
             try {
               const serviceSnap = await getDocs(
                 query(collection(firestore, 'vendors', vDoc.id, 'services'), where('active', '==', true)),
@@ -410,13 +418,15 @@ export function useVendors(): { vendors: Garage[]; jobs: PopularJob[]; loading: 
             } catch { /* vendor has no services yet */ }
           }),
         );
-        setJobs(allJobs.length > 0 ? allJobs : seedJobs);
+        setJobs(allJobs);
         setLoading(false);
       },
       () => {
-        // Firestore unavailable → seed fallback
-        setVendors(seedGarages);
-        setJobs(seedJobs);
+        // Firestore unavailable → empty state, not fake data. Screens using
+        // this hook should show a retry / offline affordance when vendors is
+        // empty and loading is false.
+        setVendors([]);
+        setJobs([]);
         setLoading(false);
       },
     );
@@ -465,7 +475,7 @@ export function useVendorServices(vendorId: string): { services: PopularJob[]; l
 // ── useVendorBookings — bookings addressed to this vendor ─────────────────────
 
 export function useVendorFirestoreBookings(vendorId: string | null) {
-  const mergeVendorBookings = useQarWheelsStore((s) => s.mergeVendorFirestoreBookings);
+  const mergeVendorBookings = useQarWheelStore((s) => s.mergeVendorFirestoreBookings);
 
   useEffect(() => {
     if (!vendorId) return;

@@ -176,7 +176,7 @@ export default function SplashScreenRoute() {
         </Animated.View>
 
         <Animated.Text entering={FadeInDown.duration(600).delay(350)} style={ss.brandName}>
-          QarWheels
+          QarWheel
         </Animated.Text>
 
         <Animated.Text entering={FadeInDown.duration(600).delay(500)} style={ss.brandSub}>

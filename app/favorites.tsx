@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useRouter } from 'expo-router';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { garages } from '@/lib/marketplace';
@@ -11,8 +11,8 @@ import { tap } from '@/lib/haptics';
 export default function FavoritesScreen() {
   const c = useQarColors();
   const router = useRouter();
-  const favoriteIds = useQarWheelsStore((s) => s.favoriteGarageIds);
-  const toggleFav = useQarWheelsStore((s) => s.toggleFavoriteGarage);
+  const favoriteIds = useQarWheelStore((s) => s.favoriteGarageIds);
+  const toggleFav = useQarWheelStore((s) => s.toggleFavoriteGarage);
 
   const savedGarages = garages.filter((g) => favoriteIds.includes(g.id));
 

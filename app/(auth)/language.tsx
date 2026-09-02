@@ -29,19 +29,19 @@ export default function LanguageScreen() {
       <StepHeader
         eyebrow="Step 1"
         title="Choose your language"
-        body="Select the language you want to use across QarWheels."
+        body="Select the language you want to use across QarWheel."
         icon="language-outline"
       />
       <OptionCard
         title="English"
-        body="Use QarWheels in English."
+        body="Use QarWheel in English."
         icon={language === 'en' ? 'checkmark-circle' : 'ellipse-outline'}
         selected={language === 'en'}
         onPress={() => void select('en')}
       />
       <OptionCard
         title="العربية"
-        body="استخدم QarWheels باللغة العربية."
+        body="استخدم QarWheel باللغة العربية."
         icon={language === 'ar' ? 'checkmark-circle' : 'ellipse-outline'}
         selected={language === 'ar'}
         onPress={() => void select('ar')}

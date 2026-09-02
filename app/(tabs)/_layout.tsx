@@ -16,7 +16,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { getQarColors, withAlpha } from '@/lib/theme';
-import { useQarWheelsStore } from '@/lib/store';
+import { useQarWheelStore } from '@/lib/store';
 import { tap } from '@/lib/haptics';
 import { motion } from '@/lib/motion';
 
@@ -175,7 +175,7 @@ function TabItem({
 // ─────────────────────────────────────────────────────────────────────
 function QarTabBar({ state, navigation }: BottomTabBarProps) {
   const insets  = useSafeAreaInsets();
-  const themeMode = useQarWheelsStore((s) => s.themeMode);
+  const themeMode = useQarWheelStore((s) => s.themeMode);
   const c       = getQarColors(themeMode);
   const isDark  = themeMode === 'dark';
 
@@ -355,7 +355,7 @@ function QarTabBar({ state, navigation }: BottomTabBarProps) {
 // Layout
 // ─────────────────────────────────────────────────────────────────────
 export default function TabLayout() {
-  const themeMode = useQarWheelsStore((s) => s.themeMode);
+  const themeMode = useQarWheelStore((s) => s.themeMode);
   const c = getQarColors(themeMode);
 
   return (

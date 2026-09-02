@@ -54,7 +54,7 @@ export function BrandMark({
       style={[styles.brand, stacked ? styles.brandStacked : styles.brandRow, compact && styles.brandTight]}
       accessible
       accessibilityRole="image"
-      accessibilityLabel="QarWheels — Your Car. Our Care."
+      accessibilityLabel="QarWheel — Your Car. Our Care."
     >
       <View style={compact ? styles.brandIconCompact : styles.brandIcon}>
         <Text style={compact ? styles.brandGlyphCompact : styles.brandGlyph} allowFontScaling={false}>
@@ -64,7 +64,7 @@ export function BrandMark({
 
       {!hideText && (
         <View style={stacked ? styles.brandTextStacked : styles.brandText}>
-          <Text style={compact ? styles.brandNameCompact : styles.brandName}>QarWheels</Text>
+          <Text style={compact ? styles.brandNameCompact : styles.brandName}>QarWheel</Text>
           <Text
             style={[
               compact ? styles.brandSubCompact : styles.brandSub,

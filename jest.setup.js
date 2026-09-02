@@ -48,10 +48,13 @@ jest.mock('@react-native-community/netinfo', () => ({
   },
 }));
 
+// lib/haptics.ts chains .catch() onto every call, so these must resolve a
+// promise rather than undefined — otherwise any test that presses a control
+// dies inside the haptics helper instead of exercising the component.
 jest.mock('expo-haptics', () => ({
-  impactAsync: jest.fn(),
-  notificationAsync: jest.fn(),
-  selectionAsync: jest.fn(),
+  impactAsync: jest.fn(() => Promise.resolve()),
+  notificationAsync: jest.fn(() => Promise.resolve()),
+  selectionAsync: jest.fn(() => Promise.resolve()),
   ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy' },
   NotificationFeedbackType: { Success: 'success', Warning: 'warning', Error: 'error' },
 }));

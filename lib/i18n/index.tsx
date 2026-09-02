@@ -3,7 +3,7 @@ import { I18n } from 'i18n-js';
 import { useCallback, useMemo } from 'react';
 import { I18nManager } from 'react-native';
 
-import { useQarWheelsStore } from '@/lib/store';
+import { useQarWheelStore } from '@/lib/store';
 import { track } from '@/lib/observability';
 import { ar, en, type AppLanguage, type TranslationKey } from './translations';
 
@@ -52,8 +52,8 @@ export function t(key: TranslationKey, options?: Record<string, unknown>): strin
 // ─── React binding ───────────────────────────────────────────────────────────
 
 export function useTranslation() {
-  const language = useQarWheelsStore((s) => s.language);
-  const setLanguage = useQarWheelsStore((s) => s.setLanguage);
+  const language = useQarWheelStore((s) => s.language);
+  const setLanguage = useQarWheelStore((s) => s.setLanguage);
 
   // Keep the runtime in step with the persisted store on every render path,
   // including the first one after a cold start.

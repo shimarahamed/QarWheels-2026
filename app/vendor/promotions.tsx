@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack } from 'expo-router';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { type VendorPromotion } from '@/lib/vendor-data';
@@ -11,10 +11,10 @@ import { useVendorTabBottom } from '@/components/VendorTabBar';
 export default function PromotionsScreen() {
   const c = useQarColors();
   const vendorTabBottom = useVendorTabBottom();
-  const promos = useQarWheelsStore((s) => s.vendorPromotions);
-  const addPromo = useQarWheelsStore((s) => s.addVendorPromotion);
-  const togglePromo = useQarWheelsStore((s) => s.toggleVendorPromotion);
-  const archiveVendorPromotion = useQarWheelsStore((s) => s.archiveVendorPromotion);
+  const promos = useQarWheelStore((s) => s.vendorPromotions);
+  const addPromo = useQarWheelStore((s) => s.addVendorPromotion);
+  const togglePromo = useQarWheelStore((s) => s.toggleVendorPromotion);
+  const archiveVendorPromotion = useQarWheelStore((s) => s.archiveVendorPromotion);
 
   function handleCreatePromo() {
     const promo = addPromo();

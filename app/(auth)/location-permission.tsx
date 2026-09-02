@@ -29,7 +29,7 @@ export default function LocationPermissionScreen() {
       <StepHeader
         eyebrow="Location permission"
         title="Find nearby garages"
-        body="Allow location access so QarWheels can show nearby garages, services, and booking options around you."
+        body="Allow location access so QarWheel can show nearby garages, services, and booking options around you."
         icon="navigate-circle-outline"
       />
     </AuthScreen>

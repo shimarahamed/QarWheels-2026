@@ -3,7 +3,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from './firebase';
 import { clearPushTokenFromProfile } from './notifications';
 import { identifyUser, track } from './observability';
-import { useQarWheelsStore } from './store';
+import { useQarWheelStore } from './store';
 
 // ─── Session teardown ────────────────────────────────────────────────────────
 // Signing out has to do more than drop the Firebase credential. The persisted
@@ -33,7 +33,7 @@ export async function signOutCompletely(): Promise<void> {
   } finally {
     // Runs even if signOut throws: leaving personal data behind is worse than
     // an inconsistent auth state, which the auth listener resolves anyway.
-    useQarWheelsStore.getState().clearPersonalData();
+    useQarWheelStore.getState().clearPersonalData();
     identifyUser(null);
   }
 }

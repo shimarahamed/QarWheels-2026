@@ -3,7 +3,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Keyboard, ScrollView, StyleSheet, Text, TextInput, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { palette, radius, shadow, spacing, typography } from '@/lib/theme';
 import { vendorBookings } from '@/lib/vendor-data';
@@ -19,8 +19,8 @@ export default function CustomerScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const customers = useQarWheelsStore((s) => s.vendorCustomers);
-  const updateNotes = useQarWheelsStore((s) => s.updateVendorCustomerNotes);
+  const customers = useQarWheelStore((s) => s.vendorCustomers);
+  const updateNotes = useQarWheelStore((s) => s.updateVendorCustomerNotes);
 
   const customer = customers.find((cu) => cu.id === id || cu.name.replace(/\s/g, '_') === id)
     ?? customers[0];

@@ -29,13 +29,13 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors, useQarWheelsStore } from '@/lib/store';
+import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { tap } from '@/lib/haptics';
 
 // ─── Backend ──────────────────────────────────────────────────────────────────
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheels.com';
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheel.qa';
 
 type DispatchResponse = { requestId: string; etaMinutes: number };
 type StatusResponse = { step: number; etaMinutes: number };
@@ -358,7 +358,7 @@ export default function RoadsideScreen() {
             <View style={[s.infoNote, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
               <Ionicons name="shield-checkmark-outline" size={16} color={c.primary} />
               <Text style={[s.infoNoteText, { color: c.muted }]}>
-                All QarWheels responders are verified and rated. Your GPS location is shared only with the assigned mechanic.
+                All QarWheel responders are verified and rated. Your GPS location is shared only with the assigned mechanic.
               </Text>
             </View>
           </>
