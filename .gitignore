@@ -43,3 +43,7 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+
+# mobile/ is its own independent git repository (see mobile/.git) — tracked
+# and committed separately, not as part of this repo's history.
+/mobile/
