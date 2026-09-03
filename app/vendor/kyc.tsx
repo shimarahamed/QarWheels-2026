@@ -4,11 +4,12 @@ import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref, uploadBytes } from 'firebase/storage';
 import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { firebaseApp, auth } from '@/lib/firebase';
+import { useAuthContext } from '@/lib/AuthContext';
 
 // KYC is served by our own Next.js app (src/app/api/vendor/kyc), not the
 // external EXPO_PUBLIC_BACKEND_URL other screens use — so it reaches the app
@@ -21,22 +22,29 @@ const STATUS_CONFIG = {
   Rejected: { bg: 'rgba(239,68,68,0.15)',   text: '#EF4444', icon: 'close-circle-outline' as const, label: 'Rejected' },
 };
 
-async function uploadDocuments(uris: string[], vendorId: string): Promise<string[]> {
+// Returns raw Storage object paths, NOT getDownloadURL() values — a download
+// URL embeds a token that bypasses Storage security rules entirely once
+// generated, which would leak compliance documents to anyone holding the
+// link. The admin review route mints a short-lived signed URL from the
+// path only when actually viewing.
+async function uploadDocuments(uris: string[], businessId: string): Promise<string[]> {
   const storage = getStorage(firebaseApp);
-  const urls: string[] = [];
+  const paths: string[] = [];
 
   for (let i = 0; i < uris.length; i++) {
     const uri = uris[i];
     const response = await fetch(uri);
     const blob = await response.blob();
     const ext = uri.split('.').pop() ?? 'jpg';
-    const storageRef = ref(storage, `kyc/${vendorId}/doc_${Date.now()}_${i}.${ext}`);
+    // Storage rules gate this path on the uploader's qw claim businessId, not
+    // their Auth UID — a business can have multiple members submitting docs.
+    const path = `kyc/${businessId}/doc_${Date.now()}_${i}.${ext}`;
+    const storageRef = ref(storage, path);
     await uploadBytes(storageRef, blob);
-    const url = await getDownloadURL(storageRef);
-    urls.push(url);
+    paths.push(path);
   }
 
-  return urls;
+  return paths;
 }
 
 async function submitKycToBackend(
@@ -46,7 +54,7 @@ async function submitKycToBackend(
     licenseNumber: string;
     bankName: string;
     iban: string;
-    documentUrls: string[];
+    documentPaths: string[];
   },
 ) {
   const res = await fetch(`${API_BASE_URL}/api/vendor/kyc`, {
@@ -69,6 +77,7 @@ async function submitKycToBackend(
 export default function KYCScreen() {
   const c = useQarColors();
   const router = useRouter();
+  const { businessId } = useAuthContext();
   const vendorProfile = useQarWheelStore((s) => s.vendorProfile);
   const submitVendorKyc = useQarWheelStore((s) => s.submitVendorKyc);
   const { kyc, businessName, ownerName, email, phone } = vendorProfile;
@@ -106,7 +115,7 @@ export default function KYCScreen() {
       return;
     }
     const currentUser = auth.currentUser;
-    if (!currentUser) {
+    if (!currentUser || !businessId) {
       Alert.alert('Sign in required', 'Please sign in as a vendor to submit KYC.');
       return;
     }
@@ -114,10 +123,10 @@ export default function KYCScreen() {
 
     try {
       // Upload documents to Firebase Storage if any were selected
-      let documentUrls: string[] = [];
+      let documentPaths: string[] = [];
       if (documentUris.length > 0) {
         setUploadProgress(`Uploading ${documentUris.length} document${documentUris.length > 1 ? 's' : ''}…`);
-        documentUrls = await uploadDocuments(documentUris, currentUser.uid);
+        documentPaths = await uploadDocuments(documentUris, businessId);
       }
 
       setUploadProgress('Submitting for review…');
@@ -138,7 +147,7 @@ export default function KYCScreen() {
         licenseNumber: licenseNumber.trim(),
         bankName: bankName.trim(),
         iban: iban.trim().toUpperCase(),
-        documentUrls,
+        documentPaths,
       });
 
       Alert.alert(
