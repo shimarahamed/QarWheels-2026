@@ -6,7 +6,8 @@ import { requireBranchAccess } from '@/lib/auth/require-role';
 import { getVerifiedUserFromRequest } from '@/lib/firebase-auth';
 import { canTransitionBooking, actorAllowedTransitions, type BookingStatus, type Booking, type Transaction } from '@/lib/types';
 import { calculateCommission } from '@/lib/payments';
-import { trackApiError } from '@/lib/observability';
+import { isRateLimited, API_LIMITS, getRateLimitKey } from '@/lib/rate-limit';
+import { trackApiError, trackRateLimit } from '@/lib/observability';
 
 const TransitionSchema = z.object({
   status: z.enum([
@@ -42,6 +43,12 @@ export async function POST(
 
   const user = await getVerifiedUserFromRequest(request);
   if (!user) return Errors.unauthorized();
+
+  const rateLimitKey = await getRateLimitKey('bookings:transition', user.uid);
+  if (await isRateLimited(rateLimitKey, API_LIMITS.bookingTransition)) {
+    trackRateLimit('bookings:transition', rateLimitKey);
+    return Errors.rateLimited();
+  }
 
   const db = getAdminFirestore();
   const bookingRef = db.collection('bookings').doc(bookingId);

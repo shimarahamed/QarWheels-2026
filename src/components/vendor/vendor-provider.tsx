@@ -6,13 +6,7 @@ import { collection, doc, query, where } from 'firebase/firestore';
 import type { Branch, Business, WithId, MembershipRole } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useToast } from '@/hooks/use-toast';
+import { VendorBusinessForm } from './vendor-business-form';
 
 interface VendorContextType {
   business: WithId<Business>;
@@ -34,75 +28,8 @@ export function useVendor() {
   return context;
 }
 
-const newVendorSchema = z.object({
-  displayName: z.string().min(3, 'Garage name must be at least 3 characters'),
-  legalName: z.string().min(3, 'Legal business name is required'),
-  address: z.string().min(5, 'Address is required'),
-  city: z.string().min(1, 'City is required'),
-  phoneNumber: z.string().min(8, 'A valid phone number is required'),
-  email: z.string().email('Please enter a valid email'),
-});
-
 function CreateVendorForm({ onCreated }: { onCreated: () => void }) {
-  const { user, refreshClaims } = useUser();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
-
-  const form = useForm<z.infer<typeof newVendorSchema>>({
-    resolver: zodResolver(newVendorSchema),
-    defaultValues: { displayName: '', legalName: '', address: '', city: 'Doha', phoneNumber: '', email: user?.email || '' },
-  });
-
-  async function onSubmit(values: z.infer<typeof newVendorSchema>) {
-    if (!user) return;
-    setIsSubmitting(true);
-    try {
-      const token = await user.getIdToken();
-      const res = await fetch('/api/vendor/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          business: {
-            legalName: values.legalName,
-            displayName: values.displayName,
-            type: 'Garage',
-            contactEmail: values.email,
-            contactPhone: values.phoneNumber,
-          },
-          branch: {
-            name: values.displayName,
-            address: values.address,
-            city: values.city,
-            country: 'Qatar',
-            phoneNumber: values.phoneNumber,
-            // Default to Doha center; the branch settings page lets the
-            // owner pin their exact location afterwards.
-            latitude: 25.2854,
-            longitude: 51.531,
-          },
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? 'Registration failed');
-      }
-
-      toast({
-        title: 'Profile submitted!',
-        description: 'Your garage profile is pending admin approval. Loading dashboard...',
-      });
-      await refreshClaims();
-      onCreated();
-    } catch (e) {
-      console.error(e);
-      toast({
-        title: 'Error',
-        description: e instanceof Error ? e.message : 'Could not create profile. Please try again.',
-        variant: 'destructive',
-      });
-      setIsSubmitting(false);
-    }
-  }
+  const { user } = useUser();
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/40">
@@ -112,39 +39,11 @@ function CreateVendorForm({ onCreated }: { onCreated: () => void }) {
           <CardDescription>You need a vendor profile to access the dashboard. Let's get you set up.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="displayName">Garage Name</Label>
-              <Input id="displayName" {...form.register('displayName')} />
-              {form.formState.errors.displayName && <p className="text-sm text-destructive">{form.formState.errors.displayName.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="legalName">Legal Business Name</Label>
-              <Input id="legalName" {...form.register('legalName')} />
-              {form.formState.errors.legalName && <p className="text-sm text-destructive">{form.formState.errors.legalName.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="address">Full Address</Label>
-              <Input id="address" {...form.register('address')} />
-              {form.formState.errors.address && <p className="text-sm text-destructive">{form.formState.errors.address.message}</p>}
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="phoneNumber">Phone Number</Label>
-                <Input id="phoneNumber" type="tel" {...form.register('phoneNumber')} />
-                {form.formState.errors.phoneNumber && <p className="text-sm text-destructive">{form.formState.errors.phoneNumber.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Contact Email</Label>
-                <Input id="email" type="email" {...form.register('email')} />
-                {form.formState.errors.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
-              </div>
-            </div>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Profile & Continue
-            </Button>
-          </form>
+          <VendorBusinessForm
+            defaultEmail={user?.email ?? undefined}
+            submitLabel="Create Profile & Continue"
+            onRegistered={onCreated}
+          />
         </CardContent>
       </Card>
     </div>

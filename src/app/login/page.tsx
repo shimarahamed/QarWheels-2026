@@ -60,11 +60,19 @@ function LoginContent() {
         <CardContent>
           <AuthForm type="login" userType="customer" onResult={() => router.replace(redirectTo)} />
         </CardContent>
-        <CardFooter className="flex justify-center text-sm">
-          <p>Don&apos;t have an account?&nbsp;</p>
-          <Link href="/signup" className="font-semibold text-primary hover:underline">
-            Sign up
-          </Link>
+        <CardFooter className="flex flex-col gap-3">
+          <div className="flex justify-center text-sm">
+            <p>Don&apos;t have an account?&nbsp;</p>
+            <Link href="/signup" className="font-semibold text-primary hover:underline">
+              Sign up
+            </Link>
+          </div>
+          <p className="text-center text-xs text-muted-foreground">
+            By continuing you agree to QarWheel&apos;s{' '}
+            <Link href="/terms" className="underline hover:text-foreground">Terms of Service</Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>.
+          </p>
         </CardFooter>
       </Card>
     </div>

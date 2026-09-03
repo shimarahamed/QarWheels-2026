@@ -869,6 +869,8 @@ export default function LandingPage() {
               { label: 'Sign in',   href: '/login' },
               { label: 'Vendors',   href: '/vendor/signup' },
               { label: 'Vendor login', href: '/vendor/login' },
+              { label: 'Privacy Policy', href: '/privacy' },
+              { label: 'Terms of Service', href: '/terms' },
             ].map((l) => (
               <Link key={l.label} href={l.href} className="transition-colors hover:text-foreground">
                 {l.label}

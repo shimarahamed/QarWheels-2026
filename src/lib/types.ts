@@ -390,7 +390,8 @@ export type AuditAction =
   | 'branch.update'
   | 'admin.invite'
   | 'admin.update'
-  | 'admin.revoke';
+  | 'admin.revoke'
+  | 'account.delete';
 
 export type AuditLogEntry = {
   actorId: string;
@@ -413,6 +414,8 @@ export type UserProfile = {
   firstName: string;
   lastName: string;
   phoneNumber?: string;
+  country?: string;
+  area?: string;
   notificationPreferences?: {
     bookingConfirmations?: boolean;
     serviceReminders?: boolean;

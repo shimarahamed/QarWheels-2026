@@ -58,11 +58,19 @@ export default function SignupPage() {
         <CardContent>
           <AuthForm type="signup" userType="customer" onResult={() => router.replace('/dashboard')} />
         </CardContent>
-        <CardFooter className="flex justify-center text-sm">
-          <p>Already have an account?&nbsp;</p>
-          <Link href="/login" className="font-semibold text-primary hover:underline">
-            Sign in
-          </Link>
+        <CardFooter className="flex flex-col gap-3">
+          <div className="flex justify-center text-sm">
+            <p>Already have an account?&nbsp;</p>
+            <Link href="/login" className="font-semibold text-primary hover:underline">
+              Sign in
+            </Link>
+          </div>
+          <p className="text-center text-xs text-muted-foreground">
+            By creating an account you agree to QarWheel&apos;s{' '}
+            <Link href="/terms" className="underline hover:text-foreground">Terms of Service</Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>.
+          </p>
         </CardFooter>
       </Card>
     </div>

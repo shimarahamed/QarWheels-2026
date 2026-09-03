@@ -3,13 +3,17 @@ import type { NextRequest } from 'next/server';
 import { getVerifiedUserFromRequest } from '@/lib/firebase-auth';
 import { readQwClaims } from '@/lib/auth/qw-claims';
 
-// NOT YET SAFE TO DEPLOY: role checks below require every vendor/admin
-// account to carry a `qw` custom claim, which is only minted once the
-// memberships collection + syncClaimsForUser + vendor register/staff invite
-// routes exist and the re-seed has run. Until then this redirects every
-// existing vendor/admin out of their own dashboard. Land this only as the
-// final step of the Phase 1 rollout, after claims are backfilled for all
-// seeded/existing accounts.
+// LIVE: role checks below are active in production. They require every
+// vendor/admin account to carry a `qw` custom claim — memberships,
+// syncClaimsForUser, and the vendor register/staff-invite routes that mint
+// it all exist (see src/lib/auth/claims.ts, src/app/api/vendor/register,
+// src/app/api/vendor/staff/invite). Any account without a claim (a plain
+// customer, or a stale pre-Phase-1 account that was never re-seeded/synced)
+// is correctly bounced out of /vendor/dashboard and /admin/dashboard — that
+// is the intended behavior, not a bug. If you're re-seeding or onboarding a
+// new environment, run the seed + admin:bootstrap steps in
+// docs/go-live-checklist.md BEFORE anyone tries to sign in as vendor/admin,
+// or they'll be redirected here exactly as designed.
 
 const CUSTOMER_PROTECTED = /^\/dashboard/;
 const VENDOR_PROTECTED = /^\/vendor\/dashboard/;

@@ -5,7 +5,8 @@ import { getAdminFirestore, getAdminAuth } from '@/lib/firebase-admin';
 import { requireRole } from '@/lib/auth/require-role';
 import { syncClaimsForUser } from '@/lib/auth/claims';
 import { writeAuditLog } from '@/lib/audit';
-import { trackApiError } from '@/lib/observability';
+import { isRateLimited, API_LIMITS, getRateLimitKey } from '@/lib/rate-limit';
+import { trackApiError, trackRateLimit } from '@/lib/observability';
 import type { AdminRecord, WithId } from '@/lib/types';
 
 // roles_admin keeps `allow write: if false` in firestore.rules — no client
@@ -44,6 +45,12 @@ export async function POST(request: NextRequest) {
   }
   if (!access.auth.claims || access.auth.claims.r !== 'master_admin' || access.auth.claims.lvl !== 'super') {
     return Errors.forbidden();
+  }
+
+  const rateLimitKey = await getRateLimitKey('admin:invite', access.auth.user.uid);
+  if (await isRateLimited(rateLimitKey, API_LIMITS.adminInvite)) {
+    trackRateLimit('admin:invite', rateLimitKey);
+    return Errors.rateLimited();
   }
 
   let body: unknown;

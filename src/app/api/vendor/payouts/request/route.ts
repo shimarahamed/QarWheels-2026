@@ -4,7 +4,8 @@ import { getAdminFirestore } from '@/lib/firebase-admin';
 import { requireRole } from '@/lib/auth/require-role';
 import { ensureConnectAccount, sendPayout } from '@/lib/payments';
 import { writeAuditLog } from '@/lib/audit';
-import { trackApiError } from '@/lib/observability';
+import { isRateLimited, API_LIMITS, getRateLimitKey } from '@/lib/rate-limit';
+import { trackApiError, trackRateLimit } from '@/lib/observability';
 import type { Business, Payout, Transaction } from '@/lib/types';
 
 // A vendor can't request a payout for a trivial amount — each transfer costs
@@ -19,6 +20,15 @@ export async function POST(request: NextRequest) {
   const { auth } = access;
   if (!auth.claims || auth.claims.r === 'master_admin') return Errors.forbidden();
   const businessId = auth.claims.b;
+
+  // Keyed on businessId, not the calling user — the limit is meant to bound
+  // how often a given business can hammer payout processing, regardless of
+  // which owner/admin on the account is making the request.
+  const rateLimitKey = await getRateLimitKey('vendor:payout-request', businessId);
+  if (await isRateLimited(rateLimitKey, API_LIMITS.payoutRequest)) {
+    trackRateLimit('vendor:payout-request', rateLimitKey);
+    return Errors.rateLimited();
+  }
 
   try {
     const db = getAdminFirestore();

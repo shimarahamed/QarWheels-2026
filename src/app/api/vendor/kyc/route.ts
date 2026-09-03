@@ -33,6 +33,18 @@ export async function POST(request: NextRequest) {
 
   const { crNumber, licenseNumber, bankName, iban, documentPaths } = parsed.data;
 
+  // documentPaths must live under this caller's own business prefix. Without
+  // this, a business_owner could submit another business's Storage path
+  // (e.g. one they enumerated or guessed) and have it stored as their own
+  // KYC evidence — the admin review route (documents/route.ts) would then
+  // mint a live signed URL for it, handing them another tenant's compliance
+  // documents. Enforced again there as a second, independent check.
+  const requiredPrefix = `kyc/${businessId}/`;
+  const invalidPath = documentPaths.find((p) => !p.startsWith(requiredPrefix));
+  if (invalidPath) {
+    return Errors.badRequest('One or more document paths are invalid for this business');
+  }
+
   try {
     const db = getAdminFirestore();
     const businessRef = db.collection('businesses').doc(businessId);

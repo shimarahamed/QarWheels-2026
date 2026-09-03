@@ -26,15 +26,24 @@ service cloud.firestore {
       return role() == 'master_admin';
     }
 
-    // Legacy admin check, kept for the (soon retired) roles_admin collection
-    // and anything not yet migrated onto claims.
-    function isLegacyAdmin() {
+    // roles_admin is the durable source of truth for master_admin — writes
+    // land there first (src/app/api/admin/admins/**), and syncClaimsForUser
+    // mints the `qw.lvl` claim from it synchronously in the same request.
+    // This doc-existence check is NOT a legacy/transitional path being
+    // phased out; it's the required fallback for the staleness window
+    // between that write and the admin's next ID-token refresh (up to ~1hr
+    // on an already-issued token) — without it, a freshly granted or
+    // freshly revoked admin would have stale access for that whole window.
+    // It does cost one extra document read per evaluation versus the claim
+    // alone; that's the accepted tradeoff for correctness during the
+    // staleness window, not an oversight.
+    function isAdminDocFallback() {
       return isSignedIn()
         && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
     function isAdmin() {
-      return isMasterAdmin() || isLegacyAdmin();
+      return isMasterAdmin() || isAdminDocFallback();
     }
 
     function isOwner(uid) {
@@ -103,11 +112,33 @@ service cloud.firestore {
         && request.resource.data.lastName.size() <= 50
         && request.resource.data.email is string;
 
+      // Whitelist, not blacklist: only these fields may ever change via a
+      // client write, and each is individually type/size-checked. A
+      // blacklist (block just email/createdAt) would let any other field —
+      // including ones added later without a rules update, like an
+      // unbounded pushTokens array — through untouched. request.auth.uid ==
+      // userId is implied by isOwner(userId) but userId itself must also
+      // never change on an update (Firestore doc updates can't rename the
+      // doc, but this also guards a stray 'userId' field some writers set).
+      function onlyUserWritableFieldsChanged() {
+        return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['firstName', 'lastName', 'phoneNumber', 'displayName', 'phone',
+                    'country', 'area', 'notificationPreferences', 'favorites',
+                    'pushTokens', 'pushPlatform', 'updatedAt']);
+      }
+
       allow update: if isAdmin()
         || (isOwner(userId)
-        && notChanging(['email', 'createdAt'])
+        && onlyUserWritableFieldsChanged()
         && (!('firstName' in request.resource.data) || (request.resource.data.firstName is string && request.resource.data.firstName.size() <= 50))
-        && (!('lastName' in request.resource.data) || (request.resource.data.lastName is string && request.resource.data.lastName.size() <= 50)));
+        && (!('lastName' in request.resource.data) || (request.resource.data.lastName is string && request.resource.data.lastName.size() <= 50))
+        && (!('displayName' in request.resource.data) || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 100))
+        && (!('phoneNumber' in request.resource.data) || (request.resource.data.phoneNumber is string && request.resource.data.phoneNumber.size() <= 30))
+        && (!('phone' in request.resource.data) || (request.resource.data.phone is string && request.resource.data.phone.size() <= 30))
+        && (!('country' in request.resource.data) || (request.resource.data.country is string && request.resource.data.country.size() <= 50))
+        && (!('area' in request.resource.data) || (request.resource.data.area is string && request.resource.data.area.size() <= 100))
+        && (!('favorites' in request.resource.data) || (request.resource.data.favorites is list && request.resource.data.favorites.size() <= 200))
+        && (!('pushTokens' in request.resource.data) || (request.resource.data.pushTokens is list && request.resource.data.pushTokens.size() <= 20)));
 
       allow delete: if isAdmin();
 
@@ -255,11 +286,32 @@ service cloud.firestore {
     }
 
     // ─── Branch Inventory ─────────────────────────────────────────────────────
+    function isValidInventoryItem() {
+      return request.resource.data.name is string
+        && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 200
+        && request.resource.data.sku is string
+        && request.resource.data.sku.size() >= 1 && request.resource.data.sku.size() <= 100
+        && request.resource.data.stock is number
+        && request.resource.data.stock >= 0 && request.resource.data.stock <= 1000000
+        && request.resource.data.price is number
+        && request.resource.data.price >= 0 && request.resource.data.price <= 10000000;
+    }
+
     match /branch_inventory/{itemId} {
-      allow read, write: if isBranchStaff(resource.data.businessId, resource.data.branchId) || isAdmin();
+      allow read: if isBranchStaff(resource.data.businessId, resource.data.branchId) || isAdmin();
+      // `write` covers update (create is handled separately below, delete
+      // needs no field validation) — a plain isBranchStaff() || isAdmin()
+      // `write` would let update skip the same type/range checks create
+      // enforces, so update is validated here identically to create.
+      allow update: if isAdmin()
+        || (isBranchStaff(resource.data.businessId, resource.data.branchId)
+        && notChanging(['businessId', 'branchId'])
+        && isValidInventoryItem());
+      allow delete: if isBranchStaff(resource.data.businessId, resource.data.branchId) || isAdmin();
       allow create: if isAdmin()
         || (isBranchStaff(request.resource.data.businessId, request.resource.data.branchId)
-        && hasAllRequired(['businessId', 'branchId']));
+        && hasAllRequired(['businessId', 'branchId', 'name', 'sku', 'stock', 'price'])
+        && isValidInventoryItem());
     }
 
     // ─── Branch Promotions (admin can also create/update for any business) ────
@@ -268,7 +320,13 @@ service cloud.firestore {
       allow create, update: if isAdmin()
         || (isBusinessAdmin(request.resource.data.businessId)
         && hasAllRequired(['businessId', 'title', 'code', 'discount', 'startDate', 'endDate', 'status'])
-        && request.resource.data.status in ['Active', 'Expired', 'Scheduled']);
+        && request.resource.data.status in ['Active', 'Expired', 'Scheduled']
+        // discount is a free-text display string (e.g. "20%", "QAR 50"),
+        // not a number — bounded for size/type only, since there's no
+        // numeric semantics to range-check without changing the product's
+        // data model (which is out of scope here).
+        && request.resource.data.discount is string
+        && request.resource.data.discount.size() >= 1 && request.resource.data.discount.size() <= 50);
       allow delete: if isBusinessAdmin(resource.data.businessId) || isAdmin();
     }
 
@@ -333,15 +391,25 @@ service cloud.firestore {
           && canTransitionBooking(resource.data.status, request.resource.data.status)
           && request.resource.data.statusHistory.size() == resource.data.statusHistory.size() + 1
           && (!('cost' in request.resource.data) || (request.resource.data.cost is number && request.resource.data.cost >= 0)))
-        || isAdmin()
+        // Admin is a support/oversight role here, not a bypass of the
+        // booking state machine or a way to rewrite who a booking belongs
+        // to — identity fields stay immutable and the transition still has
+        // to be legal, same as branch staff. Only the actor-role check is
+        // relaxed (an admin can act on any business's booking).
+        || (isAdmin()
+          && notChanging(['userId', 'customerName', 'customerEmail', 'customerPhone', 'businessId', 'branchId', 'carId', 'carDescription', 'createdAt'])
+          && canTransitionBooking(resource.data.status, request.resource.data.status)
+          && request.resource.data.statusHistory.size() == resource.data.statusHistory.size() + 1)
       );
 
       allow delete: if isAdmin();
     }
 
-    // ─── Admin roles (read-only — managed via Firebase Console / Admin SDK) ───
-    // Superseded by master_admin custom claims; kept during the transition as
-    // the fallback isAdmin() checks while claims are backfilled.
+    // ─── Admin roles (read-only — managed exclusively via the Admin SDK) ───
+    // The durable source of truth for master_admin; see isAdmin() above.
+    // allow write: if false is permanent, not transitional — no client can
+    // ever grant or revoke admin directly, only src/app/api/admin/admins/**
+    // (itself gated to an existing super-admin) via the Admin SDK.
     match /roles_admin/{adminId} {
       allow read: if isAdmin() || isOwner(adminId);
       allow write: if false;
@@ -375,10 +443,15 @@ service cloud.firestore {
         && request.resource.data.participants.hasAll([request.auth.uid, request.resource.data.branchId])
         && request.resource.data.participants.size() == 2;
 
-      // Participants may only touch the denormalised "last message" fields
-      // and unread counters — never the identity of the conversation.
+      // Whitelist, not blacklist: participants may only touch the
+      // denormalised "last message" fields and unread counters — never
+      // customerName/branchName (identity display fields) or anything else,
+      // including anything added later without a rules update.
       allow update: if isConversationParticipant(resource.data)
-        && notChanging(['participants', 'userId', 'businessId', 'branchId', 'createdAt']);
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['lastMessage', 'lastMessageAt', 'lastMessageBy', 'unread', 'updatedAt'])
+        && (!('lastMessage' in request.resource.data) || (request.resource.data.lastMessage is string && request.resource.data.lastMessage.size() <= 2000))
+        && (!('unread' in request.resource.data) || request.resource.data.unread is map);
 
       allow delete: if isAdmin();
     }

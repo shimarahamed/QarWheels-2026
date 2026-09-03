@@ -5,7 +5,8 @@ import { ok, Errors } from '@/lib/api-response';
 import { getVerifiedUserFromRequest } from '@/lib/firebase-auth';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { syncClaimsForUser } from '@/lib/auth/claims';
-import { trackApiError } from '@/lib/observability';
+import { isRateLimited, API_LIMITS, getRateLimitKey } from '@/lib/rate-limit';
+import { trackApiError, trackRateLimit } from '@/lib/observability';
 import type { Business, Branch, Membership } from '@/lib/types';
 
 const RegisterVendorSchema = z.object({
@@ -21,6 +22,12 @@ const RegisterVendorSchema = z.object({
 export async function POST(request: NextRequest) {
   const user = await getVerifiedUserFromRequest(request);
   if (!user) return Errors.unauthorized();
+
+  const rateLimitKey = await getRateLimitKey('vendor:register', user.uid);
+  if (await isRateLimited(rateLimitKey, API_LIMITS.vendorRegister)) {
+    trackRateLimit('vendor:register', rateLimitKey);
+    return Errors.rateLimited();
+  }
 
   let body: unknown;
   try {

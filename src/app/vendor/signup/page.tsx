@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -9,122 +9,78 @@ import { Building2, Loader2, MapPin, ShieldCheck } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Logo } from '@/components/logo';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase, useUser } from '@/firebase';
+import { VendorBusinessForm } from '@/components/vendor/vendor-business-form';
 
-const vendorSignupSchema = z.object({
+const accountSchema = z.object({
   ownerName: z.string().min(2, 'Owner name is required'),
   email: z.string().email('Enter a valid email'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  name: z.string().min(2, 'Garage name is required').max(100, 'Garage name is too long'),
-  legalName: z.string().min(2, 'Legal business name is required').max(150, 'Legal name is too long'),
-  type: z.enum(['Garage', 'Parts Store', 'Both']),
-  address: z.string().min(5, 'Address is required'),
-  city: z.string().min(2, 'City is required'),
-  phoneNumber: z.string().min(8, 'Enter a valid phone number'),
 });
 
-type VendorSignupValues = z.infer<typeof vendorSignupSchema>;
+type AccountValues = z.infer<typeof accountSchema>;
 
+// Step 1: create the Firebase Auth account (owner identity). Step 2 (the
+// business + first branch) is the same VendorBusinessForm used by
+// VendorProvider's no-business fallback (for users who already have an
+// account, e.g. via Google sign-in, but no membership yet) — one
+// implementation of "create a business", not two that can drift apart.
 export default function VendorSignupPage() {
   const router = useRouter();
   const { auth, user, isUserLoading } = useFirebase();
-  const { refreshClaims } = useUser();
+  const { claims } = useUser();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [accountCreated, setAccountCreated] = useState(false);
 
-  const form = useForm<VendorSignupValues>({
-    resolver: zodResolver(vendorSignupSchema),
-    defaultValues: {
-      ownerName: '',
-      email: '',
-      password: '',
-      name: '',
-      legalName: '',
-      type: 'Garage',
-      address: '',
-      city: 'Doha',
-      phoneNumber: '',
-    },
+  const form = useForm<AccountValues>({
+    resolver: zodResolver(accountSchema),
+    defaultValues: { ownerName: '', email: '', password: '' },
   });
 
+  // Once claims resolve after registration, `business_owner` means the
+  // dashboard is safe to enter; a signed-in user with no business yet
+  // (mid-flow, or an existing account with no membership) stays here on
+  // step 2 instead of being bounced by the "already signed in" redirect.
+  const hasBusiness = claims && claims.r !== 'master_admin';
+
   useEffect(() => {
-    if (!isUserLoading && user) {
+    if (!isUserLoading && user && hasBusiness) {
       router.replace('/vendor/dashboard');
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, hasBusiness, router]);
 
-  async function onSubmit(values: VendorSignupValues) {
+  async function onCreateAccount(values: AccountValues) {
     setIsSubmitting(true);
-
     try {
       const credential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       await updateProfile(credential.user, { displayName: values.ownerName });
-
-      // The business, its first branch, the owner membership, and the custom
-      // claim are all created server-side via the Admin SDK.
-      const token = await credential.user.getIdToken();
-      const res = await fetch('/api/vendor/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          business: {
-            legalName: values.legalName,
-            displayName: values.name,
-            type: values.type,
-            contactEmail: values.email,
-            contactPhone: values.phoneNumber,
-          },
-          branch: {
-            name: values.name,
-            address: values.address,
-            city: values.city,
-            country: 'Qatar',
-            phoneNumber: values.phoneNumber,
-            // Doha center by default — the owner pins the exact location from
-            // branch settings after registering.
-            latitude: 25.2854,
-            longitude: 51.531,
-          },
-        }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? 'Vendor registration failed');
-      }
-
-      // Pick up the freshly minted `qw` claim before the dashboard mounts.
-      await refreshClaims();
-
-      toast({
-        title: 'Vendor account created',
-        description: 'Your garage profile is pending admin approval.',
-      });
-      router.replace('/vendor/dashboard');
+      setAccountCreated(true);
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Vendor registration failed',
-        description: error?.message || 'Could not create the vendor account.',
+        title: 'Could not create account',
+        description: error?.message || 'Please try a different email.',
       });
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  if (isUserLoading || user) {
+  if (isUserLoading || (user && hasBusiness)) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
+
+  const showBusinessStep = accountCreated || (user && !hasBusiness);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.10),transparent_32%),linear-gradient(180deg,hsl(var(--background)),hsl(var(--muted)/0.45))] p-4">
@@ -165,77 +121,58 @@ export default function VendorSignupPage() {
             <div className="mb-4 flex justify-center lg:hidden">
               <Logo hideText />
             </div>
-            <CardTitle className="text-2xl">Register Your Garage</CardTitle>
-            <CardDescription>Create a vendor account and submit your workshop profile.</CardDescription>
+            <CardTitle className="text-2xl">
+              {showBusinessStep ? 'Tell us about your garage' : 'Register Your Garage'}
+            </CardTitle>
+            <CardDescription>
+              {showBusinessStep
+                ? 'Almost there — this profile is submitted for admin approval.'
+                : 'Step 1 of 2 — create your owner account.'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="ownerName">Owner Name</Label>
-                <Input id="ownerName" {...form.register('ownerName')} />
-                {form.formState.errors.ownerName && <p className="text-sm text-destructive">{form.formState.errors.ownerName.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Login Email</Label>
-                <Input id="email" type="email" placeholder="owner@garage.qa" {...form.register('email')} />
-                {form.formState.errors.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" {...form.register('password')} />
-                {form.formState.errors.password && <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phoneNumber">Phone Number</Label>
-                <Input id="phoneNumber" type="tel" placeholder="+974..." {...form.register('phoneNumber')} />
-                {form.formState.errors.phoneNumber && <p className="text-sm text-destructive">{form.formState.errors.phoneNumber.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="name">Garage Name</Label>
-                <Input id="name" {...form.register('name')} />
-                {form.formState.errors.name && <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="legalName">Legal Business Name</Label>
-                <Input id="legalName" {...form.register('legalName')} />
-                {form.formState.errors.legalName && <p className="text-sm text-destructive">{form.formState.errors.legalName.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label>Business Type</Label>
-                <Select value={form.watch('type')} onValueChange={(value) => form.setValue('type', value as VendorSignupValues['type'])}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Garage">Garage</SelectItem>
-                    <SelectItem value="Parts Store">Parts Store</SelectItem>
-                    <SelectItem value="Both">Both</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="address">Full Address</Label>
-                <Input id="address" {...form.register('address')} />
-                {form.formState.errors.address && <p className="text-sm text-destructive">{form.formState.errors.address.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="city">City</Label>
-                <Input id="city" {...form.register('city')} />
-                {form.formState.errors.city && <p className="text-sm text-destructive">{form.formState.errors.city.message}</p>}
-              </div>
-              <div className="flex items-end">
+            {showBusinessStep ? (
+              <VendorBusinessForm
+                defaultEmail={form.getValues('email') || user?.email || undefined}
+                onRegistered={() => router.replace('/vendor/dashboard')}
+              />
+            ) : (
+              <form onSubmit={form.handleSubmit(onCreateAccount)} className="grid gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ownerName">Owner Name</Label>
+                  <Input id="ownerName" {...form.register('ownerName')} />
+                  {form.formState.errors.ownerName && <p className="text-sm text-destructive">{form.formState.errors.ownerName.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Login Email</Label>
+                  <Input id="email" type="email" placeholder="owner@garage.qa" {...form.register('email')} />
+                  {form.formState.errors.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input id="password" type="password" {...form.register('password')} />
+                  {form.formState.errors.password && <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>}
+                </div>
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create Vendor Account
+                  Continue
                 </Button>
-              </div>
-            </form>
+              </form>
+            )}
           </CardContent>
-          <CardFooter className="flex justify-center text-sm">
-            <p>Already have a vendor account?&nbsp;</p>
-            <Link href="/vendor/login" className="font-semibold text-primary hover:underline">
-              Sign in
-            </Link>
+          <CardFooter className="flex flex-col gap-3">
+            <div className="flex justify-center text-sm">
+              <p>Already have a vendor account?&nbsp;</p>
+              <Link href="/vendor/login" className="font-semibold text-primary hover:underline">
+                Sign in
+              </Link>
+            </div>
+            <p className="text-center text-xs text-muted-foreground">
+              By registering you agree to QarWheel&apos;s{' '}
+              <Link href="/terms" className="underline hover:text-foreground">Terms of Service</Link>{' '}
+              and{' '}
+              <Link href="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>.
+            </p>
           </CardFooter>
         </Card>
       </div>

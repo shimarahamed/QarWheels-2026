@@ -5,7 +5,8 @@ import { getAdminFirestore } from '@/lib/firebase-admin';
 import { requireRole } from '@/lib/auth/require-role';
 import { generateInviteToken, hashInviteToken } from '@/lib/auth/invite-token';
 import { sendEmail } from '@/lib/email';
-import { trackApiError } from '@/lib/observability';
+import { isRateLimited, API_LIMITS, getRateLimitKey } from '@/lib/rate-limit';
+import { trackApiError, trackRateLimit } from '@/lib/observability';
 import type { StaffInvite, Branch } from '@/lib/types';
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -24,6 +25,12 @@ export async function POST(request: NextRequest) {
     return Errors.forbidden();
   }
   const businessId = auth.claims.b;
+
+  const rateLimitKey = await getRateLimitKey('vendor:staff-invite', auth.user.uid);
+  if (await isRateLimited(rateLimitKey, API_LIMITS.staffInvite)) {
+    trackRateLimit('vendor:staff-invite', rateLimitKey);
+    return Errors.rateLimited();
+  }
 
   let body: unknown;
   try {

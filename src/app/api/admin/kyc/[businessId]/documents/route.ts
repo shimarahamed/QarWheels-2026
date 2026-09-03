@@ -26,7 +26,19 @@ export async function GET(
     const snap = await db.collection('businesses').doc(businessId).get();
     if (!snap.exists) return Errors.notFound('Business');
     const business = snap.data() as Business;
-    const paths = business.kyc?.documentPaths ?? [];
+    const allPaths = business.kyc?.documentPaths ?? [];
+
+    // Defence in depth: only ever sign a path that actually lives under this
+    // business's own KYC prefix, regardless of what's stored on the doc.
+    // Prevents a stray/legacy/tampered path from a different business ever
+    // being handed out as a live signed URL during review.
+    const requiredPrefix = `kyc/${businessId}/`;
+    const paths = allPaths.filter((path) => path.startsWith(requiredPrefix));
+    if (paths.length !== allPaths.length) {
+      trackApiError('/api/admin/kyc/[businessId]/documents', new Error(
+        `businessId=${businessId} has ${allPaths.length - paths.length} documentPaths outside its own prefix — refused to sign`,
+      ));
+    }
 
     const bucket = getAdminStorage().bucket();
     const urls = await Promise.all(

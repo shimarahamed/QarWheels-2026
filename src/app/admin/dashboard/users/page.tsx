@@ -23,7 +23,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { useCollection, useFirebase, useMemoFirebase, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
+import { useCollection, useFirebase, useMemoFirebase, safeUpdateDoc } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import type { Booking, UserProfile, WithId } from "@/lib/types";
 
@@ -42,13 +42,14 @@ const userEditSchema = z.object({
 type UserEditForm = z.infer<typeof userEditSchema>;
 
 export default function AdminUsersPage() {
-  const { firestore } = useFirebase();
+  const { firestore, user: adminUser } = useFirebase();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [editUser, setEditUser] = useState<WithId<UserProfile> | null>(null);
   const [deleteUser, setDeleteUser] = useState<WithId<UserProfile> | null>(null);
   const [viewUser, setViewUser] = useState<WithId<UserProfile> | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   const usersQuery = useMemoFirebase(() => query(collection(firestore, "users")), [firestore]);
   const bookingsQuery = useMemoFirebase(() => query(collection(firestore, "bookings")), [firestore]);
@@ -102,13 +103,34 @@ export default function AdminUsersPage() {
   }
 
   async function handleDeleteUser() {
-    if (!deleteUser) return;
+    if (!deleteUser || !adminUser) return;
+    setIsDeletingUser(true);
     try {
-      await safeDeleteDoc(doc(firestore, "users", deleteUser.id));
+      // Runs the real deletion pipeline (Auth account removed, personal
+      // fields scrubbed, bookings/invoices anonymized but retained) — NOT a
+      // raw Firestore doc delete, which used to leave an orphaned Auth
+      // account able to sign in with no profile. See src/lib/account-deletion.ts.
+      const idToken = await adminUser.getIdToken();
+      const res = await fetch(`/api/admin/users/${deleteUser.id}/delete`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({
+          title: "Could not delete user",
+          description: body?.error ?? "This account may own a business — transfer ownership first.",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({ title: "User deleted", description: `${deleteUser.firstName} ${deleteUser.lastName} removed.`, variant: "destructive" });
       setDeleteUser(null);
     } catch {
       toast({ title: "Error", description: "Could not delete user.", variant: "destructive" });
+    } finally {
+      setIsDeletingUser(false);
     }
   }
 
@@ -254,15 +276,26 @@ export default function AdminUsersPage() {
       </Dialog>
 
       {/* Delete confirm */}
-      <AlertDialog open={!!deleteUser} onOpenChange={(o) => !o && setDeleteUser(null)}>
+      <AlertDialog open={!!deleteUser} onOpenChange={(o) => !o && !isDeletingUser && setDeleteUser(null)}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete customer?</AlertDialogTitle>
-            <AlertDialogDescription>This permanently removes <strong>{deleteUser?.firstName} {deleteUser?.lastName}</strong> and cannot be undone.</AlertDialogDescription>
+            <AlertDialogDescription>
+              This permanently deletes <strong>{deleteUser?.firstName} {deleteUser?.lastName}</strong>&apos;s
+              login and personal data. Their bookings and invoices with garages are retained for financial
+              records, with their name and contact details removed from them. This cannot be undone.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteUser} className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+            <AlertDialogCancel className="rounded-xl" disabled={isDeletingUser}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); void handleDeleteUser(); }}
+              disabled={isDeletingUser}
+              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingUser && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

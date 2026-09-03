@@ -100,7 +100,16 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
           let claims: QwClaims | null = null;
           try {
             const tokenResult = await firebaseUser.getIdTokenResult();
-            document.cookie = `qw-session=${tokenResult.token}; path=/; SameSite=Strict; max-age=3600`;
+            // Secure only when actually on HTTPS — browsers silently refuse
+            // to set a Secure cookie over plain http://, which would break
+            // local dev (http://localhost) entirely if this were unconditional.
+            // This cookie is necessarily client-set (and so non-HttpOnly) since
+            // it carries the live ID token for middleware's server-side route
+            // guard; the token itself is still independently verified by
+            // Firestore rules on every read/write, so this cookie is a UX/
+            // routing convenience, not the actual trust boundary.
+            const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
+            document.cookie = `qw-session=${tokenResult.token}; path=/; SameSite=Strict; max-age=3600${secureFlag}`;
             claims = readQwClaims(tokenResult.claims);
           } catch {
             // Non-fatal — client auth still works via onIdTokenChanged

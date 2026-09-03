@@ -16,8 +16,37 @@ interface Window {
 
 const store = new Map<string, Window>();
 
-if (!process.env.UPSTASH_REDIS_REST_URL) {
-  console.warn('[rate-limit] UPSTASH_REDIS_REST_URL not set — using in-memory limiter. Limits will reset on server restart and will not work across multiple instances.');
+// Production must not silently run on the in-memory fallback: it's
+// per-process, so on multi-instance hosting each instance has its own
+// separate counter, and it resets on every deploy/restart — for a
+// high-traffic app this makes every rate limit trivially bypassable by
+// spreading requests across instances or restarts. Non-prod environments
+// (local dev, preview deploys) are allowed to run without Redis so
+// `npm run dev` and `npm run build` keep working with zero setup.
+//
+// This check deliberately runs lazily (inside isRateLimited(), not at
+// module load) — `next build` imports every route module during its page
+// -data-collection pass with NODE_ENV=production already set, so a
+// module-level throw here fails the BUILD itself, not just a real
+// unconfigured production request. A per-request check achieves the same
+// fail-closed guarantee without breaking the build.
+const isProduction = process.env.NODE_ENV === 'production' && process.env.VERCEL_ENV !== 'preview';
+let warnedInMemoryFallback = false;
+function assertProductionRateLimitConfigured(): void {
+  if (process.env.UPSTASH_REDIS_REST_URL) return;
+  if (isProduction && process.env.ALLOW_INSECURE_RATE_LIMIT !== '1') {
+    throw new Error(
+      '[rate-limit] UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN are required in production — ' +
+      'the in-memory fallback does not work across multiple server instances and resets on every ' +
+      'restart, silently disabling rate limiting for a high-traffic deployment. Set both in the ' +
+      'production environment (see console.upstash.com) or explicitly set ALLOW_INSECURE_RATE_LIMIT=1 ' +
+      'to acknowledge and bypass this check.',
+    );
+  }
+  if (!warnedInMemoryFallback) {
+    warnedInMemoryFallback = true;
+    console.warn('[rate-limit] UPSTASH_REDIS_REST_URL not set — using in-memory limiter. Limits will reset on server restart and will not work across multiple instances.');
+  }
 }
 
 // Clean up expired entries every 5 minutes
@@ -100,11 +129,21 @@ async function isRateLimitedWithUpstash(key: string, options: RateLimitOptions) 
 }
 
 export async function isRateLimited(key: string, options: RateLimitOptions): Promise<boolean> {
+  assertProductionRateLimitConfigured();
   try {
     const redisResult = await isRateLimitedWithUpstash(key, options);
     if (redisResult !== null) return redisResult;
   } catch (error) {
-    console.error('[rate-limit] Falling back to in-memory limiter:', error);
+    console.error('[rate-limit] Upstash request failed:', error);
+    // In production, a Redis outage must not silently disable rate limiting
+    // (falling back to a fresh, per-process, easily-bypassed counter is
+    // effectively "no limit" under real traffic). Fail closed instead: treat
+    // the request as rate-limited until Redis recovers. Non-prod keeps the
+    // permissive in-memory fallback so local/preview dev isn't blocked by a
+    // missing/misconfigured Upstash env.
+    if (isProduction && process.env.ALLOW_INSECURE_RATE_LIMIT !== '1') {
+      return true;
+    }
   }
 
   return isRateLimitedInMemory(key, options);
@@ -117,4 +156,17 @@ export const AI_LIMITS = {
   vin: { max: 5, windowSecs: 86400 },            // 5/user/day
   summarize: { max: 5, windowSecs: 86400 },      // 5/user/day
   insights: { max: 20, windowSecs: 86400 },      // 20/vendor/day
+} as const;
+
+// Preset limits for other sensitive/expensive/abuse-prone routes: staff
+// invites and admin invites send email and mint privileged access, payout
+// requests move money, business registration and booking transitions are
+// otherwise-unthrottled writes reachable by any authenticated account.
+export const API_LIMITS = {
+  staffInvite: { max: 20, windowSecs: 3600 },       // 20/business-owner/hour
+  payoutRequest: { max: 5, windowSecs: 3600 },      // 5/business/hour
+  vendorRegister: { max: 5, windowSecs: 3600 },     // 5/user/hour
+  bookingTransition: { max: 60, windowSecs: 3600 }, // 60/user/hour — generous, legitimate use is high-frequency for staff
+  invoiceCreate: { max: 30, windowSecs: 3600 },     // 30/user/hour
+  adminInvite: { max: 20, windowSecs: 3600 },       // 20/admin/hour
 } as const;

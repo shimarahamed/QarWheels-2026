@@ -35,14 +35,15 @@ They must sign out and back in for the claim to reach their token.
 
 ## 2. Turn on the role guards — only AFTER step 1
 
-Two guards are written and tested but intentionally inert, each marked in
-code. Enabling either before claims exist redirects **every** vendor and
-admin out of their own dashboard.
+`middleware.ts`'s role guards are **live** — enabled, not a stub. Confirm
+step 1 (seed + claims) has actually run before anyone tries to sign in as
+vendor/admin, or they will be correctly redirected out of their own
+dashboard (working as designed, not a bug to "fix" by disabling the guard).
 
-| Where | What to do |
+| Where | Status |
 |---|---|
-| `middleware.ts` | Remove the `NOT YET SAFE TO DEPLOY` banner. The role checks below it are already correct. |
-| `mobile/components/AuthGate.tsx` | Wrap `mobile/app/vendor/_layout.tsx` in `VendorAuthGate`. |
+| `middleware.ts` | Live. Role checks gate `/vendor/dashboard/**` and `/admin/dashboard/**`. |
+| `mobile/components/AuthGate.tsx` | Still needs to be wrapped around `mobile/app/vendor/_layout.tsx` — confirm this has been done before shipping mobile; it was written but not yet confirmed wired in. |
 
 Verify with a real sign-in per role before shipping: a customer should be
 bounced from `/vendor/dashboard` and `/admin/dashboard`; branch staff should

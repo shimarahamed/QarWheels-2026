@@ -114,4 +114,22 @@ describe('Phase 3 chat: conversations and messages', () => {
       branchId: BRANCH_A2,
     }));
   });
+
+  it('a participant cannot rewrite the display fields (customerName, branchName) via update', async () => {
+    const ctx = await asCustomer(CUSTOMER);
+    await assertFails(updateDoc(doc(ctx.firestore(), 'conversations', 'conv_1'), {
+      customerName: 'Someone Else',
+    }));
+    await assertFails(updateDoc(doc(ctx.firestore(), 'conversations', 'conv_1'), {
+      branchName: 'A Different Garage',
+    }));
+  });
+
+  it('a participant CAN update lastMessage and unread counters (the whitelisted fields)', async () => {
+    const ctx = await asCustomer(CUSTOMER);
+    await assertSucceeds(updateDoc(doc(ctx.firestore(), 'conversations', 'conv_1'), {
+      lastMessage: 'Any update?', lastMessageAt: new Date(), lastMessageBy: CUSTOMER,
+      unread: { [BRANCH_A1]: 1 }, updatedAt: new Date(),
+    }));
+  });
 });

@@ -41,7 +41,7 @@ async function seedFixtures() {
     });
     await setDoc(doc(db, 'branch_inventory', 'inv_a1_item1'), {
       businessId: BIZ_A, branchId: BRANCH_A1, name: 'Oil filter', sku: 'OF-1',
-      quantity: 10, minQuantity: 2, unitPrice: 20,
+      stock: 10, price: 20, supplier: 'Acme Parts',
     });
     await setDoc(doc(db, 'bookings', 'bkg_a1_pending'), {
       userId: 'uid_customer_1', customerName: 'Cust One', customerEmail: 'c1@example.com',
@@ -71,7 +71,7 @@ describe('Phase 1 tenancy isolation', () => {
     await seedWithoutRules(async (seedCtx) => {
       await setDoc(doc(seedCtx.firestore(), 'branch_inventory', 'inv_a2_item1'), {
         businessId: BIZ_A, branchId: BRANCH_A2, name: 'Brake pad', sku: 'BP-1',
-        quantity: 5, minQuantity: 1, unitPrice: 50,
+        stock: 5, price: 50, supplier: 'Acme Parts',
       });
     });
     await assertFails(getDoc(otherBranchItem));
@@ -137,6 +137,106 @@ describe('Phase 1 tenancy isolation', () => {
       userId: 'uid_new_staff', businessId: BIZ_A, role: 'branch_staff',
       branchIds: [BRANCH_A1], status: 'Active', email: 'x@aab.qa', displayName: 'X',
       invitedBy: 'uid_owner_a', invitedAt: new Date(), createdAt: new Date(), updatedAt: new Date(),
+    }));
+  });
+
+  // ── branch_inventory validation (hardened: type/range checks, not just presence) ──
+  it('branch staff cannot create an inventory item with a negative price', async () => {
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+    await assertFails(setDoc(doc(ctx.firestore(), 'branch_inventory', 'inv_bad_price'), {
+      businessId: BIZ_A, branchId: BRANCH_A1, name: 'Widget', sku: 'W-1', stock: 5, price: -10,
+    }));
+  });
+
+  it('branch staff cannot create an inventory item with a non-numeric stock', async () => {
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+    await assertFails(setDoc(doc(ctx.firestore(), 'branch_inventory', 'inv_bad_stock'), {
+      businessId: BIZ_A, branchId: BRANCH_A1, name: 'Widget', sku: 'W-1', stock: 'lots', price: 10,
+    }));
+  });
+
+  it('branch staff CAN create a valid inventory item for their own branch', async () => {
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+    await assertSucceeds(setDoc(doc(ctx.firestore(), 'branch_inventory', 'inv_good'), {
+      businessId: BIZ_A, branchId: BRANCH_A1, name: 'Widget', sku: 'W-1', stock: 5, price: 10,
+    }));
+  });
+
+  it('branch staff cannot update an inventory item to change its businessId (tenant reassignment)', async () => {
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+    const item = doc(ctx.firestore(), 'branch_inventory', 'inv_a1_item1');
+    await assertFails(updateDoc(item, { businessId: BIZ_B }));
+  });
+
+  // ── users whitelist (hardened: only specific fields writable, not "anything but email") ──
+  it('a user cannot write an arbitrary field to their own profile', async () => {
+    const ctx = await asCustomer('uid_customer_1');
+    await seedWithoutRules(async (seedCtx) => {
+      await setDoc(doc(seedCtx.firestore(), 'users', 'uid_customer_1'), {
+        firstName: 'Cust', lastName: 'One', email: 'c1@example.com', createdAt: new Date(), updatedAt: new Date(),
+      });
+    });
+    const userRef = doc(ctx.firestore(), 'users', 'uid_customer_1');
+    await assertFails(updateDoc(userRef, { isAdmin: true }));
+  });
+
+  it('a user still cannot change their own email via the whitelist', async () => {
+    const ctx = await asCustomer('uid_customer_1');
+    await seedWithoutRules(async (seedCtx) => {
+      await setDoc(doc(seedCtx.firestore(), 'users', 'uid_customer_1'), {
+        firstName: 'Cust', lastName: 'One', email: 'c1@example.com', createdAt: new Date(), updatedAt: new Date(),
+      });
+    });
+    const userRef = doc(ctx.firestore(), 'users', 'uid_customer_1');
+    await assertFails(updateDoc(userRef, { email: 'new@example.com' }));
+  });
+
+  it('a user CAN update whitelisted profile fields (phoneNumber, favorites)', async () => {
+    const ctx = await asCustomer('uid_customer_1');
+    await seedWithoutRules(async (seedCtx) => {
+      await setDoc(doc(seedCtx.firestore(), 'users', 'uid_customer_1'), {
+        firstName: 'Cust', lastName: 'One', email: 'c1@example.com', createdAt: new Date(), updatedAt: new Date(),
+      });
+    });
+    const userRef = doc(ctx.firestore(), 'users', 'uid_customer_1');
+    await assertSucceeds(updateDoc(userRef, { phoneNumber: '+97440000000', favorites: [BRANCH_A1] }));
+  });
+
+  // ── bookings: admin escape still respects the transition machine ──
+  it('master admin cannot skip the booking state machine (Pending -> Completed directly)', async () => {
+    const ctx = await asUserWithClaims('uid_admin_1', { r: 'master_admin', lvl: 'super' });
+    const bookingRef = doc(ctx.firestore(), 'bookings', 'bkg_a1_pending');
+    await assertFails(updateDoc(bookingRef, {
+      status: 'Completed',
+      statusHistory: [
+        { status: 'Pending', at: new Date(), byUid: 'uid_customer_1', byRole: 'customer' },
+        { status: 'Completed', at: new Date(), byUid: 'uid_admin_1', byRole: 'master_admin' },
+      ],
+    }));
+  });
+
+  it('master admin cannot reassign a booking to a different customer via update', async () => {
+    const ctx = await asUserWithClaims('uid_admin_1', { r: 'master_admin', lvl: 'super' });
+    const bookingRef = doc(ctx.firestore(), 'bookings', 'bkg_a1_pending');
+    await assertFails(updateDoc(bookingRef, {
+      userId: 'uid_someone_else',
+      status: 'Confirmed',
+      statusHistory: [
+        { status: 'Pending', at: new Date(), byUid: 'uid_customer_1', byRole: 'customer' },
+        { status: 'Confirmed', at: new Date(), byUid: 'uid_admin_1', byRole: 'master_admin' },
+      ],
+    }));
+  });
+
+  it('master admin CAN make a legal forward transition (Pending -> Confirmed)', async () => {
+    const ctx = await asUserWithClaims('uid_admin_1', { r: 'master_admin', lvl: 'super' });
+    const bookingRef = doc(ctx.firestore(), 'bookings', 'bkg_a1_pending');
+    await assertSucceeds(updateDoc(bookingRef, {
+      status: 'Confirmed',
+      statusHistory: [
+        { status: 'Pending', at: new Date(), byUid: 'uid_customer_1', byRole: 'customer' },
+        { status: 'Confirmed', at: new Date(), byUid: 'uid_admin_1', byRole: 'master_admin' },
+      ],
     }));
   });
 });

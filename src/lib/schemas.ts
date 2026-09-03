@@ -141,7 +141,13 @@ export const KycSubmitSchema = z.object({
   licenseNumber: z.string().min(1).max(50),
   bankName: z.string().max(100).optional().or(z.literal('')),
   iban: z.string().min(5).max(34),
-  documentPaths: z.array(z.string().min(1).max(300)).max(10).default([]),
+  // Shape-level check only (no ".." traversal, no absolute/protocol paths).
+  // The route itself additionally requires these to start with the caller's
+  // own `kyc/{businessId}/` prefix — that check needs the authenticated
+  // businessId, which isn't available at the schema layer.
+  documentPaths: z.array(
+    z.string().min(1).max(300).regex(/^[A-Za-z0-9/_.-]+$/, 'Invalid document path').refine((p) => !p.includes('..'), 'Invalid document path'),
+  ).max(10).default([]),
 });
 export type KycSubmit = z.infer<typeof KycSubmitSchema>;
 

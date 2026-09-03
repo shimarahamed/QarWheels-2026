@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,11 +11,22 @@ import { useVendor } from "@/components/vendor/vendor-provider";
 import { useFirebase, safeUpdateDoc } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Settings } from "lucide-react";
+import { Loader2, Settings, ShieldAlert } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { PageHeader } from "@/components/ui/page-header";
 import { LoadingPanel } from "@/components/ui/empty-state";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
 const settingsSchema = z.object({
@@ -28,10 +40,14 @@ const settingsSchema = z.object({
 
 
 export default function VendorSettingsPage() {
-  const { business, activeBranch } = useVendor();
-  const { firestore } = useFirebase();
+  const { business, activeBranch, role } = useVendor();
+  const { firestore, auth, user } = useFirebase();
   const { toast } = useToast();
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof settingsSchema>>({
     resolver: zodResolver(settingsSchema),
@@ -82,6 +98,37 @@ export default function VendorSettingsPage() {
       setIsSubmitting(false);
     }
   }
+
+  const handleDeleteAccount = async () => {
+    if (!user || !auth) return;
+    setIsDeletingAccount(true);
+    setDeleteError(null);
+    try {
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDeleteError(body?.error ?? 'Could not delete your account. Please try again or contact support.');
+        return;
+      }
+      await auth.signOut();
+      toast({ title: 'Account deleted', description: 'Your account and personal data have been removed.' });
+      router.replace('/');
+    } catch {
+      setDeleteError('Could not delete your account. Please check your connection and try again.');
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
+  // business_owner is blocked server-side (a business can't be left
+  // ownerless) — the button still shows, but leads with the explanation
+  // instead of the confirm dialog, since "transfer ownership first" is a
+  // multi-step action this page doesn't own.
+  const isOwner = role === 'business_owner';
 
   if (!activeBranch) {
     return (
@@ -166,8 +213,44 @@ export default function VendorSettingsPage() {
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                     Save All Settings
                  </Button>
+
+                <Card className="rounded-2xl border border-destructive/30 bg-card shadow-sm">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-destructive">
+                            <ShieldAlert className="h-4 w-4" />
+                            Danger Zone
+                        </CardTitle>
+                        <CardDescription>Permanently delete your own account and personal data.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {isOwner ? (
+                          <Alert>
+                            <ShieldAlert className="h-4 w-4" />
+                            <AlertTitle>Business owner accounts can&apos;t self-delete</AlertTitle>
+                            <AlertDescription>
+                              Transfer ownership to another admin on your team, or contact support to close
+                              the business, before deleting your account.
+                            </AlertDescription>
+                          </Alert>
+                        ) : (
+                          <>
+                            <p className="text-sm text-muted-foreground mb-4">
+                                Your login and personal profile details are permanently deleted, and your
+                                access to this business is revoked. This cannot be undone.
+                            </p>
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                onClick={() => { setDeleteError(null); setIsDeleteDialogOpen(true); }}
+                            >
+                                Delete My Account
+                            </Button>
+                          </>
+                        )}
+                    </CardContent>
+                </Card>
             </div>
-           
+
             <div className="md:col-span-1">
                  <Card className="rounded-2xl border bg-card shadow-sm">
                     <CardHeader>
@@ -208,6 +291,35 @@ export default function VendorSettingsPage() {
                 </Card>
             </div>
         </form>
+
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={(o) => { if (!isDeletingAccount) setIsDeleteDialogOpen(o); }}>
+          <AlertDialogContent className="rounded-2xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This permanently deletes your login and personal profile data, and revokes your access to
+                {' '}{business.displayName}. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {deleteError && (
+              <Alert variant="destructive">
+                <AlertTitle>Couldn&apos;t delete your account</AlertTitle>
+                <AlertDescription>{deleteError}</AlertDescription>
+              </Alert>
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-xl" disabled={isDeletingAccount}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); void handleDeleteAccount(); }}
+                disabled={isDeletingAccount}
+                className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeletingAccount && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Delete My Account
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }
