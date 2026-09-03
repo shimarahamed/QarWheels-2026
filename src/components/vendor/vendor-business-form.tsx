@@ -88,7 +88,13 @@ export function VendorBusinessForm({ defaultEmail, submitLabel = 'Create Vendor 
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? 'Vendor registration failed');
+        // The API returns field-level detail as { "business.contactPhone":
+        // ["Invalid phone number"] } (zod's flatten().fieldErrors) — surface
+        // the first concrete message instead of the generic "Invalid
+        // request", so a validation failure says which field and why.
+        const details = body.details as Record<string, string[]> | undefined;
+        const firstDetail = details && Object.values(details).flat()[0];
+        throw new Error(firstDetail ?? body.error ?? 'Vendor registration failed');
       }
 
       // Pick up the freshly minted `qw` claim before the dashboard mounts.
