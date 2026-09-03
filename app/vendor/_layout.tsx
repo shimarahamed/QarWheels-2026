@@ -2,30 +2,33 @@ import { Stack } from 'expo-router';
 import { useQarWheelStore } from '@/lib/store';
 import { getQarColors } from '@/lib/theme';
 import { motion } from '@/lib/motion';
+import { VendorAuthGate } from '@/components/AuthGate';
 
 export default function VendorLayout() {
   const themeMode = useQarWheelStore((s) => s.themeMode);
   const c = getQarColors(themeMode);
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: c.background },
-        animation: 'ios_from_right',
-        animationDuration: motion.slow,
-        animationMatchesGesture: true,
-        gestureEnabled: true,
-        fullScreenGestureEnabled: true,
-      }}
-    >
-      <Stack.Screen name="dashboard" options={{ animation: 'none' }} />
-      <Stack.Screen name="bookings" options={{ animation: 'none' }} />
-      <Stack.Screen name="requests" options={{ animation: 'none' }} />
-      <Stack.Screen name="services" options={{ animation: 'none' }} />
-      <Stack.Screen name="calendar" options={{ animation: 'none' }} />
-      <Stack.Screen name="analytics" options={{ animation: 'none' }} />
-      <Stack.Screen name="settings" options={{ animation: 'none' }} />
-    </Stack>
+    <VendorAuthGate>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: c.background },
+          animation: 'ios_from_right',
+          animationDuration: motion.slow,
+          animationMatchesGesture: true,
+          gestureEnabled: true,
+          fullScreenGestureEnabled: true,
+        }}
+      >
+        <Stack.Screen name="dashboard" options={{ animation: 'none' }} />
+        <Stack.Screen name="bookings" options={{ animation: 'none' }} />
+        <Stack.Screen name="requests" options={{ animation: 'none' }} />
+        <Stack.Screen name="services" options={{ animation: 'none' }} />
+        <Stack.Screen name="calendar" options={{ animation: 'none' }} />
+        <Stack.Screen name="analytics" options={{ animation: 'none' }} />
+        <Stack.Screen name="settings" options={{ animation: 'none' }} />
+      </Stack>
+    </VendorAuthGate>
   );
 }

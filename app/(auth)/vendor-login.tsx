@@ -287,9 +287,10 @@ export default function VendorLoginScreen() {
             <Ionicons name="chevron-forward" size={14} color={c.muted} />
           </Pressable>
           <Text style={[s.footerNote, { color: c.muted }]}>
-            By signing in you agree to QarWheel{' '}
-            <Text style={{ color: c.primary }}>Terms</Text> &{' '}
-            <Text style={{ color: c.primary }}>Privacy Policy</Text>
+            By signing in you agree to QarWheel&apos;s{' '}
+            <Text style={{ color: c.primary, fontWeight: '700' }} onPress={() => router.push('/terms-of-service' as never)}>Terms</Text>
+            {' '}&{' '}
+            <Text style={{ color: c.primary, fontWeight: '700' }} onPress={() => router.push('/privacy-policy' as never)}>Privacy Policy</Text>
           </Text>
         </MotionSurface>
       </KeyboardAvoidingView>

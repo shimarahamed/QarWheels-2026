@@ -5,12 +5,13 @@ import { useAuthContext } from '@/lib/AuthContext';
 import { useQarColors } from '@/lib/store';
 import { isVendorClaims } from '@/lib/roles';
 
-// NOT YET WIRED IN: gating on this before claims are actually minted for
-// existing/seeded accounts (see mobile/app/vendor/_layout.tsx) would lock
-// every vendor out of their own dashboard, the same risk flagged in
-// middleware.ts on the web side. Land this only once the memberships +
-// syncClaimsForUser + staff invite/vendor register flow has backfilled
-// claims for all seeded/existing vendor accounts.
+// LIVE: wrapped around mobile/app/vendor/_layout.tsx. Requires the caller
+// to hold a vendor-family `qw` claim (see mobile/lib/roles.ts
+// isVendorClaims) — memberships, syncClaimsForUser, and the vendor
+// register/staff-invite routes that mint it all exist and run synchronously
+// at grant time (mirrors middleware.ts on web, which gates the same way).
+// An account without a vendor claim is bounced to the role picker; that is
+// correct, not a bug.
 export function VendorAuthGate({ children }: { children: React.ReactNode }) {
   const c = useQarColors();
   const router = useRouter();

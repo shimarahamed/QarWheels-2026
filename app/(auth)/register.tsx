@@ -205,7 +205,10 @@ export default function RegisterScreen() {
           </Pressable>
 
           <Text style={s.footerText}>
-            By creating an account you agree to QarWheel' Terms of Service and Privacy Policy.
+            By creating an account you agree to QarWheel&apos;s{' '}
+            <Text style={s.footerLink} onPress={() => router.push('/terms-of-service' as never)}>Terms of Service</Text>
+            {' '}and{' '}
+            <Text style={s.footerLink} onPress={() => router.push('/privacy-policy' as never)}>Privacy Policy</Text>.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -253,4 +256,5 @@ const s = StyleSheet.create({
     ...typography.caption, color: colors.muted, textAlign: 'center',
     paddingHorizontal: 8, lineHeight: 18,
   },
+  footerLink: { color: colors.primary, fontWeight: '700' },
 });

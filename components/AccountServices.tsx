@@ -10,6 +10,8 @@ import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import { useAuthContext } from '@/lib/AuthContext';
 import { auth, firestore } from '@/lib/firebase';
+import { apiPost } from '@/lib/api';
+import { signOutCompletely } from '@/lib/session';
 import { success, tap } from '@/lib/haptics';
 import { useTranslation } from '@/lib/i18n';
 import { promptRestartForRTL } from '@/lib/i18n/restart';
@@ -119,6 +121,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
   const markNotificationsRead = useQarWheelStore((s) => s.markNotificationsRead);
   const [section, setSection] = useState<AccountSection>(initialSection);
   const [saving, setSaving] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [profile, setProfile] = useState<AccountProfile>({
     name: 'QarWheel User',
     email: '',
@@ -255,6 +258,43 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
     ]);
   }
 
+  // Soft-delete + anonymize, run server-side via the same route web uses
+  // (src/app/api/account/delete) — GDPR Art. 17 + app-store account
+  // deletion requirements (Apple 5.1.1(v), Play Data Safety). The Auth
+  // account is genuinely deleted; bookings/invoices are retained but
+  // anonymized. A business_owner account is rejected server-side with an
+  // explanation, since a business can't be left ownerless by this flow.
+  async function handleDeleteAccount() {
+    if (!user) {
+      Alert.alert('Login required', 'Please sign in before deleting your account.');
+      return;
+    }
+    setDeletingAccount(true);
+    try {
+      const token = await user.getIdToken();
+      await apiPost('/api/account/delete', token, {});
+      await signOutCompletely();
+      Alert.alert('Account deleted', 'Your account and personal data have been removed.');
+      router.replace('/(auth)/login' as never);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Please try again or contact support.';
+      Alert.alert('Could not delete account', message);
+    } finally {
+      setDeletingAccount(false);
+    }
+  }
+
+  function confirmDeleteAccount() {
+    Alert.alert(
+      'Delete account',
+      'This permanently deletes your login and personal profile data. Bookings and invoices with garages are kept for financial records, with your name and contact details removed from them. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete My Account', style: 'destructive', onPress: () => { void handleDeleteAccount(); } },
+      ],
+    );
+  }
+
   async function handleExportData() {
     const payload = {
       exportedAt: new Date().toISOString(),
@@ -351,11 +391,14 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
     setSaving(true);
     try {
       await updateProfile(auth.currentUser ?? user, { displayName: profile.name.trim() || 'QarWheel User' });
+      // email is intentionally NOT written here — it's not user-editable
+      // (matches web's disabled email field) and firestore.rules rejects
+      // any client attempt to change it on users/{uid}, whitelist-enforced.
+      // Writing it would make every profile save fail outright.
       await setDoc(
         doc(firestore, 'users', user.uid),
         {
           displayName: profile.name.trim(),
-          email: profile.email.trim(),
           phone: profile.phone.trim(),
           country: profile.country.trim(),
           area: profile.area.trim(),
@@ -539,7 +582,9 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
           <ToggleRow label="Biometric unlock" meta="Prepare native Face ID / Touch ID support" value={biometricEnabled} onValueChange={setBiometricEnabled} c={c} />
           <ToggleRow label="Two-factor login" meta="Require an extra code for sensitive actions" value={twoFactorEnabled} onValueChange={setTwoFactorEnabled} c={c} />
           <ActionRow label="Export my data" meta="Profile, vehicles, bookings, invoices" icon="download-outline" onPress={handleExportData} c={c} />
-          <ActionRow label="Delete account request" meta="Starts a secure deletion workflow" icon="trash-outline" onPress={() => Alert.alert('Delete account', 'A production build should require identity verification before this action.')} c={c} danger />
+          <ActionRow label="Privacy Policy" meta="How we collect, use, and share your data" icon="document-text-outline" onPress={() => router.push('/privacy-policy' as never)} c={c} />
+          <ActionRow label="Terms of Service" meta="The terms that govern using QarWheel" icon="document-text-outline" onPress={() => router.push('/terms-of-service' as never)} c={c} />
+          <ActionRow label={deletingAccount ? 'Deleting…' : 'Delete my account'} meta="Permanently deletes your login and personal data" icon="trash-outline" onPress={deletingAccount ? () => {} : confirmDeleteAccount} c={c} danger />
         </SectionCard>
       );
     }
