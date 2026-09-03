@@ -1,41 +1,21 @@
 import type { NextConfig } from 'next';
+import { SECURITY_HEADERS } from './src/lib/security-headers';
 
-const securityHeaders = [
-  { key: 'X-Frame-Options', value: 'DENY' },
-  { key: 'X-Content-Type-Options', value: 'nosniff' },
-  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  { key: 'X-DNS-Prefetch-Control', value: 'on' },
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
-  {
-    key: 'Content-Security-Policy',
-    value: [
-      "default-src 'self'",
-      // 'unsafe-eval' dropped — Next.js production builds don't need it
-      // (only some dev-mode tooling does); keeping it in prod widens the
-      // XSS blast radius for no production benefit. 'unsafe-inline' stays
-      // for now: Next.js/React can emit inline scripts/styles that a
-      // nonce-based CSP would require deeper build-pipeline changes to
-      // support — tracked as a follow-up, not silently dropped here.
-      "script-src 'self' 'unsafe-inline'",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https://firebasestorage.googleapis.com https://placehold.co https://images.unsplash.com https://picsum.photos https://api.dicebear.com",
-      "connect-src 'self' https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://generativelanguage.googleapis.com https://vpic.nhtsa.dot.gov",
-      "frame-ancestors 'none'",
-      "object-src 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-      "upgrade-insecure-requests",
-    ].join('; '),
-  },
-  // HSTS: only meaningful over HTTPS, but the header itself is safe to send
-  // unconditionally — browsers just ignore it on plain HTTP. 1 year +
-  // includeSubDomains is the standard production baseline; omit 'preload'
-  // until the domain is actually submitted to the HSTS preload list (adding
-  // preload without submitting doesn't do anything, but the header value
-  // implies an intent this project hasn't taken yet).
-  { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
-];
+// Content-Security-Policy is intentionally NOT set here. It's set in
+// middleware.ts instead, because CSP needs a per-request nonce to drop
+// 'unsafe-inline' from script-src (see src/lib/security-headers.ts for the
+// full rationale) — a value only middleware can generate per-request.
+// Setting CSP in both places would not "override" cleanly: Next.js applies
+// header sources independently, so a duplicate Content-Security-Policy
+// header from here would be sent ALONGSIDE middleware's, and browsers
+// intersect multiple CSP headers rather than letting one win — silently
+// blocking the nonce'd script since this static policy has no nonce in it.
+//
+// The other headers below have no per-request variation, so they're safe
+// to set here as a backstop for any response middleware's matcher doesn't
+// reach (e.g. certain static assets) — middleware sets the same values for
+// everything it does cover, so there's no conflict for those.
+const securityHeaders = SECURITY_HEADERS;
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
@@ -48,7 +28,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/(.*)',
-        headers: securityHeaders,
+        headers: [...securityHeaders],
       },
     ];
   },

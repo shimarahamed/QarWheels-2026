@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getVerifiedUserFromRequest } from '@/lib/firebase-auth';
 import { readQwClaims } from '@/lib/auth/qw-claims';
+import { buildCsp, generateNonce, SECURITY_HEADERS } from '@/lib/security-headers';
 
 // LIVE: role checks below are active in production. They require every
 // vendor/admin account to carry a `qw` custom claim — memberships,
@@ -26,8 +27,28 @@ const VENDOR_ROLES = new Set(['business_owner', 'business_admin', 'branch_manage
 // Routes that authenticated users should not see
 const AUTH_ROUTES = /^\/(login|signup|vendor\/login|vendor\/signup)$/;
 
+// Stamps every outgoing response (redirect or pass-through) with the
+// per-request CSP (carrying this request's nonce) and the other static
+// security headers — the single place that guarantees no code path through
+// this middleware can accidentally ship a response with no CSP at all.
+function withSecurityHeaders(response: NextResponse, csp: string): NextResponse {
+  response.headers.set('Content-Security-Policy', csp);
+  for (const header of SECURITY_HEADERS) {
+    response.headers.set(header.key, header.value);
+  }
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Nonce is generated for every request this middleware runs on (now
+  // effectively every page, per the broadened matcher below) — even ones
+  // that redirect, so the redirect response itself still carries a correct
+  // CSP header rather than an implicit default. API routes get one too for
+  // consistency, though they render no HTML and so never actually use it.
+  const nonce = generateNonce();
+  const csp = buildCsp(nonce);
 
   const verifiedUser = await getVerifiedUserFromRequest(request);
   const isAuthenticated = Boolean(verifiedUser);
@@ -44,7 +65,7 @@ export async function middleware(request: NextRequest) {
     url.searchParams.set('redirect', pathname);
     const response = NextResponse.redirect(url);
     response.cookies.delete('qw-session');
-    return response;
+    return withSecurityHeaders(response, csp);
   }
 
   if (VENDOR_PROTECTED.test(pathname)) {
@@ -54,7 +75,7 @@ export async function middleware(request: NextRequest) {
       url.searchParams.set('redirect', pathname);
       const response = NextResponse.redirect(url);
       response.cookies.delete('qw-session');
-      return response;
+      return withSecurityHeaders(response, csp);
     }
     // Authenticated but not a business member (e.g. a plain customer who
     // navigated here directly) — bounce to the customer dashboard rather
@@ -63,7 +84,7 @@ export async function middleware(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = '/dashboard';
       url.search = '';
-      return NextResponse.redirect(url);
+      return withSecurityHeaders(NextResponse.redirect(url), csp);
     }
   }
 
@@ -74,13 +95,13 @@ export async function middleware(request: NextRequest) {
       url.searchParams.set('redirect', pathname);
       const response = NextResponse.redirect(url);
       response.cookies.delete('qw-session');
-      return response;
+      return withSecurityHeaders(response, csp);
     }
     if (role !== 'master_admin') {
       const url = request.nextUrl.clone();
       url.pathname = '/dashboard';
       url.search = '';
-      return NextResponse.redirect(url);
+      return withSecurityHeaders(NextResponse.redirect(url), csp);
     }
   }
 
@@ -90,10 +111,20 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = redirect ?? (pathname.startsWith('/vendor') ? '/vendor/dashboard' : '/dashboard');
     url.search = '';
-    return NextResponse.redirect(url);
+    return withSecurityHeaders(NextResponse.redirect(url), csp);
   }
 
   const requestHeaders = new Headers(request.headers);
+  // Threaded through to src/app/layout.tsx (via next/headers) so the one
+  // inline <script> there can be stamped with this exact request's nonce.
+  requestHeaders.set('x-nonce', nonce);
+  // Next.js's own render pipeline (app-render.js) reads the nonce for ITS
+  // OWN injected scripts (hydration payload, chunk loaders) by parsing a
+  // `content-security-policy` header off the INCOMING request — not the
+  // outgoing response. Both request and response need this header with the
+  // same nonce: the request copy is what makes Next's own scripts work
+  // under a nonce'd CSP; the response copy is what the browser enforces.
+  requestHeaders.set('content-security-policy', csp);
   if (verifiedUser) {
     requestHeaders.set('x-user-id', verifiedUser.uid);
     if (verifiedUser.signInProvider) {
@@ -104,22 +135,25 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  return NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   });
+  return withSecurityHeaders(response, csp);
 }
 
 export const config = {
+  // Every page route needs the nonce-bearing CSP, not just the
+  // auth-guarded ones — the inline theme-init script in src/app/layout.tsx
+  // renders on every page. Excludes Next's internal static/image assets and
+  // common static file extensions, which don't render the layout and don't
+  // need a nonce. Plain string pattern (not the object+`missing` form) —
+  // Next 15.5's build-time routes-manifest generation chokes on the
+  // richer matcher shape here (`next start` throws "routesManifest.
+  // dataRoutes is not iterable"), so keep this to the form Next's own docs
+  // use for CSP-nonce middleware.
   matcher: [
-    '/dashboard/:path*',
-    '/vendor/dashboard/:path*',
-    '/admin/dashboard/:path*',
-    '/login',
-    '/signup',
-    '/vendor/login',
-    '/vendor/signup',
-    '/api/:path*',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf)$).*)',
   ],
 };
