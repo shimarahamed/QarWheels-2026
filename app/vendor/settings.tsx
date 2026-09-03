@@ -8,9 +8,25 @@ import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
 import { signOutCompletely } from '@/lib/session';
-import { getAuth } from 'firebase/auth';
-import { saveVendorProfile } from '@/lib/firestoreOps';;
+import { useVendorProfileWriter } from '@/lib/firestoreOps';
+
 const WORK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+// The mobile profile keeps one open/close pair plus a list of working days,
+// while Branch.workingHours is a per-day map. Expand the flat form into the
+// stored schema so web and mobile read the same shape.
+const DAY_KEYS: Record<string, string> = {
+  Sun: 'sun', Mon: 'mon', Tue: 'tue', Wed: 'wed', Thu: 'thu', Fri: 'fri', Sat: 'sat',
+};
+
+function toWorkingHours(workDays: string[], openTime: string, closeTime: string) {
+  return Object.fromEntries(
+    Object.entries(DAY_KEYS).map(([label, key]) => [
+      key,
+      { isOpen: workDays.includes(label), openTime, closeTime },
+    ]),
+  );
+}
 
 export default function VendorSettingsScreen() {
   const c = useQarColors();
@@ -22,6 +38,9 @@ export default function VendorSettingsScreen() {
   const themeMode = useQarWheelStore((s) => s.themeMode);
   const setThemeMode = useQarWheelStore((s) => s.setThemeMode);
   const setVendorAuthenticated = useQarWheelStore((s) => s.setVendorAuthenticated);
+  // Writes are scoped to the signed-in vendor's own business/branch, resolved
+  // from their claims — the screen never names a target document id.
+  const { saveBranch } = useVendorProfileWriter();
 
   const [openTime, setOpenTime] = useState(profile.openTime);
   const [closeTime, setCloseTime] = useState(profile.closeTime);
@@ -34,32 +53,15 @@ export default function VendorSettingsScreen() {
 
   function handleSaveHours() {
     updateProfile({ openTime, closeTime, workDays, notifications: notifs });
-    const uid = getAuth().currentUser?.uid;
-    if (uid) {
-      void saveVendorProfile(uid, {
-        openTime,
-        closeTime,
-        workDays,
-        businessName: profile.businessName,
-        ownerName: profile.ownerName,
-        email: profile.email,
-        phone: profile.phone,
-        category: profile.category,
-        area: profile.area,
-        city: profile.city,
-        rating: profile.rating,
-        totalReviews: profile.totalReviews,
-        verified: profile.verified,
-        openNow: !profile.vacationMode,
-        vacationMode: profile.vacationMode,
-        startingPrice: 'QAR 100+',
-        startingPriceValue: 100,
-        responseTime: '15 min',
-        pickupAvailable: true,
-        warranty: '7-day warranty',
-        tags: profile.verified ? ['Verified'] : [],
-      });
-    }
+    // Opening hours are a property of the location, so they belong to the
+    // active branch. Marketplace stats (rating, reviewCount, verified) are
+    // deliberately NOT written here — they are derived server-side and a
+    // vendor must not be able to set their own rating.
+    saveBranch({
+      workingHours: toWorkingHours(workDays, openTime, closeTime),
+    }).catch(() => {
+      Alert.alert('Not saved', 'Could not save your settings. Please try again.');
+    });
     Alert.alert('Saved', 'Your settings have been updated.');
   }
 
@@ -74,13 +76,10 @@ export default function VendorSettingsScreen() {
         {
           text: 'Confirm', onPress: () => {
             toggleVacation();
-            const uid = getAuth().currentUser?.uid;
-            if (uid) {
-              void saveVendorProfile(uid, {
-                vacationMode: !profile.vacationMode,
-                openNow: profile.vacationMode,
-              });
-            }
+            // Vacation mode pauses one location, not the whole business.
+            saveBranch({ vacationMode: !profile.vacationMode }).catch(() => {
+              Alert.alert('Not saved', 'Could not update vacation mode. Please try again.');
+            });
           },
         },
       ],

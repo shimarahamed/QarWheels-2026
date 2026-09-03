@@ -16,9 +16,9 @@ import { getAuth } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 import { firestore } from './firebase';
 import { useQarWheelStore } from './store';
+import { useAuthContext } from './AuthContext';
 import type { Booking, Garage, PopularJob } from './marketplace';
 import type { BookingWorkflowStatus } from './booking-workflow';
-import { popularJobs as seedJobs } from './marketplace';
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -269,132 +269,219 @@ export function useFirestoreBookings(userId: string | null) {
   }, [userId, mergeFirestoreBookings]);
 }
 
-// ── Vendor Firestore document type ───────────────────────────────────────────
+// ── Business / branch document types ─────────────────────────────────────────
+// Mirrors the `Business`, `Branch` and `Service` types in src/lib/types.ts.
+// Mobile has no build-time link to src/, so these are kept in sync by hand —
+// same reasoning as mobile/lib/roles.ts duplicating the claims shape.
 
-export type FirestoreVendor = {
-  id: string;           // Firestore doc ID = vendor's Firebase Auth UID
-  businessName: string;
-  ownerName: string;
-  email: string;
-  phone: string;
-  category: string;
-  area: string;
+/** Business-level fields a vendor can edit about themselves. */
+export type FirestoreBusinessProfile = {
+  displayName: string;
+  contactEmail: string;
+  contactPhone: string;
+  websiteUrl?: string;
+  logoUrl?: string;
+};
+
+/** Branch-level (per-location) fields a vendor can edit about themselves. */
+export type FirestoreBranchProfile = {
+  name: string;
+  address: string;
   city: string;
-  imageUrl?: string;
-  rating: number;
-  totalReviews: number;
-  verified: boolean;
-  openNow: boolean;
+  country: string;
+  phoneNumber: string;
   vacationMode: boolean;
-  openTime: string;
-  closeTime: string;
-  workDays: string[];
-  startingPrice: string;
+  workingHours: Record<string, { isOpen: boolean; openTime: string; closeTime: string }>;
+  rating: number;
+  reviewCount: number;
   startingPriceValue: number;
-  responseTime: string;
-  distanceKm?: number;
+  responseTimeMins: number;
   pickupAvailable: boolean;
   warranty: string;
   tags: string[];
+  imageUrl: string;
 };
 
-export type FirestoreVendorService = {
+/** A row of the flattened `branch_services` collection. */
+export type FirestoreBranchService = {
   id: string;
+  businessId: string;
+  branchId: string;
   name: string;
-  category: string;
-  basePrice: number;
-  duration: number;
   description: string;
+  price: number;
+  duration: number;
+  category?: string;
   active: boolean;
-  warranty?: string;
 };
 
-// ── Save / update vendor profile in Firestore ─────────────────────────────────
+// ── Save / update the signed-in vendor's own profile ──────────────────────────
+// The target ids come from the caller's own claims (see useVendorProfileWriter
+// below), never from a caller-supplied parameter — a client must not be able to
+// name which business/branch it writes to. Mirrors the web vendor settings page
+// (src/app/vendor/dashboard/settings/page.tsx), which splits the same form
+// across businesses/{businessId} and branches/{branchId}.
 
-export async function saveVendorProfile(uid: string, data: Partial<FirestoreVendor>) {
+async function saveBusinessProfile(businessId: string, data: Partial<FirestoreBusinessProfile>) {
   return setDoc(
-    doc(firestore, 'vendors', uid),
+    doc(firestore, 'businesses', businessId),
     { ...data, updatedAt: serverTimestamp() },
     { merge: true },
   );
 }
 
-// ── Save vendor service to Firestore subcollection ────────────────────────────
-
-export async function saveVendorService(uid: string, service: Omit<FirestoreVendorService, 'id'>) {
-  return addDoc(collection(firestore, 'vendors', uid, 'services'), {
-    ...service,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+async function saveBranchProfile(branchId: string, data: Partial<FirestoreBranchProfile>) {
+  return setDoc(
+    doc(firestore, 'branches', branchId),
+    { ...data, updatedAt: serverTimestamp() },
+    { merge: true },
+  );
 }
 
-export async function updateVendorService(uid: string, serviceId: string, patch: Partial<FirestoreVendorService>) {
-  return updateDoc(doc(firestore, 'vendors', uid, 'services', serviceId), {
-    ...patch,
-    updatedAt: serverTimestamp(),
-  });
+/**
+ * Returns writers scoped to the signed-in vendor's own business and active
+ * branch. Both resolve their target id from claims/active-branch state, so a
+ * screen can only ever edit the tenant it is actually a member of. When the
+ * user has no vendor claim the writers are no-ops that reject, rather than
+ * silently writing somewhere unexpected.
+ */
+export function useVendorProfileWriter() {
+  const { businessId } = useAuthContext();
+  const activeBranchId = useQarWheelStore((s) => s.activeBranchId);
+
+  return {
+    businessId,
+    branchId: activeBranchId,
+    /** Business-level fields (display name, contact details). */
+    async saveBusiness(data: Partial<FirestoreBusinessProfile>) {
+      if (!businessId) throw new Error('No business in scope for the signed-in user.');
+      return saveBusinessProfile(businessId, data);
+    },
+    /** Location-level fields (hours, address, vacation mode). */
+    async saveBranch(data: Partial<FirestoreBranchProfile>) {
+      if (!activeBranchId) throw new Error('No active branch in scope for the signed-in user.');
+      return saveBranchProfile(activeBranchId, data);
+    },
+  };
 }
 
-// ── useVendors — real-time list of all vendors for the user-side marketplace ──
+// ── useVendorServiceWriter — create/edit rows in `branch_services` ────────────
+// Mirrors src/app/vendor/dashboard/services/page.tsx: a create stamps the
+// businessId/branchId FKs from the caller's own scope; an edit patches the
+// flat doc by id.
 
-function docToGarage(d: { id: string; data: () => Record<string, unknown> }): Garage {
+export function useVendorServiceWriter() {
+  const { businessId } = useAuthContext();
+  const activeBranchId = useQarWheelStore((s) => s.activeBranchId);
+
+  return {
+    async createService(service: Omit<FirestoreBranchService, 'id' | 'businessId' | 'branchId'>) {
+      if (!businessId || !activeBranchId) {
+        throw new Error('No business/branch in scope for the signed-in user.');
+      }
+      return addDoc(collection(firestore, 'branch_services'), {
+        ...service,
+        businessId,
+        branchId: activeBranchId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    },
+    async updateService(serviceId: string, patch: Partial<Omit<FirestoreBranchService, 'id' | 'businessId' | 'branchId'>>) {
+      return updateDoc(doc(firestore, 'branch_services', serviceId), {
+        ...patch,
+        updatedAt: serverTimestamp(),
+      });
+    },
+  };
+}
+
+// ── useBranches — real-time list of listed branches for the marketplace ───────
+
+const FALLBACK_GARAGE_IMAGE =
+  'https://images.unsplash.com/photo-1551522435-a13afa10f103?auto=format&fit=crop&w=900&q=80';
+
+/**
+ * Maps a `branches/{branchId}` document into the `Garage` shape the mobile UI
+ * renders. Branch carries these marketplace fields directly, so this is a
+ * straight field read rather than the old cross-collection guesswork.
+ */
+function branchToGarage(d: { id: string; data: () => Record<string, unknown> }): Garage {
   const data = d.data();
+  const startingPriceValue = Number(data.startingPriceValue ?? 100);
+  const responseTimeMins = Number(data.responseTimeMins ?? 15);
   return {
     id: d.id,
-    name: String(data.businessName ?? data.name ?? 'Unknown'),
-    type: String(data.category ?? 'Car Service & Repair'),
-    category: String(data.category ?? 'Auto repair shop'),
-    area: String(data.area ?? ''),
+    name: String(data.name ?? 'Unknown'),
+    type: 'Car Service & Repair',
+    category: 'Auto repair shop',
+    // Branch has no separate `area` field — the address line is the closest
+    // real value, and the UI uses `area` only as a sub-title under the name.
+    area: String(data.address ?? ''),
     city: String(data.city ?? 'Doha'),
-    rating: Number(data.rating ?? 4.5),
-    reviews: Number(data.totalReviews ?? 0),
-    responseTime: String(data.responseTime ?? '15 min'),
-    startingPrice: String(data.startingPrice ?? 'QAR 100+'),
-    startingPriceValue: Number(data.startingPriceValue ?? 100),
-    distanceKm: Number(data.distanceKm ?? 5),
+    rating: Number(data.rating ?? 0),
+    reviews: Number(data.reviewCount ?? 0),
+    responseTime: `${responseTimeMins} min`,
+    startingPrice: `QAR ${startingPriceValue}+`,
+    startingPriceValue,
+    // Distance needs the device's location against branch lat/lng; the list
+    // screens compute it where they have a fix. 0 means "unknown", not "here".
+    distanceKm: 0,
     availability: 'Today',
-    openNow: Boolean(data.openNow ?? !data.vacationMode),
-    verified: Boolean(data.verified ?? false),
+    openNow: !data.vacationMode,
+    // A branch is only listed once an admin has approved it, so anything the
+    // marketplace can see is verified by definition.
+    verified: true,
     pickupAvailable: Boolean(data.pickupAvailable ?? false),
     warranty: String(data.warranty ?? ''),
-    imageUrl: String(data.imageUrl ?? 'https://images.unsplash.com/photo-1551522435-a13afa10f103?auto=format&fit=crop&w=900&q=80'),
+    imageUrl: String(data.imageUrl ?? FALLBACK_GARAGE_IMAGE),
     tags: Array.isArray(data.tags) ? (data.tags as string[]) : [],
   };
 }
 
-function docToJob(serviceDoc: { id: string; data: () => Record<string, unknown> }, vendorId: string, vendorName: string): PopularJob {
+/** Maps a `branch_services/{id}` document into the `PopularJob` UI shape. */
+function branchServiceToJob(serviceDoc: { id: string; data: () => Record<string, unknown> }, branchId: string): PopularJob {
   const data = serviceDoc.data();
+  const price = Number(data.price ?? 0);
   return {
-    id: `${vendorId}_${serviceDoc.id}`,
+    id: `${branchId}_${serviceDoc.id}`,
     title: String(data.name ?? 'Service'),
-    price: `QAR ${data.basePrice ?? 100}`,
-    priceValue: Number(data.basePrice ?? 100),
+    price: `QAR ${price}`,
+    priceValue: price,
     availability: 'Today',
     categoryId: String(data.category ?? 'repair'),
-    garageId: vendorId,
+    garageId: branchId,
     duration: data.duration ? `${data.duration} min` : undefined,
-    warranty: data.warranty ? String(data.warranty) : undefined,
     rating: undefined,
     distanceKm: undefined,
   };
 }
 
-export function useVendors(): { vendors: Garage[]; jobs: PopularJob[]; loading: boolean } {
+/**
+ * Real-time list of the branches a customer may browse, plus their bookable
+ * services. Branches are the marketplace unit (a business with three garages
+ * shows as three listings), matching the web marketplace in
+ * src/app/dashboard/garages/page.tsx.
+ */
+export function useBranches(): { vendors: Garage[]; jobs: PopularJob[]; loading: boolean } {
   const [vendors, setVendors] = useState<Garage[]>([]);
   const [jobs, setJobs] = useState<PopularJob[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Real-time listener on vendors collection — only vendors the admin has
-    // approved are visible to customers (matches web's marketplace filter and
-    // the firestore.rules `list` condition, which also requires status ==
-    // 'Approved' for non-owner/non-admin readers).
-    const q = query(collection(firestore, 'vendors'), where('status', '==', 'Approved'));
+    // Only admin-approved branches are visible to customers — same query the
+    // web marketplace uses, and the same condition firestore.rules enforces
+    // for non-owner/non-admin readers. `isListed` (admin delist switch) and
+    // `vacationMode` (the vendor's own pause) are then applied client-side so
+    // this needs no extra composite index.
+    const q = query(collection(firestore, 'branches'), where('status', '==', 'Approved'));
     const unsub = onSnapshot(
       q,
       async (snap) => {
-        const listedDocs = snap.docs.filter((d) => !d.data().vacationMode);
+        const listedDocs = snap.docs.filter((d) => {
+          const data = d.data();
+          return data.isListed !== false && !data.vacationMode;
+        });
 
         if (listedDocs.length === 0) {
           setVendors([]);
@@ -402,20 +489,24 @@ export function useVendors(): { vendors: Garage[]; jobs: PopularJob[]; loading: 
           setLoading(false);
           return;
         }
-        setVendors(listedDocs.map(docToGarage));
+        setVendors(listedDocs.map(branchToGarage));
 
-        // Load services for each listed vendor
+        // Load the bookable services for each listed branch.
         const allJobs: PopularJob[] = [];
         await Promise.all(
-          listedDocs.map(async (vDoc) => {
+          listedDocs.map(async (branchDoc) => {
             try {
               const serviceSnap = await getDocs(
-                query(collection(firestore, 'vendors', vDoc.id, 'services'), where('active', '==', true)),
+                query(
+                  collection(firestore, 'branch_services'),
+                  where('branchId', '==', branchDoc.id),
+                  where('active', '==', true),
+                ),
               );
               serviceSnap.docs.forEach((sDoc) => {
-                allJobs.push(docToJob(sDoc, vDoc.id, String(vDoc.data().businessName ?? '')));
+                allJobs.push(branchServiceToJob(sDoc, branchDoc.id));
               });
-            } catch { /* vendor has no services yet */ }
+            } catch { /* branch has no services yet */ }
           }),
         );
         setJobs(allJobs);
@@ -436,38 +527,37 @@ export function useVendors(): { vendors: Garage[]; jobs: PopularJob[]; loading: 
   return { vendors, jobs, loading };
 }
 
-// ── useVendorServices — services for a single vendor ─────────────────────────
+// ── useBranchServices — bookable services for a single branch ────────────────
 
-export function useVendorServices(vendorId: string): { services: PopularJob[]; loading: boolean } {
+export function useBranchServices(branchId: string): { services: PopularJob[]; loading: boolean } {
   const [services, setServices] = useState<PopularJob[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!vendorId) { setLoading(false); return; }
+    if (!branchId) { setLoading(false); return; }
 
-    // First try as Firestore vendor doc id
     const q = query(
-      collection(firestore, 'vendors', vendorId, 'services'),
+      collection(firestore, 'branch_services'),
+      where('branchId', '==', branchId),
       where('active', '==', true),
     );
     const unsub = onSnapshot(
       q,
       (snap) => {
-        if (snap.empty) {
-          // Fall back to seed jobs for this garageId
-          setServices(seedJobs.filter((j) => j.garageId === vendorId));
-        } else {
-          setServices(snap.docs.map((d) => docToJob(d, vendorId, '')));
-        }
+        // No seed-data fallback: an empty result is a real empty state, and a
+        // read failure is an error state. Showing seeded demo services as if
+        // they were this branch's real, bookable menu would let a customer
+        // book a service the garage does not offer.
+        setServices(snap.docs.map((d) => branchServiceToJob(d, branchId)));
         setLoading(false);
       },
       () => {
-        setServices(seedJobs.filter((j) => j.garageId === vendorId));
+        setServices([]);
         setLoading(false);
       },
     );
     return unsub;
-  }, [vendorId]);
+  }, [branchId]);
 
   return { services, loading };
 }

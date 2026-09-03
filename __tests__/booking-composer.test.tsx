@@ -57,8 +57,11 @@ const job = {
   garageId: 'g1',
 };
 
+// The composer reads listed branches (`branches` + `branch_services`) via
+// useBranches; the fixtures above are already in the mapped Garage/PopularJob
+// shape that hook returns, so the mock stands in for the whole read path.
 jest.mock('@/lib/firestoreOps', () => ({
-  useVendors: () => ({ vendors: [garage], jobs: [job], loading: false }),
+  useBranches: () => ({ vendors: [garage], jobs: [job], loading: false }),
   createBooking: jest.fn(() => Promise.resolve()),
 }));
 

@@ -25,7 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { type Booking, type Garage, garages as firestoreGarages, popularJobs, serviceCategories } from '@/lib/marketplace';
-import { type FirestoreBooking, type FirestoreCar, useFirestoreBookings, useVendors } from '@/lib/firestoreOps';
+import { type FirestoreBooking, type FirestoreCar, useFirestoreBookings, useBranches } from '@/lib/firestoreOps';
 import { auth, firestore } from '@/lib/firebase';
 import { useAuthContext } from '@/lib/AuthContext';
 import { getQarColors, getThemedStatusColors, type QarColors, radius, shadow, spacing, typography } from '@/lib/theme';
@@ -292,7 +292,7 @@ export function HomeScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const unread = useQarWheelStore((s) => s.notifications.filter((n) => !n.read).length);
   const [activeBrand, setActiveBrand] = useState('All');
-  const { vendors: liveVendors, loading: vendorsLoading } = useVendors();
+  const { vendors: liveVendors, loading: vendorsLoading } = useBranches();
 
   const firstName = user?.displayName?.split(' ')[0] ?? user?.email?.split('@')[0] ?? 'there';
   const trustCardWidth = Math.floor((screenWidth - spacing.page * 2 - 10) / 2);
@@ -651,7 +651,7 @@ export function HomeScreen() {
 
 // ── SearchGarageList — live vendors for search screen ─────────────
 function SearchGarageList({ c }: { c: QarColors }) {
-  const { vendors, loading } = useVendors();
+  const { vendors, loading } = useBranches();
   if (loading) return <ActivityIndicator color={c.primary} style={{ marginVertical: 16 }} />;
   return <>{vendors.map((g) => <GarageListCard key={g.id} garage={g} c={c} />)}</>;
 }
@@ -674,7 +674,7 @@ export function SearchScreen() {
   const c = useQarColors();
   const [searchQuery, setSearchQuery] = useState('');
   const inputRef = useRef<TextInput>(null);
-  const { vendors, loading: vendorsLoading } = useVendors();
+  const { vendors, loading: vendorsLoading } = useBranches();
 
   // Auto-focus input on mount
   useEffect(() => {

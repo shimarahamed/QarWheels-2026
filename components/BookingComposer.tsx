@@ -26,7 +26,7 @@ import { collection, onSnapshot, query } from 'firebase/firestore';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import { MotionSurface, fadeEntering, motion, smoothLayout } from '@/lib/motion';
 import { useAuthContext } from '@/lib/AuthContext';
-import { createBooking as createFirestoreBooking, type FirestoreCar, useVendors } from '@/lib/firestoreOps';
+import { createBooking as createFirestoreBooking, type FirestoreCar, useBranches } from '@/lib/firestoreOps';
 import { firestore } from '@/lib/firebase';
 import { cars } from '@/lib/marketplace';
 import { useQarColors, useQarWheelStore } from '@/lib/store';
@@ -161,7 +161,7 @@ export default function BookingComposer() {
   const [loadingCars, setLoadingCars] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const days = useMemo(() => nextDays(), []);
-  const { vendors: liveGarages, jobs: liveJobs, loading: vendorsLoading } = useVendors();
+  const { vendors: liveGarages, jobs: liveJobs, loading: vendorsLoading } = useBranches();
 
   // The form opens collapsed: every choice already has a sensible default, so
   // the first thing the user sees is a short recap they can confirm, not eight
