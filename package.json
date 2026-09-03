@@ -18,7 +18,8 @@
     "check:all": "npm run typecheck && npm run build && npm run mobile:typecheck && npm run mobile:export:web",
     "test:rules": "firebase emulators:exec --only firestore \"vitest run tests/rules\"",
     "seed:reset": "node --env-file=.env.local scripts/reset-firestore.mjs --yes-i-mean-it",
-    "seed:demo": "node --env-file=.env.local scripts/seed-demo.mjs"
+    "seed:demo": "node --env-file=.env.local scripts/seed-demo.mjs",
+    "admin:bootstrap": "node --env-file=.env.local scripts/bootstrap-admin.mjs"
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.3",

@@ -180,6 +180,47 @@
         { "fieldPath": "participants", "arrayConfig": "CONTAINS" },
         { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "audit_log",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actorId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "audit_log",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "resourceType", "order": "ASCENDING" },
+        { "fieldPath": "resourceId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "audit_log",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "businessId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "audit_log",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "action", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "businesses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "kyc.status", "order": "ASCENDING" },
+        { "fieldPath": "kyc.submittedAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

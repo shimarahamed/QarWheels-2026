@@ -8,20 +8,24 @@ service firebase.storage {
 
     function isAdmin() {
       return isSignedIn()
-        && firestore.exists(/databases/(default)/documents/roles_admin/$(request.auth.uid));
+        && (('qw' in request.auth.token && request.auth.token.qw.r == 'master_admin')
+            || firestore.exists(/databases/(default)/documents/roles_admin/$(request.auth.uid)));
     }
 
-    function isVendorOwner(vendorId) {
-      return isSignedIn()
-        && firestore.get(/databases/(default)/documents/vendors/$(vendorId)).data.ownerId == request.auth.uid;
+    // Mirrors src/lib/auth/qw-claims.ts's isBusinessMember — the uploader's
+    // own qw claim carries their businessId directly, no Firestore lookup
+    // needed (Storage rules can read custom claims off the token for free).
+    function isBusinessMember(businessId) {
+      return isSignedIn() && 'qw' in request.auth.token && request.auth.token.qw.b == businessId;
     }
 
     // ─── KYC documents ────────────────────────────────────────────────────────
-    // Uploaded by mobile/app/vendor/kyc.tsx to kyc/{vendorId}/doc_*.{ext}.
-    // Only the vendor owner (during submission) and admins (during review) may
-    // read or write — no public access, since these are compliance documents.
-    match /kyc/{vendorId}/{fileName} {
-      allow read, write: if isVendorOwner(vendorId) || isAdmin();
+    // Uploaded by mobile/app/vendor/kyc.tsx to kyc/{businessId}/doc_*.{ext}.
+    // Only a member of that business (during submission) and admins (during
+    // review) may read or write — no public access, since these are
+    // compliance documents.
+    match /kyc/{businessId}/{fileName} {
+      allow read, write: if isBusinessMember(businessId) || isAdmin();
     }
   }
 }

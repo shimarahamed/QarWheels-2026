@@ -182,6 +182,15 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ─── Business private data (full IBAN, banking details) ───────────────────
+    // Admin-SDK-only in both directions — never readable or writable by any
+    // client, including the business's own owner. Written by
+    // /api/vendor/kyc alongside the public businesses/{id}.kyc.ibanLast4;
+    // read only by the (not-yet-built) payout system's server routes.
+    match /businesses_private/{businessId} {
+      allow read, write: if false;
+    }
+
     // ─── Branches ─────────────────────────────────────────────────────────────
     // The customer-facing garage location; unit of scheduling, inventory, staff.
     match /branches/{branchId} {
@@ -335,6 +344,15 @@ service cloud.firestore {
     // the fallback isAdmin() checks while claims are backfilled.
     match /roles_admin/{adminId} {
       allow read: if isAdmin() || isOwner(adminId);
+      allow write: if false;
+    }
+
+    // ─── Audit log ────────────────────────────────────────────────────────────
+    // Admin-SDK-only in both directions — every mutating API route writes here
+    // via src/lib/audit.ts, and only master admins can ever read it back, so
+    // entries are tamper-proof from any client.
+    match /audit_log/{entryId} {
+      allow read: if isMasterAdmin();
       allow write: if false;
     }
   }

@@ -1,6 +1,7 @@
 import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { getAuth, type Auth } from 'firebase-admin/auth';
+import { getStorage, type Storage } from 'firebase-admin/storage';
 
 // Service-account credentials, server-only. Never imported from client code —
 // files under src/app/api/** and other server-only modules only.
@@ -36,6 +37,7 @@ function getAdminApp(): App {
       clientEmail: serviceAccount.client_email,
       privateKey: serviceAccount.private_key,
     }),
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   });
   return app;
 }
@@ -46,4 +48,8 @@ export function getAdminFirestore(): Firestore {
 
 export function getAdminAuth(): Auth {
   return getAuth(getAdminApp());
+}
+
+export function getAdminStorage(): Storage {
+  return getStorage(getAdminApp());
 }

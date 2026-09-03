@@ -131,12 +131,17 @@ export type StaffInviteAccept = z.infer<typeof StaffInviteAcceptSchema>;
 // Submission-only — status/reviewedAt/reviewedBy are set exclusively by the
 // admin approval route (src/app/api/admin/kyc/[businessId]/route.ts), never here.
 
+// documentPaths are raw Storage object paths (e.g. "kyc/{businessId}/doc_..."),
+// NOT getDownloadURL() values — a download URL embeds a token that bypasses
+// Storage security rules entirely once generated, which would leak
+// compliance documents to anyone holding the link. The admin review route
+// mints a short-lived signed URL from the path only when actually viewing.
 export const KycSubmitSchema = z.object({
   crNumber: z.string().min(1).max(50),
   licenseNumber: z.string().min(1).max(50),
   bankName: z.string().max(100).optional().or(z.literal('')),
   iban: z.string().min(5).max(34),
-  documentUrls: z.array(z.string().url()).max(10).default([]),
+  documentPaths: z.array(z.string().min(1).max(300)).max(10).default([]),
 });
 export type KycSubmit = z.infer<typeof KycSubmitSchema>;
 

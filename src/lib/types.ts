@@ -255,6 +255,50 @@ export type StaffInvite = {
   createdAt: FirestoreDate;
 };
 
+// ─── Master admin ─────────────────────────────────────────────────────────────
+
+export type AdminLevel = 'super' | 'ops' | 'support';
+
+export type AdminRecord = {
+  uid: string;
+  email: string;
+  displayName: string;
+  level: AdminLevel;
+  createdBy: string;
+  createdAt: FirestoreDate;
+};
+
+export type AuditAction =
+  | 'kyc.approve'
+  | 'kyc.reject'
+  | 'booking.transition'
+  | 'staff.invite'
+  | 'staff.update'
+  | 'staff.revoke'
+  | 'business.update'
+  | 'branch.approve'
+  | 'branch.reject'
+  | 'branch.update'
+  | 'admin.invite'
+  | 'admin.update'
+  | 'admin.revoke';
+
+export type AuditLogEntry = {
+  actorId: string;
+  actorRole: 'business_owner' | 'business_admin' | 'branch_manager' | 'branch_staff' | 'master_admin' | 'system';
+  actorEmail?: string;
+  businessId?: string;
+  branchId?: string;
+  action: AuditAction;
+  resourceType: string;
+  resourceId: string;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  outcome: 'success' | 'failure';
+  errorCode?: string;
+  createdAt: FirestoreDate;
+};
+
 export type UserProfile = {
   email: string;
   firstName: string;
