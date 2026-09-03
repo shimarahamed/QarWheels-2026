@@ -32,6 +32,7 @@ import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { Logo } from "../logo";
 import { useVendor } from "./vendor-provider";
+import { BranchSwitcher } from "./branch-switcher";
 import type { Booking, WithId } from "@/lib/types";
 
 const navItems = [
@@ -100,12 +101,13 @@ export function VendorSidebar() {
 
           <div className="relative mt-4">
             <h2 className="truncate text-base font-bold">{business.displayName || "Vendor workspace"}</h2>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              {activeBranch ? `${activeBranch.city}, ${activeBranch.country}` : "Complete your branch profile"}
-            </p>
           </div>
 
-          <div className="relative mt-4 grid grid-cols-2 gap-2">
+          <div className="relative mt-3">
+            <BranchSwitcher />
+          </div>
+
+          <div className="relative mt-3 grid grid-cols-2 gap-2">
             <div className="rounded-xl border bg-background/70 p-2.5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Rating</p>
               <p className="mt-1 text-sm font-bold text-amber-600">{(activeBranch?.rating || 0).toFixed(1)}</p>
