@@ -4,7 +4,8 @@ import { ok, Errors } from '@/lib/api-response';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { requireBranchAccess } from '@/lib/auth/require-role';
 import { getVerifiedUserFromRequest } from '@/lib/firebase-auth';
-import { canTransitionBooking, actorAllowedTransitions, type BookingStatus, type Booking } from '@/lib/types';
+import { canTransitionBooking, actorAllowedTransitions, type BookingStatus, type Booking, type Transaction } from '@/lib/types';
+import { calculateCommission } from '@/lib/payments';
 import { trackApiError } from '@/lib/observability';
 
 const TransitionSchema = z.object({
@@ -71,6 +72,23 @@ export async function POST(
         return { error: 'invalid_transition' as const, currentStatus };
       }
 
+      // ── All reads must happen before any write in a Firestore
+      // transaction, so the ledger lookups come first even though the
+      // corresponding write happens further down.
+      const grossMinorUnits = Math.round((booking.cost ?? 0) * 100);
+      const shouldCreateTransaction = requestedStatus === 'Completed' && grossMinorUnits > 0;
+
+      let commissionRateBps = 1000;
+      let alreadyBilled = true;
+      if (shouldCreateTransaction) {
+        const [existing, businessSnap] = await Promise.all([
+          tx.get(db.collection('transactions').where('bookingId', '==', bookingId).limit(1)),
+          tx.get(db.collection('businesses').doc(booking.businessId)),
+        ]);
+        alreadyBilled = !existing.empty;
+        commissionRateBps = (businessSnap.data()?.commissionRateBps as number | undefined) ?? 1000;
+      }
+
       const now = new Date().toISOString();
       const historyEntry = {
         status: requestedStatus,
@@ -95,7 +113,40 @@ export async function POST(
       }
 
       tx.update(bookingRef, update);
-      return { ok: true as const, from: currentStatus, to: requestedStatus, businessId: booking.businessId, branchId: booking.branchId };
+
+      // Completing a booking creates its ledger entry in the same
+      // transaction — a completed job and the money owed for it must never
+      // be able to diverge. Skipped when the booking was already billed, so
+      // a re-completion can't double-charge.
+      let transactionId: string | null = null;
+      if (shouldCreateTransaction && !alreadyBilled) {
+        const commissionMinorUnits = calculateCommission(grossMinorUnits, commissionRateBps);
+        const transactionRef = db.collection('transactions').doc();
+        const transaction: Transaction = {
+          businessId: booking.businessId,
+          branchId: booking.branchId,
+          bookingId,
+          customerName: booking.customerName,
+          serviceName: booking.serviceName,
+          grossMinorUnits,
+          commissionMinorUnits,
+          netMinorUnits: grossMinorUnits - commissionMinorUnits,
+          currency: 'QAR',
+          status: 'Settled',
+          createdAt: now,
+        };
+        tx.set(transactionRef, transaction);
+        transactionId = transactionRef.id;
+      }
+
+      return {
+        ok: true as const,
+        from: currentStatus,
+        to: requestedStatus,
+        businessId: booking.businessId,
+        branchId: booking.branchId,
+        transactionId,
+      };
     });
 
     if ('error' in result) {

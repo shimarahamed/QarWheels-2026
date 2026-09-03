@@ -351,6 +351,34 @@ service cloud.firestore {
     // Admin-SDK-only in both directions — every mutating API route writes here
     // via src/lib/audit.ts, and only master admins can ever read it back, so
     // entries are tamper-proof from any client.
+    // ─── Money: transactions, payouts, invoices ───────────────────────────────
+    // Every write is Admin-SDK-only. Transactions are created by the booking
+    // transition route when a booking completes; payouts by the payout
+    // request/aggregation routes; invoices by the invoice routes. A business
+    // can READ its own money records but can never write one — otherwise a
+    // vendor could inflate their own payout or mark an invoice paid.
+    match /transactions/{transactionId} {
+      allow get, list: if isBusinessMember(resource.data.businessId) || isAdmin();
+      allow write: if false;
+    }
+
+    match /payouts/{payoutId} {
+      allow get, list: if isBusinessMember(resource.data.businessId) || isAdmin();
+      allow write: if false;
+    }
+
+    match /invoices/{invoiceId} {
+      // The customer the invoice is addressed to can read it; so can the
+      // business that issued it.
+      allow get: if isOwner(resource.data.userId)
+        || isBusinessMember(resource.data.businessId)
+        || isAdmin();
+      allow list: if isOwner(resource.data.userId)
+        || isBusinessMember(resource.data.businessId)
+        || isAdmin();
+      allow write: if false;
+    }
+
     match /audit_log/{entryId} {
       allow read: if isMasterAdmin();
       allow write: if false;

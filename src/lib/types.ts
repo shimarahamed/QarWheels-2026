@@ -257,6 +257,84 @@ export type StaffInvite = {
 
 // ─── Master admin ─────────────────────────────────────────────────────────────
 
+// ─── Money: transactions ledger, payouts, invoices ───────────────────────────
+// All amounts are in MINOR UNITS (fils for QAR — 1 QAR = 100 fils). Storing
+// money as integers avoids the float-rounding errors that eventually show up
+// as a few fils drifting between a booking's cost, its commission, and the
+// payout total.
+
+export type TransactionStatus = 'Pending' | 'Settled' | 'Refunded';
+
+export type Transaction = {
+  businessId: string;
+  branchId: string;
+  bookingId: string;
+  customerName: string;
+  serviceName: string;
+  /** What the customer paid. */
+  grossMinorUnits: number;
+  /** Platform cut, derived from the business's commissionRateBps at completion time. */
+  commissionMinorUnits: number;
+  /** grossMinorUnits - commissionMinorUnits — what the business is owed. */
+  netMinorUnits: number;
+  currency: string;
+  status: TransactionStatus;
+  /** Set once this transaction has been rolled into a payout. */
+  payoutId?: string;
+  createdAt: FirestoreDate;
+};
+
+export type PayoutStatus = 'Pending' | 'Processing' | 'Paid' | 'Failed';
+
+export type Payout = {
+  businessId: string;
+  periodStart: string;
+  periodEnd: string;
+  grossMinorUnits: number;
+  platformFeeMinorUnits: number;
+  netMinorUnits: number;
+  currency: string;
+  status: PayoutStatus;
+  transactionIds: string[];
+  requestedAt: FirestoreDate;
+  requestedBy: string;
+  paidAt?: FirestoreDate;
+  providerTransferId?: string;
+  failureReason?: string;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+export type InvoiceStatus = 'Draft' | 'Sent' | 'Paid' | 'Void';
+
+export type InvoiceLineItem = {
+  description: string;
+  quantity: number;
+  unitPriceMinorUnits: number;
+};
+
+export type Invoice = {
+  businessId: string;
+  branchId: string;
+  bookingId: string;
+  /** Human-facing sequential-ish reference, e.g. INV-2026-0042. */
+  invoiceNumber: string;
+  userId: string;
+  customerName: string;
+  customerEmail: string;
+  lineItems: InvoiceLineItem[];
+  subtotalMinorUnits: number;
+  taxMinorUnits: number;
+  totalMinorUnits: number;
+  currency: string;
+  status: InvoiceStatus;
+  issuedAt?: FirestoreDate;
+  paidAt?: FirestoreDate;
+  notes?: string;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
 export type AdminLevel = 'super' | 'ops' | 'support';
 
 export type AdminRecord = {
