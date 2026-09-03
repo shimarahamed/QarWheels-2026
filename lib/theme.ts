@@ -1,94 +1,25 @@
 import { Platform } from 'react-native';
 
+// Colour/scale tokens come from the shared source in packages/tokens (see
+// scripts/build-tokens.mjs). This file keeps the React-Native-specific
+// pieces — Platform.select shadows, typography, and the themed accessor
+// helpers — and re-exports the generated values so every screen's existing
+// `import { colors, radius, spacing } from '@/lib/theme'` keeps working.
+import {
+  palette,
+  darkColors,
+  lightColors,
+  radius,
+  spacing,
+  statusColorsDark,
+  statusColorsLight,
+  categoryColorsDark,
+  categoryColorsLight,
+} from './theme.generated';
+
+export { palette, darkColors, lightColors, radius, spacing };
+
 export type QarThemeMode = 'dark' | 'light';
-
-export const palette = {
-  crimson: '#8B0D1A',
-  scarlet: '#E31E24',
-  red: '#FF3B30',
-  redDark: '#B00020',
-  redSoft: 'rgba(227, 30, 36, 0.12)',
-  redBorder: 'rgba(227, 30, 36, 0.35)',
-  gold: '#D4AF37',
-  green: '#22C55E',
-  amber: '#F59E0B',
-  blue: '#3B82F6',
-  slate50: '#F8FAFC',
-  slate100: '#F1F5F9',
-  slate200: '#E2E8F0',
-  slate300: '#CBD5E1',
-  slate400: '#A8B0BA',
-  slate500: '#6F7A86',
-  slate700: '#334155',
-  slate900: '#0B0F14',
-  slate950: '#070A0E',
-} as const;
-
-export const darkColors = {
-  background: '#070A0E',
-  backgroundDark: '#070A0E',
-  backgroundElevated: '#0B0F14',
-  surface: '#11161D',
-  surfaceAlt: '#161B22',
-  surfaceElevated: '#1C232D',
-  surfaceRaised: '#1C232D',
-  surfaceSoft: '#161B22',
-  text: '#F5F7FA',
-  textSecondary: '#A8B0BA',
-  muted: '#6F7A86',
-  primary: palette.scarlet,
-  primaryDark: palette.redDark,
-  primaryLight: palette.redSoft,
-  primaryMid: palette.redBorder,
-  success: palette.green,
-  successBg: 'rgba(34, 197, 94, 0.14)',
-  warning: palette.amber,
-  warningBg: 'rgba(245, 158, 11, 0.14)',
-  danger: palette.red,
-  dangerBg: 'rgba(255, 59, 48, 0.14)',
-  ai: palette.gold,
-  aiBg: 'rgba(212, 175, 55, 0.13)',
-  gold: palette.gold,
-  dark: '#070A0E',
-  white: '#FFFFFF',
-  black: '#000000',
-  border: 'rgba(255,255,255,0.09)',
-  borderLight: 'rgba(255,255,255,0.06)',
-  borderFocus: palette.redBorder,
-} as const;
-
-export const lightColors = {
-  background: '#F7F3F1',
-  backgroundDark: '#070A0E',
-  backgroundElevated: '#FFFFFF',
-  surface: '#FFFFFF',
-  surfaceAlt: '#F1E8E6',
-  surfaceElevated: '#FFFDFC',
-  surfaceRaised: '#F8EFED',
-  surfaceSoft: '#F1E8E6',
-  text: '#141014',
-  textSecondary: '#4B3D40',
-  muted: '#786C70',
-  primary: palette.scarlet,
-  primaryDark: palette.redDark,
-  primaryLight: 'rgba(227, 30, 36, 0.10)',
-  primaryMid: 'rgba(227, 30, 36, 0.24)',
-  success: '#15803D',
-  successBg: '#DCFCE7',
-  warning: '#B45309',
-  warningBg: '#FEF3C7',
-  danger: palette.redDark,
-  dangerBg: '#FEE2E2',
-  ai: '#A16207',
-  aiBg: '#FEF3C7',
-  gold: '#A16207',
-  dark: '#11161D',
-  white: '#FFFFFF',
-  black: '#000000',
-  border: 'rgba(20,16,20,0.10)',
-  borderLight: 'rgba(20,16,20,0.06)',
-  borderFocus: palette.redBorder,
-} as const;
 
 export type QarColors = Record<keyof typeof darkColors, string>;
 
@@ -115,31 +46,6 @@ export function withAlpha(hex: string, alpha: number): string {
 export function getQarColors(mode: QarThemeMode): QarColors {
   return mode === 'light' ? lightColors : darkColors;
 }
-
-export const radius = {
-  xs: 8,
-  sm: 12,
-  md: 16,
-  lg: 20,
-  xl: 24,
-  xxl: 32,
-  full: 999,
-} as const;
-
-export const spacing = {
-  page: 20,
-  cardPad: 20,
-  section: 26,
-  gap: 14,
-  xxs: 4,
-  xs: 8,
-  sm: 12,
-  md: 16,
-  lg: 20,
-  xl: 24,
-  xxl: 32,
-  xxxl: 40,
-} as const;
 
 export const shadow = {
   none: {} as const,
@@ -199,54 +105,28 @@ export const typography = {
   overline: { fontSize: 12, fontWeight: '900' as const, letterSpacing: 1.2, lineHeight: 15, textTransform: 'uppercase' as const },
 } as const;
 
-export const categoryColors: Record<string, { bg: string; icon: string; text: string }> = {
-  repair: { bg: darkColors.primaryLight, icon: palette.scarlet, text: darkColors.text },
-  parts: { bg: 'rgba(59,130,246,0.14)', icon: palette.blue, text: darkColors.text },
-  wash: { bg: 'rgba(59,130,246,0.14)', icon: '#38BDF8', text: darkColors.text },
-  battery: { bg: darkColors.warningBg, icon: palette.amber, text: darkColors.text },
-  inspection: { bg: darkColors.successBg, icon: palette.green, text: darkColors.text },
-  diagnostics: { bg: darkColors.aiBg, icon: palette.gold, text: darkColors.text },
-  default: { bg: darkColors.surfaceSoft, icon: palette.scarlet, text: darkColors.text },
-};
-
-export function getThemedCategoryColors(mode: QarThemeMode): typeof categoryColors {
-  if (mode === 'light') {
-    return {
-      repair:      { bg: 'rgba(227,30,36,0.10)',   icon: palette.scarlet, text: lightColors.text },
-      parts:       { bg: 'rgba(59,130,246,0.12)',   icon: palette.blue,   text: lightColors.text },
-      wash:        { bg: 'rgba(14,165,233,0.12)',   icon: '#0EA5E9',      text: lightColors.text },
-      battery:     { bg: 'rgba(245,158,11,0.12)',   icon: palette.amber,  text: lightColors.text },
-      inspection:  { bg: 'rgba(34,197,94,0.12)',    icon: palette.green,  text: lightColors.text },
-      diagnostics: { bg: 'rgba(212,175,55,0.12)',   icon: palette.gold,   text: lightColors.text },
-      default:     { bg: 'rgba(0,0,0,0.06)',         icon: palette.scarlet, text: lightColors.text },
-    };
-  }
-  return categoryColors;
+// Category/status palettes come from the shared tokens; the `text` field
+// (the label colour used on top of the chip) stays theme-derived here since
+// it's the same foreground colour the rest of the screen uses.
+function withTextColor(
+  source: Record<string, { bg: string; icon: string }>,
+  text: string,
+): Record<string, { bg: string; icon: string; text: string }> {
+  return Object.fromEntries(
+    Object.entries(source).map(([key, value]) => [key, { ...value, text }]),
+  );
 }
 
-export const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
-  Confirmed: { bg: darkColors.successBg, text: darkColors.success, dot: darkColors.success },
-  Pending: { bg: darkColors.warningBg, text: darkColors.warning, dot: darkColors.warning },
-  VehicleReceived: { bg: 'rgba(59,130,246,0.14)', text: '#3B82F6', dot: '#3B82F6' },
-  InProgress: { bg: 'rgba(227,30,36,0.14)', text: darkColors.primary, dot: darkColors.primary },
-  ReadyForPickup: { bg: darkColors.aiBg, text: darkColors.gold, dot: darkColors.gold },
-  Completed: { bg: darkColors.aiBg, text: darkColors.gold, dot: darkColors.gold },
-  Approved: { bg: darkColors.successBg, text: darkColors.success, dot: darkColors.success },
-  Cancelled: { bg: 'rgba(239,68,68,0.14)', text: '#EF4444', dot: '#EF4444' },
-} as const;
+export const categoryColors = withTextColor(categoryColorsDark, darkColors.text);
+
+export function getThemedCategoryColors(mode: QarThemeMode): typeof categoryColors {
+  return mode === 'light'
+    ? withTextColor(categoryColorsLight, lightColors.text)
+    : categoryColors;
+}
+
+export const statusColors: Record<string, { bg: string; text: string; dot: string }> = statusColorsDark;
 
 export function getThemedStatusColors(mode: QarThemeMode): typeof statusColors {
-  if (mode === 'light') {
-    return {
-      Confirmed: { bg: '#DCFCE7', text: '#15803D', dot: '#15803D' },
-      Pending:   { bg: '#FEF3C7', text: '#B45309', dot: '#B45309' },
-      VehicleReceived: { bg: '#DBEAFE', text: '#1D4ED8', dot: '#1D4ED8' },
-      InProgress: { bg: '#FEE2E2', text: '#B91C1C', dot: '#B91C1C' },
-      ReadyForPickup: { bg: '#FEF3C7', text: '#A16207', dot: '#A16207' },
-      Completed: { bg: '#FEF3C7', text: '#A16207', dot: '#A16207' },
-      Approved:  { bg: '#DCFCE7', text: '#15803D', dot: '#15803D' },
-      Cancelled: { bg: '#FEE2E2', text: '#B91C1C', dot: '#B91C1C' },
-    };
-  }
-  return statusColors;
+  return mode === 'light' ? statusColorsLight : statusColorsDark;
 }
