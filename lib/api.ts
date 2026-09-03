@@ -4,6 +4,25 @@ export type ApiEnvelope<T> = {
   data: T;
 };
 
+export async function apiGet<T>(path: string, token: string | null): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    // Same reasoning as apiPost: without a timeout a stalled connection leaves
+    // the calling screen spinning forever.
+    signal: AbortSignal.timeout(20_000),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error ?? 'Request failed');
+  }
+
+  const payload = (await response.json()) as ApiEnvelope<T>;
+  return payload.data;
+}
+
 export async function apiPost<T>(path: string, token: string | null, body: unknown): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
