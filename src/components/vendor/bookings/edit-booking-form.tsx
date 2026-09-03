@@ -9,19 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BOOKING_TRANSITIONS } from '@/lib/types';
-import type { Booking, BookingStatus, InventoryItem, WithId } from '@/lib/types';
+import type { Booking, BookingStatus, InventoryItem, Membership, WithId } from '@/lib/types';
 
 /**
- * Staff/membership is deferred to a later phase — this stands in for the
- * deleted StaffMember type so the assignment picker keeps compiling against
- * the legacy `vendors/{businessId}/staff` subcollection.
+ * The assignment picker reads staff from `memberships` (the multi-tenant
+ * staff/auth link) — the legacy `vendors/{businessId}/staff` subcollection is
+ * gone. A membership carries `displayName` where the old shape had `name`.
  */
-export type StaffMember = {
-  name: string;
-  email: string;
-  role: string;
-  status: 'Active' | 'Inactive';
-};
+export type StaffMember = Membership;
 
 const BOOKING_STATUSES = [
   'Pending',
@@ -168,7 +163,7 @@ export function EditBookingForm({
                 onValueChange={(val) => {
                   field.onChange(val);
                   const member = activeStaff.find((s) => s.id === val);
-                  setValue('assignedStaffName', member?.name || '');
+                  setValue('assignedStaffName', member?.displayName || '');
                 }}
                 value={field.value}
               >
@@ -179,7 +174,7 @@ export function EditBookingForm({
                   <SelectItem value="">Unassigned</SelectItem>
                   {activeStaff.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
-                      {s.name} — {s.role}
+                      {s.displayName} — {s.role}
                     </SelectItem>
                   ))}
                 </SelectContent>

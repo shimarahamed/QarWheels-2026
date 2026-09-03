@@ -119,9 +119,12 @@ export default function VendorBookingsPage() {
     );
     const { data: inventory } = useCollection<WithId<InventoryItem>>(inventoryQuery);
 
-    // Staff still reads the legacy subcollection — the memberships migration is
-    // a later phase.
-    const staffRef = useMemoFirebase(() => collection(firestore, 'vendors', business.id, 'staff'), [firestore, business]);
+    // Staff for the assignment picker comes from `memberships` — same query
+    // shape as the vendor staff API route (`businessId` scopes the tenant).
+    const staffRef = useMemoFirebase(
+        () => query(collection(firestore, 'memberships'), where('businessId', '==', business.id)),
+        [firestore, business]
+    );
     const { data: staff } = useCollection<WithId<StaffMember>>(staffRef);
 
     const [isFormOpen, setIsFormOpen] = useState(false);
