@@ -8,6 +8,7 @@ import { MotionScreen, MotionSurface } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { getStatusColor, getStatusLabel } from '@/lib/vendor-data';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
+import { BranchSwitcher } from '@/components/vendor/BranchSwitcher';
 import { useVendorFirestoreBookings } from '@/lib/firestoreOps';
 
 export default function VendorDashboard() {
@@ -56,11 +57,9 @@ export default function VendorDashboard() {
           <View style={[s.vendorBadge, { backgroundColor: c.primaryLight }]}>
             <Text style={[s.vendorBadgeText, { color: c.primary }]}>VENDOR</Text>
           </View>
-          <View style={{ gap: 1 }}>
+          <View style={{ gap: 4, flexShrink: 1 }}>
             <Text style={[s.navTitle, { color: c.text }]}>{profile.businessName}</Text>
-            <Text style={[s.navSub, { color: c.muted }]}>
-              {profile.vacationMode ? '🌴 Vacation mode on' : 'Open · Accepting bookings'}
-            </Text>
+            <BranchSwitcher />
           </View>
         </View>
         <View style={s.navActions}>
@@ -291,7 +290,6 @@ const s = StyleSheet.create({
   },
   navLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   navTitle: { ...typography.h4 },
-  navSub: { fontSize: 12, fontWeight: '600' },
   vendorBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full },
   vendorBadgeText: { fontSize: 12, fontWeight: '900', letterSpacing: 1 },
   navActions: { flexDirection: 'row', gap: 8 },

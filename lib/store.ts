@@ -152,6 +152,9 @@ type QarWheelState = {
   /** False until the user has explicitly chosen a theme during onboarding. */
   themeChosen: boolean;
   vendorAuthenticated: boolean;
+  /** Which branch a multi-branch owner/staff member is currently viewing. */
+  activeBranchId: string | null;
+  setActiveBranchId: (branchId: string | null) => void;
 
   // ── Account domain ────────────────────────────────────────────────────────
   addresses: SavedAddress[];
@@ -265,6 +268,8 @@ export const useQarWheelStore = create<QarWheelState>()(
       themeMode: 'dark',
       themeChosen: false,
       vendorAuthenticated: false,
+      activeBranchId: null,
+      setActiveBranchId: (branchId) => set({ activeBranchId: branchId }),
 
       // ── Account domain ──────────────────────────────────────────────────
       // Starts genuinely empty. A new account has no addresses, no balance and
@@ -427,6 +432,7 @@ export const useQarWheelStore = create<QarWheelState>()(
           favoriteGarageIds: [],
           notifications: [],
           vendorAuthenticated: false,
+          activeBranchId: null,
         }),
 
       toggleFavoriteGarage: (garageId) => {
@@ -922,6 +928,7 @@ export const useQarWheelStore = create<QarWheelState>()(
         themeMode: state.themeMode,
         themeChosen: state.themeChosen,
         vendorAuthenticated: state.vendorAuthenticated,
+        activeBranchId: state.activeBranchId,
         addresses: state.addresses,
         walletBalance: state.walletBalance,
         walletTransactions: state.walletTransactions,
