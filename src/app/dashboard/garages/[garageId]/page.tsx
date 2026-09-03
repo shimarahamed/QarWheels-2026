@@ -4,7 +4,7 @@ import { notFound, useParams } from 'next/navigation';
 import { useFirebase, useDoc, useCollection, useMemoFirebase, safeAddDoc } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
 import type { Branch, Service, Review, Promotion, Booking, WithId } from '@/lib/types';
-import { Star, MapPin, Phone, Globe, Wrench, MessageSquare, Loader2, ArrowLeft, AlertTriangle, Percent, Tag, Send } from 'lucide-react';
+import { Star, MapPin, Phone, Globe, Wrench, MessageSquare, Loader2, ArrowLeft, AlertTriangle, Percent, Tag, Send, Heart } from 'lucide-react';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { useFavorites } from '@/hooks/use-favorites';
 
 
 function StarRating({ rating, reviewCount, className }: { rating: number, reviewCount?: number, className?: string }) {
@@ -167,6 +168,7 @@ export default function GarageDetailsPage() {
     const params = useParams();
     const garageId = params.garageId as string;
     const { firestore, isUserLoading } = useFirebase();
+    const { isFavorite, toggleFavorite } = useFavorites();
 
     // A "garage" in the customer marketplace is a single Branch of a Business.
     const garageRef = useMemoFirebase(() => garageId ? doc(firestore, 'branches', garageId) : null, [firestore, garageId]);
@@ -239,12 +241,23 @@ export default function GarageDetailsPage() {
 
     return (
         <div className="space-y-6">
-            <Button variant="ghost" asChild className="-ml-4">
-                <Link href="/dashboard/garages">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to All Garages
-                </Link>
-            </Button>
+            <div className="flex items-center justify-between gap-3">
+                <Button variant="ghost" asChild className="-ml-4">
+                    <Link href="/dashboard/garages">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back to All Garages
+                    </Link>
+                </Button>
+                <Button
+                    variant={isFavorite(garage.id) ? 'secondary' : 'outline'}
+                    onClick={() => void toggleFavorite(garage.id, garage.name)}
+                    aria-pressed={isFavorite(garage.id)}
+                    className={cn(isFavorite(garage.id) && 'text-rose-600')}
+                >
+                    <Heart className={cn('mr-2 h-4 w-4', isFavorite(garage.id) && 'fill-current')} />
+                    {isFavorite(garage.id) ? 'Saved' : 'Save'}
+                </Button>
+            </div>
             <div className="grid lg:grid-cols-3 gap-8 items-start">
                 <div className="lg:col-span-2 space-y-8">
                     <Card className="overflow-hidden">

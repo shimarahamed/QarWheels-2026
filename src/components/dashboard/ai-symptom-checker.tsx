@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useDiagnose } from '@/hooks/use-diagnose';
 import type { Car, DiagnoseResult } from '@/lib/types';
 
 interface Props {
@@ -40,55 +41,20 @@ const URGENCY_STYLES: Record<UrgencyLevel, string> = {
 export function AISymptomChecker({ car }: Props) {
   const [symptoms, setSymptoms] = useState('');
   const [result, setResult] = useState<DiagnoseResult | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Shared with /dashboard/ai-mechanic: one place owns client-side schema
+  // validation, the session-cookie refresh, and the 401/429 message copy.
+  const { diagnose, isLoading } = useDiagnose();
 
   const handleDiagnose = async () => {
-    const trimmed = symptoms.trim();
-    if (!trimmed || trimmed.length < 10) {
-      setError('Please describe the problem in at least 10 characters.');
-      return;
-    }
-
-    setIsLoading(true);
     setError(null);
     setResult(null);
 
-    try {
-      const response = await fetch('/api/ai/diagnose', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          symptoms: trimmed,
-          carDetails: {
-            make: car.make,
-            model: car.model,
-            year: car.year,
-            mileage: car.currentMileage,
-          },
-        }),
-      });
-
-      if (response.status === 429) {
-        setError('You have reached the hourly limit for AI diagnoses. Please try again later.');
-        return;
-      }
-      if (response.status === 401) {
-        setError('Please sign in to use the AI Symptom Checker.');
-        return;
-      }
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        setError((body as { error?: string }).error ?? 'Diagnosis failed. Please try again.');
-        return;
-      }
-
-      const body = await response.json() as { data: DiagnoseResult };
-      setResult(body.data);
-    } catch {
-      setError('Network error — please check your connection and try again.');
-    } finally {
-      setIsLoading(false);
+    const outcome = await diagnose(symptoms, car);
+    if (outcome.ok) {
+      setResult(outcome.result);
+    } else {
+      setError(outcome.failure.message);
     }
   };
 
@@ -225,12 +191,20 @@ export function AISymptomChecker({ car }: Props) {
               {result.disclaimer}
             </p>
 
-            <Button asChild className="w-full rounded-xl bg-primary shadow-lg shadow-primary/20">
-              <a href="/dashboard/garages">
-                <Wrench className="mr-2 h-4 w-4" />
-                Book Recommended Service
-              </a>
-            </Button>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button asChild className="w-full rounded-xl bg-primary shadow-lg shadow-primary/20">
+                <a href="/dashboard/garages">
+                  <Wrench className="mr-2 h-4 w-4" />
+                  Book Recommended Service
+                </a>
+              </Button>
+              <Button asChild variant="outline" className="w-full rounded-xl">
+                <a href="/dashboard/ai-mechanic">
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Ask a Follow-up
+                </a>
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>
