@@ -8,10 +8,14 @@ import {
   CalendarCheck,
   LayoutDashboard,
   LogOut,
+  MapPin,
   Percent,
+  ScrollText,
   Settings,
   Shield,
+  ShieldCheck,
   Users,
+  UserCog,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -31,10 +35,15 @@ import { ThemeToggle } from "../theme-toggle";
 const navItems = [
   { href: "/admin/dashboard",            icon: LayoutDashboard, label: "Overview",   hint: "Platform summary",   iconBg: "bg-primary/10 text-primary",        activeGradient: "from-primary/20 to-sky-500/10" },
   { href: "/admin/dashboard/users",      icon: Users,           label: "Users",      hint: "All customers",      iconBg: "bg-violet-500/10 text-violet-600",   activeGradient: "from-violet-500/20 to-indigo-500/10" },
-  { href: "/admin/dashboard/vendors",    icon: Building2,       label: "Vendors",    hint: "Garages & stores",   iconBg: "bg-emerald-500/10 text-emerald-600", activeGradient: "from-emerald-500/20 to-teal-500/10" },
+  { href: "/admin/dashboard/businesses", icon: Building2,       label: "Businesses", hint: "Tenants & KYC",      iconBg: "bg-emerald-500/10 text-emerald-600", activeGradient: "from-emerald-500/20 to-teal-500/10" },
+  { href: "/admin/dashboard/branches",   icon: MapPin,          label: "Branches",   hint: "All locations",      iconBg: "bg-sky-500/10 text-sky-600",         activeGradient: "from-sky-500/20 to-cyan-500/10" },
+  { href: "/admin/dashboard/staff",      icon: Users,           label: "Staff",      hint: "Every membership",   iconBg: "bg-indigo-500/10 text-indigo-600",   activeGradient: "from-indigo-500/20 to-violet-500/10" },
+  { href: "/admin/dashboard/kyc",        icon: ShieldCheck,     label: "KYC",        hint: "Review queue",       iconBg: "bg-amber-500/10 text-amber-600",     activeGradient: "from-amber-500/20 to-yellow-500/10" },
   { href: "/admin/dashboard/bookings",   icon: CalendarCheck,   label: "Bookings",   hint: "All appointments",   iconBg: "bg-amber-500/10 text-amber-600",     activeGradient: "from-amber-500/20 to-orange-500/10" },
   { href: "/admin/dashboard/promotions", icon: Percent,         label: "Promotions", hint: "Active campaigns",   iconBg: "bg-rose-500/10 text-rose-600",       activeGradient: "from-rose-500/20 to-pink-500/10" },
   { href: "/admin/dashboard/analytics",  icon: BarChart3,       label: "Analytics",  hint: "Platform metrics",   iconBg: "bg-teal-500/10 text-teal-600",       activeGradient: "from-teal-500/20 to-emerald-500/10" },
+  { href: "/admin/dashboard/audit",      icon: ScrollText,      label: "Audit",      hint: "Activity log",       iconBg: "bg-slate-500/10 text-slate-600",     activeGradient: "from-slate-500/20 to-zinc-500/10" },
+  { href: "/admin/dashboard/admins",     icon: UserCog,         label: "Admins",     hint: "Platform access",    iconBg: "bg-rose-500/10 text-rose-600",       activeGradient: "from-rose-500/20 to-red-500/10" },
 ];
 
 export function AdminSidebar() {

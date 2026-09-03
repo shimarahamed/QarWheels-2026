@@ -131,7 +131,7 @@ export default function AdminOverviewPage() {
       iconBg: "bg-emerald-500/10",
       iconColor: "text-emerald-600",
       accentLine: "from-emerald-500 via-teal-400 to-transparent",
-      href: "/admin/dashboard/vendors",
+      href: "/admin/dashboard/businesses",
     },
     {
       label: "Total Bookings",
@@ -181,9 +181,9 @@ export default function AdminOverviewPage() {
 
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild size="lg" className="shadow-md shadow-primary/20">
-              <Link href="/admin/dashboard/vendors">
+              <Link href="/admin/dashboard/branches">
                 <Building2 className="mr-2 h-4 w-4" />
-                Review Vendors
+                Review Branches
                 {stats.pendingVendors > 0 && (
                   <Badge className="ml-2 bg-amber-500 text-[10px]">{stats.pendingVendors}</Badge>
                 )}
@@ -262,8 +262,8 @@ export default function AdminOverviewPage() {
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="text-base font-bold">Pending Approvals</CardTitle>
               <Button asChild size="sm" variant="outline" className="h-8 rounded-full px-3 text-xs hover:border-emerald-500/40 hover:bg-emerald-500/5 hover:text-emerald-600">
-                <Link href="/admin/dashboard/vendors">
-                  All vendors <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                <Link href="/admin/dashboard/branches">
+                  All branches <ChevronRight className="ml-1 h-3.5 w-3.5" />
                 </Link>
               </Button>
             </CardHeader>
@@ -282,7 +282,7 @@ export default function AdminOverviewPage() {
                   {pendingVendors.map((v) => (
                     <Link
                       key={v.id}
-                      href="/admin/dashboard/vendors"
+                      href="/admin/dashboard/branches"
                       className="flex items-center justify-between gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3 transition-colors hover:bg-amber-500/8"
                     >
                       <div className="min-w-0">

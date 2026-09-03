@@ -5,7 +5,7 @@ import { Sidebar, SidebarProvider, SidebarTrigger, SidebarInset } from "@/compon
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { AdminProvider } from "@/components/admin/admin-provider";
 import { useFirebase } from "@/firebase";
-import { BarChart3, Building2, CalendarCheck, LayoutDashboard, Loader2, Percent, Users } from "lucide-react";
+import { Building2, CalendarCheck, LayoutDashboard, Loader2, ShieldCheck, Users } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect } from "react";
 import { Logo } from "@/components/logo";
@@ -14,9 +14,9 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 const mobileNav = [
   { href: "/admin/dashboard",            icon: LayoutDashboard, label: "Overview", activeColor: "bg-primary" },
   { href: "/admin/dashboard/users",      icon: Users,           label: "Users",    activeColor: "bg-violet-600" },
-  { href: "/admin/dashboard/vendors",    icon: Building2,       label: "Vendors",  activeColor: "bg-emerald-600" },
+  { href: "/admin/dashboard/businesses", icon: Building2,       label: "Business", activeColor: "bg-emerald-600" },
+  { href: "/admin/dashboard/kyc",        icon: ShieldCheck,     label: "KYC",      activeColor: "bg-amber-600" },
   { href: "/admin/dashboard/bookings",   icon: CalendarCheck,   label: "Bookings", activeColor: "bg-amber-600" },
-  { href: "/admin/dashboard/promotions", icon: Percent,         label: "Promos",   activeColor: "bg-rose-600" },
 ];
 
 function AdminMobileNav() {
