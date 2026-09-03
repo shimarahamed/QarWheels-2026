@@ -257,6 +257,37 @@ export type StaffInvite = {
 
 // ─── Master admin ─────────────────────────────────────────────────────────────
 
+// ─── Chat ─────────────────────────────────────────────────────────────────────
+// One conversation per (customer, branch) pair. `participants` holds both the
+// customer's uid and the branchId so a single array-contains query serves
+// both sides — a customer lists by their uid, a branch by its branchId.
+
+export type Conversation = {
+  participants: string[];
+  userId: string;
+  customerName: string;
+  businessId: string;
+  branchId: string;
+  branchName: string;
+  /** Denormalised so the inbox list doesn't need a read per conversation. */
+  lastMessage: string;
+  lastMessageAt: FirestoreDate;
+  lastMessageBy: string;
+  /** Unread counts keyed by participant id (uid or branchId). */
+  unread: Record<string, number>;
+  createdAt: FirestoreDate;
+  updatedAt: FirestoreDate;
+};
+
+export type Message = {
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: 'customer' | 'vendor';
+  body: string;
+  createdAt: FirestoreDate;
+};
+
 // ─── Money: transactions ledger, payouts, invoices ───────────────────────────
 // All amounts are in MINOR UNITS (fils for QAR — 1 QAR = 100 fils). Storing
 // money as integers avoids the float-rounding errors that eventually show up

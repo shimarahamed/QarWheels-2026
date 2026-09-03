@@ -351,6 +351,61 @@ service cloud.firestore {
     // Admin-SDK-only in both directions — every mutating API route writes here
     // via src/lib/audit.ts, and only master admins can ever read it back, so
     // entries are tamper-proof from any client.
+    // ─── Chat ─────────────────────────────────────────────────────────────────
+    // Unlike the money collections, chat writes go direct from the client:
+    // routing every message through an API route would add latency to a
+    // realtime feature for no security gain, since the constraints below are
+    // fully expressible in rules.
+    //
+    // `participants` is [customerUid, branchId]. A customer is a participant
+    // via their uid; branch staff via a branchId their claim covers.
+    function isConversationParticipant(convo) {
+      return isSignedIn()
+        && (convo.participants.hasAny([request.auth.uid])
+            || isBranchStaff(convo.businessId, convo.branchId));
+    }
+
+    match /conversations/{conversationId} {
+      allow get: if isConversationParticipant(resource.data) || isAdmin();
+      allow list: if isConversationParticipant(resource.data) || isAdmin();
+
+      // Only the customer opens a conversation, and only on their own behalf.
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.participants.hasAll([request.auth.uid, request.resource.data.branchId])
+        && request.resource.data.participants.size() == 2;
+
+      // Participants may only touch the denormalised "last message" fields
+      // and unread counters — never the identity of the conversation.
+      allow update: if isConversationParticipant(resource.data)
+        && notChanging(['participants', 'userId', 'businessId', 'branchId', 'createdAt']);
+
+      allow delete: if isAdmin();
+    }
+
+    match /messages/{messageId} {
+      // Readable/writable only by participants of the parent conversation,
+      // which costs one get() per message operation — acceptable here since
+      // the alternative (denormalising participants onto every message) makes
+      // permissions drift when a conversation changes.
+      allow get, list: if isSignedIn()
+        && isConversationParticipant(
+             get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data);
+
+      allow create: if isSignedIn()
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.body is string
+        && request.resource.data.body.size() >= 1
+        && request.resource.data.body.size() <= 2000
+        && isConversationParticipant(
+             get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data);
+
+      // Messages are immutable once sent — editing history in a dispute
+      // between a customer and a garage is exactly what you don't want.
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
     // ─── Money: transactions, payouts, invoices ───────────────────────────────
     // Every write is Admin-SDK-only. Transactions are created by the booking
     // transition route when a booking completes; payouts by the payout
