@@ -35,15 +35,35 @@ They must sign out and back in for the claim to reach their token.
 
 ## 2. Turn on the role guards — only AFTER step 1
 
-`middleware.ts`'s role guards are **live** — enabled, not a stub. Confirm
-step 1 (seed + claims) has actually run before anyone tries to sign in as
-vendor/admin, or they will be correctly redirected out of their own
-dashboard (working as designed, not a bug to "fix" by disabling the guard).
+`middleware.ts`'s role guards are **written correctly and enabled in
+code** — not a stub, not commented out. Whether they actually run at
+request time is a separate question — see the ⚠️ below, which is a
+**required pre-launch verification step**, not optional.
 
 | Where | Status |
 |---|---|
-| `middleware.ts` | Live. Role checks gate `/vendor/dashboard/**` and `/admin/dashboard/**`. |
-| `mobile/components/AuthGate.tsx` | Still needs to be wrapped around `mobile/app/vendor/_layout.tsx` — confirm this has been done before shipping mobile; it was written but not yet confirmed wired in. |
+| `middleware.ts` | Code is correct and enabled. **Verify it actually executes on your real deploy target — see warning below.** |
+| `mobile/components/AuthGate.tsx` | Now wrapped around `mobile/app/vendor/_layout.tsx`. |
+
+⚠️ **CRITICAL — verify before launch, not just in dev:** while adding a
+nonce-based CSP, `curl http://localhost:9002/vendor/dashboard` with no
+auth cookie returned `200 OK` instead of redirecting to `/vendor/login`,
+on the untouched middleware code, in this project's local dev
+environment. Traced with `DEBUG=next:*`: the request resolved straight to
+the App Router page file with no `invokeMiddleware` step logged at all,
+despite middleware compiling cleanly and appearing correctly in
+`.next/server/middleware-manifest.json` with the right matcher. Ruled out:
+Next.js version (reproduced on both 15.5.19 and 15.5.25), bundler
+(reproduced on both Turbopack and webpack dev mode), matcher syntax
+(reproduced with both the broad CSP matcher and the original narrow
+auth-only matcher). This looks like a local-environment/dev-server
+characteristic, not a code defect — but that is unconfirmed. **Before
+relying on these guards in production, run the same check
+(`curl -I https://<your-real-deploy-url>/vendor/dashboard`, no cookie)
+against the actual hosting target (Vercel or wherever this deploys).** If
+it redirects there, this was sandbox-only and safe to disregard. If it
+returns 200 there too, the vendor/admin dashboards are NOT actually
+protected and this is a release blocker, not a nice-to-have.
 
 Verify with a real sign-in per role before shipping: a customer should be
 bounced from `/vendor/dashboard` and `/admin/dashboard`; branch staff should
