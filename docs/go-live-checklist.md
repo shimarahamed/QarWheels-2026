@@ -109,4 +109,15 @@ marked but sends nothing — there's no device-token registry yet.
 - Deploy rules and indexes: `firebase deploy --only firestore,storage`.
   The indexes matter — several dashboard queries need composite indexes
   that only exist once deployed.
-- Run `npm run test:rules` (57 tests) and `npm run check:all` in CI.
+- **Set `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`** (free tier at
+  console.upstash.com). `src/lib/rate-limit.ts` throws on the first
+  rate-limited request in production if these are unset — intentional
+  fail-closed behavior, not a bug — since the in-memory fallback doesn't
+  work across multiple server instances and would silently disable rate
+  limiting under real traffic. `next build` is unaffected either way; only
+  live requests to a rate-limited route are checked.
+- Run `npm run test:rules` (69 tests) and `npm run check:all` in CI.
+- Have counsel review `docs/legal/privacy-policy.md` and
+  `docs/legal/terms-of-service.md` before launch — both are currently
+  boilerplate, clearly marked as drafts on the live `/privacy` and `/terms`
+  pages, not final legal text.
