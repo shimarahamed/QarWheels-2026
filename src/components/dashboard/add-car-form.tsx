@@ -173,9 +173,9 @@ export function AddCarForm() {
 
         <div className="rounded-2xl border bg-muted/20 p-4">
           <div className="mb-4 flex items-start gap-3">
-            <div className="rounded-xl bg-primary/10 p-2 text-primary">
-              <CarIcon className="h-5 w-5" />
-            </div>
+            <span className="icon-pill h-9 w-9 bg-primary/10 text-primary">
+              <CarIcon className="h-4 w-4" />
+            </span>
             <div>
               <h3 className="font-bold">Vehicle profile</h3>
               <p className="text-sm text-muted-foreground">

@@ -16,7 +16,9 @@ import { ArrowLeft, CalendarDays, Gauge, Loader2, Save, Wrench } from 'lucide-re
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import type { Car, WithId } from '@/lib/types';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ErrorState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard } from '@/components/ui/stat-card';
 
 const recordSchema = z.object({
   serviceType: z.string().min(1, 'Service type is required'),
@@ -93,52 +95,51 @@ export default function AddServiceRecordPage() {
 
   if (carError) {
     return (
-      <Alert variant="destructive">
-        <AlertTitle>Vehicle not found</AlertTitle>
-        <AlertDescription>Could not load the vehicle for this service record.</AlertDescription>
-      </Alert>
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+        <ErrorState
+          title="Vehicle not found"
+          description="Could not load the vehicle for this service record."
+        />
+      </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <Button variant="ghost" asChild className="-ml-4">
-        <Link href={`/dashboard/my-cars/${carId}`}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Car Details
-        </Link>
-      </Button>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+      <div>
+        <Button variant="ghost" asChild className="-ml-4">
+          <Link href={`/dashboard/my-cars/${carId}`}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Car Details
+          </Link>
+        </Button>
+      </div>
 
-      <header className="overflow-hidden rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-primary">
-              <Wrench className="h-3.5 w-3.5" />
-              Service passport
+      <PageHeader
+        eyebrow="Service passport"
+        icon={<Wrench className="h-3.5 w-3.5" />}
+        title="Add Service Record"
+        description={isLoadingCar ? "Loading vehicle..." : car ? `Logging maintenance for ${car.year} ${car.make} ${car.model}.` : "Keep your digital car passport up to date."}
+        action={
+          car ? (
+            <div className="grid grid-cols-2 gap-3 sm:w-80">
+              <StatCard
+                label="Current"
+                value={`${car.currentMileage.toLocaleString()} km`}
+                icon={<Gauge className="h-4 w-4" />}
+              />
+              <StatCard
+                label="Year"
+                value={car.year}
+                icon={<CalendarDays className="h-4 w-4" />}
+                accent="bg-emerald-500/10 text-emerald-600"
+              />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight">Add Service Record</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {isLoadingCar ? "Loading vehicle..." : car ? `Logging maintenance for ${car.year} ${car.make} ${car.model}.` : "Keep your digital car passport up to date."}
-            </p>
-          </div>
-          {car && (
-            <div className="grid grid-cols-2 gap-2 sm:w-80">
-              <div className="rounded-xl border bg-background/70 p-3">
-                <Gauge className="mb-2 h-4 w-4 text-primary" />
-                <p className="text-xs text-muted-foreground">Current</p>
-                <p className="font-bold">{car.currentMileage.toLocaleString()} km</p>
-              </div>
-              <div className="rounded-xl border bg-background/70 p-3">
-                <CalendarDays className="mb-2 h-4 w-4 text-emerald-600" />
-                <p className="text-xs text-muted-foreground">Year</p>
-                <p className="font-bold">{car.year}</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </header>
+          ) : undefined
+        }
+      />
 
-      <Card className="rounded-2xl shadow-sm">
+      <Card className="rounded-2xl border bg-card shadow-sm">
         <CardHeader>
           <CardTitle>Service Details</CardTitle>
           <CardDescription>Enter the work performed on your vehicle.</CardDescription>

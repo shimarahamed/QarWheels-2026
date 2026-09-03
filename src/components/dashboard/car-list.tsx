@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
 import { format, formatDistanceToNow, isValid } from "date-fns";
 
 type CarListVariant = "compact" | "detailed";
@@ -105,31 +107,34 @@ function FleetSummary({
   const confirmedBookings =
     bookings?.filter((booking) => booking.status === "Confirmed" && (toDate(booking.bookingDate)?.getTime() || 0) >= Date.now()).length || 0;
 
-  const items = [
-    { label: "Vehicles", value: cars?.length || 0, icon: <CarIcon className="h-4 w-4" /> },
-    { label: "Fleet Mileage", value: `${totalMileage.toLocaleString()} km`, icon: <Gauge className="h-4 w-4" /> },
-    { label: "Service Spend", value: `QAR ${totalSpent.toLocaleString()}`, icon: <CircleDollarSign className="h-4 w-4" /> },
-    { label: "Upcoming", value: confirmedBookings, icon: <CalendarClock className="h-4 w-4" /> },
-  ];
+  const loadingValue = <Skeleton className="h-8 w-24" />;
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {items.map((item) => (
-        <div key={item.label} className="rounded-xl border bg-card p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              {item.label}
-            </span>
-            <span className="rounded-lg bg-primary/10 p-2 text-primary">{item.icon}</span>
-          </div>
-          {isLoading ? (
-            <Skeleton className="mt-4 h-7 w-28" />
-          ) : (
-            <p className="mt-3 text-2xl font-bold tracking-tight">{item.value}</p>
-          )}
-        </div>
-      ))}
-    </div>
+    <StatCardGrid>
+      <StatCard
+        label="Vehicles"
+        value={isLoading ? loadingValue : cars?.length || 0}
+        icon={<CarIcon className="h-4 w-4" />}
+      />
+      <StatCard
+        label="Fleet Mileage"
+        value={isLoading ? loadingValue : `${totalMileage.toLocaleString()} km`}
+        icon={<Gauge className="h-4 w-4" />}
+        accent="bg-violet-500/10 text-violet-600"
+      />
+      <StatCard
+        label="Service Spend"
+        value={isLoading ? loadingValue : `QAR ${totalSpent.toLocaleString()}`}
+        icon={<CircleDollarSign className="h-4 w-4" />}
+        accent="bg-emerald-500/10 text-emerald-600"
+      />
+      <StatCard
+        label="Upcoming"
+        value={isLoading ? loadingValue : confirmedBookings}
+        icon={<CalendarClock className="h-4 w-4" />}
+        accent="bg-amber-500/10 text-amber-600"
+      />
+    </StatCardGrid>
   );
 }
 
@@ -175,7 +180,7 @@ function CompactCarGrid({ cars }: { cars: WithId<Car>[] }) {
         const image = getCarImage(car);
         return (
           <Link href={`/dashboard/my-cars/${car.id}`} key={car.id} className="block h-full group">
-            <Card className="overflow-hidden h-full border transition-shadow duration-300 hover:shadow-lg hover:border-primary">
+            <Card className="bento-card h-full">
               <CardHeader className="p-0">
                 {image && (
                   <div className="overflow-hidden">
@@ -236,7 +241,7 @@ function DetailedCarRow({
   const lastMileageUpdate = toDate(car.lastMileageUpdateDate);
 
   return (
-    <Card className="group overflow-hidden border bg-card shadow-sm transition-all duration-300 hover:border-primary/40 hover:shadow-md">
+    <Card className="group overflow-hidden rounded-2xl border bg-card shadow-sm transition-all duration-300 hover:border-primary/40 hover:shadow-md">
       <CardContent className="grid gap-0 p-0 lg:grid-cols-[280px_1fr]">
         <div className="relative min-h-[220px] overflow-hidden bg-muted lg:min-h-full">
           {image && (
@@ -403,16 +408,16 @@ export function CarList({ variant = "compact" }: { variant?: CarListVariant }) {
 
   if (!cars || cars.length === 0) {
     return (
-        <Card className="sm:col-span-2 lg:col-span-3 overflow-hidden">
-            <CardContent className="text-center text-muted-foreground py-16">
-                <CarIcon className="mx-auto h-12 w-12 mb-4 text-primary/50" />
-                <h3 className="text-lg font-semibold">No Cars Added</h3>
-                <p>You haven&apos;t added any cars to your profile yet.</p>
-                 <Button asChild className="mt-4">
-                  <Link href="/dashboard/my-cars/add">Add Your First Car</Link>
+        <EmptyState
+            icon={<CarIcon className="h-8 w-8" />}
+            title="No Cars Added"
+            description="You haven't added any cars to your profile yet."
+            action={
+                <Button asChild>
+                    <Link href="/dashboard/my-cars/add">Add Your First Car</Link>
                 </Button>
-            </CardContent>
-        </Card>
+            }
+        />
     )
   }
 

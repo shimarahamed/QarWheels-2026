@@ -11,7 +11,10 @@ import {
     CardFooter,
   } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Percent, Calendar, Trash2, Edit, Loader2 } from "lucide-react";
+import { PlusCircle, Percent, Calendar, CalendarX, Trash2, Edit, Loader2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
 import {
@@ -185,6 +188,16 @@ export default function VendorPromotionsPage() {
     );
     const { data: promotions, isLoading } = useCollection<WithId<Promotion>>(promotionsQuery);
 
+    // Counts use the same derived status the cards show, so the tiles and the
+    // grid can never disagree.
+    const statusCounts = (promotions ?? []).reduce(
+        (acc, promo) => {
+            acc[getStatus(promo)] += 1;
+            return acc;
+        },
+        { Active: 0, Scheduled: 0, Expired: 0 } as Record<'Active' | 'Scheduled' | 'Expired', number>,
+    );
+
     const handleEditClick = (promotion: WithId<Promotion>) => {
         setSelectedPromotion(promotion);
         setIsFormOpen(true);
@@ -236,23 +249,44 @@ export default function VendorPromotionsPage() {
     }
 
     return (
-      <div className="space-y-8">
-        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold font-headline">Marketing & Promotions</h1>
-            <p className="text-muted-foreground">
-              Create and manage discounts and special offers.
-            </p>
-          </div>
-          <Button onClick={handleAddNewClick}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Create New Promotion
-          </Button>
-        </header>
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+        <PageHeader
+          eyebrow="Marketing"
+          icon={<Percent className="h-3.5 w-3.5" />}
+          title="Run offers that bring customers back."
+          description="Create and manage discount codes, seasonal offers, and scheduled campaigns for this branch."
+          action={
+            <Button onClick={handleAddNewClick}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Create New Promotion
+            </Button>
+          }
+        />
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <StatCardGrid>
+          <StatCard
+            label="Active"
+            value={isLoading ? '—' : statusCounts.Active}
+            icon={<Percent className="h-4 w-4" />}
+            accent="bg-emerald-500/10 text-emerald-600"
+          />
+          <StatCard
+            label="Scheduled"
+            value={isLoading ? '—' : statusCounts.Scheduled}
+            icon={<Calendar className="h-4 w-4" />}
+            accent="bg-amber-500/10 text-amber-600"
+          />
+          <StatCard
+            label="Expired"
+            value={isLoading ? '—' : statusCounts.Expired}
+            icon={<CalendarX className="h-4 w-4" />}
+            accent="bg-muted text-muted-foreground"
+          />
+        </StatCardGrid>
+
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {isLoading && [...Array(3)].map((_, i) => (
-                <Card key={i} className="flex flex-col">
+                <Card key={i} className="flex flex-col rounded-2xl border bg-card shadow-sm">
                     <CardHeader><Skeleton className="h-6 w-3/4" /><Skeleton className="h-4 w-full mt-2" /></CardHeader>
                     <CardContent className="space-y-4 flex-grow"><Skeleton className="h-12 w-full" /><Skeleton className="h-5 w-1/2" /></CardContent>
                     <CardFooter className="flex gap-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></CardFooter>
@@ -261,7 +295,7 @@ export default function VendorPromotionsPage() {
             {!isLoading && promotions && promotions.map((promo) => {
                 const status = getStatus(promo);
                 return (
-                    <Card key={promo.id} className="flex flex-col">
+                    <Card key={promo.id} className="flex flex-col rounded-2xl border bg-card shadow-sm">
                         <CardHeader>
                             <div className="flex justify-between items-start">
                                 <CardTitle>{promo.title}</CardTitle>
@@ -292,12 +326,19 @@ export default function VendorPromotionsPage() {
                 )
             })}
              {!isLoading && (!promotions || promotions.length === 0) && (
-                <Card className="md:col-span-2 lg:col-span-3">
-                    <CardContent className="p-8 text-center text-muted-foreground">
-                        <Percent className="h-10 w-10 mx-auto mb-2 text-primary/50" />
-                        <p>No promotions have been created yet.</p>
-                    </CardContent>
-                </Card>
+                <div className="md:col-span-2 lg:col-span-3">
+                    <EmptyState
+                        icon={<Percent className="h-8 w-8" />}
+                        title="No promotions yet"
+                        description="Create a discount code or seasonal offer to bring customers back for their next service."
+                        action={
+                          <Button onClick={handleAddNewClick}>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Create New Promotion
+                          </Button>
+                        }
+                    />
+                </div>
             )}
         </div>
 

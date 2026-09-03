@@ -7,8 +7,11 @@ import { collection, limit as queryLimit, query, Timestamp, where } from 'fireba
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState, LoadingPanel } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
+import { StatCard, StatCardGrid } from '@/components/ui/stat-card';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
 import type { Booking, Car as CarType, WithId } from '@/lib/types';
@@ -20,11 +23,9 @@ import {
   CheckCircle2,
   CircleDollarSign,
   Clock,
-  Loader2,
   MapPin,
   Sparkles,
   Wrench,
-  XCircle,
 } from 'lucide-react';
 
 function toDate(value: Booking['bookingDate']) {
@@ -34,13 +35,6 @@ function toDate(value: Booking['bookingDate']) {
   return isValid(date) ? date : new Date();
 }
 
-function statusVariant(status: Booking['status']) {
-  if (status === 'Confirmed') return 'default';
-  if (status === 'Completed') return 'secondary';
-  if (status === 'Cancelled') return 'destructive';
-  return 'outline';
-}
-
 function BookingStats({ bookings }: { bookings: WithId<Booking>[] }) {
   const now = Date.now();
   const upcoming = bookings.filter((booking) => booking.status === 'Confirmed' && toDate(booking.bookingDate).getTime() >= now).length;
@@ -48,28 +42,28 @@ function BookingStats({ bookings }: { bookings: WithId<Booking>[] }) {
   const pending = bookings.filter((booking) => booking.status === 'Pending').length;
   const spend = bookings.reduce((sum, booking) => sum + (booking.cost || 0), 0);
 
-  const stats = [
-    { label: 'Upcoming', value: upcoming, icon: Calendar, tone: 'text-primary' },
-    { label: 'Completed', value: completed, icon: CheckCircle2, tone: 'text-emerald-600' },
-    { label: 'Pending', value: pending, icon: Clock, tone: 'text-amber-600' },
-    { label: 'Total Value', value: `QAR ${spend.toLocaleString()}`, icon: CircleDollarSign, tone: 'text-slate-700' },
-  ];
-
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {stats.map((stat) => {
-        const Icon = stat.icon;
-        return (
-          <div key={stat.label} className="rounded-xl border bg-card p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{stat.label}</p>
-              <Icon className={`h-5 w-5 ${stat.tone}`} />
-            </div>
-            <p className="mt-3 text-2xl font-bold tracking-tight">{stat.value}</p>
-          </div>
-        );
-      })}
-    </div>
+    <StatCardGrid>
+      <StatCard label="Upcoming" value={upcoming} icon={<Calendar className="h-4 w-4" />} />
+      <StatCard
+        label="Completed"
+        value={completed}
+        icon={<CheckCircle2 className="h-4 w-4" />}
+        accent="bg-emerald-500/10 text-emerald-600"
+      />
+      <StatCard
+        label="Pending"
+        value={pending}
+        icon={<Clock className="h-4 w-4" />}
+        accent="bg-amber-500/10 text-amber-600"
+      />
+      <StatCard
+        label="Total Value"
+        value={`QAR ${spend.toLocaleString()}`}
+        icon={<CircleDollarSign className="h-4 w-4" />}
+        accent="bg-violet-500/10 text-violet-600"
+      />
+    </StatCardGrid>
   );
 }
 
@@ -78,14 +72,14 @@ function BookingCard({ booking, car }: { booking: WithId<Booking>; car?: WithId<
   const isCancelled = booking.status === 'Cancelled';
 
   return (
-    <Card className="overflow-hidden border bg-card shadow-sm transition-all hover:border-primary/40 hover:shadow-md">
+    <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm transition-all hover:border-primary/40 hover:shadow-md">
       <CardContent className="grid gap-0 p-0 lg:grid-cols-[160px_1fr_auto]">
         <div className={`flex flex-row items-center justify-between gap-3 border-b p-4 lg:flex-col lg:items-start lg:justify-center lg:border-b-0 lg:border-r ${isCancelled ? 'bg-destructive/5' : 'bg-primary/5'}`}>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{format(bookingDate, 'MMM')}</p>
-            <p className="text-4xl font-bold leading-none">{format(bookingDate, 'd')}</p>
+            <p className="section-label">{format(bookingDate, 'MMM')}</p>
+            <p className="metric-number text-4xl leading-none">{format(bookingDate, 'd')}</p>
           </div>
-          <Badge variant={statusVariant(booking.status)}>{booking.status}</Badge>
+          <StatusBadge status={booking.status} />
         </div>
 
         <div className="min-w-0 p-4 sm:p-5">
@@ -143,36 +137,21 @@ function BookingList({
   isLoading: boolean;
 }) {
   if (isLoading) {
-    return (
-      <div className="space-y-4">
-        {[...Array(3)].map((_, i) => (
-          <Card key={i} className="p-4">
-            <div className="flex gap-4">
-              <Skeleton className="h-24 w-28" />
-              <div className="flex-1 space-y-3">
-                <Skeleton className="h-6 w-48" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-12 w-full" />
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-    );
+    return <LoadingPanel rows={3} />;
   }
 
   if (bookings.length === 0) {
     return (
-      <Card>
-        <CardContent className="p-12 text-center text-muted-foreground">
-          <Wrench className="mx-auto mb-4 h-12 w-12 text-primary/50" />
-          <p className="font-semibold text-foreground">No bookings found</p>
-          <p className="mt-1 text-sm">Book a garage visit to start building your service timeline.</p>
-          <Button asChild className="mt-5">
+      <EmptyState
+        icon={<Wrench className="h-8 w-8" />}
+        title="No bookings found"
+        description="Book a garage visit to start building your service timeline."
+        action={
+          <Button asChild>
             <Link href="/dashboard/garages">Find a Garage</Link>
           </Button>
-        </CardContent>
-      </Card>
+        }
+      />
     );
   }
 
@@ -218,34 +197,22 @@ export default function BookingsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
-      <header className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <Badge variant="outline" className="mb-4 h-8 gap-2 bg-primary/5 px-3 text-primary">
-              <Sparkles className="h-3.5 w-3.5" />
-              Booking planner
-            </Badge>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Appointments that read like a timeline.</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-              Follow upcoming visits, pending requests, completed work, and cancelled appointments across every vehicle.
-            </p>
-          </div>
+      <PageHeader
+        eyebrow="Booking planner"
+        icon={<Sparkles className="h-3.5 w-3.5" />}
+        title="Appointments that read like a timeline."
+        description="Follow upcoming visits, pending requests, completed work, and cancelled appointments across every vehicle."
+        action={
           <Button asChild className="justify-start">
             <Link href="/dashboard/garages">
               <CalendarPlus className="mr-2 h-4 w-4" />
               New Booking
             </Link>
           </Button>
-        </div>
-      </header>
+        }
+      />
 
-      {isLoadingBookings ? (
-        <div className="flex h-28 items-center justify-center rounded-2xl border bg-card">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        </div>
-      ) : (
-        <BookingStats bookings={bookings} />
-      )}
+      {isLoadingBookings ? <LoadingPanel rows={2} /> : <BookingStats bookings={bookings} />}
 
       <section className="rounded-2xl border bg-card p-3 shadow-sm sm:p-4">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

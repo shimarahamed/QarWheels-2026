@@ -30,7 +30,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Banknote, Info, Loader2, ShieldAlert, Wallet } from 'lucide-react';
+import { Banknote, Info, Loader2, Percent, ShieldAlert, Wallet } from 'lucide-react';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard, StatCardGrid } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/hooks/use-toast';
 import { useVendor } from '@/components/vendor/vendor-provider';
 import { useUser } from '@/firebase';
@@ -159,18 +162,12 @@ export default function VendorPayoutsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
-      <header className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <Badge variant="outline" className="mb-4 h-8 gap-2 bg-primary/5 px-3 text-primary">
-              <Wallet className="h-3.5 w-3.5" />
-              Earnings
-            </Badge>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Track what you have earned and get paid.</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-              Every completed booking settles into your balance, less the platform commission. Request a payout whenever you are ready.
-            </p>
-          </div>
+      <PageHeader
+        eyebrow="Earnings"
+        icon={<Wallet className="h-3.5 w-3.5" />}
+        title="Track what you have earned and get paid."
+        description="Every completed booking settles into your balance, less the platform commission. Request a payout whenever you are ready."
+        action={
           <div className="flex flex-col items-start gap-2">
             <Button
               onClick={() => setIsConfirmOpen(true)}
@@ -184,8 +181,8 @@ export default function VendorPayoutsPage() {
               <p className="max-w-xs text-xs leading-5 text-muted-foreground">{blockedReason}</p>
             )}
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Honest about the fact that nothing actually moves yet. */}
       {!isLoading && data && !data.paymentsLive && (
@@ -211,29 +208,28 @@ export default function VendorPayoutsPage() {
       )}
 
       {/* Available balance */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        {[
-          { label: 'Gross earned', value: available?.grossMinorUnits, hint: 'What customers paid', tone: 'text-foreground' },
-          { label: 'Platform commission', value: available?.commissionMinorUnits, hint: 'QarWheel fee', tone: 'text-amber-600' },
-          { label: 'Available to pay out', value: available?.netMinorUnits, hint: 'What you are owed', tone: 'text-emerald-600' },
-        ].map((metric) => (
-          <Card key={metric.label} className="rounded-2xl border bg-card shadow-sm">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-[11px] font-semibold uppercase tracking-[0.1em]">
-                {metric.label}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <Skeleton className="h-8 w-32" />
-              ) : (
-                <p className={`text-2xl font-bold ${metric.tone}`}>{formatMinorUnits(metric.value ?? 0)}</p>
-              )}
-              <p className="mt-1 text-xs text-muted-foreground">{metric.hint}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <StatCardGrid>
+        <StatCard
+          label="Gross earned"
+          value={isLoading ? '—' : formatMinorUnits(available?.grossMinorUnits ?? 0)}
+          icon={<Wallet className="h-4 w-4" />}
+          hint="What customers paid"
+        />
+        <StatCard
+          label="Platform commission"
+          value={isLoading ? '—' : formatMinorUnits(available?.commissionMinorUnits ?? 0)}
+          icon={<Percent className="h-4 w-4" />}
+          accent="bg-amber-500/10 text-amber-600"
+          hint="QarWheel fee"
+        />
+        <StatCard
+          label="Available to pay out"
+          value={isLoading ? '—' : formatMinorUnits(available?.netMinorUnits ?? 0)}
+          icon={<Banknote className="h-4 w-4" />}
+          accent="bg-emerald-500/10 text-emerald-600"
+          hint="What you are owed"
+        />
+      </StatCardGrid>
 
       {/* Pending transactions */}
       <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
@@ -284,10 +280,11 @@ export default function VendorPayoutsPage() {
             </TableBody>
           </Table>
           {!isLoading && (!data || data.transactions.length === 0) && (
-            <div className="p-8 text-center text-muted-foreground">
-              <Wallet className="mx-auto mb-2 h-10 w-10 text-primary/50" />
-              <p>Nothing waiting to be paid out. Completed bookings appear here once they settle.</p>
-            </div>
+            <EmptyState
+              icon={<Wallet className="h-8 w-8" />}
+              title="Nothing waiting to be paid out"
+              description="Completed bookings appear here once they settle, ready to roll into your next payout."
+            />
           )}
         </CardContent>
       </Card>
@@ -352,10 +349,11 @@ export default function VendorPayoutsPage() {
             </TableBody>
           </Table>
           {!isLoading && (!data || data.payouts.length === 0) && (
-            <div className="p-8 text-center text-muted-foreground">
-              <Banknote className="mx-auto mb-2 h-10 w-10 text-primary/50" />
-              <p>You have not requested a payout yet.</p>
-            </div>
+            <EmptyState
+              icon={<Banknote className="h-8 w-8" />}
+              title="No payouts yet"
+              description="Once you have a settled balance you can request a payout, and every request shows up here."
+            />
           )}
         </CardContent>
       </Card>

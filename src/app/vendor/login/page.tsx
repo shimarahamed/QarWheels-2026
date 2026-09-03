@@ -29,13 +29,13 @@ function VendorLoginContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-sm">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.10),transparent_32%),linear-gradient(180deg,hsl(var(--background)),hsl(var(--muted)/0.45))] p-4">
+      <Card className="w-full max-w-sm rounded-2xl border shadow-sm">
         <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
+            <div className="mb-4 flex justify-center">
                 <Logo hideText={true}/>
             </div>
-          <CardTitle>Vendor Portal</CardTitle>
+          <CardTitle className="text-2xl">Vendor Portal</CardTitle>
           <CardDescription>Sign in to your garage dashboard.</CardDescription>
         </CardHeader>
         <CardContent>

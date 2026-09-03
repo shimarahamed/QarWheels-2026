@@ -14,6 +14,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export function ServiceHistorySummary({ car, serviceHistory }: { car: WithId<Car>, serviceHistory: WithId<ServiceRecord>[] | null }) {
   const [summary, setSummary] = useState<SummarizeServiceHistoryOutput | null>(
@@ -68,10 +69,12 @@ export function ServiceHistorySummary({ car, serviceHistory }: { car: WithId<Car
   }, [car, toast, serviceHistory]);
 
   return (
-    <Card className="flex flex-col">
+    <Card className="flex flex-col rounded-2xl border bg-card shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-            <Sparkles className="text-primary"/>
+            <span className="icon-pill h-8 w-8 bg-primary/10 text-primary">
+              <Sparkles className="h-4 w-4" />
+            </span>
             <span>AI Service Analysis</span>
         </CardTitle>
         <CardDescription>
@@ -86,11 +89,11 @@ export function ServiceHistorySummary({ car, serviceHistory }: { car: WithId<Car
           </div>
         )}
         {!isLoading && (!serviceHistory || serviceHistory.length === 0) && (
-            <div className="text-center text-muted-foreground py-8 px-4 rounded-lg bg-muted/50">
-                <Terminal className="mx-auto h-12 w-12 mb-4 text-primary/50" />
-                <h3 className="font-semibold text-lg">No History to Analyze</h3>
-                <p>Add service records to enable AI analysis.</p>
-            </div>
+            <EmptyState
+                icon={<Terminal className="h-8 w-8" />}
+                title="No History to Analyze"
+                description="Add service records to enable AI analysis."
+            />
         )}
          {!isLoading && !summary && serviceHistory && serviceHistory.length > 0 && (
           <p className="text-muted-foreground">Could not load summary.</p>

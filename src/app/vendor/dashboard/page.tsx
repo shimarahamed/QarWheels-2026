@@ -21,6 +21,7 @@ import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { useVendor } from "@/components/vendor/vendor-provider";
@@ -32,38 +33,21 @@ function toDate(value: Booking["bookingDate"]) {
   return value instanceof Timestamp ? value.toDate() : new Date(value);
 }
 
-interface KpiCardProps {
+type KpiCardProps = {
   label: string;
   value: string | number;
   icon: React.ElementType;
-  iconBg: string;
-  iconColor: string;
-  accentLine: string;
-  glow: string;
-}
+  /** Tailwind classes for the StatCard icon pill. */
+  accent: string;
+};
 
-function KpiCard({ label, value, icon: Icon, iconBg, iconColor, accentLine, glow }: KpiCardProps) {
-  return (
-    <div className={`group bento-card p-5 ${glow}`}>
-      <div className={`card-accent-top bg-gradient-to-r ${accentLine}`} />
-      <div aria-hidden className={`ambient-blob -right-4 -top-4 h-16 w-16 opacity-0 transition-opacity duration-500 group-hover:opacity-100 ${iconBg}`} />
-
-      <div className="relative flex items-start justify-between gap-3">
-        <p className="section-label">{label}</p>
-        <div className={`icon-pill h-10 w-10 ${iconBg}`}>
-          <Icon className={`h-5 w-5 ${iconColor}`} />
-        </div>
-      </div>
-
-      <p className="relative metric-number mt-4">{value}</p>
-
-      <div className="relative mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
-        <TrendingUp className={`h-3.5 w-3.5 ${iconColor}`} />
-        <span>Live data</span>
-      </div>
-    </div>
-  );
-}
+/** The "live data" hint every vendor KPI tile carries. */
+const LIVE_HINT = (
+  <span className="inline-flex items-center gap-1.5 font-semibold">
+    <TrendingUp className="h-3.5 w-3.5" />
+    Live data
+  </span>
+);
 
 function UpcomingBooking({ booking }: { booking: WithId<Booking> }) {
   const date = toDate(booking.bookingDate);
@@ -123,37 +107,25 @@ export default function VendorDashboard() {
       label: "Revenue",
       value: `QAR ${totalRevenue.toLocaleString()}`,
       icon: CircleDollarSign,
-      iconBg: "bg-emerald-500/10",
-      iconColor: "text-emerald-600",
-      accentLine: "from-emerald-500 via-teal-400 to-transparent",
-      glow: "hover:bg-emerald-500/[0.02]",
+      accent: "bg-emerald-500/10 text-emerald-600",
     },
     {
       label: "Completed Jobs",
       value: completedJobs,
       icon: Wrench,
-      iconBg: "bg-primary/10",
-      iconColor: "text-primary",
-      accentLine: "from-primary via-sky-400 to-transparent",
-      glow: "hover:bg-primary/[0.02]",
+      accent: "bg-primary/10 text-primary",
     },
     {
       label: "Customers",
       value: uniqueCustomers,
       icon: Users,
-      iconBg: "bg-violet-500/10",
-      iconColor: "text-violet-600",
-      accentLine: "from-violet-500 via-indigo-400 to-transparent",
-      glow: "hover:bg-violet-500/[0.02]",
+      accent: "bg-violet-500/10 text-violet-600",
     },
     {
       label: "Reviews",
       value: activeBranch?.reviewCount || 0,
       icon: Star,
-      iconBg: "bg-amber-500/10",
-      iconColor: "text-amber-600",
-      accentLine: "from-amber-500 via-orange-400 to-transparent",
-      glow: "hover:bg-amber-500/[0.02]",
+      accent: "bg-amber-500/10 text-amber-600",
     },
   ];
 
@@ -239,11 +211,20 @@ export default function VendorDashboard() {
       </header>
 
       {/* ── KPI Cards ─────────────────────────────────────────── */}
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <StatCardGrid>
         {isLoading
           ? [...Array(4)].map((_, i) => <Skeleton key={i} className="h-32 rounded-2xl" />)
-          : kpiCards.map((card) => <KpiCard key={card.label} {...card} />)}
-      </section>
+          : kpiCards.map(({ label, value, icon: Icon, accent }) => (
+              <StatCard
+                key={label}
+                label={label}
+                value={value}
+                icon={<Icon className="h-4 w-4" />}
+                accent={accent}
+                hint={LIVE_HINT}
+              />
+            ))}
+      </StatCardGrid>
 
       {/* ── Revenue Chart + Sidebar widgets ───────────────────── */}
       <section className="grid gap-5 xl:grid-cols-[1.4fr_0.6fr]">

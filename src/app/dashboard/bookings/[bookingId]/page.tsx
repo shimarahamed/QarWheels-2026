@@ -9,12 +9,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Calendar, Car, CircleDollarSign, Wrench, Loader2, AlertTriangle, XCircle } from "lucide-react";
+import { ErrorState, LoadingPanel } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { ArrowLeft, Calendar, CircleDollarSign, Wrench, Loader2, XCircle } from "lucide-react";
 import { format, isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { Booking, Car as CarType, WithId } from "@/lib/types";
 import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
@@ -57,36 +58,31 @@ export default function BookingDetailsPage() {
 
     if (isLoading) {
       return (
-        <div className="flex h-64 w-full items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+          <LoadingPanel rows={4} />
         </div>
       )
     }
 
     if (error) {
         return (
-            <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Failed to Load Booking Details</AlertTitle>
-                <AlertDescription>
-                    <p>There was an error fetching the data for this booking. This might be a temporary issue or a problem with permissions.</p>
-                     <pre className="mt-4 whitespace-pre-wrap font-mono text-xs bg-destructive-foreground/10 p-2 rounded">
-                        {error.message}
-                    </pre>
-                </AlertDescription>
-            </Alert>
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+                <ErrorState
+                    title="Failed to load booking details"
+                    description="There was an error fetching the data for this booking. This might be a temporary issue or a problem with permissions."
+                />
+            </div>
         );
     }
 
     if (!booking) {
         return (
-             <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Booking Not Found</AlertTitle>
-                <AlertDescription>
-                   The booking you are looking for could not be found. It may have been deleted or the link may be incorrect.
-                </AlertDescription>
-            </Alert>
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+                <ErrorState
+                    title="Booking not found"
+                    description="The booking you are looking for could not be found. It may have been deleted or the link may be incorrect."
+                />
+            </div>
         );
     }
     
@@ -122,36 +118,26 @@ export default function BookingDetailsPage() {
         }
     }
 
-    const getStatusVariant = (status: Booking["status"]) => {
-        switch (status) {
-        case "Confirmed":
-            return "default";
-        case "Completed":
-            return "secondary";
-        case "Cancelled":
-            return "destructive";
-        default:
-            return "outline";
-        }
-    };
-
     return (
-        <div className="space-y-6">
-            <Button variant="ghost" asChild className="-ml-4">
-                <Link href="/dashboard/bookings">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Bookings
-                </Link>
-            </Button>
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+            <div>
+                <Button variant="ghost" asChild className="-ml-4">
+                    <Link href="/dashboard/bookings">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Bookings
+                    </Link>
+                </Button>
+            </div>
 
-            <header>
-                <h1 className="text-3xl font-bold font-headline tracking-tight">
-                    Booking Details
-                </h1>
-                <p className="text-muted-foreground">Review your appointment information.</p>
-            </header>
+            <PageHeader
+                eyebrow="Booking detail"
+                icon={<Wrench className="h-3.5 w-3.5" />}
+                title="Booking Details"
+                description="Review your appointment information."
+                action={<StatusBadge status={booking.status} className="h-8 px-3 text-xs" />}
+            />
 
-            <Card>
+            <Card className="rounded-2xl border bg-card shadow-sm">
                 <CardHeader>
                     <div className="flex justify-between items-start gap-4">
                         <div>
@@ -159,9 +145,7 @@ export default function BookingDetailsPage() {
                             <CardDescription>at {booking.branchName}</CardDescription>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                            <Badge variant={getStatusVariant(booking.status)}>
-                                {booking.status}
-                            </Badge>
+                            <StatusBadge status={booking.status} />
                             {canCancel && (
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
@@ -188,41 +172,41 @@ export default function BookingDetailsPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6 text-sm">
-                        <div className="flex items-center gap-3">
-                             <div className="flex-shrink-0 bg-primary/10 text-primary p-3 rounded-lg">
-                                <Wrench className="h-6 w-6" />
+                    <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                        <div className="rounded-2xl border bg-card p-4 shadow-sm">
+                            <div className="flex items-start justify-between gap-3">
+                                <p className="section-label">Service</p>
+                                <span className="icon-pill h-9 w-9 shrink-0 bg-primary/10 text-primary">
+                                    <Wrench className="h-4 w-4" />
+                                </span>
                             </div>
-                            <div>
-                                <p className="text-muted-foreground">Service</p>
-                                <p className="font-semibold">{booking.serviceName}</p>
-                            </div>
+                            <p className="mt-3 truncate text-base font-bold tracking-tight">{booking.serviceName}</p>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <div className="flex-shrink-0 bg-primary/10 text-primary p-3 rounded-lg">
-                                <Calendar className="h-6 w-6" />
+                        <div className="rounded-2xl border bg-card p-4 shadow-sm">
+                            <div className="flex items-start justify-between gap-3">
+                                <p className="section-label">Date &amp; Time</p>
+                                <span className="icon-pill h-9 w-9 shrink-0 bg-violet-500/10 text-violet-600">
+                                    <Calendar className="h-4 w-4" />
+                                </span>
                             </div>
-                            <div>
-                                <p className="text-muted-foreground">Date & Time</p>
-                                <p className="font-semibold">{bookingDate ? format(bookingDate, "PPP, p") : 'Date not available'}</p>
-                            </div>
+                            <p className="mt-3 text-base font-bold tracking-tight">{bookingDate ? format(bookingDate, "PPP, p") : 'Date not available'}</p>
                         </div>
-                         {booking.cost && (
-                             <div className="flex items-center gap-3">
-                                <div className="flex-shrink-0 bg-primary/10 text-primary p-3 rounded-lg">
-                                    <CircleDollarSign className="h-6 w-6" />
+                        {booking.cost ? (
+                            <div className="rounded-2xl border bg-card p-4 shadow-sm">
+                                <div className="flex items-start justify-between gap-3">
+                                    <p className="section-label">Total Cost</p>
+                                    <span className="icon-pill h-9 w-9 shrink-0 bg-emerald-500/10 text-emerald-600">
+                                        <CircleDollarSign className="h-4 w-4" />
+                                    </span>
                                 </div>
-                                <div>
-                                    <p className="text-muted-foreground">Total Cost</p>
-                                    <p className="font-semibold">QAR {booking.cost.toFixed(2)}</p>
-                                </div>
+                                <p className="mt-3 text-base font-bold tracking-tight">QAR {booking.cost.toFixed(2)}</p>
                             </div>
-                         )}
+                        ) : null}
                     </div>
                     {car && (
                         <div>
-                             <h3 className="font-bold font-headline text-lg mb-4">Vehicle Information</h3>
-                             <Card className="overflow-hidden flex flex-col sm:flex-row items-center gap-4">
+                             <h3 className="mb-4 text-lg font-bold">Vehicle Information</h3>
+                             <Card className="flex flex-col items-center gap-4 overflow-hidden rounded-2xl border bg-card shadow-sm sm:flex-row">
                                 {image && (
                                     <Image 
                                         src={car.imageUrl || image.imageUrl}

@@ -24,8 +24,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard } from '@/components/ui/stat-card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, Receipt } from 'lucide-react';
+import { CircleDollarSign, FileText, Receipt, Wallet } from 'lucide-react';
 import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { formatMinorUnits } from '@/lib/money';
@@ -71,39 +74,32 @@ export default function CustomerInvoicesPage() {
     .reduce((sum, inv) => sum + inv.totalMinorUnits, 0);
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 sm:gap-6">
-      <header className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
-        <Badge variant="outline" className="mb-4 h-8 gap-2 bg-primary/5 px-3 text-primary">
-          <Receipt className="h-3.5 w-3.5" />
-          Billing
-        </Badge>
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Your invoices.</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-          Every invoice issued to you for completed work. Tap one to see the full breakdown.
-        </p>
-      </header>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+      <PageHeader
+        eyebrow="Billing"
+        icon={<Receipt className="h-3.5 w-3.5" />}
+        title="Your invoices."
+        description="Every invoice issued to you for completed work. Tap one to see the full breakdown."
+      />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {[
-          { label: 'Invoices', value: isLoading ? null : String(sorted.length), tone: 'text-foreground' },
-          { label: 'Outstanding', value: isLoading ? null : formatMinorUnits(totalOutstanding), tone: 'text-amber-600' },
-          { label: 'Paid', value: isLoading ? null : formatMinorUnits(totalPaid), tone: 'text-emerald-600' },
-        ].map((metric) => (
-          <Card key={metric.label} className="rounded-2xl border bg-card shadow-sm">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-[11px] font-semibold uppercase tracking-[0.1em]">
-                {metric.label}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {metric.value === null ? (
-                <Skeleton className="h-8 w-28" />
-              ) : (
-                <p className={`text-2xl font-bold ${metric.tone}`}>{metric.value}</p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatCard
+          label="Invoices"
+          value={isLoading ? <Skeleton className="h-7 w-24" /> : String(sorted.length)}
+          icon={<FileText className="h-4 w-4" />}
+        />
+        <StatCard
+          label="Outstanding"
+          value={isLoading ? <Skeleton className="h-7 w-24" /> : formatMinorUnits(totalOutstanding)}
+          icon={<Wallet className="h-4 w-4" />}
+          accent="bg-amber-500/10 text-amber-600"
+        />
+        <StatCard
+          label="Paid"
+          value={isLoading ? <Skeleton className="h-7 w-24" /> : formatMinorUnits(totalPaid)}
+          icon={<CircleDollarSign className="h-4 w-4" />}
+          accent="bg-emerald-500/10 text-emerald-600"
+        />
       </div>
 
       <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
@@ -159,9 +155,12 @@ export default function CustomerInvoicesPage() {
             </TableBody>
           </Table>
           {!isLoading && sorted.length === 0 && (
-            <div className="p-8 text-center text-muted-foreground">
-              <FileText className="mx-auto mb-2 h-10 w-10 text-primary/50" />
-              <p>No invoices yet. One appears here once a garage bills you for completed work.</p>
+            <div className="pt-4">
+              <EmptyState
+                icon={<FileText className="h-8 w-8" />}
+                title="No invoices yet"
+                description="One appears here once a garage bills you for completed work."
+              />
             </div>
           )}
         </CardContent>

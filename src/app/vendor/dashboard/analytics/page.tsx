@@ -16,6 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/ui/page-header";
+import { AreaChart } from "lucide-react";
 
 const chartLoading = () => <Skeleton className="h-[300px] w-full" />;
 const OverviewChart = dynamic(() => import("@/components/vendor/overview-chart").then(m => m.OverviewChart), { ssr: false, loading: chartLoading });
@@ -28,15 +30,14 @@ export default function VendorAnalyticsPage() {
     const [timeRange, setTimeRange] = useState('last_6_months');
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-            <h1 className="text-3xl font-bold font-headline">Analytics</h1>
-            <p className="text-muted-foreground">
-            Insights into your garage's performance. (Using Mock Data)
-            </p>
-        </div>
-        <Select value={timeRange} onValueChange={setTimeRange}>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+      <PageHeader
+        eyebrow="Performance"
+        icon={<AreaChart className="h-3.5 w-3.5" />}
+        title="Insights into how your garage performs."
+        description="Revenue, popular services, customer retention, and the hours your bay is busiest. (Using mock data.)"
+        action={
+          <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Select a time range" />
             </SelectTrigger>
@@ -45,10 +46,11 @@ export default function VendorAnalyticsPage() {
                 <SelectItem value="last_6_months">Last 6 Months</SelectItem>
                 <SelectItem value="last_12_months">Last 12 Months</SelectItem>
             </SelectContent>
-        </Select>
-      </header>
-      
-      <Card>
+          </Select>
+        }
+      />
+
+      <Card className="rounded-2xl border bg-card shadow-sm">
         <CardHeader>
             <CardTitle>Revenue Overview</CardTitle>
             <CardDescription>A summary of your revenue.</CardDescription>
@@ -58,8 +60,8 @@ export default function VendorAnalyticsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-8 md:grid-cols-2">
-         <Card>
+      <div className="grid gap-5 md:grid-cols-2">
+         <Card className="rounded-2xl border bg-card shadow-sm">
             <CardHeader>
                 <CardTitle>Popular Services</CardTitle>
                 <CardDescription>Breakdown of bookings by service type.</CardDescription>
@@ -68,7 +70,7 @@ export default function VendorAnalyticsPage() {
                 <BookingChart timeRange={timeRange} />
             </CardContent>
         </Card>
-         <Card>
+         <Card className="rounded-2xl border bg-card shadow-sm">
             <CardHeader>
                 <CardTitle>Customer Retention</CardTitle>
                 <CardDescription>Comparison of new vs. returning customers.</CardDescription>
@@ -79,7 +81,7 @@ export default function VendorAnalyticsPage() {
         </Card>
       </div>
 
-       <Card>
+       <Card className="rounded-2xl border bg-card shadow-sm">
             <CardHeader>
                 <CardTitle>Peak Hours</CardTitle>
                 <CardDescription>Most popular times for bookings.</CardDescription>

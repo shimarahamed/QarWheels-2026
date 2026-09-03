@@ -17,7 +17,10 @@ import {
     TableRow,
   } from "@/components/ui/table";
   import { Button } from "@/components/ui/button";
-  import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, Package, Sparkles } from "lucide-react";
+  import { Boxes, MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, Package, Sparkles, TriangleAlert } from "lucide-react";
+  import { PageHeader } from "@/components/ui/page-header";
+  import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
+  import { EmptyState } from "@/components/ui/empty-state";
   import {
     DropdownMenu,
     DropdownMenuContent,
@@ -130,6 +133,9 @@ export default function VendorInventoryPage() {
     );
     const { data: inventory, isLoading } = useCollection<WithId<InventoryItem>>(inventoryQuery);
 
+    const lowStockCount = (inventory ?? []).filter((item) => item.stock < 10).length;
+    const stockValue = (inventory ?? []).reduce((sum, item) => sum + (item.price ?? 0) * (item.stock ?? 0), 0);
+
     const handleRowClick = (item: WithId<InventoryItem>) => {
         setSelectedItem(item);
         setIsFormOpen(true);
@@ -182,24 +188,39 @@ export default function VendorInventoryPage() {
 
     return (
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
-        <header className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <Badge variant="outline" className="mb-4 h-8 gap-2 bg-primary/5 px-3 text-primary">
-                <Sparkles className="h-3.5 w-3.5" />
-                Parts intelligence
-              </Badge>
-              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Inventory that feels under control.</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-                Track stock, suppliers, SKU details, and prices with a cleaner operational view.
-              </p>
-            </div>
+        <PageHeader
+          eyebrow="Parts intelligence"
+          icon={<Sparkles className="h-3.5 w-3.5" />}
+          title="Inventory that feels under control."
+          description="Track stock, suppliers, SKU details, and prices with a cleaner operational view."
+          action={
             <Button onClick={handleAddNewClick} className="justify-start">
               <PlusCircle className="mr-2 h-4 w-4" />
               Add New Item
             </Button>
-          </div>
-        </header>
+          }
+        />
+
+        <StatCardGrid>
+          <StatCard
+            label="Stock items"
+            value={isLoading ? '—' : inventory?.length ?? 0}
+            icon={<Package className="h-4 w-4" />}
+          />
+          <StatCard
+            label="Low stock"
+            value={isLoading ? '—' : lowStockCount}
+            icon={<TriangleAlert className="h-4 w-4" />}
+            accent="bg-destructive/10 text-destructive"
+            hint="Fewer than 10 in stock"
+          />
+          <StatCard
+            label="Stock value"
+            value={isLoading ? '—' : `QAR ${stockValue.toFixed(2)}`}
+            icon={<Boxes className="h-4 w-4" />}
+            accent="bg-emerald-500/10 text-emerald-600"
+          />
+        </StatCardGrid>
         <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
             <CardHeader>
                 <CardTitle>Stock Items</CardTitle>
@@ -266,10 +287,17 @@ export default function VendorInventoryPage() {
               </TableBody>
             </Table>
             {!isLoading && (!inventory || inventory.length === 0) && (
-              <div className="text-center text-muted-foreground p-8">
-                <Package className="h-10 w-10 mx-auto mb-2 text-primary/50" />
-                <p>Your inventory is empty.</p>
-              </div>
+              <EmptyState
+                icon={<Package className="h-8 w-8" />}
+                title="Your inventory is empty"
+                description="Add the parts and supplies you keep on hand to track stock as jobs consume them."
+                action={
+                  <Button onClick={handleAddNewClick}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add New Item
+                  </Button>
+                }
+              />
             )}
           </CardContent>
         </Card>

@@ -1,6 +1,5 @@
 'use client';
 
-import type { ReactNode } from "react";
 import {
   Car as CarIcon,
   Calendar,
@@ -9,8 +8,6 @@ import {
   Gauge,
   ArrowLeft,
   History,
-  Loader2,
-  AlertTriangle,
   PlusCircle,
   ShieldCheck,
   Sparkles,
@@ -43,10 +40,10 @@ import { useFirebase, useDoc, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, doc, limit as queryLimit, query, Timestamp, where } from 'firebase/firestore';
 import type { Booking, Car, ServiceRecord, WithId } from "@/lib/types";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { Skeleton } from "@/components/ui/skeleton";
 import { AISymptomChecker } from "@/components/dashboard/ai-symptom-checker";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-
+import { EmptyState, ErrorState, LoadingPanel } from "@/components/ui/empty-state";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 function toDate(value: unknown): Date | null {
   if (!value) return null;
@@ -59,25 +56,13 @@ function toDate(value: unknown): Date | null {
   return null;
 }
 
-function VehicleMetric({ label, value, icon }: { label: string; value: string | number; icon: ReactNode }) {
-  return (
-    <div className="rounded-2xl border bg-card/90 p-4 shadow-sm">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</span>
-        <span className="rounded-xl bg-primary/10 p-2 text-primary">{icon}</span>
-      </div>
-      <p className="truncate text-2xl font-bold tracking-tight">{value}</p>
-    </div>
-  );
-}
-
 function VehicleBookingPanel({ bookings, isLoading }: { bookings?: WithId<Booking>[] | null; isLoading: boolean }) {
   const visibleBookings = [...(bookings || [])]
     .sort((a, b) => (toDate(a.bookingDate)?.getTime() || 0) - (toDate(b.bookingDate)?.getTime() || 0))
     .slice(0, 4);
 
   return (
-    <Card className="rounded-2xl shadow-sm">
+    <Card className="rounded-2xl border bg-card shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <div>
           <CardTitle>Booking Pipeline</CardTitle>
@@ -89,23 +74,18 @@ function VehicleBookingPanel({ bookings, isLoading }: { bookings?: WithId<Bookin
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-16 w-full rounded-xl" />
-            <Skeleton className="h-16 w-full rounded-xl" />
-          </div>
+          <LoadingPanel rows={2} />
         ) : visibleBookings.length === 0 ? (
-          <div className="rounded-2xl border border-dashed bg-background/60 px-6 py-10 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <CalendarClock className="h-8 w-8" />
-            </div>
-            <h3 className="text-lg font-bold">No active bookings</h3>
-            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-              Book a service to connect this vehicle with a garage.
-            </p>
-            <Button asChild className="mt-5">
-              <Link href="/dashboard/garages">Find Garages</Link>
-            </Button>
-          </div>
+          <EmptyState
+            icon={<CalendarClock className="h-8 w-8" />}
+            title="No active bookings"
+            description="Book a service to connect this vehicle with a garage."
+            action={
+              <Button asChild>
+                <Link href="/dashboard/garages">Find Garages</Link>
+              </Button>
+            }
+          />
         ) : (
           <div className="space-y-3">
             {visibleBookings.map((booking) => {
@@ -118,9 +98,7 @@ function VehicleBookingPanel({ bookings, isLoading }: { bookings?: WithId<Bookin
                       {booking.branchName} {date ? `- ${format(date, "MMM d, h:mm a")}` : ""}
                     </p>
                   </div>
-                  <Badge variant={booking.status === "Cancelled" ? "destructive" : booking.status === "Confirmed" ? "default" : "outline"}>
-                    {booking.status}
-                  </Badge>
+                  <StatusBadge status={booking.status} />
                 </div>
               );
             })}
@@ -133,19 +111,11 @@ function VehicleBookingPanel({ bookings, isLoading }: { bookings?: WithId<Bookin
 
 function ServiceHistoryList({ carId, serviceHistory, isLoading }: { carId: string, serviceHistory: WithId<ServiceRecord>[] | null, isLoading: boolean }) {
     if (isLoading) {
-        return (
-             <Card>
-                <CardHeader>
-                    <Skeleton className="h-6 w-32"/>
-                    <Skeleton className="h-4 w-48 mt-2"/>
-                </CardHeader>
-                <CardContent><div className="space-y-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div></CardContent>
-             </Card>
-        )
+        return <LoadingPanel rows={3} />;
     }
 
     return (
-        <Card className="rounded-2xl shadow-sm">
+        <Card className="rounded-2xl border bg-card shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Digital Service Passport</CardTitle>
@@ -160,11 +130,16 @@ function ServiceHistoryList({ carId, serviceHistory, isLoading }: { carId: strin
             </CardHeader>
             <CardContent>
                 {!serviceHistory || serviceHistory.length === 0 ? (
-                     <div className="text-center text-muted-foreground py-12 px-8 rounded-lg border border-dashed">
-                        <History className="mx-auto h-12 w-12 mb-4 text-primary/30" />
-                        <h3 className="font-semibold text-lg">Empty Passport</h3>
-                        <p>No records found. Start your digital history today.</p>
-                    </div>
+                    <EmptyState
+                        icon={<History className="h-8 w-8" />}
+                        title="Empty Passport"
+                        description="No records found. Start your digital history today."
+                        action={
+                            <Button asChild>
+                                <Link href={`/dashboard/my-cars/${carId}/add-record`}>Add Record</Link>
+                            </Button>
+                        }
+                    />
                 ) : (
                     <div className="overflow-x-auto">
                         <Table>
@@ -228,11 +203,22 @@ export default function CarDetailsPage() {
   const error = carError || historyError || bookingsError;
   
   if (isLoading) {
-    return <div className="flex h-64 w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+    return (
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+        <LoadingPanel rows={4} />
+      </div>
+    );
   }
 
   if (error || !car) {
-    return <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>Could not load vehicle details.</AlertDescription></Alert>;
+    return (
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+        <ErrorState
+          title="Could not load vehicle"
+          description="We couldn't fetch the details for this vehicle. It may have been removed, or this is a temporary problem."
+        />
+      </div>
+    );
   }
 
   const image = car.imageId ? PlaceHolderImages.find((img) => img.id === car.imageId) : (PlaceHolderImages.find((img) => car.make.toLowerCase().includes(img.imageHint.split(' ')[1])) || PlaceHolderImages[1]);
@@ -243,19 +229,21 @@ export default function CarDetailsPage() {
   const purchaseDate = toDate(car.purchaseDate);
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
-       <Button variant="ghost" asChild className="-ml-4">
-        <Link href="/dashboard/my-cars"><ArrowLeft className="mr-2 h-4 w-4" />Back to My Cars</Link>
-      </Button>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+      <div>
+        <Button variant="ghost" asChild className="-ml-4">
+          <Link href="/dashboard/my-cars"><ArrowLeft className="mr-2 h-4 w-4" />Back to My Cars</Link>
+        </Button>
+      </div>
 
-      <header className="overflow-hidden rounded-3xl border bg-card shadow-sm">
+      <header className="overflow-hidden rounded-2xl border bg-card shadow-sm">
         <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_380px]">
           <div className="flex flex-col justify-between gap-6 p-5 sm:p-6 lg:p-8">
             <div>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-primary">
+              <Badge variant="outline" className="mb-4 h-8 gap-2 bg-primary/5 px-3 text-primary">
                 <Sparkles className="h-3.5 w-3.5" />
                 Vehicle command center
-              </div>
+              </Badge>
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
                 {car.year} {car.make} {car.model}
               </h1>
@@ -270,10 +258,25 @@ export default function CarDetailsPage() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <VehicleMetric label="Mileage" value={`${car.currentMileage.toLocaleString()} km`} icon={<Gauge className="h-4 w-4" />} />
-              <VehicleMetric label="Records" value={(serviceHistory || []).length} icon={<History className="h-4 w-4" />} />
-              <VehicleMetric label="Spend" value={`QAR ${totalSpend.toLocaleString()}`} icon={<CircleDollarSign className="h-4 w-4" />} />
-              <VehicleMetric label="Active Jobs" value={activeBookings.length} icon={<CalendarClock className="h-4 w-4" />} />
+              <StatCard label="Mileage" value={`${car.currentMileage.toLocaleString()} km`} icon={<Gauge className="h-4 w-4" />} />
+              <StatCard
+                label="Records"
+                value={(serviceHistory || []).length}
+                icon={<History className="h-4 w-4" />}
+                accent="bg-emerald-500/10 text-emerald-600"
+              />
+              <StatCard
+                label="Spend"
+                value={`QAR ${totalSpend.toLocaleString()}`}
+                icon={<CircleDollarSign className="h-4 w-4" />}
+                accent="bg-amber-500/10 text-amber-600"
+              />
+              <StatCard
+                label="Active Jobs"
+                value={activeBookings.length}
+                icon={<CalendarClock className="h-4 w-4" />}
+                accent="bg-violet-500/10 text-violet-600"
+              />
             </div>
           </div>
 
@@ -306,7 +309,7 @@ export default function CarDetailsPage() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="space-y-6">
-          <Card className="rounded-2xl shadow-sm">
+          <Card className="rounded-2xl border bg-card shadow-sm">
             <CardHeader>
               <CardTitle>Vehicle Identity</CardTitle>
               <CardDescription>Core ownership and inspection details.</CardDescription>

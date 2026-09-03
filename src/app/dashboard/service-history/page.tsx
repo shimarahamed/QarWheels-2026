@@ -14,8 +14,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmptyState, LoadingPanel } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard } from '@/components/ui/stat-card';
 import { ServiceHistorySummary } from '@/components/dashboard/service-history-summary';
 import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -29,7 +31,6 @@ import {
   FileText,
   Gauge,
   History,
-  Loader2,
   Printer,
   PlusCircle,
   Search,
@@ -176,7 +177,7 @@ function CarServiceHistory({ car, searchTerm }: { car: WithId<Car>; searchTerm: 
   if (isLoading) {
     return (
       <AccordionContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-        <Skeleton className="h-48 w-full rounded-2xl" />
+        <LoadingPanel rows={3} />
       </AccordionContent>
     );
   }
@@ -208,21 +209,19 @@ function CarServiceHistory({ car, searchTerm }: { car: WithId<Car>; searchTerm: 
               </Button>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border bg-background/70 p-4">
-                <History className="mb-3 h-5 w-5 text-primary" />
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Records</p>
-                <p className="mt-1 text-2xl font-bold">{filteredRecords.length}</p>
-              </div>
-              <div className="rounded-xl border bg-background/70 p-4">
-                <CircleDollarSign className="mb-3 h-5 w-5 text-emerald-600" />
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Spend</p>
-                <p className="mt-1 text-2xl font-bold">QAR {totalSpent.toLocaleString()}</p>
-              </div>
-              <div className="rounded-xl border bg-background/70 p-4">
-                <Calendar className="mb-3 h-5 w-5 text-amber-600" />
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Last visit</p>
-                <p className="mt-1 text-base font-bold">{lastRecord ? format(toDate(lastRecord.serviceDate) || new Date(), 'MMM d, yyyy') : 'N/A'}</p>
-              </div>
+              <StatCard label="Records" value={filteredRecords.length} icon={<History className="h-4 w-4" />} />
+              <StatCard
+                label="Spend"
+                value={`QAR ${totalSpent.toLocaleString()}`}
+                icon={<CircleDollarSign className="h-4 w-4" />}
+                accent="bg-emerald-500/10 text-emerald-600"
+              />
+              <StatCard
+                label="Last visit"
+                value={lastRecord ? format(toDate(lastRecord.serviceDate) || new Date(), 'MMM d, yyyy') : 'N/A'}
+                icon={<Calendar className="h-4 w-4" />}
+                accent="bg-amber-500/10 text-amber-600"
+              />
             </div>
             <RecordTimeline records={filteredRecords} />
           </div>
@@ -253,14 +252,16 @@ function CarServiceHistory({ car, searchTerm }: { car: WithId<Car>; searchTerm: 
           </div>
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed bg-muted/40 px-6 py-12 text-center text-muted-foreground">
-          <History className="mx-auto mb-4 h-12 w-12 text-primary/50" />
-          <h3 className="text-lg font-semibold text-foreground">No matching records</h3>
-          <p className="mt-1 text-sm">Try a different search term or add the first service record for this vehicle.</p>
-          <Button asChild className="mt-5">
-            <Link href={`/dashboard/my-cars/${car.id}/add-record`}>Add Record</Link>
-          </Button>
-        </div>
+        <EmptyState
+          icon={<History className="h-8 w-8" />}
+          title="No matching records"
+          description="Try a different search term or add the first service record for this vehicle."
+          action={
+            <Button asChild>
+              <Link href={`/dashboard/my-cars/${car.id}/add-record`}>Add Record</Link>
+            </Button>
+          }
+        />
       )}
     </AccordionContent>
   );
@@ -286,34 +287,28 @@ export default function ServiceHistoryPage() {
 
   if (isLoadingCars) {
     return (
-      <div className="flex h-64 w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+        <LoadingPanel rows={4} />
       </div>
     );
   }
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
-      <header className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <Badge variant="outline" className="mb-4 h-8 gap-2 bg-primary/5 px-3 text-primary">
-              <Sparkles className="h-3.5 w-3.5" />
-              Digital service passport
-            </Badge>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">History built for proof, planning, and resale.</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-              Search across vehicles, inspect service timelines, summarize maintenance, and keep every important record close.
-            </p>
-          </div>
+      <PageHeader
+        eyebrow="Digital service passport"
+        icon={<Sparkles className="h-3.5 w-3.5" />}
+        title="History built for proof, planning, and resale."
+        description="Search across vehicles, inspect service timelines, summarize maintenance, and keep every important record close."
+        action={
           <Button asChild className="justify-start">
             <Link href="/dashboard/my-cars">
               Manage Vehicles
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
-        </div>
-      </header>
+        }
+      />
 
       <section className="rounded-2xl border bg-card p-3 shadow-sm sm:p-4">
         <div className="relative">
@@ -380,16 +375,16 @@ export default function ServiceHistoryPage() {
           })}
         </Accordion>
       ) : (
-        <Card>
-          <CardContent className="py-16 text-center text-muted-foreground">
-            <CarIcon className="mx-auto mb-4 h-12 w-12 text-primary/50" />
-            <h3 className="text-lg font-semibold text-foreground">No vehicles found</h3>
-            <p className="mt-1 text-sm">Add a vehicle or clear your search to see the full service passport.</p>
-            <Button asChild className="mt-5">
+        <EmptyState
+          icon={<CarIcon className="h-8 w-8" />}
+          title="No vehicles found"
+          description="Add a vehicle or clear your search to see the full service passport."
+          action={
+            <Button asChild>
               <Link href="/dashboard/my-cars/add">Add Your First Car</Link>
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       )}
     </div>
   );

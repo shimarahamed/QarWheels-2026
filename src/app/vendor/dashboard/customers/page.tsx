@@ -16,7 +16,10 @@ import {
     TableRow,
   } from "@/components/ui/table";
   import { Button } from "@/components/ui/button";
-  import { MoreHorizontal, Mail, Phone, Loader2 } from "lucide-react";
+  import { PageHeader } from "@/components/ui/page-header";
+  import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
+  import { EmptyState } from "@/components/ui/empty-state";
+  import { CalendarCheck, MoreHorizontal, Repeat, Users } from "lucide-react";
   import {
     DropdownMenu,
     DropdownMenuContent,
@@ -112,19 +115,44 @@ export default function VendorCustomersPage() {
 
     const uniqueCustomerIds = useMemo(() => [...bookingsByCustomer.keys()], [bookingsByCustomer]);
 
+    const repeatCustomers = useMemo(
+        () => [...bookingsByCustomer.values()].filter((list) => list.length > 1).length,
+        [bookingsByCustomer],
+    );
+
     const isLoading = isLoadingBookings;
 
     return (
-      <div className="space-y-8">
-        <header className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
-          <div>
-            <h1 className="text-3xl font-bold font-headline">Customer Directory</h1>
-            <p className="text-muted-foreground">
-                A list of all clients who have booked a service with you.
-            </p>
-          </div>
-        </header>
-        <Card>
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+        <PageHeader
+          eyebrow="Customer directory"
+          icon={<Users className="h-3.5 w-3.5" />}
+          title="Everyone who has booked with you."
+          description="A directory built automatically from your booking history — contact details, first visit, and repeat business at a glance."
+        />
+
+        <StatCardGrid>
+          <StatCard
+            label="Total customers"
+            value={isLoading ? '—' : uniqueCustomerIds.length}
+            icon={<Users className="h-4 w-4" />}
+          />
+          <StatCard
+            label="Total bookings"
+            value={isLoading ? '—' : bookings?.length ?? 0}
+            icon={<CalendarCheck className="h-4 w-4" />}
+            accent="bg-emerald-500/10 text-emerald-600"
+          />
+          <StatCard
+            label="Repeat customers"
+            value={isLoading ? '—' : repeatCustomers}
+            icon={<Repeat className="h-4 w-4" />}
+            accent="bg-violet-500/10 text-violet-600"
+            hint="More than one booking"
+          />
+        </StatCardGrid>
+
+        <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
             <CardHeader>
                 <CardTitle>Your Customers</CardTitle>
                 <CardDescription>This list is automatically generated from your booking history.</CardDescription>
@@ -165,9 +193,11 @@ export default function VendorCustomersPage() {
               </TableBody>
             </Table>
             {!isLoading && uniqueCustomerIds.length === 0 && (
-                <div className="text-center text-muted-foreground p-8">
-                    <p>No customer history yet. Your customers will appear here after they make their first booking.</p>
-                </div>
+                <EmptyState
+                    icon={<Users className="h-8 w-8" />}
+                    title="No customer history yet"
+                    description="Your customers will appear here after they make their first booking."
+                />
             )}
           </CardContent>
         </Card>

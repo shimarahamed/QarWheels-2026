@@ -18,7 +18,10 @@ import {
     TableRow,
   } from "@/components/ui/table";
   import { Button } from "@/components/ui/button";
-  import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, Users, Copy, Mail, Clock } from "lucide-react";
+  import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, Users, Mail, Clock, UserCheck } from "lucide-react";
+  import { PageHeader } from "@/components/ui/page-header";
+  import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
+  import { EmptyState } from "@/components/ui/empty-state";
   import {
     DropdownMenu,
     DropdownMenuContent,
@@ -235,6 +238,7 @@ export default function VendorStaffPage() {
     const { toast } = useToast();
 
     const branchOptions = branches.map((b) => ({ id: b.id, name: b.name }));
+    const activeMemberCount = (members ?? []).filter((m) => m.status === 'Active').length;
 
     const fetchStaff = useCallback(async () => {
         if (!user) return;
@@ -330,22 +334,42 @@ export default function VendorStaffPage() {
     };
 
     return (
-      <div className="space-y-8">
-        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold font-headline">Staff Management</h1>
-            <p className="text-muted-foreground">
-              Invite team members and scope them to one or more branches.
-            </p>
-          </div>
-          <Button onClick={() => setIsInviteOpen(true)} disabled={branchOptions.length === 0}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Invite Staff Member
-          </Button>
-        </header>
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+        <PageHeader
+          eyebrow="Your team"
+          icon={<Users className="h-3.5 w-3.5" />}
+          title="Invite the people who run your workshop."
+          description="Add team members, choose what they can see, and scope them to one or more branches."
+          action={
+            <Button onClick={() => setIsInviteOpen(true)} disabled={branchOptions.length === 0}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Invite Staff Member
+            </Button>
+          }
+        />
+
+        <StatCardGrid>
+          <StatCard
+            label="Team members"
+            value={isLoading ? '—' : members?.length ?? 0}
+            icon={<Users className="h-4 w-4" />}
+          />
+          <StatCard
+            label="Active"
+            value={isLoading ? '—' : activeMemberCount}
+            icon={<UserCheck className="h-4 w-4" />}
+            accent="bg-emerald-500/10 text-emerald-600"
+          />
+          <StatCard
+            label="Pending invites"
+            value={isLoading ? '—' : pendingInvites.length}
+            icon={<Clock className="h-4 w-4" />}
+            accent="bg-amber-500/10 text-amber-600"
+          />
+        </StatCardGrid>
 
         {pendingInvites.length > 0 && (
-          <Card className="border-amber-500/30 bg-amber-500/5">
+          <Card className="rounded-2xl border-amber-500/30 bg-amber-500/5 shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Clock className="h-4 w-4 text-amber-600" /> Pending invites
@@ -366,7 +390,7 @@ export default function VendorStaffPage() {
           </Card>
         )}
 
-        <Card>
+        <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
             <CardHeader>
                 <CardTitle>Your Team</CardTitle>
                 <CardDescription>Everyone with access to {business.displayName}&apos;s vendor dashboard.</CardDescription>
@@ -440,10 +464,17 @@ export default function VendorStaffPage() {
               </TableBody>
             </Table>
             {!isLoading && (!members || members.length === 0) && (
-                <div className="text-center text-muted-foreground p-8">
-                    <Users className="h-10 w-10 mx-auto mb-2 text-primary/50" />
-                    <p>No staff members have been added yet.</p>
-                </div>
+                <EmptyState
+                    icon={<Users className="h-8 w-8" />}
+                    title="No staff members yet"
+                    description="Invite your first team member and scope them to the branches they work at."
+                    action={
+                      <Button onClick={() => setIsInviteOpen(true)} disabled={branchOptions.length === 0}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Invite Staff Member
+                      </Button>
+                    }
+                />
             )}
           </CardContent>
         </Card>

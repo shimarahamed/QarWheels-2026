@@ -17,12 +17,13 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Info, Loader2 } from 'lucide-react';
+import { Camera, Info, Loader2, UserRound } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
-import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingPanel } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
 import { updatePassword } from 'firebase/auth';
 
 const profileSchema = z.object({
@@ -190,34 +191,31 @@ export default function ProfilePage() {
 
   if (isLoadingProfile) {
       return (
-        <div className="space-y-8">
-            <header>
-                <Skeleton className="h-9 w-48 mb-2" />
-                <Skeleton className="h-5 w-72" />
-            </header>
-            <div className="grid gap-8 md:grid-cols-3">
-                <div className="md:col-span-1 space-y-8">
-                    <Card><CardHeader className="items-center text-center p-6"><Skeleton className="h-24 w-24 rounded-full" /><Skeleton className="h-6 w-32 mt-4" /><Skeleton className="h-4 w-40 mt-2" /></CardHeader></Card>
-                    <Card><CardHeader><CardTitle>Change Password</CardTitle></CardHeader><CardContent><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full mt-4" /><Skeleton className="h-10 w-full mt-4" /></CardContent></Card>
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+            <LoadingPanel rows={2} />
+            <div className="grid gap-5 sm:gap-6 md:grid-cols-3">
+                <div className="space-y-5 sm:space-y-6 md:col-span-1">
+                    <LoadingPanel rows={2} />
+                    <LoadingPanel rows={3} />
                 </div>
-                <div className="md:col-span-2"><Card><CardHeader><CardTitle>Personal Information</CardTitle><CardDescription>Update your personal details here.</CardDescription></CardHeader><CardContent><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full mt-4" /><Skeleton className="h-10 w-24 mt-4" /></CardContent></Card></div>
+                <div className="md:col-span-2"><LoadingPanel rows={4} /></div>
             </div>
         </div>
       )
   }
 
   return (
-    <div className="space-y-8">
-      <header>
-        <h1 className="text-3xl font-bold font-headline">My Profile</h1>
-        <p className="text-muted-foreground">
-          Manage your account settings and preferences.
-        </p>
-      </header>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+      <PageHeader
+        eyebrow="Account"
+        icon={<UserRound className="h-3.5 w-3.5" />}
+        title="My Profile"
+        description="Manage your account settings and preferences."
+      />
 
-      <div className="grid gap-8 md:grid-cols-3">
-        <div className="md:col-span-1 space-y-8">
-            <Card>
+      <div className="grid gap-5 sm:gap-6 md:grid-cols-3">
+        <div className="md:col-span-1 space-y-5 sm:space-y-6">
+            <Card className="rounded-2xl border bg-card shadow-sm">
                 <CardHeader className="items-center text-center">
                     <div className="relative w-24 h-24">
                         <Avatar className="w-24 h-24 border-2 border-primary">
@@ -233,7 +231,7 @@ export default function ProfilePage() {
                     <CardDescription>{userEmail}</CardDescription>
                 </CardHeader>
             </Card>
-             <Card>
+             <Card className="rounded-2xl border bg-card shadow-sm">
                 <CardHeader>
                     <CardTitle>Change Password</CardTitle>
                 </CardHeader>
@@ -258,8 +256,8 @@ export default function ProfilePage() {
             </Card>
         </div>
 
-        <div className="md:col-span-2 space-y-8">
-             <Card>
+        <div className="md:col-span-2 space-y-5 sm:space-y-6">
+             <Card className="rounded-2xl border bg-card shadow-sm">
                 <CardHeader>
                     <CardTitle>Personal Information</CardTitle>
                     <CardDescription>Update your personal details here.</CardDescription>
@@ -297,7 +295,7 @@ export default function ProfilePage() {
                     </form>
                 </CardContent>
             </Card>
-            <Card>
+            <Card className="rounded-2xl border bg-card shadow-sm">
                 <CardHeader>
                     <CardTitle>Notification Settings</CardTitle>
                     <CardDescription>Manage how you receive booking, service, and offer updates.</CardDescription>

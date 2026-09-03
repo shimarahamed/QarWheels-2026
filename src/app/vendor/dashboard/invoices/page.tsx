@@ -31,7 +31,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, Loader2, PlusCircle, Receipt, Trash2 } from 'lucide-react';
+import { CheckCircle2, FileText, Loader2, PlusCircle, Receipt, Trash2 } from 'lucide-react';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard, StatCardGrid } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useToast } from '@/hooks/use-toast';
 import { useVendor } from '@/components/vendor/vendor-provider';
 import { useCollection, useFirebase, useMemoFirebase, useUser } from '@/firebase';
@@ -246,18 +249,12 @@ export default function VendorInvoicesPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
-      <header className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <Badge variant="outline" className="mb-4 h-8 gap-2 bg-primary/5 px-3 text-primary">
-              <Receipt className="h-3.5 w-3.5" />
-              Billing
-            </Badge>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Invoice the work you have completed.</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-              Turn a completed booking into an itemised invoice your customer can see in their own dashboard.
-            </p>
-          </div>
+      <PageHeader
+        eyebrow="Billing"
+        icon={<Receipt className="h-3.5 w-3.5" />}
+        title="Invoice the work you have completed."
+        description="Turn a completed booking into an itemised invoice your customer can see in their own dashboard."
+        action={
           <div className="flex flex-col items-start gap-2">
             <Button
               onClick={() => { resetForm(); setIsCreateOpen(true); }}
@@ -273,31 +270,27 @@ export default function VendorInvoicesPage() {
               </p>
             )}
           </div>
-        </div>
-      </header>
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {[
-          { label: 'Invoices issued', value: isLoading ? null : String(invoices?.length ?? 0), tone: 'text-foreground' },
-          { label: 'Total invoiced', value: isLoading ? null : formatMinorUnits(totalInvoiced), tone: 'text-foreground' },
-          { label: 'Total paid', value: isLoading ? null : formatMinorUnits(totalPaid), tone: 'text-emerald-600' },
-        ].map((metric) => (
-          <Card key={metric.label} className="rounded-2xl border bg-card shadow-sm">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-[11px] font-semibold uppercase tracking-[0.1em]">
-                {metric.label}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {metric.value === null ? (
-                <Skeleton className="h-8 w-32" />
-              ) : (
-                <p className={`text-2xl font-bold ${metric.tone}`}>{metric.value}</p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <StatCardGrid>
+        <StatCard
+          label="Invoices issued"
+          value={isLoading ? '—' : String(invoices?.length ?? 0)}
+          icon={<FileText className="h-4 w-4" />}
+        />
+        <StatCard
+          label="Total invoiced"
+          value={isLoading ? '—' : formatMinorUnits(totalInvoiced)}
+          icon={<Receipt className="h-4 w-4" />}
+        />
+        <StatCard
+          label="Total paid"
+          value={isLoading ? '—' : formatMinorUnits(totalPaid)}
+          icon={<CheckCircle2 className="h-4 w-4" />}
+          accent="bg-emerald-500/10 text-emerald-600"
+        />
+      </StatCardGrid>
 
       <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
         <CardHeader>
@@ -356,10 +349,11 @@ export default function VendorInvoicesPage() {
             </TableBody>
           </Table>
           {!isLoading && (!invoices || invoices.length === 0) && (
-            <div className="p-8 text-center text-muted-foreground">
-              <FileText className="mx-auto mb-2 h-10 w-10 text-primary/50" />
-              <p>No invoices yet. Create one from a completed booking.</p>
-            </div>
+            <EmptyState
+              icon={<FileText className="h-8 w-8" />}
+              title="No invoices yet"
+              description="Create your first invoice from a completed booking and your customer will see it in their dashboard."
+            />
           )}
         </CardContent>
       </Card>

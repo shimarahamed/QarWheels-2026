@@ -56,7 +56,8 @@ import type { Service, WithId } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from 'zod';
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 
 const serviceSchema = z.object({
@@ -183,24 +184,18 @@ export default function VendorServicesPage() {
   
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
-      <header className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <Badge variant="outline" className="mb-4 h-8 gap-2 bg-primary/5 px-3 text-primary">
-              <Sparkles className="h-3.5 w-3.5" />
-              Service catalog
-            </Badge>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Build a clear, bookable service menu.</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-              Keep pricing, duration, and descriptions polished so customers know exactly what they are booking.
-            </p>
-          </div>
+      <PageHeader
+        eyebrow="Service catalog"
+        icon={<Sparkles className="h-3.5 w-3.5" />}
+        title="Build a clear, bookable service menu."
+        description="Keep pricing, duration, and descriptions polished so customers know exactly what they are booking."
+        action={
           <Button onClick={handleAddNewClick} className="justify-start">
             <PlusCircle className="mr-2 h-4 w-4" />
             Add New Service
           </Button>
-        </div>
-      </header>
+        }
+      />
       <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
           <CardHeader>
               <CardTitle>Your Services</CardTitle>
@@ -257,10 +252,17 @@ export default function VendorServicesPage() {
             </TableBody>
           </Table>
            {!isLoading && (!services || services.length === 0) && (
-              <div className="text-center text-muted-foreground p-8">
-                <Wrench className="h-10 w-10 mx-auto mb-2 text-primary/50" />
-                <p>You haven't added any services yet.</p>
-              </div>
+              <EmptyState
+                icon={<Wrench className="h-8 w-8" />}
+                title="No services yet"
+                description="Add your first service so customers have something to book."
+                action={
+                  <Button onClick={handleAddNewClick}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add New Service
+                  </Button>
+                }
+              />
             )}
         </CardContent>
       </Card>

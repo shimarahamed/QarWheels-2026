@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Form,
   FormControl,
@@ -127,8 +128,8 @@ export function MaintenancePredictions() {
   const noCars = !isLoadingCars && (!cars || cars.length === 0);
 
   return (
-    <div className="grid md:grid-cols-2 gap-8 items-start">
-      <Card>
+    <div className="grid items-start gap-5 sm:gap-6 md:grid-cols-2">
+      <Card className="rounded-2xl border bg-card shadow-sm">
         <CardHeader>
           <CardTitle>Get Predictions</CardTitle>
           <CardDescription>
@@ -223,7 +224,7 @@ export function MaintenancePredictions() {
         </CardContent>
       </Card>
 
-      <Card className="min-h-[300px] flex items-center justify-center">
+      <Card className="flex min-h-[300px] items-center justify-center rounded-2xl border bg-card shadow-sm">
         {isLoading && (
           <div className="flex flex-col items-center gap-2 text-muted-foreground">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -232,9 +233,12 @@ export function MaintenancePredictions() {
           </div>
         )}
         {!isLoading && !prediction && (
-          <div className="text-center text-muted-foreground p-8">
-            <Sparkles className="mx-auto h-12 w-12 mb-4 opacity-20" />
-            <p>Your AI-powered predictions will appear here.</p>
+          <div className="w-full p-4">
+            <EmptyState
+              icon={<Sparkles className="h-8 w-8" />}
+              title="No predictions yet"
+              description="Your AI-powered predictions will appear here once you run a forecast."
+            />
           </div>
         )}
         {prediction && (

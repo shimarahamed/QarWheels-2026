@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useFirebase, useCollection, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 
@@ -73,10 +74,12 @@ export function CarMaintenancePredictions({ car }: { car: WithId<Car> }) {
   const componentIsLoading = isLoading || isLoadingHistory;
 
   return (
-    <Card className="min-h-[300px] flex flex-col">
+    <Card className="flex min-h-[300px] flex-col rounded-2xl border bg-card shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Sparkles className="text-primary" />
+          <span className="icon-pill h-8 w-8 bg-primary/10 text-primary">
+            <Sparkles className="h-4 w-4" />
+          </span>
           <span>AI Maintenance Forecast</span>
         </CardTitle>
         <CardDescription>
@@ -92,10 +95,12 @@ export function CarMaintenancePredictions({ car }: { car: WithId<Car> }) {
           </div>
         )}
         {!componentIsLoading && !prediction && (
-          <div className="text-center text-muted-foreground p-8">
-            <Wrench className="mx-auto h-12 w-12 mb-4 text-primary/50" />
-             <h3 className="font-semibold text-lg">Unable to Forecast</h3>
-            <p>Could not load AI-powered predictions at this time.</p>
+          <div className="w-full">
+            <EmptyState
+              icon={<Wrench className="h-8 w-8" />}
+              title="Unable to Forecast"
+              description="Could not load AI-powered predictions at this time."
+            />
           </div>
         )}
         {prediction && (

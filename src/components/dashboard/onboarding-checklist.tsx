@@ -16,10 +16,12 @@ export function OnboardingChecklist({ title, items }: { title: string; items: On
   const next = items.find((item) => !item.done) || items[0];
 
   return (
-    <Card className="overflow-hidden border bg-card shadow-sm">
+    <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <CardTitle className="flex items-center gap-2 text-base">
-          <Sparkles className="h-4 w-4 text-primary" />
+          <span className="icon-pill h-8 w-8 bg-primary/10 text-primary">
+            <Sparkles className="h-4 w-4" />
+          </span>
           {title}
         </CardTitle>
         <span className="text-sm font-semibold text-muted-foreground">{completed}/{items.length}</span>

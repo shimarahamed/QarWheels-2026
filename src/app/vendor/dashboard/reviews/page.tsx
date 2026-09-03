@@ -19,7 +19,9 @@ import {
   import { useFirebase, useCollection, useMemoFirebase, safeUpdateDoc } from "@/firebase";
   import { collection, doc, query, where } from "firebase/firestore";
   import type { Review, WithId } from "@/lib/types";
-  import { Skeleton } from "@/components/ui/skeleton";
+  import { PageHeader } from "@/components/ui/page-header";
+  import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
+  import { EmptyState, LoadingPanel } from "@/components/ui/empty-state";
   import { useToast } from "@/hooks/use-toast";
 
 
@@ -116,25 +118,45 @@ function StarRating({ rating, className }: { rating: number, className?: string 
     );
     const { data: reviews, isLoading } = useCollection<WithId<Review>>(reviewsQuery);
 
+    const reviewCount = reviews?.length ?? 0;
+    const averageRating = reviewCount
+      ? (reviews!.reduce((sum, r) => sum + r.rating, 0) / reviewCount)
+      : 0;
+    const awaitingReply = (reviews ?? []).filter((r) => !r.vendorReply).length;
+
     return (
-      <div className="space-y-8">
-        <header>
-          <h1 className="text-3xl font-bold font-headline">Reviews & Feedback</h1>
-          <p className="text-muted-foreground">
-            View and manage customer reviews.
-          </p>
-        </header>
-        
-        <div className="space-y-6">
-            {isLoading && [...Array(3)].map((_, i) => (
-                <Card key={i}>
-                    <CardHeader><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-24" /></div></div></CardHeader>
-                    <CardContent><Skeleton className="h-4 w-full" /></CardContent>
-                    <CardFooter><Skeleton className="h-8 w-32" /></CardFooter>
-                </Card>
-            ))}
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+        <PageHeader
+          eyebrow="Reputation"
+          icon={<Star className="h-3.5 w-3.5" />}
+          title="What your customers are saying."
+          description="Read every review left for this branch and reply to keep the conversation going."
+        />
+
+        <StatCardGrid>
+          <StatCard
+            label="Total reviews"
+            value={isLoading ? '—' : reviewCount}
+            icon={<MessageSquare className="h-4 w-4" />}
+          />
+          <StatCard
+            label="Average rating"
+            value={isLoading ? '—' : `${averageRating.toFixed(1)} / 5`}
+            icon={<Star className="h-4 w-4" />}
+            accent="bg-amber-500/10 text-amber-600"
+          />
+          <StatCard
+            label="Awaiting reply"
+            value={isLoading ? '—' : awaitingReply}
+            icon={<Send className="h-4 w-4" />}
+            accent="bg-violet-500/10 text-violet-600"
+          />
+        </StatCardGrid>
+
+        <div className="space-y-5">
+            {isLoading && <LoadingPanel rows={3} />}
             {!isLoading && reviews && reviews.map((review) => (
-                <Card key={review.id}>
+                <Card key={review.id} className="rounded-2xl border bg-card shadow-sm">
                     <CardHeader>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                             <div className="flex items-center gap-3">
@@ -162,12 +184,11 @@ function StarRating({ rating, className }: { rating: number, className?: string 
                 </Card>
             ))}
              {!isLoading && (!reviews || reviews.length === 0) && (
-                <Card>
-                    <CardContent className="p-8 text-center text-muted-foreground">
-                        <Star className="h-10 w-10 mx-auto mb-2 text-primary/50" />
-                        <p>No reviews have been submitted yet.</p>
-                    </CardContent>
-                </Card>
+                <EmptyState
+                    icon={<Star className="h-8 w-8" />}
+                    title="No reviews yet"
+                    description="Once customers complete a booking they can leave a review, and it will show up here."
+                />
             )}
         </div>
       </div>

@@ -10,10 +10,11 @@ import { useVendor } from "@/components/vendor/vendor-provider";
 import { useFirebase, safeUpdateDoc } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Settings } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingPanel } from "@/components/ui/empty-state";
 
 
 const settingsSchema = z.object({
@@ -84,12 +85,17 @@ export default function VendorSettingsPage() {
 
   if (!activeBranch) {
     return (
-        <div className="space-y-8">
-            <header><Skeleton className="h-9 w-64" /><Skeleton className="h-5 w-80 mt-2" /></header>
-            <div className="grid gap-8 md:grid-cols-3">
-                <div className="md:col-span-2 space-y-8">
-                    <Card><CardHeader><Skeleton className="h-6 w-32" /><Skeleton className="h-4 w-full mt-2" /></CardHeader><CardContent className="space-y-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-20 w-full" /><Skeleton className="h-10 w-24" /></CardContent></Card>
-                    <Card><CardHeader><Skeleton className="h-6 w-32" /><Skeleton className="h-4 w-full mt-2" /></CardHeader><CardContent className="space-y-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-24" /></CardContent></Card>
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+            <PageHeader
+              eyebrow="Workshop settings"
+              icon={<Settings className="h-3.5 w-3.5" />}
+              title="Manage your garage profile."
+              description="Update the details customers see, and how they can reach you."
+            />
+            <div className="grid gap-5 md:grid-cols-3">
+                <div className="md:col-span-2 space-y-5">
+                    <LoadingPanel rows={4} />
+                    <LoadingPanel rows={2} />
                 </div>
             </div>
         </div>
@@ -97,17 +103,17 @@ export default function VendorSettingsPage() {
   }
 
   return (
-    <div className="space-y-8">
-        <header>
-            <h1 className="text-3xl font-bold font-headline">Garage Settings</h1>
-            <p className="text-muted-foreground">
-            Manage your garage's public profile and operational settings.
-            </p>
-        </header>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+        <PageHeader
+          eyebrow="Workshop settings"
+          icon={<Settings className="h-3.5 w-3.5" />}
+          title="Manage your garage profile."
+          description="Update the details customers see on your public page, and how they can reach you."
+        />
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-8 md:grid-cols-3 items-start">
-            <div className="md:col-span-2 space-y-8">
-                <Card>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-5 md:grid-cols-3 items-start">
+            <div className="md:col-span-2 space-y-5">
+                <Card className="rounded-2xl border bg-card shadow-sm">
                     <CardHeader>
                         <CardTitle>Business Profile</CardTitle>
                         <CardDescription>This information will be displayed publicly on your garage's page.</CardDescription>
@@ -136,7 +142,7 @@ export default function VendorSettingsPage() {
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="rounded-2xl border bg-card shadow-sm">
                     <CardHeader>
                         <CardTitle>Contact Information</CardTitle>
                         <CardDescription>How customers can reach you.</CardDescription>
@@ -163,7 +169,7 @@ export default function VendorSettingsPage() {
             </div>
            
             <div className="md:col-span-1">
-                 <Card>
+                 <Card className="rounded-2xl border bg-card shadow-sm">
                     <CardHeader>
                         <CardTitle>Opening Hours</CardTitle>
                         <CardDescription>(UI Only - Not functional)</CardDescription>
