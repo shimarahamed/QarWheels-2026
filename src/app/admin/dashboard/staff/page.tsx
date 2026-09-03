@@ -3,12 +3,15 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { collection, query } from 'firebase/firestore';
-import { ArrowRight, Search, Users } from 'lucide-react';
+import { ArrowRight, Building2, CheckCircle2, Search, ShieldCheck, Users } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard, StatCardGrid } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -79,31 +82,33 @@ export default function AdminStaffPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Staff</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {isLoading ? 'Loading…' : `${counts.all} memberships across ${counts.businesses} businesses`}
-          </p>
-        </div>
-        <span className="icon-pill h-10 w-10 bg-violet-500/10 text-violet-600">
-          <Users className="h-5 w-5" />
-        </span>
-      </header>
+      <PageHeader
+        eyebrow="Directory"
+        icon={<Users className="h-3.5 w-3.5" />}
+        title="Staff"
+        description={
+          isLoading
+            ? 'Loading memberships…'
+            : `${counts.all} memberships across ${counts.businesses} businesses.`
+        }
+      />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <StatCardGrid>
         {[
-          { label: 'Total', value: counts.all, color: 'text-primary' },
-          { label: 'Active', value: counts.active, color: 'text-emerald-600' },
-          { label: 'Owners', value: counts.owners, color: 'text-violet-600' },
-          { label: 'Businesses', value: counts.businesses, color: 'text-sky-600' },
-        ].map((k) => (
-          <div key={k.label} className="bento-card p-4">
-            <p className="section-label">{k.label}</p>
-            <p className={`metric-number mt-2 ${k.color}`}>{isLoading ? '—' : k.value}</p>
-          </div>
+          { label: 'Total', value: counts.all, icon: Users, accent: 'bg-primary/10 text-primary' },
+          { label: 'Active', value: counts.active, icon: CheckCircle2, accent: 'bg-emerald-500/10 text-emerald-600' },
+          { label: 'Owners', value: counts.owners, icon: ShieldCheck, accent: 'bg-violet-500/10 text-violet-600' },
+          { label: 'Businesses', value: counts.businesses, icon: Building2, accent: 'bg-sky-500/10 text-sky-600' },
+        ].map(({ label, value, icon: Icon, accent }) => (
+          <StatCard
+            key={label}
+            label={label}
+            value={isLoading ? '—' : value}
+            icon={<Icon className="h-4 w-4" />}
+            accent={accent}
+          />
         ))}
-      </div>
+      </StatCardGrid>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative max-w-xs flex-1">
@@ -133,9 +138,12 @@ export default function AdminStaffPage() {
             {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 rounded-xl" />)}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 p-12 text-center">
-            <Users className="h-10 w-10 text-muted-foreground/30" />
-            <p className="text-sm text-muted-foreground">No staff match your filters</p>
+          <div className="p-4">
+            <EmptyState
+              icon={<Users className="h-8 w-8" />}
+              title="No staff found"
+              description="No memberships match your current search and role filter."
+            />
           </div>
         ) : (
           <div className="overflow-x-auto">

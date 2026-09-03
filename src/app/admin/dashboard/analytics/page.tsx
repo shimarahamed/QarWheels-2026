@@ -8,6 +8,9 @@ import { BarChart3, Building2, CalendarCheck, CircleDollarSign, Users } from "lu
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import type { Booking, UserProfile, Branch, WithId } from "@/lib/types";
 
@@ -93,38 +96,35 @@ export default function AdminAnalyticsPage() {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
 
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Analytics</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Platform-wide performance metrics</p>
-      </header>
+      <PageHeader
+        eyebrow="Insights"
+        icon={<BarChart3 className="h-3.5 w-3.5" />}
+        title="Analytics"
+        description="Platform-wide performance metrics across users, vendors, bookings and revenue."
+      />
 
       {/* KPI row */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <StatCardGrid>
         {[
-          { label: "Total Users", value: users?.length ?? 0, icon: Users, iconBg: "bg-violet-500/10", iconColor: "text-violet-600", accent: "from-violet-500 via-indigo-400 to-transparent" },
-          { label: "Total Vendors", value: vendors?.length ?? 0, icon: Building2, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-600", accent: "from-emerald-500 via-teal-400 to-transparent" },
-          { label: "Total Bookings", value: bookings?.length ?? 0, icon: CalendarCheck, iconBg: "bg-amber-500/10", iconColor: "text-amber-600", accent: "from-amber-500 via-orange-400 to-transparent" },
+          { label: "Total Users", value: users?.length ?? 0, icon: Users, accent: "bg-violet-500/10 text-violet-600" },
+          { label: "Total Vendors", value: vendors?.length ?? 0, icon: Building2, accent: "bg-emerald-500/10 text-emerald-600" },
+          { label: "Total Bookings", value: bookings?.length ?? 0, icon: CalendarCheck, accent: "bg-amber-500/10 text-amber-600" },
           {
             label: "Total Revenue",
             value: `QAR ${((bookings || []).filter((b) => b.status === "Completed").reduce((s, b) => s + (b.cost || 0), 0)).toLocaleString()}`,
             icon: CircleDollarSign,
-            iconBg: "bg-primary/10",
-            iconColor: "text-primary",
-            accent: "from-primary via-sky-400 to-transparent",
+            accent: "bg-primary/10 text-primary",
           },
-        ].map((k) => (
-          <div key={k.label} className="bento-card p-5">
-            <div className={`card-accent-top bg-gradient-to-r ${k.accent}`} />
-            <div className="flex items-start justify-between gap-3">
-              <p className="section-label">{k.label}</p>
-              <div className={`icon-pill h-9 w-9 ${k.iconBg}`}>
-                <k.icon className={`h-4 w-4 ${k.iconColor}`} />
-              </div>
-            </div>
-            <p className="metric-number mt-3">{isLoading ? "—" : k.value}</p>
-          </div>
+        ].map(({ label, value, icon: Icon, accent }) => (
+          <StatCard
+            key={label}
+            label={label}
+            value={isLoading ? "—" : value}
+            icon={<Icon className="h-4 w-4" />}
+            accent={accent}
+          />
         ))}
-      </div>
+      </StatCardGrid>
 
       {/* Charts row */}
       <div className="grid gap-5 xl:grid-cols-2">
@@ -174,7 +174,11 @@ export default function AdminAnalyticsPage() {
             {isLoading ? (
               <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 rounded-xl" />)}</div>
             ) : topVendors.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No data yet.</p>
+              <EmptyState
+                icon={<Building2 className="h-8 w-8" />}
+                title="No vendor revenue yet"
+                description="Once bookings are completed, the top-earning branches will be ranked here."
+              />
             ) : (
               <div className="space-y-3">
                 {topVendors.map((v, i) => {
@@ -182,14 +186,18 @@ export default function AdminAnalyticsPage() {
                   const pct = Math.round((v.revenue / max) * 100);
                   return (
                     <div key={v.id} className="space-y-1.5">
-                      <div className="flex justify-between text-xs">
-                        <span className="font-semibold flex items-center gap-1.5">
-                          <span className="text-muted-foreground">#{i + 1}</span> {v.name}
+                      <div className="flex justify-between gap-3 text-xs">
+                        <span className="flex min-w-0 items-center gap-1.5 font-semibold">
+                          <span className="text-muted-foreground">#{i + 1}</span>
+                          <span className="truncate">{v.name}</span>
                         </span>
-                        <span className="text-muted-foreground">QAR {v.revenue.toLocaleString()}</span>
+                        <span className="shrink-0 tabular-nums text-muted-foreground">QAR {v.revenue.toLocaleString()}</span>
                       </div>
-                      <div className="progress-bar">
-                        <div className="progress-fill bg-gradient-to-r from-primary to-sky-400" style={{ width: `${pct}%` }} />
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-primary to-primary/50 transition-[width] duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
                     </div>
                   );
@@ -207,7 +215,11 @@ export default function AdminAnalyticsPage() {
             {isLoading ? (
               <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 rounded-xl" />)}</div>
             ) : topServices.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No data yet.</p>
+              <EmptyState
+                icon={<CalendarCheck className="h-8 w-8" />}
+                title="No services booked yet"
+                description="The most frequently booked services will be ranked here."
+              />
             ) : (
               <div className="space-y-3">
                 {topServices.map((s, i) => {
@@ -215,14 +227,18 @@ export default function AdminAnalyticsPage() {
                   const pct = Math.round((s.count / max) * 100);
                   return (
                     <div key={s.name} className="space-y-1.5">
-                      <div className="flex justify-between text-xs">
-                        <span className="font-semibold flex items-center gap-1.5">
-                          <span className="text-muted-foreground">#{i + 1}</span> {s.name}
+                      <div className="flex justify-between gap-3 text-xs">
+                        <span className="flex min-w-0 items-center gap-1.5 font-semibold">
+                          <span className="text-muted-foreground">#{i + 1}</span>
+                          <span className="truncate">{s.name}</span>
                         </span>
-                        <span className="text-muted-foreground">{s.count} bookings</span>
+                        <span className="shrink-0 tabular-nums text-muted-foreground">{s.count} bookings</span>
                       </div>
-                      <div className="progress-bar">
-                        <div className="progress-fill bg-gradient-to-r from-emerald-500 to-teal-400" style={{ width: `${pct}%` }} />
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-[width] duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
                     </div>
                   );

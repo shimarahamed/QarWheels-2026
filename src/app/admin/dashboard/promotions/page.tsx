@@ -17,6 +17,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -221,34 +224,35 @@ export default function AdminPromotionsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Promotions</h1>
-          <p className="mt-1 text-sm text-muted-foreground">All vendor promotion campaigns — real-time Firestore sync</p>
-        </div>
-        <Button onClick={openCreate} className="rounded-2xl shadow-md">
-          <PlusCircle className="mr-2 h-4 w-4" />New Campaign
-        </Button>
-      </header>
+      <PageHeader
+        eyebrow="Growth"
+        icon={<Percent className="h-3.5 w-3.5" />}
+        title="Promotions"
+        description="All vendor promotion campaigns across the platform, synced in real time."
+        action={
+          <Button onClick={openCreate} className="motion-press rounded-2xl shadow-md">
+            <PlusCircle className="mr-2 h-4 w-4" />New Campaign
+          </Button>
+        }
+      />
 
       {/* KPI row */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <StatCardGrid>
         {[
-          { label: "Total Campaigns", value: counts.all, icon: Percent, iconBg: "bg-rose-500/10", iconColor: "text-rose-600", accent: "from-rose-500 via-pink-400 to-transparent" },
-          { label: "Active Now", value: counts.active, icon: TrendingUp, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-600", accent: "from-emerald-500 via-teal-400 to-transparent" },
-          { label: "Scheduled", value: counts.scheduled, icon: CalendarRange, iconBg: "bg-primary/10", iconColor: "text-primary", accent: "from-primary via-sky-400 to-transparent" },
-          { label: "Vendors with Promos", value: [...new Set(promos.map(p => p.vendorId))].length, icon: Building2, iconBg: "bg-violet-500/10", iconColor: "text-violet-600", accent: "from-violet-500 via-indigo-400 to-transparent" },
-        ].map(k => (
-          <div key={k.label} className="bento-card p-5">
-            <div className={`card-accent-top bg-gradient-to-r ${k.accent}`} />
-            <div className="flex items-start justify-between gap-3">
-              <p className="section-label">{k.label}</p>
-              <div className={`icon-pill h-9 w-9 ${k.iconBg}`}><k.icon className={`h-4 w-4 ${k.iconColor}`} /></div>
-            </div>
-            <p className="metric-number mt-3">{loading ? "—" : k.value}</p>
-          </div>
+          { label: "Total Campaigns", value: counts.all, icon: Percent, accent: "bg-rose-500/10 text-rose-600" },
+          { label: "Active Now", value: counts.active, icon: TrendingUp, accent: "bg-emerald-500/10 text-emerald-600" },
+          { label: "Scheduled", value: counts.scheduled, icon: CalendarRange, accent: "bg-primary/10 text-primary" },
+          { label: "Vendors with Promos", value: [...new Set(promos.map(p => p.vendorId))].length, icon: Building2, accent: "bg-violet-500/10 text-violet-600" },
+        ].map(({ label, value, icon: Icon, accent }) => (
+          <StatCard
+            key={label}
+            label={label}
+            value={loading ? "—" : value}
+            icon={<Icon className="h-4 w-4" />}
+            accent={accent}
+          />
         ))}
-      </div>
+      </StatCardGrid>
 
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -274,15 +278,24 @@ export default function AdminPromotionsPage() {
           {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-56 rounded-2xl" />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border/60 p-12 text-center">
-          <Percent className="h-10 w-10 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">No promotions found</p>
-          <Button variant="outline" className="rounded-xl mt-2" onClick={openCreate}><PlusCircle className="mr-2 h-4 w-4" />Create first campaign</Button>
-        </div>
+        <EmptyState
+          icon={<Percent className="h-8 w-8" />}
+          title="No promotions found"
+          description={
+            search || tab !== "All"
+              ? "No campaigns match your current search and filters."
+              : "Create a campaign to offer discounts across your vendor network."
+          }
+          action={
+            <Button variant="outline" className="rounded-xl" onClick={openCreate}>
+              <PlusCircle className="mr-2 h-4 w-4" />Create first campaign
+            </Button>
+          }
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map(p => (
-            <div key={`${p.vendorId}-${p.id}`} className="group rounded-2xl border border-border/60 bg-card p-5 shadow-sm transition-all hover:shadow-md">
+            <div key={`${p.vendorId}-${p.id}`} className="group bento-card p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0">
                   <span className="icon-pill h-10 w-10 shrink-0 bg-rose-500/10 text-rose-600"><Percent className="h-5 w-5" /></span>

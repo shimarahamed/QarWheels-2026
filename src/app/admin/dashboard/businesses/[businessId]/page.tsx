@@ -11,6 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState, LoadingPanel } from '@/components/ui/empty-state';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -156,22 +157,27 @@ export default function AdminBusinessDetailPage() {
 
   if (loadingBusiness) {
     return (
-      <div className="mx-auto w-full max-w-7xl space-y-5">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
         <Skeleton className="h-10 w-48 rounded-xl" />
         <Skeleton className="h-32 rounded-2xl" />
-        <Skeleton className="h-64 rounded-2xl" />
+        <LoadingPanel rows={4} />
       </div>
     );
   }
 
   if (!business) {
     return (
-      <div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-4 rounded-2xl border border-dashed p-12 text-center">
-        <Building2 className="h-10 w-10 text-muted-foreground/30" />
-        <p className="text-sm text-muted-foreground">This business no longer exists.</p>
-        <Button asChild variant="outline" className="rounded-xl">
-          <Link href="/admin/dashboard/businesses"><ArrowLeft className="mr-2 h-4 w-4" />Back to Businesses</Link>
-        </Button>
+      <div className="mx-auto w-full max-w-7xl">
+        <EmptyState
+          icon={<Building2 className="h-8 w-8" />}
+          title="Business not found"
+          description="This business no longer exists, or it may have been removed."
+          action={
+            <Button asChild variant="outline" className="rounded-xl">
+              <Link href="/admin/dashboard/businesses"><ArrowLeft className="mr-2 h-4 w-4" />Back to Businesses</Link>
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -305,9 +311,12 @@ export default function AdminBusinessDetailPage() {
                   {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 rounded-xl" />)}
                 </div>
               ) : !branches || branches.length === 0 ? (
-                <div className="flex flex-col items-center gap-3 p-12 text-center">
-                  <MapPin className="h-10 w-10 text-muted-foreground/30" />
-                  <p className="text-sm text-muted-foreground">This business has no branches yet.</p>
+                <div className="p-4">
+                  <EmptyState
+                    icon={<MapPin className="h-8 w-8" />}
+                    title="No branches yet"
+                    description="This business has not registered any branches."
+                  />
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -411,9 +420,12 @@ export default function AdminBusinessDetailPage() {
                     {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 rounded-xl" />)}
                   </div>
                 ) : members.length === 0 ? (
-                  <div className="flex flex-col items-center gap-3 p-12 text-center">
-                    <Users className="h-10 w-10 text-muted-foreground/30" />
-                    <p className="text-sm text-muted-foreground">No staff members on this business yet.</p>
+                  <div className="p-4">
+                    <EmptyState
+                      icon={<Users className="h-8 w-8" />}
+                      title="No staff members yet"
+                      description="The business owner can invite staff from their vendor dashboard."
+                    />
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -466,9 +478,10 @@ export default function AdminBusinessDetailPage() {
               {loadingAudit ? (
                 [...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
               ) : !auditEntries || auditEntries.length === 0 ? (
-                <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed p-12 text-center">
-                  <p className="text-sm text-muted-foreground">No audit entries for this business.</p>
-                </div>
+                <EmptyState
+                  title="No audit entries"
+                  description="Actions taken against this business will be recorded here."
+                />
               ) : (
                 auditEntries.map((entry) => (
                   <div key={entry.id} className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">

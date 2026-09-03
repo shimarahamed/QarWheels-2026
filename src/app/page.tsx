@@ -115,7 +115,7 @@ function GarageListCard({ garage }: { garage: typeof garages[0] }) {
   return (
     <Link
       href="/dashboard/garages"
-      className="group flex items-start gap-3 rounded-2xl border border-border bg-card p-3 transition-colors hover:border-primary/30 hover:bg-primary/5"
+      className="group mkt-card motion-surface flex items-start gap-3 p-3 hover:bg-primary/5"
     >
       <div className="relative h-[68px] w-[68px] shrink-0 overflow-hidden rounded-xl bg-muted">
         {image && (
@@ -298,7 +298,7 @@ export default function LandingPage() {
             </Link>
 
             {/* Hero banner card */}
-            <div className="relative mt-4 overflow-hidden rounded-3xl bg-zinc-900 dark:bg-zinc-950">
+            <div className="relative mt-4 overflow-hidden rounded-3xl bg-[var(--qw-dark)]">
               {/* Car image */}
               {heroImg && (
                 <div className="absolute inset-0">
@@ -312,11 +312,19 @@ export default function LandingPage() {
                   />
                 </div>
               )}
-              {/* Gradient overlay */}
+              {/* Gradient overlay — scarlet wash grounds the identity in both themes */}
               <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-transparent" />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  background:
+                    'radial-gradient(ellipse 55% 85% at 0% 100%, var(--qw-primary-mid), transparent 62%)',
+                }}
+              />
 
               <div className="relative px-5 py-6 sm:py-8 max-w-[58%] sm:max-w-xs">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--qw-gold)]">
                   Book with confidence
                 </p>
                 <h2 className="mt-2 text-2xl font-black leading-tight text-white sm:text-3xl">
@@ -328,14 +336,14 @@ export default function LandingPage() {
 
                 <div className="mt-5 flex gap-2">
                   <Button
-                    className="h-9 rounded-xl bg-primary px-5 text-xs font-bold text-white hover:bg-primary/90"
+                    className="motion-press h-9 rounded-xl px-5 text-xs font-bold shadow-lg shadow-primary/30"
                     asChild
                   >
                     <Link href="/dashboard/garages">Explore Now</Link>
                   </Button>
                   <Button
                     variant="outline"
-                    className="h-9 rounded-xl border-white/20 bg-white/10 px-4 text-xs font-semibold text-white backdrop-blur hover:bg-white/20"
+                    className="motion-press h-9 rounded-xl border-white/20 bg-white/10 px-4 text-xs font-semibold text-white backdrop-blur hover:bg-white/20 hover:text-white"
                     asChild
                   >
                     <Link href="/signup">Join Free</Link>
@@ -349,9 +357,7 @@ export default function LandingPage() {
               02. SEARCH SUGGESTIONS (Search bar context strip)
           ══════════════════════════════════════════════════ */}
           <section className="px-4 py-3">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              Trending Services
-            </p>
+            <p className="section-label mb-2">Trending Services</p>
             <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
               {trendingServices.map((s) => (
                 <Link
@@ -371,9 +377,9 @@ export default function LandingPage() {
           <section className="px-4 py-3">
             <div className="grid grid-cols-4 gap-3">
               {quickActions.map(({ icon: Icon, label, href }) => (
-                <Link key={label} href={href} className="flex flex-col items-center gap-2">
-                  <div className="flex h-[56px] w-[56px] items-center justify-center rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-primary/40 hover:bg-primary/5">
-                    <Icon className="h-6 w-6 text-foreground" />
+                <Link key={label} href={href} className="group flex flex-col items-center gap-2">
+                  <div className="motion-surface flex h-[56px] w-[56px] items-center justify-center rounded-2xl border border-border bg-card shadow-sm hover:border-primary/40 hover:bg-primary/5">
+                    <Icon className="h-6 w-6 text-foreground transition-colors group-hover:text-primary" />
                   </div>
                   <span className="text-center text-[11px] font-medium leading-tight text-muted-foreground">
                     {label}
@@ -467,7 +473,7 @@ export default function LandingPage() {
                       className={cn(
                         'flex-shrink-0 rounded-xl px-4 py-1.5 text-xs font-semibold transition-colors',
                         i === 0
-                          ? 'bg-primary text-white'
+                          ? 'bg-primary text-primary-foreground'
                           : 'border border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary',
                       )}
                     >
@@ -482,7 +488,7 @@ export default function LandingPage() {
                       <Link
                         key={g.name}
                         href="/dashboard/garages"
-                        className="group flex items-center gap-3 rounded-2xl border border-border bg-card p-3 transition-colors hover:border-primary/30"
+                        className="group mkt-card motion-surface flex items-center gap-3 p-3"
                       >
                         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted">
                           {image && (
@@ -524,7 +530,7 @@ export default function LandingPage() {
             <aside className="hidden space-y-4 pt-3 lg:block">
 
               {/* Featured services */}
-              <div className="rounded-2xl border border-border bg-card p-4">
+              <div className="bento-card p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-bold">Featured Services</h3>
                   <Link href="/dashboard/garages" className="text-xs font-semibold text-primary hover:underline">
@@ -557,20 +563,28 @@ export default function LandingPage() {
               </div>
 
               {/* Promo banner */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-950 via-red-900 to-rose-800 p-5">
-                <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
+              <div className="relative overflow-hidden rounded-2xl bg-[var(--qw-dark)] p-5">
+                <div
+                  aria-hidden
+                  className="absolute inset-0"
+                  style={{
+                    background:
+                      'linear-gradient(135deg, var(--qw-primary-dark), transparent 65%), radial-gradient(ellipse 70% 90% at 100% 0%, var(--qw-primary-mid), transparent 60%)',
+                  }}
+                />
                 {heroImg && (
                   <div className="absolute right-0 top-0 h-full w-1/2 opacity-25">
                     <Image src={heroImg.imageUrl} alt="Promo" fill className="object-cover" sizes="150px" />
                   </div>
                 )}
+                <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
                 <div className="relative">
-                  <p className="text-[10px] font-bold text-red-300">Summer AC Special</p>
-                  <p className="text-[9px] text-red-200/60">On All AC Services</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--qw-gold)]">Summer AC Special</p>
+                  <p className="text-[9px] text-white/60">On All AC Services</p>
                   <p className="mt-2 text-4xl font-black leading-none text-white">20%</p>
                   <p className="text-base font-black text-white/90">OFF</p>
                   <Button
-                    className="mt-4 h-8 rounded-xl bg-white px-5 text-xs font-bold text-primary hover:bg-white/90"
+                    className="motion-press mt-4 h-8 rounded-xl bg-white px-5 text-xs font-bold text-[var(--qw-primary)] hover:bg-white/90"
                     asChild
                   >
                     <Link href="/dashboard/garages">Book Now</Link>
@@ -579,7 +593,7 @@ export default function LandingPage() {
               </div>
 
               {/* Trust & Safety */}
-              <div className="rounded-2xl border border-border bg-card p-4">
+              <div className="bento-card p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-bold">Trust & Safety</h3>
                   <p className="text-[10px] text-muted-foreground">الأمان والثقة</p>
@@ -600,7 +614,7 @@ export default function LandingPage() {
               </div>
 
               {/* Key features */}
-              <div className="rounded-2xl border border-border bg-card p-4">
+              <div className="bento-card p-4">
                 <h3 className="mb-3 text-sm font-bold">Key Features</h3>
                 <div className="space-y-2">
                   {keyFeatures.map((f) => (
@@ -668,10 +682,10 @@ export default function LandingPage() {
               <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent" />
               <div className="relative max-w-[60%]">
                 <p className="text-sm font-bold text-white">Book Any Service</p>
-                <p className="text-[11px] text-red-100">Fast. Trusted. Affordable.</p>
-                <p className="text-[10px] text-red-200/60">سريع. موثوق. بأسعار مناسبة.</p>
+                <p className="text-[11px] text-white/85">Fast. Trusted. Affordable.</p>
+                <p className="text-[10px] text-white/60">سريع. موثوق. بأسعار مناسبة.</p>
                 <Button
-                  className="mt-4 h-9 rounded-xl bg-white px-5 text-xs font-bold text-primary hover:bg-white/90"
+                  className="motion-press mt-4 h-9 rounded-xl bg-white px-5 text-xs font-bold text-[var(--qw-primary)] hover:bg-white/90"
                   asChild
                 >
                   <Link href="/dashboard/garages">Book Now</Link>
@@ -685,20 +699,28 @@ export default function LandingPage() {
           ══════════════════════════════════════════════════ */}
           <section className="px-4 py-3 lg:hidden">
             {/* Summer AC promo — main banner */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-red-950 via-red-900 to-rose-800">
-              <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
+            <div className="relative overflow-hidden rounded-3xl bg-[var(--qw-dark)]">
+              <div
+                aria-hidden
+                className="absolute inset-0"
+                style={{
+                  background:
+                    'linear-gradient(115deg, var(--qw-primary-dark), transparent 62%), radial-gradient(ellipse 60% 90% at 100% 0%, var(--qw-primary-mid), transparent 58%)',
+                }}
+              />
               {heroImg && (
                 <div className="absolute right-0 top-0 h-full w-2/5 opacity-35">
                   <Image src={heroImg.imageUrl} alt="Promo" fill className="object-cover" sizes="200px" />
                 </div>
               )}
+              <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
               <div className="relative p-5 max-w-[60%]">
-                <p className="text-xs font-bold text-red-300">Summer AC Special</p>
-                <p className="text-[10px] text-red-200/60">On All AC Services</p>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--qw-gold)]">Summer AC Special</p>
+                <p className="text-[10px] text-white/60">On All AC Services</p>
                 <p className="mt-2 text-5xl font-black leading-none text-white">20%</p>
                 <p className="text-xl font-black text-white/90">OFF</p>
                 <Button
-                  className="mt-4 h-9 rounded-xl bg-white px-5 text-xs font-bold text-primary hover:bg-white/90"
+                  className="motion-press mt-4 h-9 rounded-xl bg-white px-5 text-xs font-bold text-[var(--qw-primary)] hover:bg-white/90"
                   asChild
                 >
                   <Link href="/dashboard/garages">Book Now</Link>
@@ -783,7 +805,7 @@ export default function LandingPage() {
               KEY FEATURES (mobile strip)
           ══════════════════════════════════════════════════ */}
           <section className="px-4 py-3 lg:hidden">
-            <div className="rounded-2xl border border-border bg-card p-4">
+            <div className="bento-card p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-sm font-bold">Key Features</h3>
                 <p className="text-[10px] text-muted-foreground">المميزات الرئيسية</p>
@@ -803,10 +825,10 @@ export default function LandingPage() {
               VENDOR CTA
           ══════════════════════════════════════════════════ */}
           <section className="px-4 py-3">
-            <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-5">
-              <div className="ambient-blob -right-10 -top-10 h-40 w-40 bg-primary/5 animate-glow-breathe" />
+            <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-5 shadow-sm">
+              <div className="ambient-blob -right-10 -top-10 h-40 w-40 bg-primary/10 animate-glow-breathe" />
               <div className="relative">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">For Vendors</p>
+                <p className="section-label text-primary">For Vendors</p>
                 <h2 className="mt-1.5 text-base font-bold leading-snug">
                   Turn your garage into a bookable mobile storefront.
                 </h2>
@@ -814,10 +836,10 @@ export default function LandingPage() {
                   حوّل كراجك إلى واجهة متجر قابلة للحجز.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Button className="h-9 rounded-xl px-5 text-xs font-bold" asChild>
+                  <Button className="motion-press h-9 rounded-xl px-5 text-xs font-bold" asChild>
                     <Link href="/vendor/signup">List your garage</Link>
                   </Button>
-                  <Button variant="outline" className="h-9 rounded-xl px-4 text-xs" asChild>
+                  <Button variant="outline" className="motion-press h-9 rounded-xl px-4 text-xs hover:border-primary/40 hover:bg-primary/5" asChild>
                     <Link href="/vendor/login">Vendor login</Link>
                   </Button>
                 </div>
@@ -873,7 +895,7 @@ export default function LandingPage() {
               aria-label="Book a service"
               className="flex h-14 w-14 -translate-y-4 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/40 ring-4 ring-background transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/25"
             >
-              <Plus className="h-6 w-6 text-white" />
+              <Plus className="h-6 w-6 text-primary-foreground" />
             </Link>
             <span className="-mt-3 text-[10px] font-semibold text-primary">Book</span>
           </div>

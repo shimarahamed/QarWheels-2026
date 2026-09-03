@@ -18,8 +18,8 @@ const fontHeadline = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: 'QarWheel - Intelligent Car Management',
-  description: 'Predictive maintenance, digital service records, and trusted garages—all redesigned for Qatar.',
+  title: 'QarWheel — Your Car. Our Care.',
+  description: "Qatar's car service marketplace — discover, compare, and book trusted garages.",
 };
 
 export const viewport: Viewport = {

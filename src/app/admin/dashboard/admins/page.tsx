@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -170,28 +172,32 @@ export default function AdminAdminsPage() {
   return (
     <TooltipProvider>
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
-        <header className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Admins</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {isLoading ? 'Loading…' : `${admins?.length ?? 0} platform administrator${admins?.length === 1 ? '' : 's'}`}
-            </p>
-          </div>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="inline-flex">
-                <Button
-                  className="rounded-2xl shadow-md"
-                  disabled={!isSuperAdmin}
-                  onClick={() => setIsInviteOpen(true)}
-                >
-                  <PlusCircle className="mr-2 h-4 w-4" />Add Admin
-                </Button>
-              </span>
-            </TooltipTrigger>
-            {!isSuperAdmin && <TooltipContent>{gateHint}</TooltipContent>}
-          </Tooltip>
-        </header>
+        <PageHeader
+          eyebrow="Access control"
+          icon={<Shield className="h-3.5 w-3.5" />}
+          title="Admins"
+          description={
+            isLoading
+              ? 'Loading administrators…'
+              : `${admins?.length ?? 0} platform administrator${admins?.length === 1 ? '' : 's'} with access to this panel.`
+          }
+          action={
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Button
+                    className="motion-press rounded-2xl shadow-md"
+                    disabled={!isSuperAdmin}
+                    onClick={() => setIsInviteOpen(true)}
+                  >
+                    <PlusCircle className="mr-2 h-4 w-4" />Add Admin
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {!isSuperAdmin && <TooltipContent>{gateHint}</TooltipContent>}
+            </Tooltip>
+          }
+        />
 
         {!isSuperAdmin && (
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-700">
@@ -205,9 +211,12 @@ export default function AdminAdminsPage() {
               {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 rounded-xl" />)}
             </div>
           ) : !admins || admins.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 p-12 text-center">
-              <Shield className="h-10 w-10 text-muted-foreground/30" />
-              <p className="text-sm text-muted-foreground">No admin records found.</p>
+            <div className="p-4">
+              <EmptyState
+                icon={<Shield className="h-8 w-8" />}
+                title="No admin records found"
+                description="Platform administrators will be listed here once they are granted access."
+              />
             </div>
           ) : (
             <div className="overflow-x-auto">

@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -200,17 +202,16 @@ export default function AdminKycPage() {
   return (
     <TooltipProvider>
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
-        <header className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">KYC Review</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {isLoading ? 'Loading…' : `${queue?.length ?? 0} submission${queue?.length === 1 ? '' : 's'} awaiting review`}
-            </p>
-          </div>
-          <span className="icon-pill h-10 w-10 bg-amber-500/10 text-amber-600">
-            <ShieldCheck className="h-5 w-5" />
-          </span>
-        </header>
+        <PageHeader
+          eyebrow="Compliance"
+          icon={<ShieldCheck className="h-3.5 w-3.5" />}
+          title="KYC Review"
+          description={
+            isLoading
+              ? 'Loading the review queue…'
+              : `${queue?.length ?? 0} submission${queue?.length === 1 ? '' : 's'} awaiting review.`
+          }
+        />
 
         {!canMutate && (
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-700">
@@ -224,9 +225,12 @@ export default function AdminKycPage() {
               {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 rounded-xl" />)}
             </div>
           ) : !queue || queue.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 p-12 text-center">
-              <CheckCircle2 className="h-10 w-10 text-emerald-500/40" />
-              <p className="text-sm text-muted-foreground">No pending KYC submissions — the queue is clear.</p>
+            <div className="p-4">
+              <EmptyState
+                icon={<CheckCircle2 className="h-8 w-8" />}
+                title="The queue is clear"
+                description="No businesses are currently awaiting KYC review."
+              />
             </div>
           ) : (
             <div className="overflow-x-auto">

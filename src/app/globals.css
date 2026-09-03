@@ -235,6 +235,17 @@
     @apply scale-110;
   }
 
+  /* Five call sites used these before they existed anywhere, so the bars
+     rendered as zero-height empty divs. The fill carries its own colour
+     from the call site (a gradient or a --qw-status-* value). */
+  .progress-bar {
+    @apply h-2 w-full overflow-hidden rounded-full bg-muted;
+  }
+  .progress-fill {
+    @apply h-full rounded-full transition-[width] duration-500;
+    transition-timing-function: var(--ease-smooth);
+  }
+
   .status-dot {
     @apply h-2 w-2 rounded-full;
     animation: status-pulse 2.5s ease-in-out infinite;

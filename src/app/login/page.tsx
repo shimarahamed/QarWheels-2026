@@ -30,10 +30,10 @@ function LoginContent() {
   }
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-muted/40 p-4">
-      {/* Ambient background blobs */}
-      <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-primary/8 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 -right-20 h-72 w-72 rounded-full bg-violet-500/6 blur-3xl" />
+    <div className="page-motion relative flex min-h-screen items-center justify-center bg-background p-4">
+      {/* Ambient background — scarlet/gold, reads in both themes */}
+      <div aria-hidden className="ambient-blob -left-32 -top-32 h-96 w-96 bg-primary/10" />
+      <div aria-hidden className="ambient-blob -bottom-20 -right-20 h-72 w-72 bg-[var(--qw-gold)]/10" />
 
       {/* Theme toggle top-right */}
       <div className="absolute right-4 top-4 z-10">
@@ -48,13 +48,14 @@ function LoginContent() {
         ← QarWheel
       </Link>
 
-      <Card className="relative w-full max-w-sm shadow-lg">
-        <CardHeader className="text-center pb-4">
-          <div className="flex justify-center mb-4">
+      <Card className="relative w-full max-w-sm rounded-2xl border bg-card shadow-lg">
+        <CardHeader className="pb-4 text-center">
+          <div className="mb-4 flex justify-center">
             <Logo hideText />
           </div>
-          <CardTitle className="text-2xl">Welcome back</CardTitle>
-          <CardDescription>Sign in to access your dashboard.</CardDescription>
+          <p className="section-label mb-2">Welcome back</p>
+          <CardTitle className="text-2xl">Sign in</CardTitle>
+          <CardDescription>Access your QarWheel dashboard.</CardDescription>
         </CardHeader>
         <CardContent>
           <AuthForm type="login" userType="customer" onResult={() => router.replace(redirectTo)} />

@@ -19,6 +19,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useCollection, useFirebase, useMemoFirebase, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import type { Booking, UserProfile, WithId } from "@/lib/types";
@@ -36,13 +40,6 @@ const userEditSchema = z.object({
   phoneNumber: z.string().optional(),
 });
 type UserEditForm = z.infer<typeof userEditSchema>;
-
-function statusColor(status: string) {
-  if (status === "Completed") return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
-  if (status === "Confirmed") return "bg-primary/10 text-primary border-primary/20";
-  if (status === "Cancelled") return "bg-destructive/10 text-destructive border-destructive/20";
-  return "bg-amber-500/10 text-amber-600 border-amber-500/20";
-}
 
 export default function AdminUsersPage() {
   const { firestore } = useFirebase();
@@ -118,30 +115,33 @@ export default function AdminUsersPage() {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
       {/* Header */}
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Users</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{isLoading ? "Loading…" : `${users?.length ?? 0} registered customers`}</p>
-        </div>
-      </header>
+      <PageHeader
+        eyebrow="Directory"
+        icon={<Users className="h-3.5 w-3.5" />}
+        title="Users"
+        description={
+          isLoading
+            ? "Loading customers…"
+            : `${users?.length ?? 0} registered customers on the QarWheel platform.`
+        }
+      />
 
       {/* KPI row */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-3">
         {[
-          { label: "Total Users", value: users?.length ?? 0, icon: Users, iconBg: "bg-violet-500/10", iconColor: "text-violet-600", accent: "from-violet-500 via-indigo-400 to-transparent" },
-          { label: "Total Bookings", value: bookings?.length ?? 0, icon: CalendarCheck, iconBg: "bg-amber-500/10", iconColor: "text-amber-600", accent: "from-amber-500 via-orange-400 to-transparent" },
-          { label: "Completed Jobs", value: (bookings || []).filter(b => b.status === "Completed").length, icon: Car, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-600", accent: "from-emerald-500 via-teal-400 to-transparent" },
-        ].map((k) => (
-          <div key={k.label} className="bento-card p-5">
-            <div className={`card-accent-top bg-gradient-to-r ${k.accent}`} />
-            <div className="flex items-start justify-between gap-3">
-              <p className="section-label">{k.label}</p>
-              <div className={`icon-pill h-9 w-9 ${k.iconBg}`}><k.icon className={`h-4 w-4 ${k.iconColor}`} /></div>
-            </div>
-            <p className="metric-number mt-3">{isLoading ? "—" : k.value}</p>
-          </div>
+          { label: "Total Users", value: users?.length ?? 0, icon: Users, accent: "bg-violet-500/10 text-violet-600" },
+          { label: "Total Bookings", value: bookings?.length ?? 0, icon: CalendarCheck, accent: "bg-amber-500/10 text-amber-600" },
+          { label: "Completed Jobs", value: (bookings || []).filter(b => b.status === "Completed").length, icon: Car, accent: "bg-emerald-500/10 text-emerald-600" },
+        ].map(({ label, value, icon: Icon, accent }) => (
+          <StatCard
+            key={label}
+            label={label}
+            value={isLoading ? "—" : value}
+            icon={<Icon className="h-4 w-4" />}
+            accent={accent}
+          />
         ))}
-      </div>
+      </section>
 
       {/* Table */}
       <Card className="border border-border/60 bg-card shadow-sm">
@@ -158,7 +158,13 @@ export default function AdminUsersPage() {
           {isLoading ? (
             <div className="space-y-2 p-4">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-14 rounded-2xl" />)}</div>
           ) : filtered.length === 0 ? (
-            <div className="p-10 text-center"><Users className="mx-auto h-10 w-10 text-muted-foreground/30" /><p className="mt-3 text-sm text-muted-foreground">No users found</p></div>
+            <div className="p-4">
+              <EmptyState
+                icon={<Users className="h-8 w-8" />}
+                title="No users found"
+                description={search ? "No customers match your search." : "Registered customers will appear here."}
+              />
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -291,7 +297,11 @@ export default function AdminUsersPage() {
               <div>
                 <p className="section-label mb-3">Booking history ({viewUserBookings.length})</p>
                 {viewUserBookings.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No bookings yet.</p>
+                  <EmptyState
+                    icon={<CalendarCheck className="h-8 w-8" />}
+                    title="No bookings yet"
+                    description="This customer has not booked a service."
+                  />
                 ) : (
                   <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                     {[...viewUserBookings]
@@ -304,7 +314,7 @@ export default function AdminUsersPage() {
                             <p className="text-xs text-muted-foreground">{format(toDate(b.bookingDate), "MMM d, yyyy")}</p>
                           </div>
                           <div className="flex flex-col items-end gap-1 shrink-0">
-                            <Badge variant="outline" className={`text-[10px] ${statusColor(b.status)}`}>{b.status}</Badge>
+                            <StatusBadge status={b.status} />
                             {b.cost && <span className="text-xs font-bold text-emerald-600">QAR {b.cost}</span>}
                           </div>
                         </div>

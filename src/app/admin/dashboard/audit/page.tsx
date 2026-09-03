@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
 import { AuditDiff } from '@/components/admin/audit-diff';
@@ -83,19 +85,16 @@ export default function AdminAuditPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Audit Log</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {isLoading
-              ? 'Loading…'
-              : `Showing ${filtered.length} of the ${entries?.length ?? 0} most recent entries (capped at ${ENTRY_LIMIT})`}
-          </p>
-        </div>
-        <span className="icon-pill h-10 w-10 bg-slate-500/10 text-slate-600">
-          <ScrollText className="h-5 w-5" />
-        </span>
-      </header>
+      <PageHeader
+        eyebrow="Compliance"
+        icon={<ScrollText className="h-3.5 w-3.5" />}
+        title="Audit Log"
+        description={
+          isLoading
+            ? 'Loading audit entries…'
+            : `Showing ${filtered.length} of the ${entries?.length ?? 0} most recent entries (capped at ${ENTRY_LIMIT}).`
+        }
+      />
 
       <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -161,10 +160,18 @@ export default function AdminAuditPage() {
         {isLoading ? (
           [...Array(5)].map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed p-12 text-center">
-            <ScrollText className="h-10 w-10 text-muted-foreground/30" />
-            <p className="text-sm text-muted-foreground">No audit entries match your filters</p>
-          </div>
+          <EmptyState
+            icon={<ScrollText className="h-8 w-8" />}
+            title="No audit entries found"
+            description="No entries match your current action, resource, actor and date filters."
+            action={
+              hasFilters ? (
+                <Button variant="outline" className="rounded-xl" onClick={clearFilters}>
+                  <X className="mr-1.5 h-3.5 w-3.5" />Clear filters
+                </Button>
+              ) : undefined
+            }
+          />
         ) : (
           filtered.map((entry) => {
             const hasDiff = !!(entry.before || entry.after);

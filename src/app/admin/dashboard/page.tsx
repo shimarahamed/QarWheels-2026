@@ -13,71 +13,32 @@ import {
   Clock,
   Percent,
   Shield,
-  TrendingUp,
   Users,
-  XCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
-import type { Booking, UserProfile, Branch, Promotion, WithId } from "@/lib/types";
+import type { Booking, UserProfile, Branch, WithId } from "@/lib/types";
 
 function toDate(value: Booking["bookingDate"]) {
   return value instanceof Timestamp ? value.toDate() : new Date(value);
 }
 
-interface KpiCardProps {
+type KpiSpec = {
   label: string;
   value: string | number;
-  sub?: string;
+  hint?: string;
   icon: React.ElementType;
-  iconBg: string;
-  iconColor: string;
-  accentLine: string;
+  accent: string;
   href: string;
-}
-
-function KpiCard({ label, value, sub, icon: Icon, iconBg, iconColor, accentLine, href }: KpiCardProps) {
-  return (
-    <Link href={href} className={`group bento-card p-5 hover:bg-primary/[0.01]`}>
-      <div className={`card-accent-top bg-gradient-to-r ${accentLine}`} />
-      <div aria-hidden className={`ambient-blob -right-4 -top-4 h-16 w-16 opacity-0 transition-opacity duration-500 group-hover:opacity-100 ${iconBg}`} />
-
-      <div className="relative flex items-start justify-between gap-3">
-        <p className="section-label">{label}</p>
-        <div className={`icon-pill h-10 w-10 ${iconBg}`}>
-          <Icon className={`h-5 w-5 ${iconColor}`} />
-        </div>
-      </div>
-
-      <p className="relative metric-number mt-4">{value}</p>
-
-      <div className="relative mt-3 flex items-center justify-between gap-1.5">
-        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
-          <TrendingUp className={`h-3.5 w-3.5 ${iconColor}`} />
-          <span>{sub || "Live data"}</span>
-        </div>
-        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/40 transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
-      </div>
-    </Link>
-  );
-}
-
-function statusColor(status: string) {
-  if (status === "Completed") return "bg-emerald-500/8 text-emerald-600 border-emerald-500/20";
-  if (status === "Confirmed") return "bg-primary/8 text-primary border-primary/20";
-  if (status === "Cancelled") return "bg-destructive/8 text-destructive border-destructive/20";
-  return "bg-amber-500/8 text-amber-600 border-amber-500/20";
-}
-
-function vendorStatusColor(status: string) {
-  if (status === "Approved") return "bg-emerald-500 hover:bg-emerald-500";
-  if (status === "Rejected") return "bg-destructive hover:bg-destructive";
-  return "bg-amber-500 hover:bg-amber-500";
-}
+};
 
 export default function AdminOverviewPage() {
   const { firestore } = useFirebase();
@@ -113,44 +74,37 @@ export default function AdminOverviewPage() {
     [vendors]
   );
 
-  const kpis: KpiCardProps[] = [
+  const kpis: KpiSpec[] = [
     {
       label: "Total Users",
       value: users?.length ?? 0,
+      hint: "Registered customers",
       icon: Users,
-      iconBg: "bg-violet-500/10",
-      iconColor: "text-violet-600",
-      accentLine: "from-violet-500 via-indigo-400 to-transparent",
+      accent: "bg-violet-500/10 text-violet-600",
       href: "/admin/dashboard/users",
     },
     {
       label: "Total Vendors",
       value: vendors?.length ?? 0,
-      sub: `${stats.pendingVendors} pending approval`,
+      hint: `${stats.pendingVendors} pending approval`,
       icon: Building2,
-      iconBg: "bg-emerald-500/10",
-      iconColor: "text-emerald-600",
-      accentLine: "from-emerald-500 via-teal-400 to-transparent",
+      accent: "bg-emerald-500/10 text-emerald-600",
       href: "/admin/dashboard/businesses",
     },
     {
       label: "Total Bookings",
       value: bookings?.length ?? 0,
-      sub: `${stats.completedBookings} completed`,
+      hint: `${stats.completedBookings} completed`,
       icon: CalendarCheck,
-      iconBg: "bg-amber-500/10",
-      iconColor: "text-amber-600",
-      accentLine: "from-amber-500 via-orange-400 to-transparent",
+      accent: "bg-amber-500/10 text-amber-600",
       href: "/admin/dashboard/bookings",
     },
     {
       label: "Platform Revenue",
       value: `QAR ${stats.totalRevenue.toLocaleString()}`,
-      sub: "From completed jobs",
+      hint: "From completed jobs",
       icon: CircleDollarSign,
-      iconBg: "bg-primary/10",
-      iconColor: "text-primary",
-      accentLine: "from-primary via-sky-400 to-transparent",
+      accent: "bg-primary/10 text-primary",
       href: "/admin/dashboard/bookings",
     },
   ];
@@ -159,52 +113,57 @@ export default function AdminOverviewPage() {
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
 
       {/* ── Hero ──────────────────────────────────────────────── */}
-      <header className="relative overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
-        <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-rose-500/6 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-16 left-1/4 h-48 w-48 rounded-full bg-primary/5 blur-3xl" />
-
-        <div className="relative p-5 sm:p-7">
-          <Badge
-            variant="outline"
-            className="mb-5 h-8 gap-2 border-rose-500/20 bg-gradient-to-r from-rose-500/10 to-primary/8 px-3"
-          >
-            <Shield className="h-3.5 w-3.5 text-rose-600 animate-glow-breathe" />
-            <span className="text-xs font-semibold text-rose-600">QarWheel Super Admin</span>
-          </Badge>
-
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Platform <span className="text-gradient-blue">command center.</span>
-          </h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
-            Real-time visibility across all users, vendors, bookings, and promotion campaigns on the QarWheel platform.
-          </p>
-
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild size="lg" className="shadow-md shadow-primary/20">
+      <PageHeader
+        eyebrow="QarWheel Super Admin"
+        icon={<Shield className="h-3.5 w-3.5" />}
+        title="Platform command center"
+        description="Real-time visibility across all users, vendors, bookings, and promotion campaigns on the QarWheel platform."
+        action={
+          <div className="flex flex-wrap gap-3">
+            <Button asChild size="lg" className="motion-press shadow-md shadow-primary/20">
               <Link href="/admin/dashboard/branches">
                 <Building2 className="mr-2 h-4 w-4" />
                 Review Branches
                 {stats.pendingVendors > 0 && (
-                  <Badge className="ml-2 bg-amber-500 text-[10px]">{stats.pendingVendors}</Badge>
+                  <Badge className="ml-2 bg-amber-500 text-[10px] hover:bg-amber-500">{stats.pendingVendors}</Badge>
                 )}
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="hover:border-primary/40 hover:bg-primary/5">
+            <Button asChild size="lg" variant="outline" className="motion-press hover:border-primary/40 hover:bg-primary/5">
               <Link href="/admin/dashboard/bookings">
                 <CalendarCheck className="mr-2 h-4 w-4" />
                 View Bookings
               </Link>
             </Button>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* ── KPI Cards ─────────────────────────────────────────── */}
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {isLoading
-          ? [...Array(4)].map((_, i) => <Skeleton key={i} className="h-32 rounded-2xl" />)
-          : kpis.map((card) => <KpiCard key={card.label} {...card} />)}
-      </section>
+      {isLoading ? (
+        <StatCardGrid>
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-32 rounded-2xl" />)}
+        </StatCardGrid>
+      ) : (
+        <StatCardGrid>
+          {kpis.map(({ label, value, hint, icon: Icon, accent, href }) => (
+            <Link key={label} href={href} className="group motion-surface rounded-2xl">
+              <StatCard
+                label={label}
+                value={value}
+                icon={<Icon className="h-4 w-4" />}
+                accent={accent}
+                hint={
+                  <span className="flex items-center justify-between gap-1.5">
+                    {hint}
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                  </span>
+                }
+              />
+            </Link>
+          ))}
+        </StatCardGrid>
+      )}
 
       {/* ── Two column ────────────────────────────────────────── */}
       <section className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
@@ -225,15 +184,17 @@ export default function AdminOverviewPage() {
                 {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-14 rounded-2xl" />)}
               </div>
             ) : recentBookings.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-                No bookings yet.
-              </p>
+              <EmptyState
+                icon={<CalendarCheck className="h-8 w-8" />}
+                title="No bookings yet"
+                description="Bookings placed by customers across every vendor will appear here."
+              />
             ) : (
               <div className="space-y-2">
                 {recentBookings.map((b) => (
                   <div
                     key={b.id}
-                    className="flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-background/70 p-3.5"
+                    className="motion-surface flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-background/70 p-3.5"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold">{b.serviceName}</p>
@@ -243,9 +204,7 @@ export default function AdminOverviewPage() {
                       <span className="hidden text-xs text-muted-foreground sm:block">
                         {format(toDate(b.bookingDate), "MMM d")}
                       </span>
-                      <Badge variant="outline" className={`text-[11px] ${statusColor(b.status)}`}>
-                        {b.status}
-                      </Badge>
+                      <StatusBadge status={b.status} />
                     </div>
                   </div>
                 ))}
@@ -310,23 +269,25 @@ export default function AdminOverviewPage() {
                   {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-8 rounded-xl" />)}
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {(["Completed", "Confirmed", "Pending", "Cancelled"] as const).map((status) => {
                     const count = (bookings || []).filter((b) => b.status === status).length;
                     const total = bookings?.length || 1;
                     const pct = Math.round((count / total) * 100);
-                    const barColor =
-                      status === "Completed" ? "bg-emerald-500" :
-                      status === "Confirmed" ? "bg-primary" :
-                      status === "Pending" ? "bg-amber-500" : "bg-destructive";
                     return (
-                      <div key={status} className="space-y-1">
-                        <div className="flex justify-between text-xs">
-                          <span className="font-semibold">{status}</span>
-                          <span className="text-muted-foreground">{count} ({pct}%)</span>
+                      <div key={status} className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2 text-xs">
+                          <StatusBadge status={status} />
+                          <span className="tabular-nums text-muted-foreground">{count} ({pct}%)</span>
                         </div>
-                        <div className="progress-bar">
-                          <div className={`progress-fill ${barColor}`} style={{ width: `${pct}%` }} />
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full transition-[width] duration-500"
+                            style={{
+                              width: `${pct}%`,
+                              backgroundColor: `var(--qw-status-${status.toLowerCase()}-dot)`,
+                            }}
+                          />
                         </div>
                       </div>
                     );

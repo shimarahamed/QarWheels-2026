@@ -2,6 +2,7 @@
 
 import { Shield, Info } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { useFirebase } from "@/firebase";
 
 export default function AdminSettingsPage() {
@@ -9,10 +10,12 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 sm:gap-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Admin Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Your admin account details</p>
-      </header>
+      <PageHeader
+        eyebrow="Account"
+        icon={<Shield className="h-3.5 w-3.5" />}
+        title="Admin Settings"
+        description="Your admin account details and how platform admin access is granted."
+      />
 
       <Card className="border border-border/60 bg-card shadow-sm">
         <CardHeader>

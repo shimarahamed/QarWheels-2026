@@ -3,12 +3,15 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { collection, doc, query, serverTimestamp } from 'firebase/firestore';
-import { CheckCircle2, Loader2, MapPin, Search, XCircle } from 'lucide-react';
+import { CheckCircle2, Clock, Loader2, MapPin, Search, XCircle } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard, StatCardGrid } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -102,31 +105,33 @@ export default function AdminBranchesPage() {
   return (
     <TooltipProvider>
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
-        <header className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Branches</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {isLoading ? 'Loading…' : `${counts.all} across all businesses`}
-            </p>
-          </div>
-          <span className="icon-pill h-10 w-10 bg-sky-500/10 text-sky-600">
-            <MapPin className="h-5 w-5" />
-          </span>
-        </header>
+        <PageHeader
+          eyebrow="Marketplace"
+          icon={<MapPin className="h-3.5 w-3.5" />}
+          title="Branches"
+          description={
+            isLoading
+              ? 'Loading branches…'
+              : `${counts.all} branches across all businesses.`
+          }
+        />
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCardGrid>
           {[
-            { label: 'Total', value: counts.all, color: 'text-primary' },
-            { label: 'Pending', value: counts.pending, color: 'text-amber-600' },
-            { label: 'Approved', value: counts.approved, color: 'text-emerald-600' },
-            { label: 'Rejected', value: counts.rejected, color: 'text-destructive' },
-          ].map((k) => (
-            <div key={k.label} className="bento-card p-4">
-              <p className="section-label">{k.label}</p>
-              <p className={`metric-number mt-2 ${k.color}`}>{isLoading ? '—' : k.value}</p>
-            </div>
+            { label: 'Total', value: counts.all, icon: MapPin, accent: 'bg-primary/10 text-primary' },
+            { label: 'Pending', value: counts.pending, icon: Clock, accent: 'bg-amber-500/10 text-amber-600' },
+            { label: 'Approved', value: counts.approved, icon: CheckCircle2, accent: 'bg-emerald-500/10 text-emerald-600' },
+            { label: 'Rejected', value: counts.rejected, icon: XCircle, accent: 'bg-destructive/10 text-destructive' },
+          ].map(({ label, value, icon: Icon, accent }) => (
+            <StatCard
+              key={label}
+              label={label}
+              value={isLoading ? '—' : value}
+              icon={<Icon className="h-4 w-4" />}
+              accent={accent}
+            />
           ))}
-        </div>
+        </StatCardGrid>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative max-w-xs flex-1">
@@ -162,9 +167,12 @@ export default function AdminBranchesPage() {
               {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 rounded-xl" />)}
             </div>
           ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 p-12 text-center">
-              <MapPin className="h-10 w-10 text-muted-foreground/30" />
-              <p className="text-sm text-muted-foreground">No branches match your filters</p>
+            <div className="p-4">
+              <EmptyState
+                icon={<MapPin className="h-8 w-8" />}
+                title="No branches found"
+                description="No branches match your current search, status and city filters."
+              />
             </div>
           ) : (
             <div className="overflow-x-auto">

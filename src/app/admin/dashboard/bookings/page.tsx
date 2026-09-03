@@ -11,12 +11,15 @@ import {
   Edit, Loader2, Search, Trash2, Eye, Package,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -33,17 +36,6 @@ function toDate(v: Booking["bookingDate"]) {
   if (v instanceof Timestamp) return v.toDate();
   if (v instanceof Date) return v;
   return new Date(v as string);
-}
-
-function statusBadgeClass(status: BookingStatus) {
-  if (status === "Completed") return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
-  if (status === "Confirmed" || status === "VehicleReceived" || status === "InProgress" || status === "ReadyForPickup") {
-    return "bg-primary/10 text-primary border-primary/20";
-  }
-  if (status === "Cancelled" || status === "Declined" || status === "NoShow") {
-    return "bg-destructive/10 text-destructive border-destructive/20";
-  }
-  return "bg-amber-500/10 text-amber-600 border-amber-500/20";
 }
 
 const BOOKING_STATUSES = [
@@ -116,10 +108,9 @@ export default function AdminBookingsPage() {
       .sort((a, b) => toDate(b.bookingDate).getTime() - toDate(a.bookingDate).getTime());
   }, [bookings, tab, search, usersMap]);
 
-  const { register, handleSubmit, control, reset, watch, formState: { errors } } = useForm<BookingEditForm>({
+  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<BookingEditForm>({
     resolver: zodResolver(bookingEditSchema),
   });
-  const currentStatus = watch("status");
 
   function openEdit(b: WithId<Booking>) {
     setEditBooking(b);
@@ -167,31 +158,34 @@ export default function AdminBookingsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Bookings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {loadingBookings ? "Loading…" : `${stats.total} total bookings across all vendors`}
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Operations"
+        icon={<CalendarCheck className="h-3.5 w-3.5" />}
+        title="Bookings"
+        description={
+          loadingBookings
+            ? "Loading bookings…"
+            : `${stats.total} total bookings across all vendors on the platform.`
+        }
+      />
 
       {/* KPI row */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <StatCardGrid>
         {[
-          { label: "Total", value: stats.total, icon: CalendarCheck, iconBg: "bg-primary/10", iconColor: "text-primary", accent: "from-primary via-sky-400 to-transparent" },
-          { label: "Completed", value: stats.completed, icon: CheckCircle2, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-600", accent: "from-emerald-500 via-teal-400 to-transparent" },
-          { label: "Pending", value: stats.pending, icon: Clock, iconBg: "bg-amber-500/10", iconColor: "text-amber-600", accent: "from-amber-500 via-orange-400 to-transparent" },
-          { label: "Revenue", value: `QAR ${stats.revenue.toLocaleString()}`, icon: CircleDollarSign, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-600", accent: "from-emerald-500 via-teal-400 to-transparent" },
-        ].map((k) => (
-          <div key={k.label} className="bento-card p-5">
-            <div className={`card-accent-top bg-gradient-to-r ${k.accent}`} />
-            <div className="flex items-start justify-between gap-3">
-              <p className="section-label">{k.label}</p>
-              <div className={`icon-pill h-9 w-9 ${k.iconBg}`}><k.icon className={`h-4 w-4 ${k.iconColor}`} /></div>
-            </div>
-            <p className="metric-number mt-3">{loadingBookings ? "—" : k.value}</p>
-          </div>
+          { label: "Total", value: stats.total, icon: CalendarCheck, accent: "bg-primary/10 text-primary" },
+          { label: "Completed", value: stats.completed, icon: CheckCircle2, accent: "bg-emerald-500/10 text-emerald-600" },
+          { label: "Pending", value: stats.pending, icon: Clock, accent: "bg-amber-500/10 text-amber-600" },
+          { label: "Revenue", value: `QAR ${stats.revenue.toLocaleString()}`, icon: CircleDollarSign, accent: "bg-emerald-500/10 text-emerald-600" },
+        ].map(({ label, value, icon: Icon, accent }) => (
+          <StatCard
+            key={label}
+            label={label}
+            value={loadingBookings ? "—" : value}
+            icon={<Icon className="h-4 w-4" />}
+            accent={accent}
+          />
         ))}
-      </div>
+      </StatCardGrid>
 
       {/* Table card */}
       <Card className="border border-border/60 bg-card shadow-sm">
@@ -218,9 +212,16 @@ export default function AdminBookingsPage() {
           {loadingBookings ? (
             <div className="space-y-2 p-4">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-14 rounded-2xl" />)}</div>
           ) : filtered.length === 0 ? (
-            <div className="p-10 text-center">
-              <CalendarCheck className="mx-auto h-10 w-10 text-muted-foreground/30" />
-              <p className="mt-3 text-sm text-muted-foreground">No bookings found</p>
+            <div className="p-4">
+              <EmptyState
+                icon={<CalendarCheck className="h-8 w-8" />}
+                title="No bookings found"
+                description={
+                  search || tab !== "All"
+                    ? "No bookings match your current search and filters."
+                    : "Bookings placed by customers will appear here."
+                }
+              />
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -228,10 +229,10 @@ export default function AdminBookingsPage() {
                 <TableHeader>
                   <TableRow className="border-border/60 hover:bg-transparent">
                     <TableHead className="pl-6 font-semibold">Service</TableHead>
-                    <TableHead className="font-semibold">Customer</TableHead>
-                    <TableHead className="font-semibold">Vendor</TableHead>
-                    <TableHead className="font-semibold">Date</TableHead>
-                    <TableHead className="font-semibold">Cost</TableHead>
+                    <TableHead className="font-semibold hidden md:table-cell">Customer</TableHead>
+                    <TableHead className="font-semibold hidden lg:table-cell">Vendor</TableHead>
+                    <TableHead className="font-semibold hidden sm:table-cell">Date</TableHead>
+                    <TableHead className="font-semibold hidden sm:table-cell">Cost</TableHead>
                     <TableHead className="font-semibold">Status</TableHead>
                     <TableHead className="font-semibold text-right pr-6">Actions</TableHead>
                   </TableRow>
@@ -245,18 +246,18 @@ export default function AdminBookingsPage() {
                           <p className="font-bold text-sm">{b.serviceName}</p>
                           {b.assignedStaffName && <p className="text-xs text-muted-foreground">Staff: {b.assignedStaffName}</p>}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden md:table-cell">
                           <p className="text-sm font-semibold">{customer ? `${customer.firstName} ${customer.lastName}` : "—"}</p>
                           <p className="text-xs text-muted-foreground">{b.userId.slice(0, 8)}…</p>
                         </TableCell>
-                        <TableCell className="text-sm">{b.branchName}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
+                        <TableCell className="hidden lg:table-cell text-sm">{b.branchName}</TableCell>
+                        <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
                           {format(toDate(b.bookingDate), "MMM d, yyyy")}
                           <span className="block text-[11px]">{format(toDate(b.bookingDate), "h:mm a")}</span>
                         </TableCell>
-                        <TableCell className="font-bold text-sm text-emerald-600">{b.cost ? `QAR ${b.cost.toLocaleString()}` : "—"}</TableCell>
+                        <TableCell className="hidden sm:table-cell font-bold text-sm text-emerald-600">{b.cost ? `QAR ${b.cost.toLocaleString()}` : "—"}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={`text-[11px] ${statusBadgeClass(b.status)}`}>{b.status}</Badge>
+                          <StatusBadge status={b.status} />
                         </TableCell>
                         <TableCell className="pr-6">
                           <div className="flex items-center justify-end gap-1">
@@ -290,7 +291,7 @@ export default function AdminBookingsPage() {
                   <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                   <SelectContent className="rounded-2xl">
                     {(editBooking ? [editBooking.status, ...BOOKING_TRANSITIONS[editBooking.status]] : [...BOOKING_STATUSES]).map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                      <SelectItem key={s} value={s}><StatusBadge status={s} /></SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -345,7 +346,7 @@ export default function AdminBookingsPage() {
             <div className="space-y-5">
               <div className="rounded-2xl border bg-muted/30 p-4 space-y-3">
                 {[
-                  { label: "Status", value: <Badge variant="outline" className={`text-[11px] ${statusBadgeClass(viewBooking.status)}`}>{viewBooking.status}</Badge> },
+                  { label: "Status", value: <StatusBadge status={viewBooking.status} /> },
                   { label: "Date", value: format(toDate(viewBooking.bookingDate), "MMM d, yyyy · h:mm a") },
                   { label: "Cost", value: viewBooking.cost ? `QAR ${viewBooking.cost.toLocaleString()}` : "—" },
                   { label: "Customer UID", value: viewBooking.userId.slice(0, 16) + "…" },

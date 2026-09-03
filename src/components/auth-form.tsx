@@ -135,27 +135,27 @@ export function AuthForm({ type, userType, onResult }: AuthFormProps) {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                         <Label htmlFor="firstName">First Name</Label>
-                        <Input id="firstName" type="text" autoComplete="given-name" {...form.register('firstName')} />
-                        {'firstName' in form.formState.errors && form.formState.errors.firstName && <p className="text-sm text-destructive">{String(form.formState.errors.firstName.message)}</p>}
+                        <Input id="firstName" type="text" autoComplete="given-name" className="rounded-xl" {...form.register('firstName')} />
+                        {'firstName' in form.formState.errors && form.formState.errors.firstName && <p className="text-xs text-destructive">{String(form.formState.errors.firstName.message)}</p>}
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="lastName">Last Name</Label>
-                        <Input id="lastName" type="text" autoComplete="family-name" {...form.register('lastName')} />
-                        {'lastName' in form.formState.errors && form.formState.errors.lastName && <p className="text-sm text-destructive">{String(form.formState.errors.lastName.message)}</p>}
+                        <Input id="lastName" type="text" autoComplete="family-name" className="rounded-xl" {...form.register('lastName')} />
+                        {'lastName' in form.formState.errors && form.formState.errors.lastName && <p className="text-xs text-destructive">{String(form.formState.errors.lastName.message)}</p>}
                     </div>
                 </div>
             )}
             <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" inputMode="email" placeholder="m@example.com" autoComplete="email" {...form.register('email')} />
-                {form.formState.errors.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
+                <Input id="email" type="email" inputMode="email" placeholder="m@example.com" autoComplete="email" className="rounded-xl" {...form.register('email')} />
+                {form.formState.errors.email && <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>}
             </div>
             <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" autoComplete={type === 'login' ? 'current-password' : 'new-password'} {...form.register('password')} />
-                {form.formState.errors.password && <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>}
+                <Input id="password" type="password" autoComplete={type === 'login' ? 'current-password' : 'new-password'} className="rounded-xl" {...form.register('password')} />
+                {form.formState.errors.password && <p className="text-xs text-destructive">{form.formState.errors.password.message}</p>}
             </div>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="motion-press w-full rounded-xl" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {type === 'login' ? 'Sign In' : 'Create Account'}
             </Button>
@@ -170,7 +170,7 @@ export function AuthForm({ type, userType, onResult }: AuthFormProps) {
                         <span className="bg-card px-2 text-muted-foreground">Or continue as</span>
                     </div>
                 </div>
-                 <Button variant="outline" className="w-full" onClick={handleAnonymousSignIn} disabled={isSubmitting}>
+                 <Button variant="outline" className="motion-press w-full rounded-xl hover:border-primary/40 hover:bg-primary/5" onClick={handleAnonymousSignIn} disabled={isSubmitting}>
                     Sign in as Guest
                 </Button>
             </>

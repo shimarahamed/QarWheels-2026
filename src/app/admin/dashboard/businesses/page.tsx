@@ -3,12 +3,15 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { collection, query } from 'firebase/firestore';
-import { ArrowRight, Building2, Search } from 'lucide-react';
+import { ArrowRight, Building2, Clock, Search, ShieldCheck, XCircle } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard, StatCardGrid } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -66,31 +69,33 @@ export default function AdminBusinessesPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Businesses</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {isLoading ? 'Loading…' : `${counts.all} registered on the platform`}
-          </p>
-        </div>
-        <span className="icon-pill h-10 w-10 bg-emerald-500/10 text-emerald-600">
-          <Building2 className="h-5 w-5" />
-        </span>
-      </header>
+      <PageHeader
+        eyebrow="Marketplace"
+        icon={<Building2 className="h-3.5 w-3.5" />}
+        title="Businesses"
+        description={
+          isLoading
+            ? 'Loading businesses…'
+            : `${counts.all} businesses registered on the platform.`
+        }
+      />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <StatCardGrid>
         {[
-          { label: 'Total', value: counts.all, color: 'text-primary' },
-          { label: 'KYC Pending', value: counts.pending, color: 'text-amber-600' },
-          { label: 'Verified', value: counts.verified, color: 'text-emerald-600' },
-          { label: 'Rejected', value: counts.rejected, color: 'text-destructive' },
-        ].map((k) => (
-          <div key={k.label} className="bento-card p-4">
-            <p className="section-label">{k.label}</p>
-            <p className={`metric-number mt-2 ${k.color}`}>{isLoading ? '—' : k.value}</p>
-          </div>
+          { label: 'Total', value: counts.all, icon: Building2, accent: 'bg-primary/10 text-primary' },
+          { label: 'KYC Pending', value: counts.pending, icon: Clock, accent: 'bg-amber-500/10 text-amber-600' },
+          { label: 'Verified', value: counts.verified, icon: ShieldCheck, accent: 'bg-emerald-500/10 text-emerald-600' },
+          { label: 'Rejected', value: counts.rejected, icon: XCircle, accent: 'bg-destructive/10 text-destructive' },
+        ].map(({ label, value, icon: Icon, accent }) => (
+          <StatCard
+            key={label}
+            label={label}
+            value={isLoading ? '—' : value}
+            icon={<Icon className="h-4 w-4" />}
+            accent={accent}
+          />
         ))}
-      </div>
+      </StatCardGrid>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative max-w-xs flex-1">
@@ -126,9 +131,12 @@ export default function AdminBusinessesPage() {
             {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 rounded-xl" />)}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 p-12 text-center">
-            <Building2 className="h-10 w-10 text-muted-foreground/30" />
-            <p className="text-sm text-muted-foreground">No businesses match your filters</p>
+          <div className="p-4">
+            <EmptyState
+              icon={<Building2 className="h-8 w-8" />}
+              title="No businesses found"
+              description="No businesses match your current search and KYC filter."
+            />
           </div>
         ) : (
           <div className="overflow-x-auto">
