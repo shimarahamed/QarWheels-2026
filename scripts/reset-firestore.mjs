@@ -20,6 +20,13 @@ const PROD_PROJECT_IDS = [];
 const COLLECTIONS_TO_WIPE = [
   'businesses', 'branches', 'memberships', 'staff_invites',
   'bookings', 'branch_services', 'branch_inventory', 'branch_promotions', 'reviews',
+  // Money and chat. These MUST be wiped alongside bookings — a transaction
+  // or invoice pointing at a deleted booking, or a conversation pointing at
+  // a deleted branch, is worse than no data at all.
+  'transactions', 'payouts', 'invoices', 'businesses_private',
+  'conversations', 'messages',
+  // Audit trail of actions against records that no longer exist.
+  'audit_log',
   // Legacy, pre-Phase-1 collection — wiped too so a re-seed starts clean.
   'vendors',
 ];

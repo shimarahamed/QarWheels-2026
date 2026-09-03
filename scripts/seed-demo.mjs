@@ -308,6 +308,7 @@ async function seed() {
     { businessId: 'biz_al_mana_ford', branchId: 'brn_almana_industrial', branchName: 'Al Mana Ford — Industrial Area', carId: CAR_CAMRY, serviceName: 'Automatic Transmission Service', status: 'Cancelled', cost: 780, daysFromNow: -60 },
   ];
 
+  const completedBookings = [];
   for (const b of bookingSeeds) {
     const bookingDate = new Date(Date.now() + 86_400_000 * b.daysFromNow);
     const history = [historyEntry('Pending', customer.uid, 'customer')];
@@ -321,8 +322,60 @@ async function seed() {
       status: b.status, cost: b.cost, notes: '', statusHistory: history,
       createdAt: now, updatedAt: now,
     });
+    if (b.status === 'Completed') completedBookings.push({ id: ref.id, ...b });
     console.log(`  ✓ ${b.serviceName} @ ${b.branchName} [${b.status}] (${ref.id})`);
   }
+
+  // ── Ledger ────────────────────────────────────────────────────────────────
+  // In production these are written by the booking transition route when a
+  // booking completes. Seeded directly here so the payouts screen has a real
+  // balance on first launch rather than an empty state.
+  console.log('\n── Transactions & invoices ────────────────────');
+  const COMMISSION_BPS = 1000; // matches the businesses seeded above
+  for (const b of completedBookings) {
+    const grossMinorUnits = Math.round(b.cost * 100);
+    const commissionMinorUnits = Math.round((grossMinorUnits * COMMISSION_BPS) / 10_000);
+    await db.collection('transactions').add({
+      businessId: b.businessId, branchId: b.branchId, bookingId: b.id,
+      customerName: 'Walid Al-Mansouri', serviceName: b.serviceName,
+      grossMinorUnits, commissionMinorUnits,
+      netMinorUnits: grossMinorUnits - commissionMinorUnits,
+      currency: 'QAR', status: 'Settled', createdAt: now,
+    });
+
+    await db.collection('invoices').add({
+      businessId: b.businessId, branchId: b.branchId, bookingId: b.id,
+      invoiceNumber: `INV-${new Date().getFullYear()}-${String(completedBookings.indexOf(b) + 1).padStart(4, '0')}`,
+      userId: customer.uid, customerName: 'Walid Al-Mansouri', customerEmail: CUSTOMER_EMAIL,
+      lineItems: [{ description: b.serviceName, quantity: 1, unitPriceMinorUnits: grossMinorUnits }],
+      subtotalMinorUnits: grossMinorUnits, taxMinorUnits: 0, totalMinorUnits: grossMinorUnits,
+      currency: 'QAR', status: 'Paid', issuedAt: now, paidAt: now,
+      createdAt: now, updatedAt: now,
+    });
+    console.log(`  ✓ transaction + invoice for ${b.serviceName} (QAR ${b.cost})`);
+  }
+
+  // ── Chat ──────────────────────────────────────────────────────────────────
+  console.log('\n── Conversations ──────────────────────────────');
+  const chatBranch = aab.branches[0];
+  const conversationRef = await db.collection('conversations').add({
+    participants: [customer.uid, chatBranch.id],
+    userId: customer.uid, customerName: 'Walid Al-Mansouri',
+    businessId: aab.id, branchId: chatBranch.id, branchName: chatBranch.name,
+    lastMessage: 'Sure — we can take a look this afternoon.',
+    lastMessageAt: now, lastMessageBy: 'seed-vendor',
+    // The customer has one unread reply waiting, so the badge is visible.
+    unread: { [customer.uid]: 1 },
+    createdAt: now, updatedAt: now,
+  });
+  const seedMessages = [
+    { senderId: customer.uid, senderName: 'Walid Al-Mansouri', senderRole: 'customer', body: 'Hi — my Land Cruiser is making a noise when braking. Can you check it?' },
+    { senderId: 'seed-vendor', senderName: aab.displayName, senderRole: 'vendor', body: 'Sure — we can take a look this afternoon.' },
+  ];
+  for (const m of seedMessages) {
+    await db.collection('messages').add({ conversationId: conversationRef.id, ...m, createdAt: now });
+  }
+  console.log(`  ✓ conversation with ${chatBranch.name} (${seedMessages.length} messages)`);
 
   console.log('\nDone. All seeded accounts use password: QarWheelSeed2026!\n');
   process.exit(0);
