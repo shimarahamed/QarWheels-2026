@@ -36,7 +36,14 @@ export const VinSchema = z
 
 export const QARCurrencySchema = z.number().nonnegative('Amount must be 0 or greater');
 
-export const PhoneSchema = z.string().regex(/^\+?\d{7,15}$/, 'Invalid phone number');
+// Accepts how people actually type phone numbers — spaces, dashes,
+// parentheses (e.g. "+974 1234 5678", "(974) 1234-5678") — by stripping
+// those separators before validating and storing, rather than rejecting
+// them outright and forcing the user to guess a digits-only format.
+export const PhoneSchema = z
+  .string()
+  .transform((value) => value.replace(/[\s\-()]/g, ''))
+  .pipe(z.string().regex(/^\+?\d{7,15}$/, 'Invalid phone number'));
 
 // ─── Car ─────────────────────────────────────────────────────────────────────
 
