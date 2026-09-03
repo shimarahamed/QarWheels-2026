@@ -152,8 +152,30 @@ export async function verifyFirebaseIdToken(token: string): Promise<VerifiedFire
   };
 }
 
+/**
+ * Extracts the caller's ID token from either transport.
+ *
+ * The web app sets a `qw-session` cookie (see src/firebase/provider.tsx) and
+ * relies on it for same-origin page requests. The mobile app has no browser
+ * cookie jar at all and sends `Authorization: Bearer <idToken>` instead —
+ * as does every fetch() the web app makes to its own API routes. Checking
+ * only the cookie silently 401s every mobile call.
+ *
+ * The header is checked first: when a caller goes to the trouble of
+ * attaching an explicit token, that's the identity they mean, and it's
+ * always fresher than a cookie written up to an hour ago.
+ */
+function extractIdToken(request: NextRequest): string | null {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.toLowerCase().startsWith('bearer ')) {
+    const token = authHeader.slice(7).trim();
+    if (token) return token;
+  }
+  return request.cookies.get('qw-session')?.value ?? null;
+}
+
 export async function getVerifiedUserFromRequest(request: NextRequest) {
-  const token = request.cookies.get('qw-session')?.value;
+  const token = extractIdToken(request);
   if (!token) return null;
 
   try {
