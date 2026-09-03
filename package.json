@@ -19,7 +19,8 @@
     "test:rules": "firebase emulators:exec --only firestore \"vitest run tests/rules\"",
     "seed:reset": "node --env-file=.env.local scripts/reset-firestore.mjs --yes-i-mean-it",
     "seed:demo": "node --env-file=.env.local scripts/seed-demo.mjs",
-    "admin:bootstrap": "node --env-file=.env.local scripts/bootstrap-admin.mjs"
+    "admin:bootstrap": "node --env-file=.env.local scripts/bootstrap-admin.mjs",
+    "tokens:build": "node scripts/build-tokens.mjs"
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.3",
