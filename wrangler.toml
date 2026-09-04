@@ -1,0 +1,17 @@
+name = "qarwheels"
+main = ".open-next/worker.js"
+compatibility_date = "2026-01-01"
+
+# firebase-admin (used across 21+ server-side files) needs real Node.js
+# APIs (crypto, stream, etc.) that the default Workers runtime doesn't
+# provide — nodejs_compat turns those on.
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# No [vars] / [[kv_namespaces]] / [[d1_databases]] here: this app talks to
+# Firebase directly from the Worker over HTTPS (env vars for Firebase
+# config are supplied as Cloudflare Pages/Workers secrets in the dashboard,
+# not committed here), so it needs no Cloudflare-native bindings.
