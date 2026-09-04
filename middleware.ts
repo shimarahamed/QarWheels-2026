@@ -68,6 +68,31 @@ export async function middleware(request: NextRequest) {
     return withSecurityHeaders(response, csp);
   }
 
+  // A vendor/admin-claimed account has no business being in the customer
+  // area — bounce it to its own dashboard rather than letting it view (or,
+  // worse, book) as a customer. Mirrors the equivalent check VENDOR_PROTECTED
+  // already does in the other direction below.
+  //
+  // The two role tests must stay exact mirrors of each other: this sends an
+  // account away only if the destination's own guard will actually admit it
+  // (VENDOR_ROLES here, master_admin below), never on a loose `!= customer`.
+  // A claim carrying an unrecognised role — a renamed//retired role string, a
+  // hand-edited claim — matches neither set, so it stays in the customer area
+  // instead of ping-ponging between two guards that each reject it.
+  if (CUSTOMER_PROTECTED.test(pathname) && isAuthenticated) {
+    const homeForRole = VENDOR_ROLES.has(role)
+      ? '/vendor/dashboard'
+      : role === 'master_admin'
+        ? '/admin/dashboard'
+        : null;
+    if (homeForRole) {
+      const url = request.nextUrl.clone();
+      url.pathname = homeForRole;
+      url.search = '';
+      return withSecurityHeaders(NextResponse.redirect(url), csp);
+    }
+  }
+
   if (VENDOR_PROTECTED.test(pathname)) {
     if (!isAuthenticated) {
       const url = request.nextUrl.clone();
