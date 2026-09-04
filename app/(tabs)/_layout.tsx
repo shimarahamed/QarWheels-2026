@@ -1,9 +1,15 @@
 'use client';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Tabs } from 'expo-router';
+// `expo-router/js-tabs` is the non-deprecated home for `Tabs` (plain
+// `expo-router`'s `Tabs` re-export is deprecated) — importing its
+// `BottomTabBarProps` from here too matters, not just style: expo-router
+// vendors its own parallel copy of the react-navigation types, so the
+// props actually passed into `tabBar` are nominally incompatible with
+// `@react-navigation/bottom-tabs`'s same-named type even when they look
+// structurally identical.
+import { Tabs, type BottomTabBarProps } from 'expo-router/js-tabs';
 import { useEffect } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useAnimatedStyle,
@@ -215,7 +221,7 @@ function QarTabBar({ state, navigation }: BottomTabBarProps) {
           intensity={isDark ? 80 : 92}
           tint={isDark ? 'systemChromeMaterialDark' : 'systemThickMaterialLight'}
           experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
-          style={[StyleSheet.absoluteFillObject, { borderRadius: BAR_RADIUS }]}
+          style={[StyleSheet.absoluteFill, { borderRadius: BAR_RADIUS }]}
         />
 
         {/* Android's blur is thinner — lay a scrim under the content to keep contrast */}
@@ -223,7 +229,7 @@ function QarTabBar({ state, navigation }: BottomTabBarProps) {
           <View
             pointerEvents="none"
             style={[
-              StyleSheet.absoluteFillObject,
+              StyleSheet.absoluteFill,
               {
                 borderRadius: BAR_RADIUS,
                 // Light mode needs a denser scrim: the page behind is already
@@ -409,7 +415,7 @@ const ss = StyleSheet.create({
 
   // 1px glass border overlay (sits on top of blur)
   borderRing: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: BAR_RADIUS,
     borderWidth: 1,
     zIndex: 1,
@@ -428,7 +434,7 @@ const ss = StyleSheet.create({
 
   // Row of tab items
   innerRow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: H_PADDING,
@@ -454,7 +460,7 @@ const ss = StyleSheet.create({
 
   // Frosted glass active capsule behind icon
   activeCapsule: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
   },

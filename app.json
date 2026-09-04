@@ -7,12 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "qarwheel",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.qarwheel.app",
@@ -36,7 +30,6 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#2563EB"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -54,12 +47,28 @@
         "expo-localization",
         {
           "supportedLocales": {
-            "ios": ["en", "ar"],
-            "android": ["en", "ar"]
+            "ios": [
+              "en",
+              "ar"
+            ],
+            "android": [
+              "en",
+              "ar"
+            ]
           }
         }
       ],
-      "@sentry/react-native"
+      "@sentry/react-native",
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "expo-status-bar"
     ],
     "locales": {
       "ar": "./locales/ar.json"

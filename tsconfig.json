@@ -2,6 +2,11 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    // TS 6's automatic @types/* inclusion stopped picking up @types/jest's
+    // ambient describe/it/expect globals in this project even though the
+    // package is installed — declaring it explicitly here is more robust
+    // than depending on that auto-discovery working.
+    "types": ["jest", "node"],
     "paths": {
       "@/*": [
         "./*"

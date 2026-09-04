@@ -1225,8 +1225,8 @@ const ds = StyleSheet.create({
 
   // Hero image
   heroWrap:     { borderRadius: radius.xl, overflow: 'hidden', height: 220, ...shadow.md },
-  heroImage:    { ...StyleSheet.absoluteFillObject },
-  heroOverlay:  { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.32)' },
+  heroImage:    { ...StyleSheet.absoluteFill },
+  heroOverlay:  { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.32)' },
   heroStatusRow: { position: 'absolute', top: 12, left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between' },
   openBadge:    {
     flexDirection: 'row', alignItems: 'center', gap: 5,

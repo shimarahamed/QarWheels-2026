@@ -20,7 +20,11 @@ export function useThemeColor(
   props: { light?: string; dark?: string },
   colorName: keyof typeof Colors.light & keyof typeof Colors.dark
 ) {
-  const theme = useColorScheme() ?? 'light';
+  // useColorScheme() can also return 'unspecified' (Android, no system
+  // preference set) — neither Colors nor `props` define that key, so treat
+  // it the same as no preference at all.
+  const scheme = useColorScheme();
+  const theme = scheme === 'dark' ? 'dark' : 'light';
   const colorFromProps = props[theme];
 
   if (colorFromProps) {

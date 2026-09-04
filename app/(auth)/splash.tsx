@@ -39,7 +39,7 @@ const TOOTH_H = SH / N_TEETH;
 
 function DiamondLattice() {
   return (
-    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {LATTICE.map((pt, i) => (
         <View
           key={i}
@@ -147,7 +147,7 @@ export default function SplashScreenRoute() {
   return (
     <View style={ss.container}>
       {/* Background layers */}
-      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: MAROON_BG }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: MAROON_BG }]} />
       <View style={ss.gradTop} />
 
       {/* Geometric patterns */}

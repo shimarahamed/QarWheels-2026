@@ -178,11 +178,11 @@ export function VendorTabBar() {
           <BlurView
             intensity={isDark ? 80 : 65}
             tint={isDark ? 'systemChromeMaterialDark' : 'systemChromeMaterial'}
-            style={[StyleSheet.absoluteFillObject, { borderRadius: BAR_RADIUS }]}
+            style={[StyleSheet.absoluteFill, { borderRadius: BAR_RADIUS }]}
           />
         ) : (
           <View style={[
-            StyleSheet.absoluteFillObject,
+            StyleSheet.absoluteFill,
             {
               borderRadius: BAR_RADIUS,
               backgroundColor: isDark ? 'rgba(18,18,22,0.92)' : 'rgba(248,248,252,0.92)',
@@ -292,7 +292,7 @@ const ss = StyleSheet.create({
     borderTopRightRadius: BAR_RADIUS - 1,
   },
   borderRing: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: BAR_RADIUS,
     borderWidth: 1,
     zIndex: 1,

@@ -19,7 +19,16 @@ export type Garage = {
   responseTime: string;
   startingPrice: string;
   startingPriceValue: number;
+  // 0 means "unknown" (no device location fix yet), not "you're standing
+  // here" — see distanceKm() in lib/geo.ts, which computes the real value
+  // once a position is available.
   distanceKm: number;
+  // Raw coordinates, carried alongside the pre-formatted distanceKm so a
+  // screen that only later obtains a location fix can compute distance
+  // without re-fetching the branch. Absent for seed/demo garages that
+  // predate the branches migration.
+  latitude?: number;
+  longitude?: number;
   availability: 'Now' | 'Today' | 'Tomorrow';
   openNow: boolean;
   verified: boolean;

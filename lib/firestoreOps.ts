@@ -11,14 +11,16 @@ import {
   setDoc,
   updateDoc,
   where,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { firestore } from './firebase';
 import { useQarWheelStore } from './store';
 import { useAuthContext } from './AuthContext';
 import type { Booking, Garage, PopularJob } from './marketplace';
 import type { BookingWorkflowStatus } from './booking-workflow';
+import { haversineKm, useDeviceLocation, type DeviceLocation } from './geo';
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -406,10 +408,22 @@ const FALLBACK_GARAGE_IMAGE =
  * renders. Branch carries these marketplace fields directly, so this is a
  * straight field read rather than the old cross-collection guesswork.
  */
-function branchToGarage(d: { id: string; data: () => Record<string, unknown> }): Garage {
+function branchToGarage(
+  d: { id: string; data: () => Record<string, unknown> },
+  deviceLocation: DeviceLocation | null,
+): Garage {
   const data = d.data();
   const startingPriceValue = Number(data.startingPriceValue ?? 100);
   const responseTimeMins = Number(data.responseTimeMins ?? 15);
+  const latitude = typeof data.latitude === 'number' ? data.latitude : undefined;
+  const longitude = typeof data.longitude === 'number' ? data.longitude : undefined;
+  // 0 means "unknown", not "you're standing here" — only a real device fix
+  // against real branch coordinates produces a non-zero value. No fake
+  // placeholder distance, matching the rest of the marketplace's honesty
+  // standard post-Phase-1.
+  const distanceKm = deviceLocation && latitude !== undefined && longitude !== undefined
+    ? haversineKm(deviceLocation.latitude, deviceLocation.longitude, latitude, longitude)
+    : 0;
   return {
     id: d.id,
     name: String(data.name ?? 'Unknown'),
@@ -424,9 +438,9 @@ function branchToGarage(d: { id: string; data: () => Record<string, unknown> }):
     responseTime: `${responseTimeMins} min`,
     startingPrice: `QAR ${startingPriceValue}+`,
     startingPriceValue,
-    // Distance needs the device's location against branch lat/lng; the list
-    // screens compute it where they have a fix. 0 means "unknown", not "here".
-    distanceKm: 0,
+    distanceKm,
+    latitude,
+    longitude,
     availability: 'Today',
     openNow: !data.vacationMode,
     // A branch is only listed once an admin has approved it, so anything the
@@ -462,11 +476,22 @@ function branchServiceToJob(serviceDoc: { id: string; data: () => Record<string,
  * services. Branches are the marketplace unit (a business with three garages
  * shows as three listings), matching the web marketplace in
  * src/app/dashboard/garages/page.tsx.
+ *
+ * distanceKm on each returned Garage is computed against the device's
+ * current location (see lib/geo.ts) when a fix is available, 0 otherwise —
+ * kept as a separate re-map step from the Firestore listener itself so a
+ * location update doesn't tear down and re-attach the snapshot subscription.
  */
 export function useBranches(): { vendors: Garage[]; jobs: PopularJob[]; loading: boolean } {
-  const [vendors, setVendors] = useState<Garage[]>([]);
+  const [rawDocs, setRawDocs] = useState<QueryDocumentSnapshot[]>([]);
   const [jobs, setJobs] = useState<PopularJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const { location } = useDeviceLocation();
+
+  const vendors = useMemo(
+    () => rawDocs.map((d) => branchToGarage(d, location)),
+    [rawDocs, location],
+  );
 
   useEffect(() => {
     // Only admin-approved branches are visible to customers — same query the
@@ -484,12 +509,12 @@ export function useBranches(): { vendors: Garage[]; jobs: PopularJob[]; loading:
         });
 
         if (listedDocs.length === 0) {
-          setVendors([]);
+          setRawDocs([]);
           setJobs([]);
           setLoading(false);
           return;
         }
-        setVendors(listedDocs.map(branchToGarage));
+        setRawDocs(listedDocs);
 
         // Load the bookable services for each listed branch.
         const allJobs: PopularJob[] = [];
@@ -516,7 +541,7 @@ export function useBranches(): { vendors: Garage[]; jobs: PopularJob[]; loading:
         // Firestore unavailable → empty state, not fake data. Screens using
         // this hook should show a retry / offline affordance when vendors is
         // empty and loading is false.
-        setVendors([]);
+        setRawDocs([]);
         setJobs([]);
         setLoading(false);
       },
