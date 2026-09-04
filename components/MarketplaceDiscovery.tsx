@@ -14,15 +14,11 @@ import { RemoteImage } from '@/components/RemoteImage';
 import RecordNotFound from '@/components/RecordNotFound';
 import { MotionScreen, MotionSurface } from '@/lib/motion';
 import {
-  garages,
-  lookupGarage,
-  lookupJob,
-  offers,
-  popularJobs,
   serviceCategories,
   type Garage,
   type PopularJob,
 } from '@/lib/marketplace';
+import { useBranches } from '@/lib/firestoreOps';
 import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { tap } from '@/lib/haptics';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
@@ -88,9 +84,9 @@ function sortGarages(list: Garage[], sort: SortKey) {
   return copy.sort((a, b) => Number(b.verified) - Number(a.verified) || b.rating - a.rating);
 }
 
-function filterServices(list: PopularJob[], activeFilters: FilterKey[]) {
+function filterServices(list: PopularJob[], activeFilters: FilterKey[], garagesById: Map<string, Garage>) {
   return list.filter((service) => {
-    const garage = service.garageId ? lookupGarage(service.garageId) : undefined;
+    const garage = service.garageId ? garagesById.get(service.garageId) : undefined;
     // Garage-derived filters cannot be satisfied by a service with no
     // resolvable garage — excluding it beats matching against a stand-in.
     if (activeFilters.includes('Open now') && !garage?.openNow) return false;
@@ -322,12 +318,9 @@ function GarageCard({ garage, compare }: { garage: Garage; compare?: boolean }) 
   );
 }
 
-function ServiceCard({ service }: { service: PopularJob }) {
+function ServiceCard({ service, garage }: { service: PopularJob; garage?: Garage }) {
   const router = useRouter();
   const c = useQarColors();
-  // May be undefined for a service whose garage was delisted; the card renders
-  // without garage context rather than borrowing another garage's identity.
-  const garage = service.garageId ? lookupGarage(service.garageId) : undefined;
 
   return (
     <AnimatedPressable
@@ -410,11 +403,13 @@ function EmptyState() {
 function DiscoveryResults({
   services,
   garageList,
+  garagesById,
   showServices = true,
   showGarages = true,
 }: {
   services: PopularJob[];
   garageList: Garage[];
+  garagesById: Map<string, Garage>;
   showServices?: boolean;
   showGarages?: boolean;
 }) {
@@ -428,7 +423,9 @@ function DiscoveryResults({
       {showServices ? (
         <>
           <Section title={`Services (${services.length})`} action="View all" onPress={() => router.push('/services' as never)} />
-          {services.map((service) => <ServiceCard key={service.id} service={service} />)}
+          {services.map((service) => (
+            <ServiceCard key={service.id} service={service} garage={service.garageId ? garagesById.get(service.garageId) : undefined} />
+          ))}
         </>
       ) : null}
       {showGarages ? (
@@ -441,33 +438,42 @@ function DiscoveryResults({
   );
 }
 
+/**
+ * Live marketplace data (Firestore `branches` + `branch_services`) plus the
+ * search/sort/filter pipeline that previously ran over the static seed
+ * arrays in lib/marketplace.ts. `vendors`/`jobs` come from useBranches() so
+ * every screen using this hook sees the same real-time list.
+ */
 function useDiscovery(queryText = '', categoryId?: string) {
   const [sort, setSort] = useState<SortKey>('Best match');
   const [filters, setFilters] = useState<FilterKey[]>([]);
   const normalized = useDebounced(queryText.trim().toLowerCase());
+  const { vendors, jobs, loading } = useBranches();
+
+  const garagesById = useMemo(() => new Map(vendors.map((g) => [g.id, g] as const)), [vendors]);
 
   const toggleFilter = (filter: FilterKey) => {
     setFilters((current) => current.includes(filter) ? current.filter((item) => item !== filter) : [...current, filter]);
   };
 
   const services = useMemo(() => {
-    let list = popularJobs;
+    let list = jobs;
     if (categoryId) list = list.filter((job) => job.categoryId === categoryId);
     if (normalized) {
       list = list.filter((job) => {
-        const garage = job.garageId ? lookupGarage(job.garageId) : undefined;
+        const garage = job.garageId ? garagesById.get(job.garageId) : undefined;
         return parseQueryMatch(`${job.title} ${job.availability} ${job.warranty} ${garage?.name ?? ''} ${garage?.area ?? ''}`, normalized);
       });
     }
-    return sortServices(filterServices(list, filters), sort);
-  }, [categoryId, filters, normalized, sort]);
+    return sortServices(filterServices(list, filters, garagesById), sort);
+  }, [jobs, garagesById, categoryId, filters, normalized, sort]);
 
   const garageList = useMemo(() => {
-    let list = garages;
+    let list = vendors;
     if (categoryId) {
       const category = serviceCategories.find((item) => item.id === categoryId);
       list = list.filter((garage) => {
-        const serviceMatch = popularJobs.some((job) => job.categoryId === categoryId && job.garageId === garage.id);
+        const serviceMatch = jobs.some((job) => job.categoryId === categoryId && job.garageId === garage.id);
         const textMatch = category ? parseQueryMatch(`${garage.type} ${garage.category} ${garage.tags.join(' ')}`, category.label) : false;
         return serviceMatch || textMatch;
       });
@@ -476,9 +482,9 @@ function useDiscovery(queryText = '', categoryId?: string) {
       list = list.filter((garage) => parseQueryMatch(`${garage.name} ${garage.type} ${garage.category} ${garage.area} ${garage.tags.join(' ')}`, normalized));
     }
     return sortGarages(filterGarages(list, filters), sort);
-  }, [categoryId, filters, normalized, sort]);
+  }, [vendors, jobs, categoryId, filters, normalized, sort]);
 
-  return { sort, setSort, filters, toggleFilter, services, garageList };
+  return { sort, setSort, filters, toggleFilter, services, garageList, garagesById, loading };
 }
 
 /**
@@ -541,7 +547,7 @@ export function SearchSuggestionsScreen() {
               </ScrollView>
             </View>
           ) : (
-            <DiscoveryResults services={discovery.services} garageList={discovery.garageList} />
+            <DiscoveryResults services={discovery.services} garageList={discovery.garageList} garagesById={discovery.garagesById} />
           )}
         </>
       ) : (
@@ -630,7 +636,7 @@ export function ServiceListingsScreen() {
         ))}
       </ScrollView>
       <DiscoveryControls {...discovery} />
-      <DiscoveryResults services={discovery.services} garageList={discovery.garageList} />
+      <DiscoveryResults services={discovery.services} garageList={discovery.garageList} garagesById={discovery.garagesById} />
     </Frame>
   );
 }
@@ -653,7 +659,7 @@ export function CategoryGaragesScreen() {
         </View>
       </View>
       <DiscoveryControls {...discovery} />
-      <DiscoveryResults services={discovery.services} garageList={discovery.garageList} />
+      <DiscoveryResults services={discovery.services} garageList={discovery.garageList} garagesById={discovery.garagesById} />
     </Frame>
   );
 }
@@ -662,9 +668,12 @@ export function ServiceDetailScreen() {
   const router = useRouter();
   const c = useQarColors();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const service = lookupJob(Array.isArray(id) ? id[0] : (id ?? ''));
+  const targetId = Array.isArray(id) ? id[0] : (id ?? '');
+  const { vendors, jobs, loading } = useBranches();
+  const service = jobs.find((job) => job.id === targetId);
 
   if (!service) {
+    if (loading) return null;
     return (
       <RecordNotFound
         title="Service not found"
@@ -673,9 +682,9 @@ export function ServiceDetailScreen() {
     );
   }
 
-  const garage = service.garageId ? lookupGarage(service.garageId) : undefined;
+  const garage = service.garageId ? vendors.find((g) => g.id === service.garageId) : undefined;
   const alternatives = sortGarages(
-    garages.filter((item) => item.id !== garage?.id),
+    vendors.filter((item) => item.id !== garage?.id),
     'Top rated',
   ).slice(0, 3);
 
@@ -731,9 +740,10 @@ function Metric({ label, value, c }: { label: string; value: string; c: ReturnTy
 }
 
 export function MapNearbyScreen() {
+  const { vendors } = useBranches();
   return (
     <Frame title="Nearby garages" subtitle="Distance, rating, and availability">
-      {sortGarages(garages, 'Nearest').map((garage) => <GarageCard key={garage.id} garage={garage} />)}
+      {sortGarages(vendors, 'Nearest').map((garage) => <GarageCard key={garage.id} garage={garage} />)}
     </Frame>
   );
 }
@@ -745,7 +755,7 @@ export function FiltersSortingScreen() {
   return (
     <Frame title="Filters" subtitle="Location, price, rating, availability">
       <DiscoveryControls {...discovery} />
-      <DiscoveryResults services={discovery.services} garageList={discovery.garageList} />
+      <DiscoveryResults services={discovery.services} garageList={discovery.garageList} garagesById={discovery.garagesById} />
       <Pressable style={[s.primaryBtn, { backgroundColor: c.primary }]} onPress={() => router.push('/search' as never)}>
         <Text style={s.primaryText}>Apply to search</Text>
       </Pressable>
@@ -754,17 +764,19 @@ export function FiltersSortingScreen() {
 }
 
 export function CompareGaragesScreen() {
+  const { vendors } = useBranches();
   return (
     <Frame title="Compare garages" subtitle="Price, distance, rating, warranty">
-      {sortGarages(garages, 'Top rated').slice(0, 3).map((garage) => <GarageCard key={garage.id} garage={garage} compare />)}
+      {sortGarages(vendors, 'Top rated').slice(0, 3).map((garage) => <GarageCard key={garage.id} garage={garage} compare />)}
     </Frame>
   );
 }
 
 export function SavedItemsScreen() {
   const favoriteIds = useQarWheelStore((state) => state.favoriteGarageIds);
-  const savedGarages = garages.filter((garage) => favoriteIds.includes(garage.id));
-  const list = savedGarages.length > 0 ? savedGarages : garages.slice(0, 2);
+  const { vendors } = useBranches();
+  const savedGarages = vendors.filter((garage) => favoriteIds.includes(garage.id));
+  const list = savedGarages.length > 0 ? savedGarages : vendors.slice(0, 2);
 
   return (
     <Frame title="Saved" subtitle="Garages, services, and offers">
@@ -784,31 +796,20 @@ export function PromotionalOffersScreen() {
   );
 }
 
+// No `branch_promotions` collection is read anywhere in the app yet — there
+// is no live source for time-limited discounts. Rather than show fabricated
+// offers, this renders an honest "nothing live" state until a real
+// promotions pipeline exists (Promotion type already reserved in
+// src/lib/types.ts for that future work).
 function PromotionalOffersList({ limit }: { limit?: number }) {
-  const router = useRouter();
   const c = useQarColors();
+  void limit;
   return (
-    <>
-      {offers.slice(0, limit).map((offer) => {
-        const service = lookupJob(offer.serviceId);
-        const garage = lookupGarage(offer.garageId);
-        // A dangling offer is skipped: showing it against a substituted
-        // garage would advertise a price that garage never set.
-        if (!service || !garage) return null;
-        return (
-          <AnimatedPressable key={offer.id} style={[s.offerCard, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.push(route(`/service/${offer.serviceId}`))}>
-            <View style={{ flex: 1, gap: 5 }}>
-              <Text style={[s.offerKicker, { color: c.primary }]}>{offer.discount} · {offer.validUntil}</Text>
-              <Text style={[s.offerTitle, { color: c.text }]}>{offer.title}</Text>
-              <Text style={[s.offerBody, { color: c.textSecondary }]}>{service.title} at {garage.name}</Text>
-            </View>
-            <Pressable style={[s.offerBook, { backgroundColor: c.primary }]} onPress={() => router.push(route(`/checkout/${offer.serviceId}`))}>
-              <Text style={s.offerBookText}>Book</Text>
-            </Pressable>
-          </AnimatedPressable>
-        );
-      })}
-    </>
+    <View style={[s.empty, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <Icon name="pricetag-outline" size={32} color={c.muted} />
+      <Text style={[s.emptyTitle, { color: c.text }]}>No live offers right now</Text>
+      <Text style={[s.emptyBody, { color: c.muted }]}>Check back soon — garages post limited-time discounts here.</Text>
+    </View>
   );
 }
 

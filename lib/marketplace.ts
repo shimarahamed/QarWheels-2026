@@ -112,6 +112,15 @@ export const serviceCategories: ServiceCategory[] = [
   { id: 'diagnostics', label: 'Diagnostics', count: 42, icon: 'dashboard' },
 ];
 
+// ── Seed/fixture data ─────────────────────────────────────────────
+// `garages` below is no longer read by any live screen — every real garage
+// listing, service, and job-detail view now comes from Firestore via
+// lib/firestoreOps.ts (useBranches, useGarage, useBranchServices). It is
+// kept only as fixture data for __tests__/marketplace-lookups.test.ts,
+// which guards lookupGarage()'s "never fall back to the first record on an
+// unknown id" behavior — the exact bug class this migration fixed.
+// popularJobs/offers/lookupJob/lookupOffer had no such coverage and were
+// deleted outright rather than kept as unused dead code.
 export const garages: Garage[] = [
   {
     id: 'vendor_aab_toyota',
@@ -304,48 +313,6 @@ export const garages: Garage[] = [
   },
 ];
 
-export const popularJobs: PopularJob[] = [
-  { id: 'toyota-oil-change', title: 'Toyota Genuine Oil Service', price: 'QAR 380', availability: 'Today', categoryId: 'repair', garageId: 'vendor_aab_toyota', duration: '45 min', warranty: 'Factory record', priceValue: 380, rating: 4.7, distanceKm: 6.8 },
-  { id: 'ford-alignment', title: 'Four-Wheel Alignment & Balancing', price: 'QAR 250', availability: 'Today', categoryId: 'repair', garageId: 'vendor_al_mana_ford', duration: '60 min', warranty: 'Motorcraft warranty', priceValue: 250, rating: 4.6, distanceKm: 7.1 },
-  { id: 'nissan-ecu-scan', title: 'ECU Diagnostic Scan', price: 'QAR 200', availability: 'Tomorrow', categoryId: 'diagnostics', garageId: 'vendor_nissan_service', duration: '60 min', warranty: 'Diagnostic report', priceValue: 200, rating: 4.5, distanceKm: 6.9 },
-  { id: 'tsc-express-oil', title: 'Express Oil & Filter Change', price: 'QAR 280', availability: 'Today', categoryId: 'repair', garageId: 'vendor_teyseer', duration: '30 min', warranty: '10 days', priceValue: 280, rating: 4.8, distanceKm: 4.6 },
-  { id: 'vw-dsg-service', title: 'DSG Gearbox Service', price: 'QAR 950', availability: 'Today', categoryId: 'diagnostics', garageId: 'vendor_qauto_vw', duration: '120 min', warranty: 'Genuine VAG parts', priceValue: 950, rating: 4.6, distanceKm: 7.4 },
-  { id: 'oil', title: 'Oil and filter change', price: 'QAR 120', availability: 'Today', categoryId: 'repair', garageId: 'garage_011', duration: '45 min', warranty: '7 days', priceValue: 120, rating: 4.9, distanceKm: 2.4 },
-  { id: 'brakes', title: 'Brake pad inspection', price: 'QAR 80', availability: 'Today', categoryId: 'inspection', garageId: 'garage_002', duration: '30 min', warranty: 'Inspection report', priceValue: 80, rating: 4.8, distanceKm: 3.1 },
-  { id: 'ac', title: 'AC cooling check', price: 'QAR 150', availability: 'Tomorrow', categoryId: 'diagnostics', garageId: 'garage_011', duration: '60 min', warranty: '14 days', priceValue: 150, rating: 4.9, distanceKm: 2.4 },
-  { id: 'battery', title: 'Battery replacement', price: 'QAR 220', availability: 'Today', categoryId: 'battery', garageId: 'garage_006', duration: '35 min', warranty: '6 months', priceValue: 220, rating: 4.6, distanceKm: 5.6 },
-];
-
-export const offers: Offer[] = [
-  {
-    id: 'offer_ac',
-    title: '30% off first AC service',
-    description: 'Includes cooling test, gas level check, and cabin filter inspection.',
-    serviceId: 'ac',
-    garageId: 'garage_011',
-    discount: '30% off',
-    validUntil: 'This week',
-  },
-  {
-    id: 'offer_oil',
-    title: 'Free 12-point check with oil change',
-    description: 'Book oil and filter service and get a basic safety inspection included.',
-    serviceId: 'oil',
-    garageId: 'garage_002',
-    discount: 'Free check',
-    validUntil: '3 days left',
-  },
-  {
-    id: 'offer_battery',
-    title: 'Battery install bundle',
-    description: 'Battery replacement with installation and alternator test.',
-    serviceId: 'battery',
-    garageId: 'garage_006',
-    discount: 'QAR 40 off',
-    validUntil: 'Today',
-  },
-];
-
 export const cars: CarProfile[] = [
   {
     id: 'car_001',
@@ -434,14 +401,6 @@ export function lookupGarage(id: string) {
 
 export function lookupCategory(id: string) {
   return serviceCategories.find((category) => category.id === id);
-}
-
-export function lookupJob(id: string) {
-  return popularJobs.find((job) => job.id === id);
-}
-
-export function lookupOffer(id: string) {
-  return offers.find((offer) => offer.id === id);
 }
 
 export function lookupCar(id: string) {

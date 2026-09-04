@@ -15,7 +15,8 @@ import { signOutCompletely } from '@/lib/session';
 import { success, tap } from '@/lib/haptics';
 import { useTranslation } from '@/lib/i18n';
 import { promptRestartForRTL } from '@/lib/i18n/restart';
-import { garages, type Garage } from '@/lib/marketplace';
+import type { Garage } from '@/lib/marketplace';
+import { useBranches } from '@/lib/firestoreOps';
 import { MotionScreen, MotionSurface } from '@/lib/motion';
 import {
   useQarColors,
@@ -116,6 +117,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
   const { user } = useAuthContext();
   const bookings = useQarWheelStore((s) => s.bookings);
   const favorites = useQarWheelStore((s) => s.favoriteGarageIds);
+  const { vendors: liveGarages } = useBranches();
   const { language, changeLanguage } = useTranslation();
   const notifications = useQarWheelStore((s) => s.notifications);
   const markNotificationsRead = useQarWheelStore((s) => s.markNotificationsRead);
@@ -625,7 +627,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
 
     if (section === 'savedGarages') {
       const saved = favorites
-        .map((garageId) => garages.find((garage) => garage.id === garageId))
+        .map((garageId) => liveGarages.find((garage) => garage.id === garageId))
         .filter((g): g is Garage => g !== undefined);
       return (
         <SectionCard title="Saved garages" subtitle="Fast access to trusted workshops and repeat bookings." icon="heart-outline" c={c}>

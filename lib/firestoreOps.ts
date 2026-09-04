@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   orderBy,
@@ -11,6 +12,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  type DocumentSnapshot,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
@@ -408,7 +410,7 @@ const FALLBACK_GARAGE_IMAGE =
  * renders. Branch carries these marketplace fields directly, so this is a
  * straight field read rather than the old cross-collection guesswork.
  */
-function branchToGarage(
+export function branchToGarage(
   d: { id: string; data: () => Record<string, unknown> },
   deviceLocation: DeviceLocation | null,
 ): Garage {
@@ -585,6 +587,41 @@ export function useBranchServices(branchId: string): { services: PopularJob[]; l
   }, [branchId]);
 
   return { services, loading };
+}
+
+// ── useGarage — a single branch by id, for id-route screens ──────────────────
+// (garage/[id], chat/[garageId], garage-reviews/[id], etc.) These previously
+// read the static `lookupGarage()` seed lookup; a stale/deleted id now
+// resolves to `garage: null` (screens already render a "not found" state for
+// that) instead of silently falling back to another garage's data.
+
+const garageDocCache = new Map<string, Garage>();
+
+export function useGarage(branchId: string | undefined): { garage: Garage | null; loading: boolean } {
+  const [garage, setGarage] = useState<Garage | null>(branchId ? garageDocCache.get(branchId) ?? null : null);
+  const [loading, setLoading] = useState(!garage);
+  const { location } = useDeviceLocation();
+
+  useEffect(() => {
+    if (!branchId) { setGarage(null); setLoading(false); return; }
+
+    let cancelled = false;
+    setLoading(true);
+    getDoc(doc(firestore, 'branches', branchId))
+      .then((snap: DocumentSnapshot) => {
+        if (cancelled) return;
+        if (!snap.exists()) { setGarage(null); return; }
+        const mapped = branchToGarage({ id: snap.id, data: () => snap.data() ?? {} }, location);
+        garageDocCache.set(branchId, mapped);
+        setGarage(mapped);
+      })
+      .catch(() => { if (!cancelled) setGarage(null); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+
+    return () => { cancelled = true; };
+  }, [branchId, location]);
+
+  return { garage, loading };
 }
 
 // ── useVendorBookings — bookings addressed to this vendor ─────────────────────

@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { lookupGarage } from '@/lib/marketplace';
+import { useGarage } from '@/lib/firestoreOps';
 import RecordNotFound from '@/components/RecordNotFound';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -45,9 +45,10 @@ export default function GaragePhotosScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  const garage = lookupGarage(id);
+  const { garage, loading } = useGarage(id);
   const photos = GARAGE_PHOTOS[id ?? ''] ?? FALLBACK_PHOTOS;
 
+  if (!garage && loading) return null;
   if (!garage) {
     return <RecordNotFound title="Garage not found" message="This garage may no longer be listed." />;
   }

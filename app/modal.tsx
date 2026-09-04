@@ -15,9 +15,8 @@ import {
 } from 'react-native';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { useAuthContext } from '@/lib/AuthContext';
-import { createBooking, type FirestoreCar } from '@/lib/firestoreOps';
+import { createBooking, useBranches, type FirestoreCar } from '@/lib/firestoreOps';
 import { firestore } from '@/lib/firebase';
-import { garages } from '@/lib/marketplace';
 import { colors, radius, shadow, spacing, typography } from '@/lib/theme';
 
 export default function QuoteRequestModal() {
@@ -27,6 +26,7 @@ export default function QuoteRequestModal() {
   const [userCars, setUserCars] = useState<FirestoreCar[]>([]);
   const [selectedCarIdx, setSelectedCarIdx] = useState(0);
   const [loading, setLoading] = useState(false);
+  const { vendors } = useBranches();
 
   useEffect(() => {
     if (!user) return;
@@ -70,8 +70,17 @@ export default function QuoteRequestModal() {
       ]);
       return;
     }
+    if (vendors.length === 0) {
+      Alert.alert('No garages available', 'No approved garages are listed right now. Try again shortly.');
+      return;
+    }
     const car = userCars[selectedCarIdx] ?? userCars[0];
-    const garage = garages[0]; // broadcast to first garage by default
+    // Sent to the nearest listed garage — this app has no true multi-garage
+    // broadcast yet (a request goes to exactly one branch, matching how
+    // createBooking/the transition route are addressed). "Approved garages
+    // can respond" below refers to this being reviewed by real staff, not a
+    // fan-out to multiple garages.
+    const garage = [...vendors].sort((a, b) => a.distanceKm - b.distanceKm)[0];
 
     setLoading(true);
     try {
@@ -85,7 +94,7 @@ export default function QuoteRequestModal() {
         serviceName: issue.trim(),
         notes: 'Quote request from mobile app',
       });
-      Alert.alert('Quote request sent!', 'Approved garages can now respond with price and availability.', [
+      Alert.alert('Quote request sent!', `Sent to ${garage.name}. They can now respond with price and availability.`, [
         { text: 'View bookings', onPress: () => { router.dismiss(); router.replace('/bookings' as never); } },
         { text: 'Stay here' },
       ]);

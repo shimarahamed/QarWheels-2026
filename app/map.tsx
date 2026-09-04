@@ -8,7 +8,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { garages, type Garage } from '@/lib/marketplace';
+import { useBranches } from '@/lib/firestoreOps';
+import { useDeviceLocation } from '@/lib/geo';
+import type { Garage } from '@/lib/marketplace';
 
 function sortGarages(list: Garage[], mode: string): Garage[] {
   const copy = [...list];
@@ -36,25 +38,23 @@ function lngToX(lng: number) {
   return ((lng - LNG_MIN) / (LNG_MAX - LNG_MIN)) * (SCREEN_W - spacing.page * 2);
 }
 
-// Sample coords for demo garages (Doha area)
-const GARAGE_COORDS: Record<string, { lat: number; lng: number }> = {
-  vendor_aab_toyota:    { lat: 25.310, lng: 51.495 },
-  vendor_al_mana_ford:  { lat: 25.253, lng: 51.547 },
-  vendor_nissan_service:{ lat: 25.367, lng: 51.510 },
-  vendor_teyseer:       { lat: 25.228, lng: 51.468 },
-  vendor_qauto_vw:      { lat: 25.340, lng: 51.525 },
-  garage_011:           { lat: 25.285, lng: 51.531 },
-  garage_002:           { lat: 25.295, lng: 51.508 },
-  garage_009:           { lat: 25.273, lng: 51.555 },
-  garage_006:           { lat: 25.318, lng: 51.480 },
-};
-
 const SORT_OPTIONS = ['Nearest', 'Top rated', 'Price: Low', 'Available now'] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
 
-function MapPlaceholder({ selected, onSelect }: { selected: Garage | null; onSelect: (g: Garage) => void }) {
+// Doha center — used only to place the user-location marker when no device
+// fix is available yet; garage pins always use each branch's real stored
+// latitude/longitude, never a placeholder coordinate.
+const DOHA_CENTER = { lat: 25.285, lng: 51.531 };
+
+function MapPlaceholder({ garageList, selected, onSelect, userLocation }: {
+  garageList: Garage[];
+  selected: Garage | null;
+  onSelect: (g: Garage) => void;
+  userLocation: { lat: number; lng: number } | null;
+}) {
   const c = useQarColors();
-  const garageList = garages.filter((g) => g.id in GARAGE_COORDS);
+  const pinnable = garageList.filter((g) => g.latitude !== undefined && g.longitude !== undefined);
+  const user = userLocation ?? DOHA_CENTER;
 
   return (
     <View style={[mapS.container, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
@@ -67,21 +67,20 @@ function MapPlaceholder({ selected, onSelect }: { selected: Garage | null; onSel
       ))}
 
       {/* User location */}
-      <View style={[mapS.userPin, { top: latToY(25.285), left: lngToX(51.531) }]}>
+      <View style={[mapS.userPin, { top: latToY(user.lat), left: lngToX(user.lng) }]}>
         <View style={[mapS.userRing, { borderColor: c.primary }]} />
         <View style={[mapS.userDot, { backgroundColor: c.primary }]} />
       </View>
 
-      {/* Garage pins */}
-      {garageList.map((g) => {
-        const coords = GARAGE_COORDS[g.id];
+      {/* Garage pins — real branch coordinates only */}
+      {pinnable.map((g) => {
         const isSelected = selected?.id === g.id;
         return (
           <Pressable
             key={g.id}
             style={[mapS.garagePin, {
-              top: latToY(coords.lat) - 16,
-              left: lngToX(coords.lng) - 20,
+              top: latToY(g.latitude!) - 16,
+              left: lngToX(g.longitude!) - 20,
               backgroundColor: isSelected ? c.primary : c.surface,
               borderColor: isSelected ? c.primary : c.border,
               ...shadow.sm,
@@ -121,13 +120,15 @@ export default function MapScreen() {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortOption>('Nearest');
   const [selected, setSelected] = useState<Garage | null>(null);
+  const { vendors, loading } = useBranches();
+  const { location: deviceLocation } = useDeviceLocation();
 
   const filtered = useMemo(() => {
-    const sorted = sortGarages(garages, sort);
+    const sorted = sortGarages(vendors, sort);
     if (!search.trim()) return sorted;
     const q = search.toLowerCase();
     return sorted.filter((g) => g.name.toLowerCase().includes(q) || g.area.toLowerCase().includes(q) || g.type.toLowerCase().includes(q));
-  }, [search, sort]);
+  }, [vendors, search, sort]);
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.background }]} edges={['top']}>
@@ -160,7 +161,12 @@ export default function MapScreen() {
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         <MotionScreen>
           {/* Visual map */}
-          <MapPlaceholder selected={selected} onSelect={setSelected} />
+          <MapPlaceholder
+            garageList={vendors}
+            selected={selected}
+            onSelect={setSelected}
+            userLocation={deviceLocation ? { lat: deviceLocation.latitude, lng: deviceLocation.longitude } : null}
+          />
 
           {/* Sort strip */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.sortStrip}>
@@ -210,7 +216,9 @@ export default function MapScreen() {
           )}
 
           {/* Count */}
-          <Text style={[s.countLabel, { color: c.muted }]}>{filtered.length} garages nearby</Text>
+          <Text style={[s.countLabel, { color: c.muted }]}>
+            {loading ? 'Loading garages…' : `${filtered.length} garages nearby`}
+          </Text>
 
           {/* List */}
           {filtered.map((g) => (

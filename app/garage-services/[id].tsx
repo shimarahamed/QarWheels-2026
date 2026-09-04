@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { lookupGarage, popularJobs } from '@/lib/marketplace';
+import { useGarage, useBranchServices } from '@/lib/firestoreOps';
 import RecordNotFound from '@/components/RecordNotFound';
 
 const CATEGORIES = ['All', 'Oil & Fluids', 'AC & Cooling', 'Brakes', 'Battery', 'Tyres', 'Diagnostics', 'Body'];
@@ -28,11 +28,8 @@ export default function GarageServicesScreen() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [search, setSearch] = useState('');
 
-  const garage = lookupGarage(id);
-
-  // Use popularJobs as the service catalogue — filter to garage if available, else show all
-  const garageJobs = popularJobs.filter((j) => !j.garageId || j.garageId === id);
-  const jobs = garageJobs.length > 0 ? garageJobs : popularJobs;
+  const { garage, loading: garageLoading } = useGarage(id);
+  const { services: jobs, loading: jobsLoading } = useBranchServices(id ?? '');
 
   const filtered = jobs.filter((job) => {
     const matchSearch = !search || job.title.toLowerCase().includes(search.toLowerCase());
@@ -40,6 +37,7 @@ export default function GarageServicesScreen() {
     return matchSearch && matchCat;
   });
 
+  if (!garage && garageLoading) return null;
   if (!garage) {
     return <RecordNotFound title="Garage not found" message="This garage may no longer be listed." />;
   }
@@ -104,7 +102,9 @@ export default function GarageServicesScreen() {
           {filtered.length === 0 ? (
             <View style={s.empty}>
               <Ionicons name="search-outline" size={36} color={c.muted} />
-              <Text style={[s.emptyText, { color: c.muted }]}>No services match your search.</Text>
+              <Text style={[s.emptyText, { color: c.muted }]}>
+                {jobsLoading ? 'Loading services…' : 'No services match your search.'}
+              </Text>
             </View>
           ) : (
             filtered.map((job) => {

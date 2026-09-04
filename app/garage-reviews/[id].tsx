@@ -8,7 +8,7 @@ import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { collection, getDocs, orderBy, query, where, limit } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
-import { lookupGarage } from '@/lib/marketplace';
+import { useGarage } from '@/lib/firestoreOps';
 import RecordNotFound from '@/components/RecordNotFound';
 
 type Review = {
@@ -47,7 +47,7 @@ export default function GarageReviewsScreen() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const garage = lookupGarage(id);
+  const { garage, loading: garageLoading } = useGarage(id);
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
@@ -82,6 +82,7 @@ export default function GarageReviewsScreen() {
     pct: reviews.length > 0 ? reviews.filter((r) => r.rating === star).length / reviews.length : 0,
   }));
 
+  if (!garage && garageLoading) return null;
   if (!garage) {
     return <RecordNotFound title="Garage not found" message="This garage may no longer be listed." />;
   }

@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { lookupGarage } from '@/lib/marketplace';
+import { useGarage } from '@/lib/firestoreOps';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheel.qa';
 
@@ -23,9 +23,7 @@ export default function BookingConfirmationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const booking = useQarWheelStore((s) => s.bookings.find((b) => b.id === id));
-  const garage = booking?.garageId
-    ? lookupGarage(booking.garageId!)
-    : null;
+  const { garage } = useGarage(booking?.garageId);
 
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;

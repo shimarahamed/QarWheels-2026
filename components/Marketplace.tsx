@@ -24,7 +24,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { type Booking, type Garage, garages as firestoreGarages, popularJobs, serviceCategories } from '@/lib/marketplace';
+import { type Booking, type Garage, serviceCategories } from '@/lib/marketplace';
 import { type FirestoreBooking, type FirestoreCar, useFirestoreBookings, useBranches } from '@/lib/firestoreOps';
 import { auth, firestore } from '@/lib/firebase';
 import { useAuthContext } from '@/lib/AuthContext';

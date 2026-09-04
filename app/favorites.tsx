@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { garages } from '@/lib/marketplace';
+import { useBranches } from '@/lib/firestoreOps';
 import { tap } from '@/lib/haptics';
 
 export default function FavoritesScreen() {
@@ -13,8 +13,9 @@ export default function FavoritesScreen() {
   const router = useRouter();
   const favoriteIds = useQarWheelStore((s) => s.favoriteGarageIds);
   const toggleFav = useQarWheelStore((s) => s.toggleFavoriteGarage);
+  const { vendors } = useBranches();
 
-  const savedGarages = garages.filter((g) => favoriteIds.includes(g.id));
+  const savedGarages = vendors.filter((g) => favoriteIds.includes(g.id));
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.background }]} edges={['top']}>

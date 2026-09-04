@@ -8,14 +8,11 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  garages,
   lookupBooking,
   lookupCar,
   lookupCategory,
-  lookupGarage,
-  lookupJob,
-  popularJobs,
 } from '@/lib/marketplace';
+import { useBranches, useGarage, useBranchServices } from '@/lib/firestoreOps';
 import RecordNotFound from '@/components/RecordNotFound';
 import { findVendorInvoiceByBooking } from '@/lib/vendor-data';
 import { categoryColors, colors, getThemedStatusColors, radius, shadow, spacing, statusColors, typography } from '@/lib/theme';
@@ -114,7 +111,7 @@ function GarageMini({ id, name, detail }: { id: string; name: string; detail: st
   // Only the thumbnail comes from the record; the name and detail are passed
   // in. An unknown id therefore degrades to a plain tile rather than showing
   // another garage's photo next to this garage's name.
-  const garage = lookupGarage(id);
+  const { garage } = useGarage(id);
 
   return (
     <AnimatedPressable style={[ds.miniCard, { borderTopColor: c.border }]} onPress={() => router.push(route(`/garage/${id}`))} scaleValue={0.98}>
@@ -163,11 +160,13 @@ export function GarageDetailScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const garage = lookupGarage(id);
+  const { garage, loading: garageLoading } = useGarage(id);
+  const { services: garageServices } = useBranchServices(id ?? '');
   // Hooks must run before the guard below, so read favourites defensively.
   const isFav = useQarWheelStore((s) => (garage ? s.favoriteGarageIds.includes(garage.id) : false));
   const toggleFav = useQarWheelStore((s) => s.toggleFavoriteGarage);
 
+  if (!garage && garageLoading) return null;
   if (!garage) {
     return (
       <RecordNotFound
@@ -178,8 +177,7 @@ export function GarageDetailScreen() {
   }
 
   const handleBook = () => router.push(route(`/checkout/${garage.id}`));
-  const garageServices = popularJobs.filter((job) => job.garageId === garage.id);
-  const visibleServices = garageServices.length > 0 ? garageServices : popularJobs.slice(0, 3);
+  const visibleServices = garageServices;
 
   return (
     <Page
@@ -356,6 +354,7 @@ export function CategoryDetailScreen() {
   const c = useQarColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const category = lookupCategory(id);
+  const { vendors } = useBranches();
 
   if (!category) {
     return (
@@ -367,11 +366,11 @@ export function CategoryDetailScreen() {
   }
 
   const cc = categoryColors[id] ?? categoryColors.default;
-  const matching = garages.filter((g) =>
+  const matching = vendors.filter((g) =>
     `${g.type} ${g.category}`.toLowerCase().includes(category.label.toLowerCase()) ||
     id === 'repair' || id === 'diagnostics'
   );
-  const list = matching.length ? matching : garages;
+  const list = matching.length ? matching : vendors;
 
   return (
     <Page title={category.label}>
@@ -404,9 +403,11 @@ export function JobDetailScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const job = lookupJob(id);
+  const { vendors, jobs, loading } = useBranches();
+  const job = jobs.find((j) => j.id === id);
 
   if (!job) {
+    if (loading) return null;
     return (
       <RecordNotFound
         title="Service not found"
@@ -429,7 +430,7 @@ export function JobDetailScreen() {
         </View>
         <InfoRow icon="pricetag-outline" label="Starting from" value={job.price} valueColor={c.primary} />
         <InfoRow icon="time-outline"    label="Earliest slot" value={job.availability} />
-        <InfoRow icon="business-outline" label="Providers"   value={`${garages.length} garages available`} />
+        <InfoRow icon="business-outline" label="Providers"   value={`${vendors.length} garages available`} />
       </View>
 
       <View style={[ds.card, { backgroundColor: c.surface, borderColor: c.border }]}>
@@ -444,7 +445,7 @@ export function JobDetailScreen() {
 
       <View style={[ds.card, { backgroundColor: c.surface, borderColor: c.border }]}>
         <Text style={[ds.sectionTitle, { color: c.text }]}>Recommended garages</Text>
-        {garages.slice(0, 3).map((g) => (
+        {vendors.slice(0, 3).map((g) => (
           <GarageMini key={g.id} id={g.id} name={g.name} detail={`${g.startingPrice} · ${g.responseTime}`} />
         ))}
       </View>
