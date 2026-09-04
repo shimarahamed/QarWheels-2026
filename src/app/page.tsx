@@ -2,6 +2,10 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useMemo } from 'react';
+import { collection, query, where } from 'firebase/firestore';
+import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
+import type { Branch, WithId } from '@/lib/types';
 import {
   Activity,
   AlertTriangle,
@@ -61,14 +65,6 @@ const quickActions = [
   { label: 'Sell My Car', icon: Tag,           href: '/signup' },
 ];
 
-const garages = [
-  { id: 'g1', name: 'German Auto Care',       specialty: 'Specialist in German Cars',  rating: 4.8, reviews: 812, response: '12 min', price: 'AED 150–200', isOpen: true,  isVerified: true,  tags: ['GCC Specs'],         imageId: 'garage-interior' },
-  { id: 'g2', name: 'Al Futtaim Auto Svcs',   specialty: 'Multi-brand Service Center', rating: 4.8, reviews: 462, response: '15 min', price: 'AED 100–150', isOpen: true,  isVerified: false, tags: ['Free AC Checkup'],   imageId: 'garage-exterior' },
-  { id: 'g3', name: 'Pro PitStop Garage',      specialty: 'One Stop Auto Care',         rating: 4.5, reviews: 321, response: '18 min', price: 'AED 120–180', isOpen: true,  isVerified: true,  tags: ['Gas Top-up'],        imageId: 'car-placeholder-2' },
-  { id: 'g4', name: 'My Care Garage',          specialty: 'Basic AC Service',           rating: 4.8, reviews: 199, response: '22 min', price: 'AED 159',     isOpen: false, isVerified: false, tags: [],                    imageId: 'garage-interior' },
-  { id: 'g5', name: 'Speedy Auto Care',        specialty: 'Quick. Reliable. Affordable.', rating: 4.5, reviews: 201, response: '20 min', price: 'AED 179', isOpen: true, isVerified: true, tags: ['24/7'], imageId: 'garage-exterior' },
-];
-
 const featuredServices = [
   { label: 'AC Service',  price: 'From AED 159', imageId: 'garage-interior' },
   { label: 'Oil Change',  price: 'From AED 99',  imageId: 'car-placeholder-2' },
@@ -77,20 +73,13 @@ const featuredServices = [
   { label: 'Tire Change', price: 'From AED 249', imageId: 'garage-interior' },
 ];
 
-const garagesByCategory = [
-  { name: 'German Auto Care',  specialty: 'BMW · Mercedes',    rating: 4.8, reviews: 512, response: '12 min', price: 'AED 150–200', imageId: 'garage-interior',   isVerified: true },
-  { name: 'Euro Meister Garage',specialty: 'BMW · Mercedes Spec.', rating: 4.6, reviews: 342, response: '14 min', price: 'AED 130–190', imageId: 'garage-exterior', isVerified: false },
-  { name: 'Auto Haus Dubai',   specialty: 'Audi · VW Specialist', rating: 4.5, reviews: 289, response: '16 min', price: 'AED 130–190', imageId: 'car-placeholder-2', isVerified: false },
-];
-
 const topOffers = [
   { service: 'Oil Change',  discount: '15% OFF', until: 'Valid till 30 May', imageId: 'car-placeholder-2' },
   { service: 'Brake Pads',  discount: '10% OFF', until: 'Valid till 30 May', imageId: 'garage-interior' },
   { service: 'Full Service',discount: 'AED 99',  until: 'Limited Time',       imageId: 'garage-exterior' },
 ];
 
-const trendingServices = ['AC Service near me', 'German specialist garages', 'Oil change under AED 199', 'Best rated garages in Dubai', '24/7 Garages near me'];
-const brandFilters = ['All', 'BMW', 'Mercedes', 'Audi', 'Porsche'];
+const trendingServices = ['AC service near me', 'Oil change', 'Brake inspection', 'Battery replacement', 'Same-day service'];
 
 const trustItems = [
   { icon: ShieldCheck, label: 'Verified Garages', labelAr: 'كراجات موثقة',       color: 'bg-primary/10 text-primary' },
@@ -110,15 +99,24 @@ const keyFeatures = [
 
 // ── Sub-components ───────────────────────────────────────────────
 
-function GarageListCard({ garage }: { garage: typeof garages[0] }) {
-  const image = img(garage.imageId);
+function GarageListCard({ garage }: { garage: WithId<Branch> }) {
+  const image = img(garage.imageId ?? 'garage-interior');
+  const isOpen = !garage.vacationMode;
   return (
     <Link
-      href="/dashboard/garages"
+      href={`/dashboard/garages/${garage.id}`}
       className="group mkt-card motion-surface flex items-start gap-3 p-3 hover:bg-primary/5"
     >
       <div className="relative h-[68px] w-[68px] shrink-0 overflow-hidden rounded-xl bg-muted">
-        {image && (
+        {garage.imageUrl ? (
+          <Image
+            src={garage.imageUrl}
+            alt={garage.name}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="68px"
+          />
+        ) : image ? (
           <Image
             src={image.imageUrl}
             alt={garage.name}
@@ -126,14 +124,14 @@ function GarageListCard({ garage }: { garage: typeof garages[0] }) {
             className="object-cover transition-transform duration-300 group-hover:scale-105"
             sizes="68px"
           />
-        )}
+        ) : null}
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-foreground">{garage.name}</p>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">{garage.specialty}</p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">{garage.address}, {garage.city}</p>
           </div>
           <button
             aria-label="Save garage"
@@ -147,37 +145,41 @@ function GarageListCard({ garage }: { garage: typeof garages[0] }) {
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
           <span className="flex items-center gap-0.5">
             <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-            <span className="font-semibold text-foreground">{garage.rating}</span>
-            <span>({garage.reviews})</span>
+            <span className="font-semibold text-foreground">{garage.rating?.toFixed(1) ?? 'N/A'}</span>
+            <span>({garage.reviewCount ?? 0})</span>
           </span>
-          <span className="flex items-center gap-1">
-            <Clock3 className="h-3 w-3" />
-            {garage.response}
-          </span>
-          <span className="font-medium text-foreground">{garage.price}</span>
+          {garage.responseTimeMins != null && (
+            <span className="flex items-center gap-1">
+              <Clock3 className="h-3 w-3" />
+              {garage.responseTimeMins} min
+            </span>
+          )}
+          {garage.startingPriceValue != null && (
+            <span className="font-medium text-foreground">QAR {garage.startingPriceValue}+</span>
+          )}
         </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span
             className={cn(
               'flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold',
-              garage.isOpen
+              isOpen
                 ? 'bg-emerald-500/10 text-emerald-500'
                 : 'bg-muted text-muted-foreground',
             )}
           >
-            <span className={cn('h-1.5 w-1.5 rounded-full', garage.isOpen ? 'bg-emerald-500' : 'bg-muted-foreground')} />
-            {garage.isOpen ? 'Open' : 'Closed'}
+            <span className={cn('h-1.5 w-1.5 rounded-full', isOpen ? 'bg-emerald-500' : 'bg-muted-foreground')} />
+            {isOpen ? 'Open' : 'On vacation'}
           </span>
 
-          {garage.isVerified && (
-            <span className="flex items-center gap-0.5 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
-              <ShieldCheck className="h-2.5 w-2.5" />
-              Verified
-            </span>
-          )}
+          {/* Every listed branch has passed admin approval, so this is always
+              true here — matching /dashboard/garages' "verified by definition" logic. */}
+          <span className="flex items-center gap-0.5 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+            <ShieldCheck className="h-2.5 w-2.5" />
+            Verified
+          </span>
 
-          {garage.tags.map((tag) => (
+          {(garage.tags ?? []).slice(0, 2).map((tag) => (
             <span
               key={tag}
               className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground"
@@ -219,6 +221,23 @@ export default function LandingPage() {
   const heroImg   = img('hero-image');
   const carImg    = img('car-placeholder-2');
   const garageImg = img('garage-interior');
+
+  const { firestore } = useFirebase();
+  const vendorsQuery = useMemoFirebase(
+    () => query(collection(firestore, 'branches'), where('status', '==', 'Approved')),
+    [firestore],
+  );
+  const { data: liveVendors, isLoading: vendorsLoading } = useCollection<WithId<Branch>>(vendorsQuery);
+
+  const listedVendors = useMemo(
+    () => (liveVendors ?? []).filter((v) => v.isListed !== false && !v.vacationMode),
+    [liveVendors],
+  );
+  const nearbyGarages = useMemo(() => listedVendors.slice(0, 5), [listedVendors]);
+  const topRatedGarages = useMemo(
+    () => [...listedVendors].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 3),
+    [listedVendors],
+  );
 
   return (
     <div className="min-h-screen bg-background pb-20 sm:pb-0">
@@ -449,79 +468,75 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="space-y-2.5">
-                  {garages.map((garage) => (
-                    <GarageListCard key={garage.id} garage={garage} />
-                  ))}
+                  {vendorsLoading ? (
+                    <p className="py-6 text-center text-sm text-muted-foreground">Loading garages…</p>
+                  ) : nearbyGarages.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-muted-foreground">No garages listed yet.</p>
+                  ) : (
+                    nearbyGarages.map((garage) => (
+                      <GarageListCard key={garage.id} garage={garage} />
+                    ))
+                  )}
                 </div>
               </section>
 
               {/* ══════════════════════════════════════════════
-                  12. GARAGES BY CATEGORY (German Specialist)
+                  12. TOP RATED GARAGES
               ══════════════════════════════════════════════ */}
               <section className="px-4 py-3 lg:px-0">
                 <div className="mb-3 flex items-center justify-between">
                   <div>
-                    <h2 className="text-base font-bold">German Car Specialist</h2>
-                    <p className="text-[10px] text-muted-foreground">متخصصون في السيارات الألمانية</p>
+                    <h2 className="text-base font-bold">Top Rated Garages</h2>
+                    <p className="text-[10px] text-muted-foreground">الأعلى تقييماً</p>
                   </div>
                 </div>
-                {/* Brand filter pills */}
-                <div className="mb-3 flex gap-2 overflow-x-auto no-scrollbar">
-                  {brandFilters.map((brand, i) => (
-                    <button
-                      key={brand}
-                      className={cn(
-                        'flex-shrink-0 rounded-xl px-4 py-1.5 text-xs font-semibold transition-colors',
-                        i === 0
-                          ? 'bg-primary text-primary-foreground'
-                          : 'border border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary',
-                      )}
-                    >
-                      {brand}
-                    </button>
-                  ))}
-                </div>
                 <div className="space-y-2.5">
-                  {garagesByCategory.map((g) => {
-                    const image = img(g.imageId);
-                    return (
-                      <Link
-                        key={g.name}
-                        href="/dashboard/garages"
-                        className="group mkt-card motion-surface flex items-center gap-3 p-3"
-                      >
-                        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted">
-                          {image && (
-                            <Image src={image.imageUrl} alt={g.name} fill className="object-cover transition-transform duration-300 group-hover:scale-105" sizes="56px" />
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="truncate text-sm font-bold">{g.name}</p>
-                            {g.isVerified && (
+                  {!vendorsLoading && topRatedGarages.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-muted-foreground">No garages listed yet.</p>
+                  ) : (
+                    topRatedGarages.map((g) => {
+                      const image = g.imageUrl ?? img(g.imageId ?? 'garage-interior')?.imageUrl;
+                      return (
+                        <Link
+                          key={g.id}
+                          href={`/dashboard/garages/${g.id}`}
+                          className="group mkt-card motion-surface flex items-center gap-3 p-3"
+                        >
+                          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted">
+                            {image && (
+                              <Image src={image} alt={g.name} fill className="object-cover transition-transform duration-300 group-hover:scale-105" sizes="56px" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="truncate text-sm font-bold">{g.name}</p>
                               <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
                                 Verified
                               </span>
-                            )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">{g.address}, {g.city}</p>
+                            <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-0.5">
+                                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                                <span className="font-semibold text-foreground">{g.rating?.toFixed(1) ?? 'N/A'}</span>
+                                <span>({g.reviewCount ?? 0})</span>
+                              </span>
+                              {g.responseTimeMins != null && (
+                                <span className="flex items-center gap-1">
+                                  <Clock3 className="h-3 w-3" />
+                                  {g.responseTimeMins} min
+                                </span>
+                              )}
+                              {g.startingPriceValue != null && (
+                                <span className="font-medium text-foreground">QAR {g.startingPriceValue}+</span>
+                              )}
+                            </div>
                           </div>
-                          <p className="text-xs text-muted-foreground">{g.specialty}</p>
-                          <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-0.5">
-                              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                              <span className="font-semibold text-foreground">{g.rating}</span>
-                              <span>({g.reviews})</span>
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock3 className="h-3 w-3" />
-                              {g.response}
-                            </span>
-                            <span className="font-medium text-foreground">{g.price}</span>
-                          </div>
-                        </div>
-                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      </Link>
-                    );
-                  })}
+                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        </Link>
+                      );
+                    })
+                  )}
                 </div>
               </section>
             </div>

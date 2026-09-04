@@ -1,7 +1,8 @@
 /**
- * QarWheel seed script — populates 5 Qatar garage businesses (one multi-branch),
- * staff memberships with real Firebase Auth accounts + synced claims, and a
- * demo customer with cars and bookings across every booking status.
+ * QarWheel seed script — populates 10 Qatar garage businesses (one
+ * multi-branch), staff memberships with real Firebase Auth accounts +
+ * synced claims, and a demo customer with cars and bookings across every
+ * booking status.
  *
  * Rewritten for the Phase 1 multi-tenant schema (businesses/branches/
  * memberships) using the Admin SDK — no more client-SDK writes, no more
@@ -190,6 +191,136 @@ const BUSINESSES = [
     ],
     inventory: [
       { name: 'Castrol Edge 5W-30 VW504 (5L)', sku: 'QAU-OIL-504', quantity: 75, minQuantity: 15, unitPrice: 190, supplier: 'Castrol VAG Qatar' },
+    ],
+  },
+  {
+    id: 'biz_qspeedy_auto',
+    legalName: 'QSpeedy Auto Services W.L.L.',
+    displayName: 'QSpeedy Auto Garage',
+    ownerEmail: 'owner@qspeedy.qa',
+    contactEmail: 'service@qspeedy.qa',
+    contactPhone: '+97440335577',
+    branches: [
+      {
+        id: 'brn_qspeedy_bin_mahmoud',
+        name: 'QSpeedy Auto Garage — Bin Mahmoud',
+        address: 'Building 170, Street 18, Bin Mahmoud', city: 'Doha', country: 'Qatar',
+        latitude: 25.29123, longitude: 51.51244, phoneNumber: '+97440335577',
+        rating: 4.9, reviewCount: 260, imageUrl: 'https://images.unsplash.com/photo-1632823469850-1b7b1e8b7692?auto=format&fit=crop&w=900&q=80',
+        managerEmail: 'manager@qspeedy.qa',
+        staffEmail: 'tech1@qspeedy.qa',
+      },
+    ],
+    services: [
+      { name: 'Oil and Filter Change', description: 'Any brand engine oil, OEM-equivalent filter, top-up of essential fluids.', duration: 45, price: 120, category: 'Maintenance' },
+      { name: 'AC Cooling Check', description: 'Refrigerant pressure test, cabin filter inspection, cooling performance check.', duration: 60, price: 150, category: 'Comfort' },
+    ],
+    inventory: [
+      { name: 'Valvoline 5W-30 Synthetic (4L)', sku: 'QSP-OIL-5W30', quantity: 100, minQuantity: 20, unitPrice: 85, supplier: 'Valvoline Qatar' },
+    ],
+  },
+  {
+    id: 'biz_crooz_auto',
+    legalName: 'CrooZr Trading & Auto Center W.L.L.',
+    displayName: 'CrooZr Auto Center',
+    ownerEmail: 'owner@croozr.qa',
+    contactEmail: 'parts@croozr.qa',
+    contactPhone: '+97444207788',
+    branches: [
+      {
+        id: 'brn_croozr_najma',
+        name: 'CrooZr Auto Center — Najma',
+        address: 'Gate 20, Street 5, Najma', city: 'Doha', country: 'Qatar',
+        latitude: 25.29841, longitude: 51.49102, phoneNumber: '+97444207788',
+        rating: 4.8, reviewCount: 142, imageUrl: 'https://images.unsplash.com/photo-1625047509168-a7026f36de04?auto=format&fit=crop&w=900&q=80',
+        managerEmail: 'manager@croozr.qa',
+        staffEmail: 'tech1@croozr.qa',
+      },
+    ],
+    services: [
+      { name: 'Brake Pad Inspection & Replacement', description: 'Front and rear pad inspection, replacement with OEM-equivalent parts.', duration: 40, price: 90, category: 'Safety' },
+      { name: 'Genuine Spare Parts Fitting', description: 'Supply and fitting of genuine and OEM-equivalent spare parts.', duration: 60, price: 200, category: 'Parts' },
+    ],
+    inventory: [
+      { name: 'Bosch Brake Pad Set (Front)', sku: 'CRZ-BRK-F02', quantity: 60, minQuantity: 15, unitPrice: 145, supplier: 'Bosch Qatar' },
+    ],
+  },
+  {
+    id: 'biz_mega_auto',
+    legalName: 'Mega Auto Bodywork & Paint Co. W.L.L.',
+    displayName: 'Mega Auto Service',
+    ownerEmail: 'owner@megaauto.qa',
+    contactEmail: 'bodyshop@megaauto.qa',
+    contactPhone: '+97444895512',
+    branches: [
+      {
+        id: 'brn_mega_rayyan',
+        name: 'Mega Auto Service — Al Rayyan',
+        address: 'Gate 111, Street 29, Al Rayyan', city: 'Al-Rayyan', country: 'Qatar',
+        latitude: 25.29056, longitude: 51.42499, phoneNumber: '+97444895512',
+        rating: 4.7, reviewCount: 134, imageUrl: 'https://images.unsplash.com/photo-1605164599901-db3fecb2a765?auto=format&fit=crop&w=900&q=80',
+        managerEmail: 'manager@megaauto.qa',
+        staffEmail: 'tech1@megaauto.qa',
+      },
+    ],
+    services: [
+      { name: 'Full Body Paint & Bodywork', description: 'Panel repair, primer, colour-matched paint, and clear coat finish.', duration: 480, price: 1800, category: 'Bodywork' },
+      { name: 'Dent Removal & Touch-up', description: 'Paintless dent repair with spot touch-up for minor panel damage.', duration: 90, price: 350, category: 'Bodywork' },
+    ],
+    inventory: [
+      { name: 'PPG Base Coat Paint (1L, mixed)', sku: 'MGA-PNT-BASE', quantity: 40, minQuantity: 8, unitPrice: 220, supplier: 'PPG Qatar' },
+    ],
+  },
+  {
+    id: 'biz_auto_genius',
+    legalName: 'Auto Genius Restoration & Diagnostics W.L.L.',
+    displayName: 'Auto Genius',
+    ownerEmail: 'owner@autogenius.qa',
+    contactEmail: 'info@autogenius.qa',
+    contactPhone: '+97444331199',
+    branches: [
+      {
+        id: 'brn_autogenius_wakalat',
+        name: 'Auto Genius — Al Wakalat Street',
+        address: 'Al Wakalat Street', city: 'Doha', country: 'Qatar',
+        latitude: 25.28296, longitude: 51.45601, phoneNumber: '+97444331199',
+        rating: 4.6, reviewCount: 65, imageUrl: 'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=900&q=80',
+        managerEmail: 'manager@autogenius.qa',
+        staffEmail: 'tech1@autogenius.qa',
+      },
+    ],
+    services: [
+      { name: 'Full Diagnostics Report', description: 'Complete OBD-II scan across all modules with a written report.', duration: 45, price: 150, category: 'Diagnostics' },
+      { name: 'Classic Car Restoration Consult', description: 'Assessment and quote for restoration work on classic and vintage vehicles.', duration: 60, price: 0, category: 'Restoration' },
+    ],
+    inventory: [
+      { name: 'Autel MaxiCOM Diagnostic Kit', sku: 'AGN-DIAG-001', quantity: 3, minQuantity: 1, unitPrice: 3200, supplier: 'Autel Qatar' },
+    ],
+  },
+  {
+    id: 'biz_al_futtaim_toyota_lexus',
+    legalName: 'Al Futtaim Motors Qatar W.L.L.',
+    displayName: 'Al Futtaim Lexus Service',
+    ownerEmail: 'owner@alfuttaimlexus.qa',
+    contactEmail: 'lexusservice@alfuttaim.com',
+    contactPhone: '+97440167700',
+    branches: [
+      {
+        id: 'brn_alfuttaim_lexus_salwa',
+        name: 'Al Futtaim Lexus — Salwa Road',
+        address: 'Salwa Road', city: 'Doha', country: 'Qatar',
+        latitude: 25.24892, longitude: 51.44678, phoneNumber: '+97440167700',
+        rating: 4.8, reviewCount: 221, imageUrl: 'https://images.unsplash.com/photo-1617469767053-d3b523a0b982?auto=format&fit=crop&w=900&q=80',
+        managerEmail: 'manager@alfuttaimlexus.qa',
+        staffEmail: 'tech1@alfuttaimlexus.qa',
+      },
+    ],
+    services: [
+      { name: 'Lexus Genuine Oil Service', description: 'Lexus-spec synthetic oil, OEM filter, multi-point luxury inspection.', duration: 60, price: 480, category: 'Maintenance' },
+      { name: 'Hybrid Battery Health Check', description: 'Full hybrid drive battery diagnostic and health report.', duration: 90, price: 300, category: 'Diagnostics' },
+    ],
+    inventory: [
+      { name: 'Lexus Genuine Oil Filter', sku: 'LEX-FLT-001', quantity: 50, minQuantity: 10, unitPrice: 70, supplier: 'Al Futtaim Parts' },
     ],
   },
 ];
