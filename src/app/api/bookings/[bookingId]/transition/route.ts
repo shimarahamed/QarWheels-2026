@@ -8,6 +8,7 @@ import { canTransitionBooking, actorAllowedTransitions, type BookingStatus, type
 import { calculateCommission } from '@/lib/payments';
 import { isRateLimited, API_LIMITS, getRateLimitKey } from '@/lib/rate-limit';
 import { trackApiError, trackRateLimit } from '@/lib/observability';
+import { getPushTokensForUsers, sendPushNotifications } from '@/lib/push';
 
 const TransitionSchema = z.object({
   status: z.enum([
@@ -17,12 +18,97 @@ const TransitionSchema = z.object({
   declinedReason: z.string().max(300).optional(),
 });
 
+// Mirrors mobile/lib/notifications.ts's notifyBookingStatusChange() labels —
+// kept in sync manually since this is a server module and that's a client
+// one; a real shared-package boundary is more machinery than two small
+// label maps warrant right now.
+const CUSTOMER_STATUS_LABELS: Partial<Record<BookingStatus, string>> = {
+  Confirmed: 'Booking confirmed',
+  VehicleReceived: 'Vehicle received',
+  InProgress: 'Service started',
+  ReadyForPickup: 'Ready for pickup',
+  Completed: 'Service complete',
+  Declined: 'Booking declined',
+  Cancelled: 'Booking cancelled',
+  NoShow: 'Marked as no-show',
+};
+
+type TransitionResult = {
+  ok: true;
+  from: BookingStatus;
+  to: BookingStatus;
+  businessId: string;
+  branchId: string;
+  branchName: string;
+  customerUserId: string;
+  actorRole: 'customer' | 'branch_staff' | 'business_owner' | 'business_admin' | 'master_admin';
+  transactionId: string | null;
+};
+
+/**
+ * Notifies the side that DIDN'T make the change: staff acted → notify the
+ * customer; the customer acted (cancel) → notify the branch's staff. Never
+ * notifies the actor about their own action, and never blocks or fails the
+ * transition itself — see the .catch() at the call site.
+ */
+async function sendNotificationsForTransition(result: TransitionResult, bookingId: string): Promise<void> {
+  const staffActed = result.actorRole !== 'customer';
+
+  if (staffActed) {
+    const label = CUSTOMER_STATUS_LABELS[result.to] ?? 'Booking updated';
+    const recipients = await getPushTokensForUsers([result.customerUserId]);
+    if (recipients.length === 0) return;
+    await sendPushNotifications(recipients, {
+      title: label,
+      body: `${result.branchName} — your booking is now ${result.to.toLowerCase()}.`,
+      data: { type: 'booking_status', bookingId, status: result.to },
+      channelId: 'booking-updates',
+    });
+    return;
+  }
+
+  // Customer cancelled — notify the branch's active staff so it clears
+  // from their requests/bookings view without them having to notice on
+  // their own. Only relevant transition a customer can make is -> Cancelled
+  // (canTransitionBooking already enforced that upstream), but the
+  // to-Cancelled check here is defensive in case that ever changes.
+  if (result.to !== 'Cancelled') return;
+  const db = getAdminFirestore();
+  const membershipsSnap = await db.collection('memberships')
+    .where('businessId', '==', result.businessId)
+    .where('status', '==', 'Active')
+    .get();
+  const staffUserIds = membershipsSnap.docs
+    .map((d) => d.data() as { userId: string; role: string; branchIds: string[] })
+    .filter((m) => m.role === 'business_owner' || m.role === 'business_admin' || m.branchIds.includes(result.branchId))
+    .map((m) => m.userId);
+  if (staffUserIds.length === 0) return;
+
+  const recipients = await getPushTokensForUsers(staffUserIds);
+  if (recipients.length === 0) return;
+  await sendPushNotifications(recipients, {
+    title: 'Booking cancelled',
+    body: `A customer cancelled their booking at ${result.branchName}.`,
+    data: { type: 'booking_status', bookingId, status: result.to },
+    channelId: 'booking-updates',
+  });
+}
+
 // The single server-side enforcement point for booking status changes.
 // Firestore rules independently enforce the same transition table as a
 // floor (so a direct SDK write from either app still can't skip a step),
 // but only THIS route can atomically write statusHistory + acceptedAt/
-// declinedReason/declinedAt together and is where notification delivery and
-// ledger-entry creation (Phase 3 payouts, on ->Completed) hook in.
+// declinedReason/declinedAt together, create the ledger entry (on
+// ->Completed), and send a push notification to whichever side didn't
+// make the change (see sendNotificationsForTransition below). One gap
+// this route can't close: a brand-new booking (customer -> Pending) is
+// still created via a direct client Firestore write (see
+// mobile/lib/firestoreOps.ts createBooking, gated by firestore.rules'
+// bookings create rule), not through an API route, so there's no
+// server-side hook to notify branch staff of a NEW request today — only
+// existing-booking transitions go through here. Closing that needs either
+// routing booking creation through a server route too, or a Firestore
+// trigger (Cloud Functions, which this project doesn't currently deploy).
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ bookingId: string }> },
@@ -152,6 +238,9 @@ export async function POST(
         to: requestedStatus,
         businessId: booking.businessId,
         branchId: booking.branchId,
+        branchName: booking.branchName,
+        customerUserId: booking.userId,
+        actorRole,
         transactionId,
       };
     });
@@ -165,8 +254,14 @@ export async function POST(
       );
     }
 
-    // Notification delivery (push/email) hooks in here once a token registry
-    // exists — deliberately not built yet, see Phase 3 plan.
+    // Push delivery is genuinely best-effort: it must never fail or delay
+    // the response the transition itself succeeded on. Errors inside
+    // sendNotificationsForTransition are already caught and tracked by
+    // sendPushNotifications/getPushTokensForUsers; this just adds one more
+    // layer so a bug in recipient-selection logic can't take the route down.
+    sendNotificationsForTransition(result, bookingId).catch((error) => {
+      trackApiError('/api/bookings/[bookingId]/transition:notify', error);
+    });
 
     return ok({ status: result.to, from: result.from });
   } catch (error) {
