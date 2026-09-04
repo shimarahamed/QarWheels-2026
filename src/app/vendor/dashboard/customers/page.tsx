@@ -92,12 +92,18 @@ export default function VendorCustomersPage() {
     const { firestore } = useFirebase();
     const { business, activeBranch, canSeeAllBranches } = useVendor();
 
+    // Branch-scoped roles must filter on both businessId and branchId — see
+    // the matching comment in vendor/dashboard/bookings/page.tsx.
     const bookingsQuery = useMemoFirebase(
         () =>
             canSeeAllBranches
                 ? query(collection(firestore, 'bookings'), where('businessId', '==', business.id))
                 : activeBranch
-                ? query(collection(firestore, 'bookings'), where('branchId', '==', activeBranch.id))
+                ? query(
+                    collection(firestore, 'bookings'),
+                    where('businessId', '==', business.id),
+                    where('branchId', '==', activeBranch.id),
+                  )
                 : null,
         [firestore, business, activeBranch, canSeeAllBranches]
     );

@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# local-only credential references — never commit real login credentials
+seed-accounts.html
+
 # next.js
 /.next/
 /out/

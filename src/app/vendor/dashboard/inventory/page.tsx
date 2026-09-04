@@ -127,9 +127,20 @@ export default function VendorInventoryPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
 
+    // Must filter on both businessId and branchId — firestore.rules'
+    // isInventoryManager() checks both fields, and a `list` rule can only be
+    // proven for a query that filters on every field it inspects. A
+    // branchId-only query can't prove businessId too (it genuinely varies
+    // per matching doc), so Firestore denies the whole list outright.
     const inventoryQuery = useMemoFirebase(
-      () => activeBranch ? query(collection(firestore, 'branch_inventory'), where('branchId', '==', activeBranch.id)) : null,
-      [firestore, activeBranch],
+      () => activeBranch
+        ? query(
+            collection(firestore, 'branch_inventory'),
+            where('businessId', '==', business.id),
+            where('branchId', '==', activeBranch.id),
+          )
+        : null,
+      [firestore, business, activeBranch],
     );
     const { data: inventory, isLoading } = useCollection<WithId<InventoryItem>>(inventoryQuery);
 

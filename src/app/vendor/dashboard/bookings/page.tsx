@@ -102,20 +102,37 @@ export default function VendorBookingsPage() {
     const { business, activeBranch, canSeeAllBranches, role } = useVendor();
     const { toast } = useToast();
 
+    // Branch-scoped roles must filter on both businessId and branchId —
+    // firestore.rules' isBookingActor() checks both fields, and a branchId-only
+    // query can't prove businessId too (it genuinely varies per matching
+    // doc), so Firestore denies the whole list. Business-wide roles don't
+    // need branchId here: isBookingActor resolves them via isBusinessMember,
+    // a claim comparison against the query's own businessId filter alone.
     const bookingsQuery = useMemoFirebase(
         () =>
             canSeeAllBranches
                 ? query(collection(firestore, 'bookings'), where('businessId', '==', business.id), queryLimit(100))
                 : activeBranch
-                ? query(collection(firestore, 'bookings'), where('branchId', '==', activeBranch.id), queryLimit(100))
+                ? query(
+                    collection(firestore, 'bookings'),
+                    where('businessId', '==', business.id),
+                    where('branchId', '==', activeBranch.id),
+                    queryLimit(100),
+                  )
                 : null,
         [firestore, business, activeBranch, canSeeAllBranches]
     );
     const { data: bookings, isLoading: isLoadingBookings } = useCollection<WithId<Booking>>(bookingsQuery);
 
     const inventoryQuery = useMemoFirebase(
-        () => activeBranch ? query(collection(firestore, 'branch_inventory'), where('branchId', '==', activeBranch.id)) : null,
-        [firestore, activeBranch]
+        () => activeBranch
+            ? query(
+                collection(firestore, 'branch_inventory'),
+                where('businessId', '==', business.id),
+                where('branchId', '==', activeBranch.id),
+              )
+            : null,
+        [firestore, business, activeBranch]
     );
     const { data: inventory } = useCollection<WithId<InventoryItem>>(inventoryQuery);
 
