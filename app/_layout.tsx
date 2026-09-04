@@ -1,9 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
+import * as Notifications from 'expo-notifications';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Platform } from 'react-native';
 import 'react-native-reanimated';
 
@@ -53,10 +54,15 @@ export default function RootLayout() {
 }
 
 function AuthGuard({ children }: { children: ReactNode }) {
-  const { user, loading, wasAuthenticated } = useAuthContext();
+  const { user, loading, wasAuthenticated, role } = useAuthContext();
   const vendorAuthenticated = useQarWheelStore((state) => state.vendorAuthenticated);
   const segments = useSegments();
   const router = useRouter();
+  // Read inside the listener via a ref rather than closing over `role`
+  // directly — the listener is set up once (empty deps below) so it must
+  // never see a value captured from the first render.
+  const roleRef = useRef(role);
+  roleRef.current = role;
 
   // Register the device for push and attach the token to the user's profile.
   // Without this the token never leaves the device and no booking update can
@@ -66,6 +72,28 @@ function AuthGuard({ children }: { children: ReactNode }) {
     if (!user?.uid) return;
     void syncPushTokenToProfile(user.uid);
   }, [user?.uid]);
+
+  // Deep-link a tapped push notification to the right booking screen. Server
+  // sends { type: 'booking_status', bookingId, status } — see
+  // src/app/api/bookings/[bookingId]/transition/route.ts. Customers land on
+  // the job-progress view; any staff role lands on the vendor booking-detail
+  // view for the same booking id.
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as
+        | { type?: string; bookingId?: string }
+        | undefined;
+      if (data?.type !== 'booking_status' || !data.bookingId) return;
+
+      const isStaff = roleRef.current !== 'customer' && roleRef.current !== 'master_admin';
+      if (isStaff) {
+        router.push(`/vendor/booking-detail/${data.bookingId}` as never);
+      } else {
+        router.push(`/job-progress/${data.bookingId}` as never);
+      }
+    });
+    return () => sub.remove();
+  }, [router]);
 
   // Breadcrumb the route so crash reports show how the user got there.
   useEffect(() => {
