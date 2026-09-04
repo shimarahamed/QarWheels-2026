@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { firestore } from './firebase';
 import { useAuthContext } from './AuthContext';
 import { useQarWheelStore } from './store';
+import { isBusinessWideRole } from './permissions';
 
 export type VendorBranch = {
   id: string;
@@ -19,12 +20,12 @@ export type VendorBranch = {
 const MAX_IN_CLAUSE = 30;
 
 /**
- * Fetches the actual Branch documents for the signed-in vendor's scope
- * (all of the business's branches for an owner/admin, or just the claimed
- * subset for branch_manager/branch_staff), and manages which one is
- * "active" — mirrors src/components/vendor/vendor-provider.tsx on the web
- * side. Call once near the top of the vendor screen tree (e.g. in a vendor
- * layout) and read `activeBranch`/`branches`/`setActiveBranch` from there.
+ * Fetches the actual Branch documents for the signed-in vendor's scope (every
+ * branch for a business-wide role, or just the claimed subset for everyone
+ * else), and manages which one is "active" — mirrors
+ * src/components/vendor/vendor-provider.tsx on the web side. Call once near
+ * the top of the vendor screen tree (e.g. in a vendor layout) and read
+ * `activeBranch`/`branches`/`setActiveBranch` from there.
  */
 export function useVendorBranches() {
   const { businessId, branchIds, role } = useAuthContext();
@@ -34,7 +35,7 @@ export function useVendorBranches() {
   const [branches, setBranches] = useState<VendorBranch[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const canSeeAllBranches = role === 'business_owner' || role === 'business_admin';
+  const canSeeAllBranches = role !== 'customer' && role !== 'master_admin' && isBusinessWideRole(role);
 
   useEffect(() => {
     if (!businessId) {

@@ -16,6 +16,8 @@ import { getQarColors } from '@/lib/theme';
 import { useQarWheelStore } from '@/lib/store';
 import { tap } from '@/lib/haptics';
 import { motion } from '@/lib/motion';
+import { useAuthContext } from '@/lib/AuthContext';
+import { canAccess, type VendorSection } from '@/lib/permissions';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -25,13 +27,15 @@ interface VendorTabDef {
   icon: IoniconsName;
   iconActive: IoniconsName;
   isFab?: boolean;
+  /** Omit for a tab every vendor role should see (Dashboard, Settings). */
+  section?: VendorSection;
 }
 
 export const VENDOR_TAB_PATHS: VendorTabDef[] = [
   { path: '/vendor/dashboard',  label: 'Dashboard', icon: 'grid-outline',      iconActive: 'grid'          },
-  { path: '/vendor/bookings',   label: 'Bookings',  icon: 'calendar-outline',  iconActive: 'calendar'      },
-  { path: '/vendor/services',   label: '',          icon: 'add',               iconActive: 'add', isFab: true },
-  { path: '/vendor/analytics',  label: 'Analytics', icon: 'bar-chart-outline', iconActive: 'bar-chart'     },
+  { path: '/vendor/bookings',   label: 'Bookings',  icon: 'calendar-outline',  iconActive: 'calendar',      section: 'bookings' },
+  { path: '/vendor/services',   label: '',          icon: 'add',               iconActive: 'add', isFab: true, section: 'services' },
+  { path: '/vendor/analytics',  label: 'Analytics', icon: 'bar-chart-outline', iconActive: 'bar-chart',     section: 'analytics' },
   { path: '/vendor/settings',   label: 'Settings',  icon: 'settings-outline',  iconActive: 'settings'      },
 ];
 
@@ -151,6 +155,10 @@ export function VendorTabBar() {
   const themeMode = useQarWheelStore((s) => s.themeMode);
   const c         = getQarColors(themeMode);
   const isDark    = themeMode === 'dark';
+  const { role }  = useAuthContext();
+  const visibleTabs = VENDOR_TAB_PATHS.filter(
+    (tab) => !tab.section || (role !== 'customer' && role !== 'master_admin' && canAccess(role, tab.section)),
+  );
 
   const bottomOffset = insets.bottom > 0
     ? insets.bottom - 4
@@ -214,7 +222,7 @@ export function VendorTabBar() {
         />
 
         <View style={ss.innerRow}>
-          {VENDOR_TAB_PATHS.map((tab, index) => {
+          {visibleTabs.map((tab, index) => {
             const focused = pathname === tab.path || pathname.startsWith(tab.path + '/');
 
             const onPress = () => {

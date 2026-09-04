@@ -3,7 +3,15 @@
 // same reasoning as mobile/lib/booking-workflow.ts duplicating the web
 // BookingStatus union.
 
-export type MembershipRole = 'business_owner' | 'business_admin' | 'branch_manager' | 'branch_staff';
+// What each role may actually do lives in mobile/lib/permissions.ts (mirror
+// of src/lib/auth/permissions.ts) — this union is only the legal values.
+export type MembershipRole =
+  | 'business_owner'
+  | 'vendor_admin'
+  | 'vendor_manager'
+  | 'vendor_staff'
+  | 'vendor_cashier'
+  | 'vendor_inventory';
 
 export type QwClaims =
   | { r: MembershipRole; b: string; br: string[] }

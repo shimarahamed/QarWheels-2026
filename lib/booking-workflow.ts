@@ -28,7 +28,15 @@ export function canTransitionBooking(from: BookingWorkflowStatus, to: BookingWor
   return from === to || BOOKING_TRANSITIONS[from].includes(to);
 }
 
-export type BookingActorRole = 'customer' | 'branch_staff' | 'business_owner' | 'business_admin' | 'master_admin';
+import type { MembershipRole } from './roles';
+
+// Mirrors src/lib/types.ts's BookingActorRole — a written audit value, so
+// historical statusHistory entries may carry a role name older than
+// MembershipRole's current union. Widening it to string would lose the
+// autocomplete/typo-checking that's the whole point of a union here, so this
+// stays a plain union rather than trying to express "or anything, ever
+// written previously."
+export type BookingActorRole = MembershipRole | 'customer' | 'master_admin';
 
 export function actorAllowedTransitions(role: BookingActorRole, from: BookingWorkflowStatus): BookingWorkflowStatus[] {
   if (role === 'customer') {
