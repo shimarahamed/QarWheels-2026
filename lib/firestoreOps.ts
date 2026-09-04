@@ -496,19 +496,18 @@ export function useBranches(): { vendors: Garage[]; jobs: PopularJob[]; loading:
   );
 
   useEffect(() => {
-    // Only admin-approved branches are visible to customers — same query the
-    // web marketplace uses, and the same condition firestore.rules enforces
-    // for non-owner/non-admin readers. `isListed` (admin delist switch) and
-    // `vacationMode` (the vendor's own pause) are then applied client-side so
-    // this needs no extra composite index.
-    const q = query(collection(firestore, 'branches'), where('status', '==', 'Approved'));
+    // Public branch listing must filter on isListed, not status — firestore.rules'
+    // `list` rule for branches can only statically verify a query filtered on
+    // `isListed == true` (Firestore proves list-rule safety from the query's own
+    // where() clauses, not from each returned doc's data), so a status-filtered
+    // query gets denied outright for signed-out/non-member readers even though
+    // every matching doc would satisfy the rule. `vacationMode` (the vendor's own
+    // pause) is then applied client-side so this needs no extra composite index.
+    const q = query(collection(firestore, 'branches'), where('isListed', '==', true));
     const unsub = onSnapshot(
       q,
       async (snap) => {
-        const listedDocs = snap.docs.filter((d) => {
-          const data = d.data();
-          return data.isListed !== false && !data.vacationMode;
-        });
+        const listedDocs = snap.docs.filter((d) => !d.data().vacationMode);
 
         if (listedDocs.length === 0) {
           setRawDocs([]);
