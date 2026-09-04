@@ -230,6 +230,14 @@ service cloud.firestore {
         || isBusinessMember(resource.data.businessId)
         || isAdmin();
 
+      // For `list`, Firestore doesn't evaluate resource.data per returned
+      // document — it proves the rule holds for every *possible* result of
+      // the query itself. That only works if the query has a where() clause
+      // matching the rule's condition. So this rule requires every public
+      // marketplace query against this collection to filter on
+      // `where('isListed', '==', true)` specifically (not `status`, which
+      // this rule can't see) — see src/app/page.tsx, dashboard/garages, and
+      // mobile's useBranches() for the matching client-side queries.
       allow list: if resource.data.isListed == true
         || isBusinessMember(resource.data.businessId)
         || isAdmin();

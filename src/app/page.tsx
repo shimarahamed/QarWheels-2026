@@ -223,14 +223,18 @@ export default function LandingPage() {
   const garageImg = img('garage-interior');
 
   const { firestore } = useFirebase();
+  // Must filter on isListed (not status) — firestore.rules' public `list` rule
+  // for branches can only verify a query that filters on isListed == true;
+  // it can't see a status filter, so that shape gets denied for signed-out
+  // reads even though the data itself would satisfy the rule.
   const vendorsQuery = useMemoFirebase(
-    () => query(collection(firestore, 'branches'), where('status', '==', 'Approved')),
+    () => query(collection(firestore, 'branches'), where('isListed', '==', true)),
     [firestore],
   );
   const { data: liveVendors, isLoading: vendorsLoading } = useCollection<WithId<Branch>>(vendorsQuery);
 
   const listedVendors = useMemo(
-    () => (liveVendors ?? []).filter((v) => v.isListed !== false && !v.vacationMode),
+    () => (liveVendors ?? []).filter((v) => !v.vacationMode),
     [liveVendors],
   );
   const nearbyGarages = useMemo(() => listedVendors.slice(0, 5), [listedVendors]);
