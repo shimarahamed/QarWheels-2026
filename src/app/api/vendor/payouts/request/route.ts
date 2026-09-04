@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server';
 import { ok, Errors } from '@/lib/api-response';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireAction } from '@/lib/auth/require-role';
 import { ensureConnectAccount, sendPayout } from '@/lib/payments';
 import { writeAuditLog } from '@/lib/audit';
 import { isRateLimited, API_LIMITS, getRateLimitKey } from '@/lib/rate-limit';
@@ -13,7 +13,7 @@ import type { Business, Payout, Transaction } from '@/lib/types';
 const MINIMUM_PAYOUT_MINOR_UNITS = 10_000; // QAR 100.00
 
 export async function POST(request: NextRequest) {
-  const access = await requireRole(request, ['business_owner', 'business_admin']);
+  const access = await requireAction(request, 'payouts.request');
   if (!access.ok) {
     return access.reason === 'unauthenticated' ? Errors.unauthorized() : Errors.forbidden();
   }

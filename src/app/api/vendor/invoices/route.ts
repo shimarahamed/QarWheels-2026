@@ -2,8 +2,9 @@ import { type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { ok, Errors } from '@/lib/api-response';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { requireRole, requireBranchAccess } from '@/lib/auth/require-role';
+import { requireSection, requireBranchAccess } from '@/lib/auth/require-role';
 import { claimsCoverBranch } from '@/lib/auth/qw-claims';
+import { isBusinessWideRole } from '@/lib/auth/permissions';
 import { isRateLimited, API_LIMITS, getRateLimitKey } from '@/lib/rate-limit';
 import { trackApiError, trackRateLimit } from '@/lib/observability';
 import type { Booking, Invoice, InvoiceLineItem, WithId } from '@/lib/types';
@@ -39,7 +40,7 @@ const MAX_OVERAGE_RATIO = 3; // invoice may be up to 3x the quoted cost
 const MAX_OVERAGE_FLAT_MINOR_UNITS = 50_000 * 100; // ...or +QAR 50,000, whichever is larger
 
 export async function GET(request: NextRequest) {
-  const access = await requireRole(request, ['business_owner', 'business_admin', 'branch_manager', 'branch_staff', 'master_admin']);
+  const access = await requireSection(request, 'invoices');
   if (!access.ok) {
     return access.reason === 'unauthenticated' ? Errors.unauthorized() : Errors.forbidden();
   }
@@ -61,9 +62,14 @@ export async function GET(request: NextRequest) {
       .get();
     let invoices: WithId<Invoice>[] = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Invoice) }));
 
-    // branch_manager/branch_staff only see their own branch(es)' invoices —
-    // business_owner/business_admin/master_admin see the whole business.
-    if (auth.role === 'branch_manager' || auth.role === 'branch_staff') {
+    // Branch-scoped roles only see invoices from the branches on their claim;
+    // the business-wide roles (and master_admin) see all of them.
+    const isBranchScoped =
+      auth.role !== 'master_admin' &&
+      auth.claims !== null &&
+      auth.claims.r !== 'master_admin' &&
+      !isBusinessWideRole(auth.claims.r);
+    if (isBranchScoped) {
       invoices = invoices.filter((inv) => auth.claims && claimsCoverBranch(auth.claims, inv.branchId));
     }
 
@@ -114,8 +120,14 @@ export async function POST(request: NextRequest) {
     if (!bookingSnap.exists) return Errors.notFound('Booking');
     const booking = bookingSnap.data() as Booking;
 
-    // Authorised against the booking's own branch, so staff can only invoice
-    // work at a branch they actually belong to.
+    // Two separate questions, both of which have to pass: may this role raise
+    // invoices at all, and is this one of their branches. Branch access alone
+    // would let anyone assigned to the branch invoice, including roles whose
+    // job doesn't involve billing.
+    const permitted = await requireSection(request, 'invoices', 'write');
+    if (!permitted.ok) {
+      return permitted.reason === 'unauthenticated' ? Errors.unauthorized() : Errors.forbidden();
+    }
     const access = await requireBranchAccess(request, booking.branchId);
     if (!access.ok) {
       return access.reason === 'unauthenticated' ? Errors.unauthorized() : Errors.forbidden();

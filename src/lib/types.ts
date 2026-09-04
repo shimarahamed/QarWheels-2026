@@ -81,8 +81,18 @@ export function canTransitionBooking(from: BookingStatus, to: BookingStatus): bo
  * forward-moving set). Distinct from BOOKING_TRANSITIONS, which is the full
  * set the datastore allows regardless of actor.
  */
+/**
+ * Who performed a booking transition, as recorded in statusHistory.
+ *
+ * This is persisted audit data: entries written under older role names stay
+ * exactly as they were logged, which is the point of an audit trail. Read
+ * paths must therefore tolerate a value outside the current MembershipRole
+ * union rather than assume this matches today's roles.
+ */
+export type BookingActorRole = MembershipRole | 'customer' | 'master_admin';
+
 export function actorAllowedTransitions(
-  role: 'customer' | 'branch_staff' | 'business_owner' | 'business_admin' | 'master_admin',
+  role: BookingActorRole,
   from: BookingStatus,
 ): BookingStatus[] {
   if (role === 'customer') {
@@ -105,7 +115,7 @@ export type BookingStatusHistoryEntry = {
   status: BookingStatus;
   at: FirestoreDate;
   byUid: string;
-  byRole: 'customer' | 'branch_staff' | 'business_owner' | 'business_admin' | 'master_admin';
+  byRole: BookingActorRole;
   note?: string;
 };
 
@@ -218,7 +228,21 @@ export type Branch = {
 
 // ─── Membership (staff/auth link) ────────────────────────────────────────────
 
-export type MembershipRole = 'business_owner' | 'business_admin' | 'branch_manager' | 'branch_staff';
+// Vendor-side roles, ordered most- to least-privileged. The permission each
+// one actually carries is defined once in src/lib/auth/permissions.ts — this
+// union is only the set of legal values.
+//
+// business_owner is never invited or reassigned: it's granted at registration
+// (api/vendor/register) and is the one role that can't be edited away, so a
+// business always has exactly one accountable owner.
+export type MembershipRole =
+  | 'business_owner'
+  | 'vendor_admin'
+  | 'vendor_manager'
+  | 'vendor_staff'
+  | 'vendor_cashier'
+  | 'vendor_inventory';
+
 export type MembershipStatus = 'Active' | 'Inactive';
 
 export type Membership = {
@@ -226,8 +250,9 @@ export type Membership = {
   businessId: string;
   role: MembershipRole;
   jobTitle?: string;
-  // Empty array means "all branches" — only meaningful for owner/admin roles;
-  // branch_manager/branch_staff must have at least one explicit branch.
+  // Empty array means "all branches", which only applies to the business-wide
+  // roles (see isBusinessWideRole in src/lib/auth/permissions.ts). Every other
+  // role must carry at least one explicit branch.
   branchIds: string[];
   status: MembershipStatus;
   email: string;
@@ -395,7 +420,10 @@ export type AuditAction =
 
 export type AuditLogEntry = {
   actorId: string;
-  actorRole: 'business_owner' | 'business_admin' | 'branch_manager' | 'branch_staff' | 'master_admin' | 'system';
+  // Same caveat as BookingActorRole: this is a written record of who did
+  // something, so historical entries keep whatever role name was current when
+  // they were logged.
+  actorRole: MembershipRole | 'master_admin' | 'system';
   actorEmail?: string;
   businessId?: string;
   branchId?: string;

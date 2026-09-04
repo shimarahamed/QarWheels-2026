@@ -58,9 +58,6 @@ export function branchStatusBadge(status: BranchStatus | undefined) {
   return <Badge className="bg-amber-500 text-[10px] hover:bg-amber-500">Pending Approval</Badge>;
 }
 
-export const ROLE_LABELS: Record<MembershipRole, string> = {
-  business_owner: 'Owner',
-  business_admin: 'Business Admin',
-  branch_manager: 'Branch Manager',
-  branch_staff: 'Staff',
-};
+// Re-exported so existing admin imports keep working; the labels themselves
+// live with the permission model in src/lib/auth/permissions.ts.
+export { ROLE_LABELS } from '@/lib/auth/permissions';

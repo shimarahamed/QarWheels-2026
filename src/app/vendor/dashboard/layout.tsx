@@ -9,22 +9,58 @@ import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect } from "react";
 import { Logo } from "@/components/logo";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { useVendor } from "@/components/vendor/vendor-provider";
+import { RequireVendorSection } from "@/components/vendor/require-section";
+import type { VendorSection } from "@/lib/auth/permissions";
 
-const mobileNav = [
-    { href: "/vendor/dashboard",           icon: Home,      label: "Home",     activeColor: "bg-primary" },
-    { href: "/vendor/dashboard/bookings",  icon: Book,      label: "Jobs",     activeColor: "bg-amber-600" },
-    { href: "/vendor/dashboard/services",  icon: Wrench,    label: "Services", activeColor: "bg-emerald-600" },
-    { href: "/vendor/dashboard/inventory", icon: Package,   label: "Stock",    activeColor: "bg-sky-600" },
-    { href: "/vendor/dashboard/analytics", icon: AreaChart, label: "Stats",    activeColor: "bg-teal-600" },
+// Maps each dashboard route to the section that gates it. /vendor/dashboard
+// itself (the overview) and settings have no entry — overview is readable by
+// every role by design, and settings (branch profile, not a permission-matrix
+// concern) isn't restricted here. Longest-prefix match, so /staff/[id]-style
+// nested routes fall under their parent automatically.
+const SECTION_BY_ROUTE: [prefix: string, section: VendorSection][] = [
+  ["/vendor/dashboard/bookings", "bookings"],
+  ["/vendor/dashboard/customers", "customers"],
+  ["/vendor/dashboard/services", "services"],
+  ["/vendor/dashboard/inventory", "inventory"],
+  ["/vendor/dashboard/staff", "staff"],
+  ["/vendor/dashboard/messages", "messages"],
+  ["/vendor/dashboard/invoices", "invoices"],
+  ["/vendor/dashboard/payouts", "payouts"],
+  ["/vendor/dashboard/promotions", "promotions"],
+  ["/vendor/dashboard/reviews", "reviews"],
+  ["/vendor/dashboard/analytics", "analytics"],
+];
+
+function sectionForPath(pathname: string): VendorSection | null {
+  const match = SECTION_BY_ROUTE.find(([prefix]) => pathname.startsWith(prefix));
+  return match ? match[1] : null;
+}
+
+function VendorRouteGate({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const section = sectionForPath(pathname);
+  if (!section) return <>{children}</>;
+  return <RequireVendorSection section={section}>{children}</RequireVendorSection>;
+}
+
+const mobileNav: { href: string; icon: typeof Home; label: string; activeColor: string; section: VendorSection }[] = [
+    { href: "/vendor/dashboard",           icon: Home,      label: "Home",     activeColor: "bg-primary",     section: "overview" },
+    { href: "/vendor/dashboard/bookings",  icon: Book,      label: "Jobs",     activeColor: "bg-amber-600",   section: "bookings" },
+    { href: "/vendor/dashboard/services",  icon: Wrench,    label: "Services", activeColor: "bg-emerald-600", section: "services" },
+    { href: "/vendor/dashboard/inventory", icon: Package,   label: "Stock",    activeColor: "bg-sky-600",     section: "inventory" },
+    { href: "/vendor/dashboard/analytics", icon: AreaChart, label: "Stats",    activeColor: "bg-teal-600",    section: "analytics" },
 ];
 
 function VendorMobileNav() {
     const pathname = usePathname();
+    const { canAccess } = useVendor();
+    const visibleTabs = mobileNav.filter((item) => canAccess(item.section));
 
     return (
         <nav className="liquid-glass-tab-bar fixed bottom-[max(env(safe-area-inset-bottom),0.5rem)] left-1/2 z-40 w-[calc(100%-1.5rem)] max-w-[26rem] -translate-x-1/2 rounded-[2rem] p-1.5 md:hidden">
             <div className="flex items-center justify-around gap-0.5">
-                {mobileNav.map((item) => {
+                {visibleTabs.map((item) => {
                     const Icon = item.icon;
                     const isActive =
                         item.href === "/vendor/dashboard"
@@ -102,7 +138,7 @@ export default function VendorDashboardLayout({ children }: { children: React.Re
                                 </header>
                                 <PullToRefresh>
                                     <div className="page-motion mx-auto max-w-[1600px] p-3 sm:p-6 lg:p-8 xl:p-10">
-                                        {children}
+                                        <VendorRouteGate>{children}</VendorRouteGate>
                                     </div>
                                 </PullToRefresh>
                             </main>

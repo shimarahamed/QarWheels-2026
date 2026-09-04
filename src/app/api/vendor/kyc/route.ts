@@ -2,7 +2,7 @@ import { type NextRequest } from 'next/server';
 import { KycSubmitSchema } from '@/lib/schemas';
 import { ok, Errors } from '@/lib/api-response';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireAction } from '@/lib/auth/require-role';
 import { trackApiError } from '@/lib/observability';
 
 // Vendor KYC submission — the ONLY write path for businesses/{id}.kyc.
@@ -11,7 +11,7 @@ import { trackApiError } from '@/lib/observability';
 // this route always forces status back to 'Pending' on submission. Approval
 // happens exclusively via /api/admin/kyc/[businessId] (master-admin only).
 export async function POST(request: NextRequest) {
-  const access = await requireRole(request, ['business_owner', 'business_admin']);
+  const access = await requireAction(request, 'business.submitKyc');
   if (!access.ok) {
     return access.reason === 'unauthenticated' ? Errors.unauthorized() : Errors.forbidden();
   }

@@ -2,7 +2,8 @@ import { type NextRequest } from 'next/server';
 import { StaffInviteCreateSchema } from '@/lib/schemas';
 import { ok, Errors } from '@/lib/api-response';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireAction } from '@/lib/auth/require-role';
+import { ROLE_LABELS } from '@/lib/auth/permissions';
 import { generateInviteToken, hashInviteToken } from '@/lib/auth/invite-token';
 import { sendEmail } from '@/lib/email';
 import { isRateLimited, API_LIMITS, getRateLimitKey } from '@/lib/rate-limit';
@@ -16,7 +17,7 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // directly) and emails a join link. The raw token only ever exists in the
 // link and the response body; only its SHA-256 hash is persisted.
 export async function POST(request: NextRequest) {
-  const access = await requireRole(request, ['business_owner', 'business_admin']);
+  const access = await requireAction(request, 'staff.manage');
   if (!access.ok) {
     return access.reason === 'unauthenticated' ? Errors.unauthorized() : Errors.forbidden();
   }
@@ -42,11 +43,10 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return Errors.badRequest('Invalid request', parsed.error.flatten().fieldErrors);
   }
+  // business_owner can't arrive here: StaffInviteCreateSchema validates
+  // against the assignable roles only, so a request naming it is rejected as
+  // malformed before this point.
   const { email, role, jobTitle, branchIds } = parsed.data;
-
-  if (role === 'business_owner') {
-    return Errors.badRequest('Cannot invite a second business_owner — use business_admin instead');
-  }
 
   try {
     const db = getAdminFirestore();
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     await sendEmail({
       to: email,
       subject: "You're invited to join a QarWheel garage team",
-      html: `<p>You've been invited to join as ${jobTitle ?? role.replace('_', ' ')}.</p><p><a href="${joinUrl}">Accept invite</a></p><p>This link expires in 7 days.</p>`,
+      html: `<p>You've been invited to join as ${jobTitle ?? ROLE_LABELS[role]}.</p><p><a href="${joinUrl}">Accept invite</a></p><p>This link expires in 7 days.</p>`,
       text: `You've been invited to join a QarWheel garage team. Accept: ${joinUrl} (expires in 7 days)`,
     });
 

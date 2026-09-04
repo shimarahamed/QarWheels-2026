@@ -4,7 +4,8 @@ import { ok, Errors } from '@/lib/api-response';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { requireBranchAccess } from '@/lib/auth/require-role';
 import { getVerifiedUserFromRequest } from '@/lib/firebase-auth';
-import { canTransitionBooking, actorAllowedTransitions, type BookingStatus, type Booking, type Transaction } from '@/lib/types';
+import { canTransitionBooking, actorAllowedTransitions, type BookingActorRole, type BookingStatus, type Booking, type Membership, type Transaction } from '@/lib/types';
+import { canAccess, isBusinessWideRole } from '@/lib/auth/permissions';
 import { calculateCommission } from '@/lib/payments';
 import { isRateLimited, API_LIMITS, getRateLimitKey } from '@/lib/rate-limit';
 import { trackApiError, trackRateLimit } from '@/lib/observability';
@@ -41,7 +42,7 @@ type TransitionResult = {
   branchId: string;
   branchName: string;
   customerUserId: string;
-  actorRole: 'customer' | 'branch_staff' | 'business_owner' | 'business_admin' | 'master_admin';
+  actorRole: BookingActorRole;
   transactionId: string | null;
 };
 
@@ -79,8 +80,16 @@ async function sendNotificationsForTransition(result: TransitionResult, bookingI
     .where('status', '==', 'Active')
     .get();
   const staffUserIds = membershipsSnap.docs
-    .map((d) => d.data() as { userId: string; role: string; branchIds: string[] })
-    .filter((m) => m.role === 'business_owner' || m.role === 'business_admin' || m.branchIds.includes(result.branchId))
+    .map((d) => d.data() as Membership)
+    // Business-wide roles cover every branch; everyone else only hears about
+    // the branches they're actually assigned to. Roles with no access to
+    // bookings at all (inventory) are left out — a cancellation isn't theirs
+    // to action, so notifying them would just be noise.
+    .filter(
+      (m) =>
+        canAccess(m.role, 'bookings') &&
+        (isBusinessWideRole(m.role) || m.branchIds.includes(result.branchId)),
+    )
     .map((m) => m.userId);
   if (staffUserIds.length === 0) return;
 
@@ -146,14 +155,23 @@ export async function POST(
       const booking = snap.data() as Booking;
 
       const isOwner = booking.userId === user.uid;
-      let actorRole: 'customer' | 'branch_staff' | 'business_owner' | 'business_admin' | 'master_admin';
+      let actorRole: BookingActorRole;
 
       if (isOwner) {
         actorRole = 'customer';
       } else {
         const access = await requireBranchAccess(request, booking.branchId);
         if (!access.ok) return { error: access.reason };
-        actorRole = access.auth.role === 'master_admin' ? 'master_admin' : (access.auth.role as typeof actorRole);
+        if (access.auth.role === 'master_admin') {
+          actorRole = 'master_admin';
+        } else {
+          const claims = access.auth.claims;
+          if (!claims || claims.r === 'master_admin') return { error: 'forbidden' as const };
+          // Belonging to the branch isn't enough — the role has to be one
+          // whose job includes working bookings at all.
+          if (!canAccess(claims.r, 'bookings', 'write')) return { error: 'forbidden' as const };
+          actorRole = claims.r;
+        }
       }
 
       const currentStatus = booking.status;

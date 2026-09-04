@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server';
 import { ok, Errors } from '@/lib/api-response';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireSection } from '@/lib/auth/require-role';
 import { trackApiError } from '@/lib/observability';
 import type { Membership, StaffInvite, WithId } from '@/lib/types';
 
@@ -11,7 +11,7 @@ import type { Membership, StaffInvite, WithId } from '@/lib/types';
 // per-document rule), so the owner/admin staff page reads through here
 // instead, which uses the Admin SDK and filters server-side.
 export async function GET(request: NextRequest) {
-  const access = await requireRole(request, ['business_owner', 'business_admin', 'master_admin']);
+  const access = await requireSection(request, 'staff');
   if (!access.ok) {
     return access.reason === 'unauthenticated' ? Errors.unauthorized() : Errors.forbidden();
   }

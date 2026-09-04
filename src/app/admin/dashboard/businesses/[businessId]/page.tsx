@@ -27,6 +27,7 @@ import { AuditDiff } from '@/components/admin/audit-diff';
 import {
   ROLE_LABELS, branchStatusBadge, businessStatusBadge, formatDate, formatDateTime, kycBadge,
 } from '@/components/admin/admin-format';
+import { isBusinessWideRole } from '@/lib/auth/permissions';
 import type {
   AuditLogEntry, Branch, BranchStatus, Business, BusinessStatus, Membership, StaffInvite, WithId,
 } from '@/lib/types';
@@ -449,7 +450,7 @@ export default function AdminBusinessDetailPage() {
                             </TableCell>
                             <TableCell className="hidden sm:table-cell text-sm">{ROLE_LABELS[m.role]}</TableCell>
                             <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                              {m.role === 'business_owner' || m.role === 'business_admin'
+                              {isBusinessWideRole(m.role)
                                 ? 'All branches'
                                 : m.branchIds
                                     .map((id) => branches?.find((b) => b.id === id)?.name ?? id)

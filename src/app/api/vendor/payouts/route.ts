@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server';
 import { ok, Errors } from '@/lib/api-response';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireSection } from '@/lib/auth/require-role';
 import { paymentsAreLive } from '@/lib/payments';
 import { trackApiError } from '@/lib/observability';
 import type { Payout, Transaction, WithId } from '@/lib/types';
@@ -10,7 +10,7 @@ import type { Payout, Transaction, WithId } from '@/lib/types';
 // transaction not yet rolled into a payout. Owner/admin only — a
 // branch_manager or branch_staff has no business seeing company finances.
 export async function GET(request: NextRequest) {
-  const access = await requireRole(request, ['business_owner', 'business_admin', 'master_admin']);
+  const access = await requireSection(request, 'payouts');
   if (!access.ok) {
     return access.reason === 'unauthenticated' ? Errors.unauthorized() : Errors.forbidden();
   }

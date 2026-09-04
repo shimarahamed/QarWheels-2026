@@ -37,26 +37,28 @@ import { Logo } from "../logo";
 import { useVendor } from "./vendor-provider";
 import { BranchSwitcher } from "./branch-switcher";
 import type { Booking, WithId } from "@/lib/types";
+import type { VendorSection } from "@/lib/auth/permissions";
 
-const navItems = [
-  { href: "/vendor/dashboard",            icon: LayoutDashboard, label: "Overview",   hint: "Command center",  iconBg: "bg-primary/10 text-primary",        activeGradient: "from-primary/20 to-sky-500/10" },
-  { href: "/vendor/dashboard/bookings",   icon: Book,            label: "Bookings",   hint: "Jobs and visits", iconBg: "bg-amber-500/10 text-amber-600",     activeGradient: "from-amber-500/20 to-orange-500/10" },
-  { href: "/vendor/dashboard/customers",  icon: Users,           label: "Customers",  hint: "Client profiles", iconBg: "bg-violet-500/10 text-violet-600",   activeGradient: "from-violet-500/20 to-indigo-500/10" },
-  { href: "/vendor/dashboard/services",   icon: Wrench,          label: "Services",   hint: "Menu and pricing",iconBg: "bg-emerald-500/10 text-emerald-600", activeGradient: "from-emerald-500/20 to-teal-500/10" },
-  { href: "/vendor/dashboard/inventory",  icon: Package,         label: "Inventory",  hint: "Parts and stock", iconBg: "bg-sky-500/10 text-sky-600",         activeGradient: "from-sky-500/20 to-cyan-500/10" },
-  { href: "/vendor/dashboard/staff",      icon: Users,           label: "Staff",      hint: "Team roles",      iconBg: "bg-indigo-500/10 text-indigo-600",   activeGradient: "from-indigo-500/20 to-violet-500/10" },
-  { href: "/vendor/dashboard/messages",   icon: MessageSquare,   label: "Messages",   hint: "Customer chat",   iconBg: "bg-blue-500/10 text-blue-600",       activeGradient: "from-blue-500/20 to-sky-500/10" },
-  { href: "/vendor/dashboard/invoices",   icon: Receipt,         label: "Invoices",   hint: "Billing",         iconBg: "bg-cyan-500/10 text-cyan-600",       activeGradient: "from-cyan-500/20 to-sky-500/10" },
-  { href: "/vendor/dashboard/payouts",    icon: Wallet,          label: "Payouts",    hint: "Earnings",        iconBg: "bg-lime-500/10 text-lime-600",       activeGradient: "from-lime-500/20 to-emerald-500/10" },
-  { href: "/vendor/dashboard/promotions", icon: Percent,         label: "Promotions", hint: "Offers",          iconBg: "bg-rose-500/10 text-rose-600",       activeGradient: "from-rose-500/20 to-pink-500/10" },
-  { href: "/vendor/dashboard/reviews",    icon: Star,            label: "Reviews",    hint: "Reputation",      iconBg: "bg-amber-500/10 text-amber-600",     activeGradient: "from-amber-500/20 to-yellow-500/10" },
-  { href: "/vendor/dashboard/analytics",  icon: AreaChart,       label: "Analytics",  hint: "Performance",     iconBg: "bg-teal-500/10 text-teal-600",       activeGradient: "from-teal-500/20 to-emerald-500/10" },
+const navItems: { href: string; icon: typeof LayoutDashboard; label: string; hint: string; iconBg: string; activeGradient: string; section: VendorSection }[] = [
+  { href: "/vendor/dashboard",            icon: LayoutDashboard, label: "Overview",   hint: "Command center",  iconBg: "bg-primary/10 text-primary",        activeGradient: "from-primary/20 to-sky-500/10",   section: "overview" },
+  { href: "/vendor/dashboard/bookings",   icon: Book,            label: "Bookings",   hint: "Jobs and visits", iconBg: "bg-amber-500/10 text-amber-600",     activeGradient: "from-amber-500/20 to-orange-500/10", section: "bookings" },
+  { href: "/vendor/dashboard/customers",  icon: Users,           label: "Customers",  hint: "Client profiles", iconBg: "bg-violet-500/10 text-violet-600",   activeGradient: "from-violet-500/20 to-indigo-500/10", section: "customers" },
+  { href: "/vendor/dashboard/services",   icon: Wrench,          label: "Services",   hint: "Menu and pricing",iconBg: "bg-emerald-500/10 text-emerald-600", activeGradient: "from-emerald-500/20 to-teal-500/10", section: "services" },
+  { href: "/vendor/dashboard/inventory",  icon: Package,         label: "Inventory",  hint: "Parts and stock", iconBg: "bg-sky-500/10 text-sky-600",         activeGradient: "from-sky-500/20 to-cyan-500/10",  section: "inventory" },
+  { href: "/vendor/dashboard/staff",      icon: Users,           label: "Staff",      hint: "Team roles",      iconBg: "bg-indigo-500/10 text-indigo-600",   activeGradient: "from-indigo-500/20 to-violet-500/10", section: "staff" },
+  { href: "/vendor/dashboard/messages",   icon: MessageSquare,   label: "Messages",   hint: "Customer chat",   iconBg: "bg-blue-500/10 text-blue-600",       activeGradient: "from-blue-500/20 to-sky-500/10",  section: "messages" },
+  { href: "/vendor/dashboard/invoices",   icon: Receipt,         label: "Invoices",   hint: "Billing",         iconBg: "bg-cyan-500/10 text-cyan-600",       activeGradient: "from-cyan-500/20 to-sky-500/10",  section: "invoices" },
+  { href: "/vendor/dashboard/payouts",    icon: Wallet,          label: "Payouts",    hint: "Earnings",        iconBg: "bg-lime-500/10 text-lime-600",       activeGradient: "from-lime-500/20 to-emerald-500/10", section: "payouts" },
+  { href: "/vendor/dashboard/promotions", icon: Percent,         label: "Promotions", hint: "Offers",          iconBg: "bg-rose-500/10 text-rose-600",       activeGradient: "from-rose-500/20 to-pink-500/10", section: "promotions" },
+  { href: "/vendor/dashboard/reviews",    icon: Star,            label: "Reviews",    hint: "Reputation",      iconBg: "bg-amber-500/10 text-amber-600",     activeGradient: "from-amber-500/20 to-yellow-500/10", section: "reviews" },
+  { href: "/vendor/dashboard/analytics",  icon: AreaChart,       label: "Analytics",  hint: "Performance",     iconBg: "bg-teal-500/10 text-teal-600",       activeGradient: "from-teal-500/20 to-emerald-500/10", section: "analytics" },
 ];
 
 export function VendorSidebar() {
   const pathname = usePathname();
   const { auth, user, firestore } = useFirebase();
-  const { business, activeBranch, canSeeAllBranches } = useVendor();
+  const { business, activeBranch, canSeeAllBranches, canAccess } = useVendor();
+  const visibleNavItems = navItems.filter((item) => canAccess(item.section));
 
   const branchStatus = activeBranch?.status || "Pending Approval";
   const isApproved = branchStatus === "Approved";
@@ -149,7 +151,7 @@ export function VendorSidebar() {
         </div>
 
         <SidebarMenu className="mb-5 gap-1">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const isActive =
               item.href === "/vendor/dashboard"

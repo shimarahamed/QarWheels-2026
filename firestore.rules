@@ -50,26 +50,64 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
-    // Any member of this business (owner, admin, manager, staff)
+    // Any member of this business, any role.
     function isBusinessMember(bid) {
       return hasClaims() && claims().b == bid;
     }
 
-    // Owner or business-admin of this business — spans all branches
+    // Roles whose remit is the whole business — mirrors isBusinessWideRole()
+    // in src/lib/auth/permissions.ts (rules has no imports, so this list is
+    // kept in sync by hand; when that array changes, change this too).
+    function isBusinessWideRole() {
+      return role() in ['business_owner', 'vendor_admin', 'vendor_manager'];
+    }
+
+    // Full control of the business — owner or vendor_admin. Spans all branches.
     function isBusinessAdmin(bid) {
-      return isBusinessMember(bid) && role() in ['business_owner', 'business_admin'];
+      return isBusinessMember(bid) && role() in ['business_owner', 'vendor_admin'];
     }
 
-    // Scoped to a specific branch: owners/admins pass for every branch of
-    // their business; managers/staff must have the branch in their claim list
-    function isBranchStaff(bid, brid) {
-      return isBusinessMember(bid)
-        && (role() in ['business_owner', 'business_admin'] || brid in claims().br);
+    // In scope for this branch: business-wide roles pass for every branch of
+    // their business; everyone else needs the branch on their claim.
+    function inBranchScope(bid, brid) {
+      return isBusinessMember(bid) && (isBusinessWideRole() || brid in claims().br);
     }
 
-    function isBranchManager(bid, brid) {
+    // Below are the per-section write gates, one per row of the matrix in
+    // src/lib/auth/permissions.ts that a client can write to directly
+    // (Staff/Payouts/Invoices are Admin-SDK-only regardless of role, so they
+    // have no gate here — see the memberships/payouts/invoices/transactions
+    // match blocks instead). Each restates PERMISSION_MATRIX's 'write' column
+    // for that section; a role change there means updating the matching list
+    // here too.
+
+    // Business-wide-role write, scoped to one branch. Covers everything the
+    // matrix marks 'write' only for owner/vendor_admin/vendor_manager: a
+    // branch's own profile, its service menu/pricing, its promotions.
+    function isBusinessWideBranchWriter(bid, brid) {
+      return isBusinessAdmin(bid) || (inBranchScope(bid, brid) && isBusinessWideRole());
+    }
+
+    // Inventory: business-wide roles, plus the branch's own inventory role.
+    function isInventoryManager(bid, brid) {
       return isBusinessAdmin(bid)
-        || (isBusinessMember(bid) && role() == 'branch_manager' && brid in claims().br);
+        || (inBranchScope(bid, brid) && role() in ['vendor_admin', 'vendor_manager', 'vendor_inventory']);
+    }
+
+    // Bookings: everyone except inventory, who has no reason to touch a job.
+    function isBookingActor(bid, brid) {
+      return inBranchScope(bid, brid) && role() != 'vendor_inventory';
+    }
+
+    // Reviews (reply-only — see the reviews match block's field allowlist):
+    // everyone except cashier/inventory, who aren't customer-facing roles.
+    function isReviewReplier(bid, brid) {
+      return inBranchScope(bid, brid) && role() in ['business_owner', 'vendor_admin', 'vendor_manager', 'vendor_staff'];
+    }
+
+    // Chat: same customer-facing set as review replies.
+    function isMessenger(bid, brid) {
+      return isReviewReplier(bid, brid);
     }
 
     // Returns true when a field would change between the existing and incoming document
@@ -248,7 +286,7 @@ service cloud.firestore {
         && request.resource.data.isListed == false);
 
       allow update: if isAdmin()
-        || (isBranchManager(resource.data.businessId, branchId)
+        || (isBusinessWideBranchWriter(resource.data.businessId, branchId)
         && notChanging(['businessId', 'status', 'isListed', 'rating', 'reviewCount', 'approvedAt', 'approvedBy', 'createdAt']));
 
       allow delete: if isAdmin();
@@ -280,17 +318,17 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // ─── Branch Services (public read, branch-manager write) ────────────────────
+    // ─── Branch Services (public read, business-wide-role write) ────────────────
     match /branch_services/{serviceId} {
       allow read: if true;
       allow create, update: if isAdmin()
-        || (isBranchManager(request.resource.data.businessId, request.resource.data.branchId)
+        || (isBusinessWideBranchWriter(request.resource.data.businessId, request.resource.data.branchId)
         && hasAllRequired(['businessId', 'branchId', 'name', 'price', 'duration'])
         && request.resource.data.price is number
         && request.resource.data.price >= 0
         && request.resource.data.duration is int
         && request.resource.data.duration > 0);
-      allow delete: if isBranchManager(resource.data.businessId, resource.data.branchId) || isAdmin();
+      allow delete: if isBusinessWideBranchWriter(resource.data.businessId, resource.data.branchId) || isAdmin();
     }
 
     // ─── Branch Inventory ─────────────────────────────────────────────────────
@@ -306,27 +344,33 @@ service cloud.firestore {
     }
 
     match /branch_inventory/{itemId} {
-      allow read: if isBranchStaff(resource.data.businessId, resource.data.branchId) || isAdmin();
-      // `write` covers update (create is handled separately below, delete
-      // needs no field validation) — a plain isBranchStaff() || isAdmin()
-      // `write` would let update skip the same type/range checks create
-      // enforces, so update is validated here identically to create.
+      // Per the matrix, Inventory is 'none' for staff and cashier too — it's
+      // not a booking-adjacent read, so this uses the same narrow role set
+      // as every write below rather than isBookingActor's wider one.
+      allow read: if isInventoryManager(resource.data.businessId, resource.data.branchId) || isAdmin();
+      // `update` covers everything but create (handled separately below) and
+      // delete (needs no field validation) — a plain isInventoryManager() ||
+      // isAdmin() `write` would let update skip the same type/range checks
+      // create enforces, so update is validated here identically to create.
       allow update: if isAdmin()
-        || (isBranchStaff(resource.data.businessId, resource.data.branchId)
+        || (isInventoryManager(resource.data.businessId, resource.data.branchId)
         && notChanging(['businessId', 'branchId'])
         && isValidInventoryItem());
-      allow delete: if isBranchStaff(resource.data.businessId, resource.data.branchId) || isAdmin();
+      allow delete: if isInventoryManager(resource.data.businessId, resource.data.branchId) || isAdmin();
       allow create: if isAdmin()
-        || (isBranchStaff(request.resource.data.businessId, request.resource.data.branchId)
+        || (isInventoryManager(request.resource.data.businessId, request.resource.data.branchId)
         && hasAllRequired(['businessId', 'branchId', 'name', 'sku', 'stock', 'price'])
         && isValidInventoryItem());
     }
 
-    // ─── Branch Promotions (admin can also create/update for any business) ────
+    // ─── Branch Promotions (admin/manager write for their own business) ───────
+    // Promotions apply across whatever branchIds they name (see branchIds
+    // below), not one branch — so this checks business membership + role
+    // directly rather than inBranchScope, which is about a single branch.
     match /branch_promotions/{promotionId} {
       allow read: if true;
       allow create, update: if isAdmin()
-        || (isBusinessAdmin(request.resource.data.businessId)
+        || (isBusinessMember(request.resource.data.businessId) && isBusinessWideRole()
         && hasAllRequired(['businessId', 'title', 'code', 'discount', 'startDate', 'endDate', 'status'])
         && request.resource.data.status in ['Active', 'Expired', 'Scheduled']
         // discount is a free-text display string (e.g. "20%", "QAR 50"),
@@ -335,7 +379,7 @@ service cloud.firestore {
         // data model (which is out of scope here).
         && request.resource.data.discount is string
         && request.resource.data.discount.size() >= 1 && request.resource.data.discount.size() <= 50);
-      allow delete: if isBusinessAdmin(resource.data.businessId) || isAdmin();
+      allow delete: if (isBusinessMember(resource.data.businessId) && isBusinessWideRole()) || isAdmin();
     }
 
     // ─── Reviews (flat, business/branch/booking-keyed) ─────────────────────────
@@ -354,9 +398,9 @@ service cloud.firestore {
         && request.resource.data.comment.size() >= 10
         && request.resource.data.comment.size() <= 1000;
 
-      // Branch staff can only attach a reply — everything else is admin-only
+      // Customer-facing roles can only attach a reply — everything else is admin-only
       allow update: if isAdmin()
-        || (isBranchStaff(resource.data.businessId, resource.data.branchId)
+        || (isReviewReplier(resource.data.businessId, resource.data.branchId)
         && notChanging(['userId', 'businessId', 'branchId', 'bookingId', 'customerName', 'rating', 'comment', 'service', 'date'])
         && request.resource.data.vendorReply is string
         && request.resource.data.vendorReply.size() >= 1
@@ -369,7 +413,7 @@ service cloud.firestore {
     match /bookings/{bookingId} {
       allow read: if isSignedIn() && (
         isOwner(resource.data.userId)
-        || isBranchStaff(resource.data.businessId, resource.data.branchId)
+        || isBookingActor(resource.data.businessId, resource.data.branchId)
         || isAdmin()
       );
 
@@ -392,12 +436,17 @@ service cloud.firestore {
           && request.resource.data.status == 'Cancelled'
           && !(resource.data.status in ['Completed', 'Cancelled', 'Declined', 'NoShow'])
           && notChanging(['userId', 'customerName', 'customerEmail', 'customerPhone', 'businessId', 'branchId', 'carId', 'carDescription', 'serviceName', 'bookingDate', 'createdAt']))
-        // Branch staff can only make a legal forward transition; identity
-        // fields are immutable, statusHistory must grow by exactly one entry.
-        || (isBranchStaff(resource.data.businessId, resource.data.branchId)
+        // Booking-facing staff can only make a legal forward transition;
+        // identity fields are immutable, statusHistory must grow by exactly
+        // one entry. Pricing the job (setting/changing cost) is further
+        // restricted to business-wide roles — matches VENDOR_ACTIONS
+        // ['bookings.editCost'] in src/lib/auth/permissions.ts, so staff and
+        // cashier can move a booking forward but can't touch what it costs.
+        || (isBookingActor(resource.data.businessId, resource.data.branchId)
           && notChanging(['userId', 'customerName', 'customerEmail', 'customerPhone', 'businessId', 'branchId', 'carId', 'carDescription', 'createdAt'])
           && canTransitionBooking(resource.data.status, request.resource.data.status)
           && request.resource.data.statusHistory.size() == resource.data.statusHistory.size() + 1
+          && (!changing('cost') || isBusinessWideRole())
           && (!('cost' in request.resource.data) || (request.resource.data.cost is number && request.resource.data.cost >= 0)))
         // Admin is a support/oversight role here, not a bypass of the
         // booking state machine or a way to rewrite who a booking belongs
@@ -434,11 +483,12 @@ service cloud.firestore {
     // fully expressible in rules.
     //
     // `participants` is [customerUid, branchId]. A customer is a participant
-    // via their uid; branch staff via a branchId their claim covers.
+    // via their uid; a vendor member via isMessenger — the Messages column of
+    // the matrix, not every branch member (cashier/inventory get no access).
     function isConversationParticipant(convo) {
       return isSignedIn()
         && (convo.participants.hasAny([request.auth.uid])
-            || isBranchStaff(convo.businessId, convo.branchId));
+            || isMessenger(convo.businessId, convo.branchId));
     }
 
     match /conversations/{conversationId} {

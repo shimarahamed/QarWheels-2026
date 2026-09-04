@@ -58,23 +58,43 @@ import {
   import { useVendor } from "@/components/vendor/vendor-provider";
   import { useUser } from "@/firebase";
   import type { Membership, MembershipRole, StaffInvite, WithId } from "@/lib/types";
+  import {
+    ASSIGNABLE_VENDOR_ROLES,
+    ROLE_DESCRIPTIONS,
+    ROLE_LABELS,
+    isBusinessWideRole,
+  } from "@/lib/auth/permissions";
+  import { AssignableMembershipRoleSchema } from "@/lib/schemas";
   import { Skeleton } from "@/components/ui/skeleton";
   import { zodResolver } from "@hookform/resolvers/zod";
   import * as z from "zod";
 
-const ROLE_LABELS: Record<MembershipRole, string> = {
-  business_owner: 'Owner',
-  business_admin: 'Business Admin',
-  branch_manager: 'Branch Manager',
-  branch_staff: 'Staff',
-};
-
 const inviteSchema = z.object({
   email: z.string().email("A valid email is required"),
-  role: z.enum(["business_admin", "branch_manager", "branch_staff"]),
+  role: AssignableMembershipRoleSchema,
   jobTitle: z.string().max(50).optional(),
   branchIds: z.array(z.string()).min(1, "Select at least one branch"),
 });
+
+/**
+ * The role options offered anywhere on this page. Rendered from the shared
+ * role list so a new role shows up here automatically instead of needing the
+ * same three lines added in each dropdown.
+ */
+function RoleOptions() {
+  return (
+    <>
+      {ASSIGNABLE_VENDOR_ROLES.map((r) => (
+        <SelectItem key={r} value={r}>
+          <span className="flex flex-col items-start gap-0.5 py-0.5">
+            <span>{ROLE_LABELS[r]}</span>
+            <span className="text-xs text-muted-foreground">{ROLE_DESCRIPTIONS[r]}</span>
+          </span>
+        </SelectItem>
+      ))}
+    </>
+  );
+}
 
 function InviteForm({
   branches,
@@ -89,7 +109,7 @@ function InviteForm({
 }) {
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<z.infer<typeof inviteSchema>>({
     resolver: zodResolver(inviteSchema),
-    defaultValues: { role: 'branch_staff', branchIds: branches.length === 1 ? [branches[0].id] : [] },
+    defaultValues: { role: 'vendor_staff', branchIds: branches.length === 1 ? [branches[0].id] : [] },
   });
   const branchIds = watch('branchIds') || [];
 
@@ -110,9 +130,7 @@ function InviteForm({
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="business_admin">Business Admin (all branches)</SelectItem>
-                  <SelectItem value="branch_manager">Branch Manager</SelectItem>
-                  <SelectItem value="branch_staff">Staff</SelectItem>
+                  <RoleOptions />
                 </SelectContent>
               </Select>
             )}
@@ -176,9 +194,7 @@ function EditMembershipForm({
           <Select value={role} onValueChange={(v) => setRole(v as MembershipRole)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="business_admin">Business Admin (all branches)</SelectItem>
-              <SelectItem value="branch_manager">Branch Manager</SelectItem>
-              <SelectItem value="branch_staff">Staff</SelectItem>
+              <RoleOptions />
             </SelectContent>
           </Select>
         </div>
@@ -432,7 +448,7 @@ export default function VendorStaffPage() {
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">{ROLE_LABELS[m.role]}</TableCell>
                     <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                      {m.role === 'business_owner' || m.role === 'business_admin'
+                      {isBusinessWideRole(m.role)
                         ? 'All branches'
                         : m.branchIds.map((id) => branchOptions.find((b) => b.id === id)?.name ?? id).join(', ')}
                     </TableCell>

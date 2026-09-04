@@ -364,6 +364,19 @@ async function seed() {
     });
     await syncClaims(owner.uid, biz.id, 'business_owner', []);
 
+    // One vendor_admin demo account on the multi-branch business only — full
+    // access, business-wide, so there's a seeded account for every role in
+    // the matrix without adding an admin to all ten businesses.
+    if (biz.id === 'biz_aab_toyota') {
+      const admin = await getOrCreateAuthUser('admin@aabqatar.com', `${biz.displayName} Admin`);
+      await db.collection('memberships').doc(`${admin.uid}_${biz.id}`).set({
+        userId: admin.uid, businessId: biz.id, role: 'vendor_admin', jobTitle: 'Business Admin',
+        branchIds: [], status: 'Active', email: 'admin@aabqatar.com', displayName: `${biz.displayName} Admin`,
+        invitedBy: owner.uid, invitedAt: now, acceptedAt: now, createdAt: now, updatedAt: now,
+      });
+      await syncClaims(admin.uid, biz.id, 'vendor_admin', []);
+    }
+
     for (const branch of biz.branches) {
       await db.collection('branches').doc(branch.id).set({
         businessId: biz.id, name: branch.name, status: 'Approved', isListed: true,
@@ -378,19 +391,40 @@ async function seed() {
 
       const manager = await getOrCreateAuthUser(branch.managerEmail, `${branch.name} Manager`);
       await db.collection('memberships').doc(`${manager.uid}_${biz.id}`).set({
-        userId: manager.uid, businessId: biz.id, role: 'branch_manager', jobTitle: 'Branch Manager',
+        userId: manager.uid, businessId: biz.id, role: 'vendor_manager', jobTitle: 'Branch Manager',
         branchIds: [branch.id], status: 'Active', email: branch.managerEmail, displayName: `${branch.name} Manager`,
         invitedBy: owner.uid, invitedAt: now, acceptedAt: now, createdAt: now, updatedAt: now,
       });
-      await syncClaims(manager.uid, biz.id, 'branch_manager', [branch.id]);
+      await syncClaims(manager.uid, biz.id, 'vendor_manager', [branch.id]);
 
       const staff = await getOrCreateAuthUser(branch.staffEmail, `${branch.name} Technician`);
       await db.collection('memberships').doc(`${staff.uid}_${biz.id}`).set({
-        userId: staff.uid, businessId: biz.id, role: 'branch_staff', jobTitle: 'Technician',
+        userId: staff.uid, businessId: biz.id, role: 'vendor_staff', jobTitle: 'Technician',
         branchIds: [branch.id], status: 'Active', email: branch.staffEmail, displayName: `${branch.name} Technician`,
         invitedBy: owner.uid, invitedAt: now, acceptedAt: now, createdAt: now, updatedAt: now,
       });
-      await syncClaims(staff.uid, biz.id, 'branch_staff', [branch.id]);
+      await syncClaims(staff.uid, biz.id, 'vendor_staff', [branch.id]);
+
+      // vendor_cashier and vendor_inventory demo accounts, seeded once (on
+      // this business's first branch) rather than per-branch — same
+      // reasoning as the vendor_admin account above.
+      if (branch.id === 'brn_aab_industrial') {
+        const cashier = await getOrCreateAuthUser('cashier.industrial@aabqatar.com', `${branch.name} Cashier`);
+        await db.collection('memberships').doc(`${cashier.uid}_${biz.id}`).set({
+          userId: cashier.uid, businessId: biz.id, role: 'vendor_cashier', jobTitle: 'Cashier',
+          branchIds: [branch.id], status: 'Active', email: 'cashier.industrial@aabqatar.com', displayName: `${branch.name} Cashier`,
+          invitedBy: owner.uid, invitedAt: now, acceptedAt: now, createdAt: now, updatedAt: now,
+        });
+        await syncClaims(cashier.uid, biz.id, 'vendor_cashier', [branch.id]);
+
+        const inventory = await getOrCreateAuthUser('inventory.industrial@aabqatar.com', `${branch.name} Inventory`);
+        await db.collection('memberships').doc(`${inventory.uid}_${biz.id}`).set({
+          userId: inventory.uid, businessId: biz.id, role: 'vendor_inventory', jobTitle: 'Inventory Manager',
+          branchIds: [branch.id], status: 'Active', email: 'inventory.industrial@aabqatar.com', displayName: `${branch.name} Inventory`,
+          invitedBy: owner.uid, invitedAt: now, acceptedAt: now, createdAt: now, updatedAt: now,
+        });
+        await syncClaims(inventory.uid, biz.id, 'vendor_inventory', [branch.id]);
+      }
 
       for (const svc of biz.services) {
         await db.collection('branch_services').add({

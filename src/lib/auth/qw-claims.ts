@@ -1,4 +1,5 @@
 import type { MembershipRole } from '@/lib/types';
+import { isBusinessWideRole } from '@/lib/auth/permissions';
 
 // Custom claim shape minted onto the Firebase Auth ID token by
 // syncClaimsForUser (see claims.ts). Kept short — custom claims are capped
@@ -28,9 +29,9 @@ export function isBusinessScopedClaims(
   return claims !== null && claims.r !== 'master_admin';
 }
 
-/** True when the claim's branch scope covers this branch (owner/admin span all branches). */
+/** True when the claim's branch scope covers this branch (business-wide roles span all of them). */
 export function claimsCoverBranch(claims: QwClaims, branchId: string): boolean {
   if (!isBusinessScopedClaims(claims)) return false;
-  if (claims.r === 'business_owner' || claims.r === 'business_admin') return true;
+  if (isBusinessWideRole(claims.r)) return true;
   return claims.br.includes(branchId);
 }

@@ -172,9 +172,10 @@ export default function VendorBookingsPage() {
                               status: data.status,
                               at: Timestamp.now(),
                               byUid: user?.uid ?? '',
-                              // branch_manager has no history role of its own —
-                              // it records as branch_staff.
-                              byRole: role === 'business_owner' ? 'business_owner' : role === 'business_admin' ? 'business_admin' : 'branch_staff',
+                              // MembershipRole is a subset of BookingActorRole, so the
+                              // actor's real role is recorded as-is — no collapsing to
+                              // a generic "staff" the way this used to.
+                              byRole: role,
                           }),
                       }
                     : {}),

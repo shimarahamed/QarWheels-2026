@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ASSIGNABLE_VENDOR_ROLES, VENDOR_ROLES } from '@/lib/auth/permissions';
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
@@ -119,11 +120,20 @@ export type BranchCreate = z.infer<typeof BranchCreateSchema>;
 
 // ─── Staff / Membership ───────────────────────────────────────────────────────
 
-export const MembershipRoleSchema = z.enum(['business_owner', 'business_admin', 'branch_manager', 'branch_staff']);
+// Both enums are built from the role lists in src/lib/auth/permissions.ts so
+// there's no second place to update when the set of roles changes.
+export const MembershipRoleSchema = z.enum(VENDOR_ROLES);
+
+/**
+ * What an invite or a role edit may set. Excludes business_owner: that's
+ * granted once at registration and can't be handed to someone else, so it
+ * never appears in a request body.
+ */
+export const AssignableMembershipRoleSchema = z.enum(ASSIGNABLE_VENDOR_ROLES);
 
 export const StaffInviteCreateSchema = z.object({
   email: z.string().email(),
-  role: MembershipRoleSchema,
+  role: AssignableMembershipRoleSchema,
   jobTitle: z.string().max(50).optional(),
   branchIds: z.array(z.string().min(1)).min(1, 'Select at least one branch'),
 });

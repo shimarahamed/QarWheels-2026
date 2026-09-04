@@ -4,6 +4,13 @@ import { createContext, useContext, ReactNode, useState, useMemo, useEffect, use
 import { useFirebase, useCollection, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
 import type { Branch, Business, WithId, MembershipRole } from '@/lib/types';
+import {
+  canAccess as canAccessForRole,
+  canPerform as canPerformForRole,
+  isBusinessWideRole,
+  type VendorAction,
+  type VendorSection,
+} from '@/lib/auth/permissions';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { VendorBusinessForm } from './vendor-business-form';
@@ -14,8 +21,16 @@ interface VendorContextType {
   activeBranch: WithId<Branch> | null;
   setActiveBranchId: (branchId: string) => void;
   role: MembershipRole;
-  /** Owners/admins implicitly manage all branches; managers/staff are scoped. */
+  /** Business-wide roles manage every branch; everyone else is scoped to theirs. */
   canSeeAllBranches: boolean;
+  /**
+   * This member's permissions, already bound to their role — pages call
+   * `canAccess('invoices', 'write')` rather than re-deriving anything from
+   * the role string. Adding a page means asking this, not writing a new
+   * role comparison.
+   */
+  canAccess: (section: VendorSection, need?: 'read' | 'write') => boolean;
+  canPerform: (action: VendorAction) => boolean;
 }
 
 const VendorContext = createContext<VendorContextType | undefined>(undefined);
@@ -84,7 +99,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     suppressPermissionError: true,
   });
 
-  const canSeeAllBranches = role === 'business_owner' || role === 'business_admin';
+  const canSeeAllBranches = role !== null && isBusinessWideRole(role);
   const branches = useMemo(() => {
     if (!allBranches) return [];
     if (canSeeAllBranches) return allBranches;
@@ -121,6 +136,8 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       setActiveBranchId,
       role,
       canSeeAllBranches,
+      canAccess: (section, need) => canAccessForRole(role, section, need),
+      canPerform: (action) => canPerformForRole(role, action),
     };
   }, [business, branches, activeBranch, setActiveBranchId, role, canSeeAllBranches]);
 

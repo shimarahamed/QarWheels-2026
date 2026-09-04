@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/table';
 import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
 import { ROLE_LABELS } from '@/components/admin/admin-format';
+import { VENDOR_ROLES, isBusinessWideRole } from '@/lib/auth/permissions';
 import type { Branch, Business, Membership, MembershipRole, WithId } from '@/lib/types';
 
 type RoleFilter = 'All' | MembershipRole;
@@ -124,10 +125,10 @@ export default function AdminStaffPage() {
           <SelectTrigger className="h-9 w-48 rounded-xl"><SelectValue placeholder="Role" /></SelectTrigger>
           <SelectContent className="rounded-2xl">
             <SelectItem value="All">All roles</SelectItem>
-            <SelectItem value="business_owner">Owner</SelectItem>
-            <SelectItem value="business_admin">Business Admin</SelectItem>
-            <SelectItem value="branch_manager">Branch Manager</SelectItem>
-            <SelectItem value="branch_staff">Staff</SelectItem>
+            {/* Every role, owner included — admin filters across whole tenants. */}
+            {VENDOR_ROLES.map((r) => (
+              <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -177,7 +178,7 @@ export default function AdminStaffPage() {
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-sm">{ROLE_LABELS[m.role]}</TableCell>
                     <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                      {m.role === 'business_owner' || m.role === 'business_admin'
+                      {isBusinessWideRole(m.role)
                         ? 'All branches'
                         : m.branchIds.map((id) => branchNameById[id] ?? id).join(', ') || '—'}
                     </TableCell>

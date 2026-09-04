@@ -2,13 +2,15 @@ import { type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { ok, Errors } from '@/lib/api-response';
 import { getAdminFirestore } from '@/lib/firebase-admin';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireAction } from '@/lib/auth/require-role';
 import { syncClaimsForUser } from '@/lib/auth/claims';
 import { trackApiError } from '@/lib/observability';
+import { AssignableMembershipRoleSchema } from '@/lib/schemas';
 import type { Membership, Branch } from '@/lib/types';
 
 const PatchSchema = z.object({
-  role: z.enum(['business_admin', 'branch_manager', 'branch_staff']).optional(),
+  // business_owner is absent by construction — see AssignableMembershipRoleSchema.
+  role: AssignableMembershipRoleSchema.optional(),
   branchIds: z.array(z.string().min(1)).min(1).optional(),
   status: z.enum(['Active', 'Inactive']).optional(),
 });
@@ -29,7 +31,7 @@ export async function PATCH(
   { params }: { params: Promise<{ membershipId: string }> },
 ) {
   const { membershipId } = await params;
-  const access = await requireRole(request, ['business_owner', 'business_admin', 'master_admin']);
+  const access = await requireAction(request, 'staff.manage');
   if (!access.ok) {
     return access.reason === 'unauthenticated' ? Errors.unauthorized() : Errors.forbidden();
   }
@@ -80,7 +82,7 @@ export async function DELETE(
   { params }: { params: Promise<{ membershipId: string }> },
 ) {
   const { membershipId } = await params;
-  const access = await requireRole(request, ['business_owner', 'business_admin', 'master_admin']);
+  const access = await requireAction(request, 'staff.manage');
   if (!access.ok) {
     return access.reason === 'unauthenticated' ? Errors.unauthorized() : Errors.forbidden();
   }
