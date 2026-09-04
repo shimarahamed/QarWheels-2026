@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getVerifiedUserFromRequest } from '@/lib/firebase-auth';
 import { readQwClaims } from '@/lib/auth/qw-claims';
+import { VENDOR_ROLES as VENDOR_ROLE_LIST } from '@/lib/auth/permissions';
 import { buildCsp, generateNonce, SECURITY_HEADERS } from '@/lib/security-headers';
 
 // LIVE: role checks below are active in production. They require every
@@ -21,11 +22,16 @@ const VENDOR_PROTECTED = /^\/vendor\/dashboard/;
 const ADMIN_PROTECTED = /^\/admin\/dashboard/;
 
 // Roles that may pass the vendor-dashboard gate — any active business
-// membership. Plain customers (no qw claim) are redirected out.
-const VENDOR_ROLES = new Set(['business_owner', 'business_admin', 'branch_manager', 'branch_staff']);
+// membership. Plain customers (no qw claim) are redirected out. Sourced from
+// permissions.ts (the single source of truth for role strings) rather than
+// hand-copied here — a hand-copied list is exactly what went stale before
+// (it named a set of roles retired by the vendor-role-matrix rename and
+// silently bounced every real vendor_admin/manager/staff/cashier/inventory
+// account out of /vendor/dashboard until this was caught).
+const VENDOR_ROLES = new Set<string>(VENDOR_ROLE_LIST);
 
 // Routes that authenticated users should not see
-const AUTH_ROUTES = /^\/(login|signup|vendor\/login|vendor\/signup)$/;
+const AUTH_ROUTES = /^\/(login|signup|vendor\/login|vendor\/signup|admin\/login)$/;
 
 // Stamps every outgoing response (redirect or pass-through) with the
 // per-request CSP (carrying this request's nonce) and the other static
@@ -116,7 +122,7 @@ export async function middleware(request: NextRequest) {
   if (ADMIN_PROTECTED.test(pathname)) {
     if (!isAuthenticated) {
       const url = request.nextUrl.clone();
-      url.pathname = '/login';
+      url.pathname = '/admin/login';
       url.searchParams.set('redirect', pathname);
       const response = NextResponse.redirect(url);
       response.cookies.delete('qw-session');
@@ -134,7 +140,15 @@ export async function middleware(request: NextRequest) {
   if (AUTH_ROUTES.test(pathname) && isAuthenticated) {
     const redirect = request.nextUrl.searchParams.get('redirect');
     const url = request.nextUrl.clone();
-    url.pathname = redirect ?? (pathname.startsWith('/vendor') ? '/vendor/dashboard' : '/dashboard');
+    url.pathname =
+      redirect ??
+      (pathname.startsWith('/admin')
+        ? role === 'master_admin'
+          ? '/admin/dashboard'
+          : '/dashboard'
+        : pathname.startsWith('/vendor')
+          ? '/vendor/dashboard'
+          : '/dashboard');
     url.search = '';
     return withSecurityHeaders(NextResponse.redirect(url), csp);
   }

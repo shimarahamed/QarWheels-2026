@@ -4,6 +4,8 @@ import { createContext, useContext, ReactNode, useMemo } from 'react';
 import { useFirebase, useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Loader2, ShieldX } from 'lucide-react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import type { AdminLevel } from '@/lib/types';
 
 interface AdminContextType {
@@ -25,16 +27,33 @@ export function useAdmin() {
 }
 
 function NotAuthorized() {
+  const { auth, user } = useFirebase();
   return (
-    <div className="flex h-screen w-full flex-col items-center justify-center gap-4 bg-background">
+    <div className="flex h-screen w-full flex-col items-center justify-center gap-4 bg-background px-4">
       <div className="icon-pill h-16 w-16 bg-destructive/10 text-destructive">
         <ShieldX className="h-8 w-8" />
       </div>
       <div className="text-center">
-        <h1 className="text-xl font-bold">Access Denied</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          You do not have permission to access the admin panel.
+        <h1 className="text-xl font-bold">Access denied</h1>
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+          {user?.email ?? 'This account'} doesn&apos;t have admin access. Sign in with an authorized admin account
+          instead.
         </p>
+      </div>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          className="rounded-xl"
+          onClick={async () => {
+            await auth.signOut();
+            window.location.href = '/admin/login';
+          }}
+        >
+          Switch account
+        </Button>
+        <Button asChild className="rounded-xl">
+          <Link href="/dashboard">Go to my dashboard</Link>
+        </Button>
       </div>
     </div>
   );

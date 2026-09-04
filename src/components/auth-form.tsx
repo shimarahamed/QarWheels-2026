@@ -9,13 +9,14 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useFirebase } from '@/firebase';
-import { 
-    createUserWithEmailAndPassword, 
+import {
+    createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signInAnonymously,
     updateProfile
 } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { readQwClaims, isMasterAdminClaims } from '@/lib/auth/qw-claims';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -43,7 +44,7 @@ type AuthFormValues = {
 
 type AuthFormProps = {
   type: 'login' | 'signup';
-  userType: 'customer' | 'vendor';
+  userType: 'customer' | 'vendor' | 'admin';
   onResult?: () => void;
 };
 
@@ -51,7 +52,7 @@ export function AuthForm({ type, userType, onResult }: AuthFormProps) {
   const { auth, firestore } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const schema = type === 'login' ? loginSchema : userType === 'customer' ? customerSignupSchema : signupSchema;
 
   const form = useForm<AuthFormValues>({
@@ -63,7 +64,21 @@ export function AuthForm({ type, userType, onResult }: AuthFormProps) {
     setIsSubmitting(true);
     try {
         if (type === 'login') {
-            await signInWithEmailAndPassword(auth, values.email, values.password);
+            const credential = await signInWithEmailAndPassword(auth, values.email, values.password);
+            // The admin surface must never accept a merely-authenticated
+            // account — this checks the actual master_admin claim right
+            // here, at sign-in time, rather than letting a non-admin in and
+            // relying on middleware to bounce them on the next navigation.
+            // Force-refresh the token: a claim minted moments ago (e.g. by
+            // the bootstrap script) may not be on the token Firebase cached.
+            if (userType === 'admin') {
+                const tokenResult = await credential.user.getIdTokenResult(true);
+                const claims = readQwClaims(tokenResult.claims);
+                if (!isMasterAdminClaims(claims)) {
+                    await auth.signOut();
+                    throw new Error('This account does not have admin access.');
+                }
+            }
         } else {
             const credential = await createUserWithEmailAndPassword(auth, values.email, values.password);
             if (userType === 'customer') {

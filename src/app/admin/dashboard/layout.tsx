@@ -57,7 +57,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
 
   useEffect(() => {
     if (!isUserLoading && !user) {
-      router.replace("/login");
+      router.replace("/admin/login");
     }
   }, [isUserLoading, user, router]);
 
