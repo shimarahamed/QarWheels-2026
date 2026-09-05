@@ -44,7 +44,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, Wrench, Sparkles } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2 } from "lucide-react";
+import { MaterialIcon } from "@/components/ui/material-icon";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,6 +58,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from 'zod';
 import { PageHeader } from "@/components/ui/page-header";
+import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 
 
@@ -182,23 +184,48 @@ export default function VendorServicesPage() {
     setSelectedService(null);
   }
   
+  const totalServices = services?.length ?? 0;
+  const avgPrice = totalServices > 0 ? (services!.reduce((sum, s) => sum + Number(s.price || 0), 0) / totalServices) : 0;
+  const avgDuration = totalServices > 0 ? Math.round(services!.reduce((sum, s) => sum + Number(s.duration || 0), 0) / totalServices) : 0;
+
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4">
       <PageHeader
         eyebrow="Service catalog"
-        icon={<Sparkles className="h-3.5 w-3.5" />}
+        icon={<MaterialIcon name="auto_awesome" className="text-sm" />}
         title="Build a clear, bookable service menu."
         description="Keep pricing, duration, and descriptions polished so customers know exactly what they are booking."
         action={
-          <Button onClick={handleAddNewClick} className="justify-start">
+          <Button onClick={handleAddNewClick} className="justify-start shadow-[0_4px_20px_-4px_rgba(227,30,36,0.35)]">
             <PlusCircle className="mr-2 h-4 w-4" />
             Add New Service
           </Button>
         }
       />
-      <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+
+      <StatCardGrid>
+        <StatCard
+          label="Active services"
+          value={isLoading ? '—' : totalServices}
+          icon={<MaterialIcon name="build" className="text-base" />}
+        />
+        <StatCard
+          label="Avg. price"
+          value={isLoading ? '—' : `QAR ${avgPrice.toFixed(2)}`}
+          icon={<MaterialIcon name="sell" className="text-base" />}
+          accent="bg-emerald-500/10 text-emerald-600"
+        />
+        <StatCard
+          label="Avg. duration"
+          value={isLoading ? '—' : `${avgDuration} min`}
+          icon={<MaterialIcon name="timer" className="text-base" />}
+          accent="bg-violet-500/10 text-violet-600"
+        />
+      </StatCardGrid>
+
+      <Card className="overflow-hidden rounded-xl border bg-card shadow-sm">
           <CardHeader>
-              <CardTitle>Your Services</CardTitle>
+              <CardTitle className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">Rate Table</CardTitle>
               <CardDescription>A list of services provided by {business.displayName}.</CardDescription>
           </CardHeader>
         <CardContent>
@@ -225,8 +252,8 @@ export default function VendorServicesPage() {
               {!isLoading && services && services.map((service) => (
                 <TableRow key={service.id} onClick={() => handleRowClick(service)} className="cursor-pointer">
                   <TableCell className="font-medium">{service.name}</TableCell>
-                  <TableCell className="hidden sm:table-cell">{service.duration}</TableCell>
-                  <TableCell className="hidden md:table-cell text-right">{Number(service.price).toFixed(2)}</TableCell>
+                  <TableCell className="hidden sm:table-cell kpi-number">{service.duration}</TableCell>
+                  <TableCell className="hidden md:table-cell text-right kpi-number">{Number(service.price).toFixed(2)}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -253,7 +280,7 @@ export default function VendorServicesPage() {
           </Table>
            {!isLoading && (!services || services.length === 0) && (
               <EmptyState
-                icon={<Wrench className="h-8 w-8" />}
+                icon={<MaterialIcon name="build" className="text-3xl" />}
                 title="No services yet"
                 description="Add your first service so customers have something to book."
                 action={

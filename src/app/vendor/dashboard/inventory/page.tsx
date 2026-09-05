@@ -17,7 +17,8 @@ import {
     TableRow,
   } from "@/components/ui/table";
   import { Button } from "@/components/ui/button";
-  import { Boxes, MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, Package, Sparkles, TriangleAlert } from "lucide-react";
+  import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2 } from "lucide-react";
+  import { MaterialIcon } from "@/components/ui/material-icon";
   import { PageHeader } from "@/components/ui/page-header";
   import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
   import { EmptyState } from "@/components/ui/empty-state";
@@ -198,43 +199,55 @@ export default function VendorInventoryPage() {
     }
 
     return (
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4">
         <PageHeader
           eyebrow="Parts intelligence"
-          icon={<Sparkles className="h-3.5 w-3.5" />}
+          icon={<MaterialIcon name="auto_awesome" className="text-sm" />}
           title="Inventory that feels under control."
           description="Track stock, suppliers, SKU details, and prices with a cleaner operational view."
           action={
-            <Button onClick={handleAddNewClick} className="justify-start">
+            <Button onClick={handleAddNewClick} className="justify-start shadow-[0_4px_20px_-4px_rgba(227,30,36,0.35)]">
               <PlusCircle className="mr-2 h-4 w-4" />
               Add New Item
             </Button>
           }
         />
 
+        {lowStockCount > 0 && (
+          <div className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+            <span className="icon-pill h-8 w-8 shrink-0 bg-destructive/10 text-destructive">
+              <MaterialIcon name="warning" className="text-base" filled />
+            </span>
+            <p className="text-sm">
+              <span className="font-bold text-destructive">{lowStockCount} item{lowStockCount === 1 ? '' : 's'}</span>{' '}
+              <span className="text-muted-foreground">running low on stock (fewer than 10 units).</span>
+            </p>
+          </div>
+        )}
+
         <StatCardGrid>
           <StatCard
             label="Stock items"
             value={isLoading ? '—' : inventory?.length ?? 0}
-            icon={<Package className="h-4 w-4" />}
+            icon={<MaterialIcon name="inventory_2" className="text-base" />}
           />
           <StatCard
             label="Low stock"
             value={isLoading ? '—' : lowStockCount}
-            icon={<TriangleAlert className="h-4 w-4" />}
+            icon={<MaterialIcon name="warning" className="text-base" />}
             accent="bg-destructive/10 text-destructive"
             hint="Fewer than 10 in stock"
           />
           <StatCard
             label="Stock value"
             value={isLoading ? '—' : `QAR ${stockValue.toFixed(2)}`}
-            icon={<Boxes className="h-4 w-4" />}
+            icon={<MaterialIcon name="payments" className="text-base" />}
             accent="bg-emerald-500/10 text-emerald-600"
           />
         </StatCardGrid>
-        <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <Card className="overflow-hidden rounded-xl border bg-card shadow-sm">
             <CardHeader>
-                <CardTitle>Stock Items</CardTitle>
+                <CardTitle className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">Stock Ledger</CardTitle>
                 <CardDescription>A list of all parts and supplies in your inventory.</CardDescription>
             </CardHeader>
           <CardContent>
@@ -267,12 +280,13 @@ export default function VendorInventoryPage() {
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell className="hidden sm:table-cell font-mono text-xs">{item.sku}</TableCell>
                     <TableCell>
-                        <Badge variant={item.stock < 10 ? 'destructive' : item.stock < 50 ? 'warning' : 'default'}>
+                        <Badge variant={item.stock < 10 ? 'destructive' : item.stock < 50 ? 'warning' : 'default'} className="kpi-number gap-1.5">
+                            <span className={`status-dot ${item.stock < 10 ? 'bg-destructive-foreground' : item.stock < 50 ? 'bg-amber-900' : 'bg-primary-foreground'}`} />
                             {item.stock} in stock
                         </Badge>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{item.supplier}</TableCell>
-                    <TableCell className="hidden md:table-cell text-right">QAR {item.price?.toFixed(2)}</TableCell>
+                    <TableCell className="hidden md:table-cell text-right kpi-number">QAR {item.price?.toFixed(2)}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -299,7 +313,7 @@ export default function VendorInventoryPage() {
             </Table>
             {!isLoading && (!inventory || inventory.length === 0) && (
               <EmptyState
-                icon={<Package className="h-8 w-8" />}
+                icon={<MaterialIcon name="inventory_2" className="text-3xl" />}
                 title="Your inventory is empty"
                 description="Add the parts and supplies you keep on hand to track stock as jobs consume them."
                 action={

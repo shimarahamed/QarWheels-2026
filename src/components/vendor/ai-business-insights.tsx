@@ -7,10 +7,10 @@ import {
   MessageSquare,
   Lightbulb,
   Loader2,
-  Sparkles,
   ArrowUpRight,
   AlertCircle,
 } from 'lucide-react';
+import { MaterialIcon } from '@/components/ui/material-icon';
 import {
   Card,
   CardContent,
@@ -95,7 +95,7 @@ export function AIBusinessInsights({ business, bookings }: Props) {
     return (
       <Card className="glass-card border-primary/20">
         <CardContent className="h-[300px] flex flex-col items-center justify-center space-y-4 text-center p-6">
-          <Sparkles className="w-10 h-10 text-primary/20" />
+          <MaterialIcon name="auto_awesome" className="text-4xl text-primary/20" />
           <h3 className="font-bold">Intelligence Not Yet Generated</h3>
           <p className="text-sm text-muted-foreground">
             Unlock business forecasts, trending service alerts, and growth tips.
@@ -120,7 +120,7 @@ export function AIBusinessInsights({ business, bookings }: Props) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-primary rounded-lg text-primary-foreground">
-              <Sparkles className="w-4 h-4" />
+              <MaterialIcon name="auto_awesome" className="text-base" />
             </div>
             <CardTitle className="text-lg">AI Business Intelligence</CardTitle>
           </div>
