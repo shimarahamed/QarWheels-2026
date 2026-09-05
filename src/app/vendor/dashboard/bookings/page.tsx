@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase, useCollection, useMemoFirebase, useUser, safeUpdateDoc, safeDeleteDoc } from "@/firebase";
 import { useVendor } from "@/components/vendor/vendor-provider";
+import { useStaffRoster } from "@/hooks/use-staff-roster";
 import { collection, limit as queryLimit, query, where, doc, Timestamp, serverTimestamp, arrayUnion } from "firebase/firestore";
 import { canTransitionBooking } from "@/lib/types";
 import type { Booking, InventoryItem, WithId } from "@/lib/types";
@@ -29,7 +30,6 @@ import { BookingTableRow } from "@/components/vendor/bookings/booking-table-row"
 import {
   EditBookingForm,
   type EditBookingValues,
-  type StaffMember,
 } from "@/components/vendor/bookings/edit-booking-form";
 
 function BookingsTable({ bookings, onEditClick, onDeleteClick, isLoading }: { bookings: WithId<Booking>[] | null | undefined, onEditClick: (booking: WithId<Booking>) => void, onDeleteClick: (booking: WithId<Booking>) => void, isLoading: boolean }) {
@@ -137,13 +137,10 @@ export default function VendorBookingsPage() {
     );
     const { data: inventory } = useCollection<WithId<InventoryItem>>(inventoryQuery);
 
-    // Staff for the assignment picker comes from `memberships` — same query
-    // shape as the vendor staff API route (`businessId` scopes the tenant).
-    const staffRef = useMemoFirebase(
-        () => query(collection(firestore, 'memberships'), where('businessId', '==', business.id)),
-        [firestore, business]
-    );
-    const { data: staff } = useCollection<WithId<StaffMember>>(staffRef);
+    // Staff for the assignment picker — client `list` queries against
+    // `memberships` are rejected by firestore.rules, so this reads through
+    // /api/vendor/staff/roster instead (see useStaffRoster).
+    const { data: staff } = useStaffRoster(business.id);
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);

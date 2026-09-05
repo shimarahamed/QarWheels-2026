@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
-import type { BookingLaborEntry, Membership, WithId } from '@/lib/types';
+import type { StaffRosterEntry } from '@/hooks/use-staff-roster';
+import type { BookingLaborEntry } from '@/lib/types';
 
 function formatMinutes(minutes: number): string {
   const h = Math.floor(minutes / 60);
@@ -33,7 +34,7 @@ export function LaborLog({
   isSubmitting,
 }: {
   entries: BookingLaborEntry[];
-  staff: WithId<Membership>[] | null | undefined;
+  staff: StaffRosterEntry[] | null | undefined;
   currentUserUid: string;
   onAdd: (entry: BookingLaborEntry) => void;
   onRemove: (index: number) => void;

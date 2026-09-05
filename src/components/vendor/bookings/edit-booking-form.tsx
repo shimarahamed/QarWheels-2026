@@ -12,11 +12,14 @@ import { BOOKING_TRANSITIONS } from '@/lib/types';
 import type { Booking, BookingStatus, InventoryItem, Membership, WithId } from '@/lib/types';
 
 /**
- * The assignment picker reads staff from `memberships` (the multi-tenant
- * staff/auth link) — the legacy `vendors/{businessId}/staff` subcollection is
- * gone. A membership carries `displayName` where the old shape had `name`.
+ * The assignment picker only ever needs id/name/role/status, never the full
+ * membership record (contact info, branchIds, invite metadata) — deliberately
+ * narrow so it's also satisfied by /api/vendor/staff/roster's trimmed
+ * response (see useStaffRoster), not just a full Firestore `Membership` doc.
+ * Direct client `list` queries against `memberships` are rejected by
+ * firestore.rules; the roster route is how non-admin roles get this data.
  */
-export type StaffMember = Membership;
+export type StaffMember = Pick<Membership, 'displayName' | 'role' | 'status'>;
 
 const BOOKING_STATUSES = [
   'Pending',

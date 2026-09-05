@@ -11,8 +11,9 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
 import { useVendor } from '@/components/vendor/vendor-provider';
+import { useStaffRoster } from '@/hooks/use-staff-roster';
 import { ROLE_LABELS } from '@/lib/auth/permissions';
-import type { Booking, Membership, WithId } from '@/lib/types';
+import type { Booking, WithId } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 
 function toDate(value: Booking['bookingDate']) {
@@ -36,11 +37,8 @@ export default function TechniciansBoardPage() {
   const { business, activeBranch, canSeeAllBranches } = useVendor();
   const router = useRouter();
 
-  const staffQuery = useMemoFirebase(
-    () => query(collection(firestore, 'memberships'), where('businessId', '==', business.id), where('status', '==', 'Active')),
-    [firestore, business],
-  );
-  const { data: staff, isLoading: isLoadingStaff } = useCollection<WithId<Membership>>(staffQuery);
+  const { data: roster, isLoading: isLoadingStaff } = useStaffRoster(business.id);
+  const staff = roster?.filter((s) => s.status === 'Active');
 
   const bookingsQuery = useMemoFirebase(
     () =>

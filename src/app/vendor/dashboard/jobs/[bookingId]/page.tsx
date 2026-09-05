@@ -28,6 +28,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { LoadingPanel, ErrorState } from '@/components/ui/empty-state';
 import { useToast } from '@/hooks/use-toast';
 import { useBookingTransition } from '@/hooks/use-booking-transition';
+import { useStaffRoster } from '@/hooks/use-staff-roster';
 import { useVendor } from '@/components/vendor/vendor-provider';
 import { useDoc, useCollection, useFirebase, useMemoFirebase, useUser, safeUpdateDoc } from '@/firebase';
 import { JobStatusStepper } from '@/components/vendor/jobs/job-status-stepper';
@@ -36,7 +37,7 @@ import { LaborLog } from '@/components/vendor/jobs/labor-log';
 import { StatusHistoryTimeline } from '@/components/vendor/jobs/status-history-timeline';
 import { DeclineDialog } from '@/components/vendor/bookings/decline-dialog';
 import { nextForwardStatus } from '@/lib/types';
-import type { Booking, BookingLaborEntry, InventoryItem, Membership, WithId } from '@/lib/types';
+import type { Booking, BookingLaborEntry, InventoryItem, WithId } from '@/lib/types';
 
 function toDate(value: Booking['bookingDate']) {
   return value instanceof Timestamp ? value.toDate() : new Date(value);
@@ -72,11 +73,10 @@ export default function JobCardPage() {
   );
   const { data: inventory } = useCollection<WithId<InventoryItem>>(inventoryQuery);
 
-  const staffQuery = useMemoFirebase(
-    () => (booking ? query(collection(firestore, 'memberships'), where('businessId', '==', booking.businessId)) : null),
-    [firestore, booking],
-  );
-  const { data: staff } = useCollection<WithId<Membership>>(staffQuery);
+  // Client `list` queries against `memberships` are rejected by
+  // firestore.rules, so this reads through /api/vendor/staff/roster instead
+  // (see useStaffRoster).
+  const { data: staff } = useStaffRoster(booking?.businessId);
 
   const [costDraft, setCostDraft] = useState<string | null>(null);
   const isPending = pendingId === params.bookingId;
