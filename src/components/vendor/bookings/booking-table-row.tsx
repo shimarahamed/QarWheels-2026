@@ -2,7 +2,8 @@
 
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
-import { Edit, MoreHorizontal, Trash2, UserCheck } from 'lucide-react';
+import { Edit, MoreHorizontal, Trash2 } from 'lucide-react';
+import { MaterialIcon } from '@/components/ui/material-icon';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import {
@@ -52,7 +53,7 @@ export function BookingTableRow({
         <div>{booking.serviceName}</div>
         {booking.assignedStaffName && (
           <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-            <UserCheck className="h-3 w-3" />
+            <MaterialIcon name="verified_user" className="text-xs" />
             {booking.assignedStaffName}
           </div>
         )}

@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
-import { CalendarClock, CheckCircle2, Clock3, Loader2, Sparkles, XCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { MaterialIcon } from "@/components/ui/material-icon";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { PageHeader } from "@/components/ui/page-header";
@@ -63,7 +64,7 @@ function BookingsTable({ bookings, onEditClick, onDeleteClick, isLoading }: { bo
         return (
             <div className="p-2 sm:p-4">
                 <EmptyState
-                    icon={<CalendarClock className="h-8 w-8" />}
+                    icon={<MaterialIcon name="event_note" className="text-3xl" />}
                     title="No bookings in this category"
                     description="Jobs land here as customers book them, and move along as you accept and complete the work."
                 />
@@ -252,10 +253,10 @@ export default function VendorBookingsPage() {
     const all = bookings?.sort((a,b) => (b.bookingDate instanceof Timestamp ? b.bookingDate.toDate() : new Date(b.bookingDate)).getTime() - (a.bookingDate instanceof Timestamp ? a.bookingDate.toDate() : new Date(a.bookingDate)).getTime());
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4">
       <PageHeader
         eyebrow="Job control board"
-        icon={<Sparkles className="h-3.5 w-3.5" />}
+        icon={<MaterialIcon name="auto_awesome" className="text-sm" />}
         title="Bookings, ready for the workshop floor."
         description="Track incoming jobs, close completed work, update costs, and keep your service pipeline tidy."
       />
@@ -264,29 +265,29 @@ export default function VendorBookingsPage() {
         <StatCard
           label="Pending"
           value={pending?.length || 0}
-          icon={<Clock3 className="h-4 w-4" />}
+          icon={<MaterialIcon name="schedule" className="text-base" />}
           accent="bg-amber-500/10 text-amber-600"
         />
         <StatCard
           label="Upcoming"
           value={upcoming?.length || 0}
-          icon={<CalendarClock className="h-4 w-4" />}
+          icon={<MaterialIcon name="event_upcoming" className="text-base" />}
         />
         <StatCard
           label="Done"
           value={completed?.length || 0}
-          icon={<CheckCircle2 className="h-4 w-4" />}
+          icon={<MaterialIcon name="task_alt" className="text-base" />}
           accent="bg-emerald-500/10 text-emerald-600"
         />
         <StatCard
           label="Cancelled"
           value={cancelled?.length || 0}
-          icon={<XCircle className="h-4 w-4" />}
+          icon={<MaterialIcon name="cancel" className="text-base" />}
           accent="bg-destructive/10 text-destructive"
         />
       </StatCardGrid>
 
-      <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+      <Card className="overflow-hidden rounded-xl border bg-card shadow-sm">
           <CardContent className="p-0">
           <Tabs defaultValue="pending">
               <div className="p-4 border-b">
@@ -294,7 +295,7 @@ export default function VendorBookingsPage() {
                         <TabsTrigger value="pending" className="relative text-xs sm:text-sm px-1.5 sm:px-3">
                           Requests
                           {!!pending?.length && (
-                            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                            <span className="kpi-number absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] text-destructive-foreground">
                               {pending.length}
                             </span>
                           )}

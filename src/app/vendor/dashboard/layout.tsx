@@ -4,7 +4,9 @@ import { Sidebar, SidebarProvider, SidebarTrigger, SidebarInset } from "@/compon
 import { VendorSidebar } from "@/components/vendor/sidebar";
 import { VendorProvider } from "@/components/vendor/vendor-provider";
 import { useFirebase } from "@/firebase";
-import { AreaChart, Book, Home, Loader2, Package, Wrench } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { MaterialIcon } from "@/components/ui/material-icon";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect } from "react";
 import { Logo } from "@/components/logo";
@@ -44,12 +46,12 @@ function VendorRouteGate({ children }: { children: React.ReactNode }) {
   return <RequireVendorSection section={section}>{children}</RequireVendorSection>;
 }
 
-const mobileNav: { href: string; icon: typeof Home; label: string; activeColor: string; section: VendorSection }[] = [
-    { href: "/vendor/dashboard",           icon: Home,      label: "Home",     activeColor: "bg-primary",     section: "overview" },
-    { href: "/vendor/dashboard/bookings",  icon: Book,      label: "Jobs",     activeColor: "bg-amber-600",   section: "bookings" },
-    { href: "/vendor/dashboard/services",  icon: Wrench,    label: "Services", activeColor: "bg-emerald-600", section: "services" },
-    { href: "/vendor/dashboard/inventory", icon: Package,   label: "Stock",    activeColor: "bg-sky-600",     section: "inventory" },
-    { href: "/vendor/dashboard/analytics", icon: AreaChart, label: "Stats",    activeColor: "bg-teal-600",    section: "analytics" },
+const mobileNav: { href: string; icon: string; label: string; activeColor: string; section: VendorSection }[] = [
+    { href: "/vendor/dashboard",           icon: "speed",        label: "Home",     activeColor: "bg-primary",     section: "overview" },
+    { href: "/vendor/dashboard/bookings",  icon: "event_note",   label: "Jobs",     activeColor: "bg-amber-600",   section: "bookings" },
+    { href: "/vendor/dashboard/services",  icon: "build",        label: "Services", activeColor: "bg-emerald-600", section: "services" },
+    { href: "/vendor/dashboard/inventory", icon: "inventory_2",  label: "Stock",    activeColor: "bg-sky-600",     section: "inventory" },
+    { href: "/vendor/dashboard/analytics", icon: "monitoring",   label: "Stats",    activeColor: "bg-teal-600",    section: "analytics" },
 ];
 
 function VendorMobileNav() {
@@ -58,10 +60,9 @@ function VendorMobileNav() {
     const visibleTabs = mobileNav.filter((item) => canAccess(item.section));
 
     return (
-        <nav className="liquid-glass-tab-bar fixed bottom-[max(env(safe-area-inset-bottom),0.5rem)] left-1/2 z-40 w-[calc(100%-1.5rem)] max-w-[26rem] -translate-x-1/2 rounded-[2rem] p-1.5 md:hidden">
+        <nav className="liquid-glass-tab-bar fixed bottom-[max(env(safe-area-inset-bottom),0.5rem)] left-1/2 z-40 w-[calc(100%-1.5rem)] max-w-[26rem] -translate-x-1/2 rounded-[1.5rem] p-1.5 md:hidden">
             <div className="flex items-center justify-around gap-0.5">
                 {visibleTabs.map((item) => {
-                    const Icon = item.icon;
                     const isActive =
                         item.href === "/vendor/dashboard"
                             ? pathname === item.href
@@ -72,13 +73,13 @@ function VendorMobileNav() {
                             href={item.href}
                             data-active={isActive}
                             style={isActive ? { animation: 'tab-pop 300ms cubic-bezier(0.34,1.56,0.64,1) both' } : undefined}
-                            className={`liquid-glass-nav-item flex min-h-[3.5rem] flex-1 flex-col items-center justify-center gap-[3px] rounded-[1.35rem] py-2 px-1 text-[10px] font-semibold tracking-tight ${
+                            className={`liquid-glass-nav-item flex min-h-[3.5rem] flex-1 flex-col items-center justify-center gap-[3px] rounded-xl py-2 px-1 text-[10px] font-semibold tracking-tight ${
                                 isActive
                                     ? "text-foreground"
                                     : "text-muted-foreground"
                             }`}
                         >
-                            <Icon className="h-[1.15rem] w-[1.15rem] shrink-0" strokeWidth={isActive ? 2.2 : 1.8} />
+                            <MaterialIcon name={item.icon} className="text-[1.15rem]" filled={isActive} weight={isActive ? 600 : 400} />
                             <span className="max-w-full truncate leading-none">{item.label}</span>
                         </Link>
                     );
@@ -132,12 +133,15 @@ export default function VendorDashboardLayout({ children }: { children: React.Re
                         </Sidebar>
                         <SidebarInset>
                             <main className="min-h-screen bg-transparent pb-24 md:pb-0">
-                                <header className="liquid-glass-tab-bar sticky top-3 z-30 mx-3 flex items-center justify-between rounded-[1.35rem] px-4 py-3 md:hidden">
+                                <header className="liquid-glass-tab-bar sticky top-3 z-30 mx-3 flex items-center justify-between rounded-xl px-4 py-3 md:hidden">
                                     <Logo />
-                                    <SidebarTrigger className="rounded-xl" />
+                                    <div className="flex items-center gap-1">
+                                        <ThemeToggle className="h-8 w-8" />
+                                        <SidebarTrigger className="rounded-lg" />
+                                    </div>
                                 </header>
                                 <PullToRefresh>
-                                    <div className="page-motion mx-auto max-w-[1600px] p-3 sm:p-6 lg:p-8 xl:p-10">
+                                    <div className="page-motion mx-auto max-w-[1600px] p-3 sm:p-5 lg:p-6 xl:p-8">
                                         <VendorRouteGate>{children}</VendorRouteGate>
                                     </div>
                                 </PullToRefresh>
