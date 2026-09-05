@@ -109,7 +109,19 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             // Firestore rules on every read/write, so this cookie is a UX/
             // routing convenience, not the actual trust boundary.
             const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
-            document.cookie = `qw-session=${tokenResult.token}; path=/; SameSite=Strict; max-age=3600${secureFlag}`;
+            // max-age is a UX/routing convenience only — see the note above:
+            // the actual ID token inside the cookie still expires after an
+            // hour and Firestore independently re-verifies it on every
+            // read/write. Firebase's own refresh token (which the SDK holds
+            // via browserLocalPersistence) is what keeps the *user* signed in
+            // indefinitely; this cookie's max-age just needs to outlive the
+            // gap between visits so middleware's server-side route guard
+            // doesn't show a stale "signed out" flash before the client SDK
+            // has a chance to silently refresh the token on page load. Set
+            // to 6 months per product requirement — a returning visitor
+            // within that window never has to re-enter credentials.
+            const SIX_MONTHS_SECONDS = 60 * 60 * 24 * 182;
+            document.cookie = `qw-session=${tokenResult.token}; path=/; SameSite=Strict; max-age=${SIX_MONTHS_SECONDS}${secureFlag}`;
             claims = readQwClaims(tokenResult.claims);
           } catch {
             // Non-fatal — client auth still works via onIdTokenChanged

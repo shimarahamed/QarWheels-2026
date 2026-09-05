@@ -136,17 +136,20 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Redirect authenticated users away from auth pages
+  // Redirect authenticated users away from auth pages — sent to whichever
+  // dashboard their own role actually admits them to, not the one implied by
+  // which login page they happened to land on. A plain customer hitting
+  // /vendor/login while signed in has no vendor claim, so this sends them
+  // straight to /dashboard instead of bouncing through /vendor/dashboard
+  // first and letting VENDOR_PROTECTED redirect them a second time.
   if (AUTH_ROUTES.test(pathname) && isAuthenticated) {
     const redirect = request.nextUrl.searchParams.get('redirect');
     const url = request.nextUrl.clone();
     url.pathname =
       redirect ??
-      (pathname.startsWith('/admin')
-        ? role === 'master_admin'
-          ? '/admin/dashboard'
-          : '/dashboard'
-        : pathname.startsWith('/vendor')
+      (role === 'master_admin'
+        ? '/admin/dashboard'
+        : VENDOR_ROLES.has(role)
           ? '/vendor/dashboard'
           : '/dashboard');
     url.search = '';

@@ -1,8 +1,9 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
-import { Edit, MoreHorizontal, Trash2, UserCheck } from 'lucide-react';
+import { ClipboardList, Edit, MoreHorizontal, Trash2, UserCheck } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,13 +34,17 @@ export function BookingTableRow({
   onEditClick: (booking: WithId<Booking>) => void;
   onDeleteClick: (booking: WithId<Booking>) => void;
 }) {
+  const router = useRouter();
   const bookingDate =
     booking.bookingDate instanceof Timestamp
       ? booking.bookingDate.toDate()
       : new Date(booking.bookingDate);
 
   return (
-    <TableRow>
+    <TableRow
+      className="cursor-pointer"
+      onClick={() => router.push(`/vendor/dashboard/jobs/${booking.id}`)}
+    >
       <TableCell>
         <div>
           <div className="font-medium">{booking.customerName || 'Customer not found'}</div>
@@ -73,8 +78,11 @@ export function BookingTableRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => router.push(`/vendor/dashboard/jobs/${booking.id}`)}>
+                <ClipboardList className="mr-2 h-4 w-4" /> Open job card
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => onEditClick(booking)}>
-                <Edit className="mr-2 h-4 w-4" /> Update Status/Cost
+                <Edit className="mr-2 h-4 w-4" /> Quick edit
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

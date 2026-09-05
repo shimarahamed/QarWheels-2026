@@ -12,7 +12,6 @@ import { useFirebase } from '@/firebase';
 import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
-    signInAnonymously,
     updateProfile
 } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
@@ -119,30 +118,6 @@ export function AuthForm({ type, userType, onResult }: AuthFormProps) {
     }
   };
 
-   const handleAnonymousSignIn = async () => {
-    setIsSubmitting(true);
-    try {
-      await signInAnonymously(auth);
-      toast({
-        title: 'Signed in as Guest',
-        description: 'Redirecting to the dashboard...',
-      });
-      if(onResult) {
-        onResult();
-      }
-    } catch (error: any) {
-      console.error("Anonymous sign-in failed:", error);
-      toast({
-        variant: "destructive",
-        title: "Guest Login Failed",
-        description: error.message || "Could not sign in as guest.",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-
   return (
     <div className="space-y-6">
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -175,21 +150,6 @@ export function AuthForm({ type, userType, onResult }: AuthFormProps) {
                 {type === 'login' ? 'Sign In' : 'Create Account'}
             </Button>
         </form>
-         {type === 'login' && userType === 'customer' && (
-            <>
-                <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-card px-2 text-muted-foreground">Or continue as</span>
-                    </div>
-                </div>
-                 <Button variant="outline" className="motion-press w-full rounded-xl hover:border-primary/40 hover:bg-primary/5" onClick={handleAnonymousSignIn} disabled={isSubmitting}>
-                    Sign in as Guest
-                </Button>
-            </>
-        )}
     </div>
   );
 }

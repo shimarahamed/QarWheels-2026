@@ -4,7 +4,7 @@ import { Sidebar, SidebarProvider, SidebarTrigger, SidebarInset } from "@/compon
 import { VendorSidebar } from "@/components/vendor/sidebar";
 import { VendorProvider } from "@/components/vendor/vendor-provider";
 import { useFirebase } from "@/firebase";
-import { AreaChart, Book, Home, Loader2, Package, Wrench } from "lucide-react";
+import { AreaChart, Book, Home, Inbox, Loader2, Package } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect } from "react";
 import { Logo } from "@/components/logo";
@@ -20,6 +20,9 @@ import type { VendorSection } from "@/lib/auth/permissions";
 // nested routes fall under their parent automatically.
 const SECTION_BY_ROUTE: [prefix: string, section: VendorSection][] = [
   ["/vendor/dashboard/bookings", "bookings"],
+  ["/vendor/dashboard/requests", "bookings"],
+  ["/vendor/dashboard/jobs", "bookings"],
+  ["/vendor/dashboard/technicians", "staff"],
   ["/vendor/dashboard/customers", "customers"],
   ["/vendor/dashboard/services", "services"],
   ["/vendor/dashboard/inventory", "inventory"],
@@ -46,8 +49,8 @@ function VendorRouteGate({ children }: { children: React.ReactNode }) {
 
 const mobileNav: { href: string; icon: typeof Home; label: string; activeColor: string; section: VendorSection }[] = [
     { href: "/vendor/dashboard",           icon: Home,      label: "Home",     activeColor: "bg-primary",     section: "overview" },
-    { href: "/vendor/dashboard/bookings",  icon: Book,      label: "Jobs",     activeColor: "bg-amber-600",   section: "bookings" },
-    { href: "/vendor/dashboard/services",  icon: Wrench,    label: "Services", activeColor: "bg-emerald-600", section: "services" },
+    { href: "/vendor/dashboard/requests",  icon: Inbox,     label: "Requests", activeColor: "bg-amber-600",   section: "bookings" },
+    { href: "/vendor/dashboard/bookings",  icon: Book,      label: "Jobs",     activeColor: "bg-indigo-600",  section: "bookings" },
     { href: "/vendor/dashboard/inventory", icon: Package,   label: "Stock",    activeColor: "bg-sky-600",     section: "inventory" },
     { href: "/vendor/dashboard/analytics", icon: AreaChart, label: "Stats",    activeColor: "bg-teal-600",    section: "analytics" },
 ];

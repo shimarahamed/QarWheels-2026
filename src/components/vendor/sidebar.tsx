@@ -6,6 +6,7 @@ import {
   AreaChart,
   Book,
   Building2,
+  Inbox,
   LayoutDashboard,
   LogOut,
   MessageSquare,
@@ -16,6 +17,7 @@ import {
   ShieldCheck,
   Sparkles,
   Star,
+  UserCog,
   Users,
   Wallet,
   Wrench,
@@ -41,10 +43,12 @@ import type { VendorSection } from "@/lib/auth/permissions";
 
 const navItems: { href: string; icon: typeof LayoutDashboard; label: string; hint: string; iconBg: string; activeGradient: string; section: VendorSection }[] = [
   { href: "/vendor/dashboard",            icon: LayoutDashboard, label: "Overview",   hint: "Command center",  iconBg: "bg-primary/10 text-primary",        activeGradient: "from-primary/20 to-sky-500/10",   section: "overview" },
+  { href: "/vendor/dashboard/requests",   icon: Inbox,           label: "Requests",   hint: "New job requests",iconBg: "bg-rose-500/10 text-rose-600",       activeGradient: "from-rose-500/20 to-amber-500/10", section: "bookings" },
   { href: "/vendor/dashboard/bookings",   icon: Book,            label: "Bookings",   hint: "Jobs and visits", iconBg: "bg-amber-500/10 text-amber-600",     activeGradient: "from-amber-500/20 to-orange-500/10", section: "bookings" },
   { href: "/vendor/dashboard/customers",  icon: Users,           label: "Customers",  hint: "Client profiles", iconBg: "bg-violet-500/10 text-violet-600",   activeGradient: "from-violet-500/20 to-indigo-500/10", section: "customers" },
   { href: "/vendor/dashboard/services",   icon: Wrench,          label: "Services",   hint: "Menu and pricing",iconBg: "bg-emerald-500/10 text-emerald-600", activeGradient: "from-emerald-500/20 to-teal-500/10", section: "services" },
   { href: "/vendor/dashboard/inventory",  icon: Package,         label: "Inventory",  hint: "Parts and stock", iconBg: "bg-sky-500/10 text-sky-600",         activeGradient: "from-sky-500/20 to-cyan-500/10",  section: "inventory" },
+  { href: "/vendor/dashboard/technicians",icon: UserCog,         label: "Technicians",hint: "Who's on what",   iconBg: "bg-teal-500/10 text-teal-600",       activeGradient: "from-teal-500/20 to-emerald-500/10", section: "staff" },
   { href: "/vendor/dashboard/staff",      icon: Users,           label: "Staff",      hint: "Team roles",      iconBg: "bg-indigo-500/10 text-indigo-600",   activeGradient: "from-indigo-500/20 to-violet-500/10", section: "staff" },
   { href: "/vendor/dashboard/messages",   icon: MessageSquare,   label: "Messages",   hint: "Customer chat",   iconBg: "bg-blue-500/10 text-blue-600",       activeGradient: "from-blue-500/20 to-sky-500/10",  section: "messages" },
   { href: "/vendor/dashboard/invoices",   icon: Receipt,         label: "Invoices",   hint: "Billing",         iconBg: "bg-cyan-500/10 text-cyan-600",       activeGradient: "from-cyan-500/20 to-sky-500/10",  section: "invoices" },
@@ -185,7 +189,7 @@ export function VendorSidebar() {
                         {item.hint}
                       </span>
                     </span>
-                    {item.href === "/vendor/dashboard/bookings" && pendingCount > 0 && (
+                    {item.href === "/vendor/dashboard/requests" && pendingCount > 0 && (
                       <span
                         className={`relative flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
                           isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-destructive text-destructive-foreground"

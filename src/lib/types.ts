@@ -126,6 +126,16 @@ export type BookingPart = {
   unitPrice: number;
 };
 
+/** One technician's logged time against a job, in minutes. */
+export type BookingLaborEntry = {
+  staffId: string;
+  staffName: string;
+  minutes: number;
+  note?: string;
+  loggedAt: FirestoreDate;
+  loggedBy: string;
+};
+
 export type Booking = {
   userId: string;
   customerName: string;
@@ -145,6 +155,9 @@ export type Booking = {
   assignedStaffId?: string;
   assignedStaffName?: string;
   partsUsed?: BookingPart[];
+  laborEntries?: BookingLaborEntry[];
+  /** Storage paths for job photos (before/after, damage, etc). */
+  photoPaths?: string[];
   acceptedAt?: FirestoreDate;
   acceptedBy?: string;
   declinedAt?: FirestoreDate;

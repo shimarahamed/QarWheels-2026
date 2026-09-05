@@ -445,7 +445,14 @@ service cloud.firestore {
         || (isBookingActor(resource.data.businessId, resource.data.branchId)
           && notChanging(['userId', 'customerName', 'customerEmail', 'customerPhone', 'businessId', 'branchId', 'carId', 'carDescription', 'createdAt'])
           && canTransitionBooking(resource.data.status, request.resource.data.status)
-          && request.resource.data.statusHistory.size() == resource.data.statusHistory.size() + 1
+          // statusHistory must grow by exactly one entry when the status is
+          // actually changing (the audit trail for that transition), but a
+          // job-card edit — assigning staff, logging parts/labor, revising
+          // cost — routinely saves without moving the status, and must not
+          // be forced to fabricate a history entry to pass this rule.
+          && (request.resource.data.status == resource.data.status
+                ? request.resource.data.statusHistory.size() == resource.data.statusHistory.size()
+                : request.resource.data.statusHistory.size() == resource.data.statusHistory.size() + 1)
           && (!changing('cost') || isBusinessWideRole())
           && (!('cost' in request.resource.data) || (request.resource.data.cost is number && request.resource.data.cost >= 0)))
         // Admin is a support/oversight role here, not a bypass of the

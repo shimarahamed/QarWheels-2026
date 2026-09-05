@@ -59,9 +59,9 @@ const categories = [
 ];
 
 const quickActions = [
-  { label: 'Book Service', icon: CalendarCheck, href: '/dashboard/garages' },
+  { label: 'Book Service', icon: CalendarCheck, href: '/garages' },
   { label: 'My Garage',   icon: Car,           href: '/dashboard' },
-  { label: 'Roadside',    icon: AlertTriangle, href: '/dashboard/garages' },
+  { label: 'Roadside',    icon: AlertTriangle, href: '/garages' },
   { label: 'Sell My Car', icon: Tag,           href: '/signup' },
 ];
 
@@ -104,7 +104,7 @@ function GarageListCard({ garage }: { garage: WithId<Branch> }) {
   const isOpen = !garage.vacationMode;
   return (
     <Link
-      href={`/dashboard/garages/${garage.id}`}
+      href={`/garages/${garage.id}`}
       className="group mkt-card motion-surface flex items-start gap-3 p-3 hover:bg-primary/5"
     >
       <div className="relative h-[68px] w-[68px] shrink-0 overflow-hidden rounded-xl bg-muted">
@@ -173,7 +173,7 @@ function GarageListCard({ garage }: { garage: WithId<Branch> }) {
           </span>
 
           {/* Every listed branch has passed admin approval, so this is always
-              true here — matching /dashboard/garages' "verified by definition" logic. */}
+              true here — matching /garages' "verified by definition" logic. */}
           <span className="flex items-center gap-0.5 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
             <ShieldCheck className="h-2.5 w-2.5" />
             Verified
@@ -222,7 +222,13 @@ export default function LandingPage() {
   const carImg    = img('car-placeholder-2');
   const garageImg = img('garage-interior');
 
-  const { firestore } = useFirebase();
+  // `user` gates the vendor-facing entry points below (nav link, header
+  // button, CTA section, footer links) — a customer who is already signed in
+  // has no business being routed into vendor sign-up/login; that surface is
+  // only for a signed-out visitor deciding which side of the marketplace
+  // they're on.
+  const { firestore, user } = useFirebase();
+  const isSignedIn = Boolean(user);
   // Must filter on isListed (not status) — firestore.rules' public `list` rule
   // for branches can only verify a query that filters on isListed == true;
   // it can't see a status filter, so that shape gets denied for signed-out
@@ -256,9 +262,9 @@ export default function LandingPage() {
           {/* Desktop center nav */}
           <nav className="hidden items-center gap-1 lg:flex">
             {[
-              { label: 'Explore',   href: '/dashboard/garages' },
-              { label: 'Categories',href: '/dashboard/garages' },
-              { label: 'For Vendors', href: '/vendor/login' },
+              { label: 'Explore',   href: '/garages' },
+              { label: 'Categories',href: '/garages' },
+              ...(isSignedIn ? [] : [{ label: 'For Vendors', href: '/vendor/login' }]),
             ].map((l) => (
               <Link
                 key={l.label}
@@ -279,14 +285,18 @@ export default function LandingPage() {
               <Bell className="h-4 w-4" />
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />
             </button>
-            <Button size="sm" variant="ghost" className="hidden rounded-xl sm:inline-flex" asChild>
-              <Link href="/vendor/login">
-                <Store className="mr-1.5 h-4 w-4" />
-                Vendors
-              </Link>
-            </Button>
+            {!isSignedIn && (
+              <Button size="sm" variant="ghost" className="hidden rounded-xl sm:inline-flex" asChild>
+                <Link href="/vendor/login">
+                  <Store className="mr-1.5 h-4 w-4" />
+                  Vendors
+                </Link>
+              </Button>
+            )}
             <Button size="sm" className="h-9 rounded-xl px-4 font-semibold" asChild>
-              <Link href="/login">Sign In</Link>
+              <Link href={isSignedIn ? '/dashboard' : '/login'}>
+                {isSignedIn ? 'My Dashboard' : 'Sign In'}
+              </Link>
             </Button>
           </div>
         </div>
@@ -312,7 +322,7 @@ export default function LandingPage() {
 
             {/* Search bar */}
             <Link
-              href="/dashboard/garages"
+              href="/garages"
               className="flex items-center gap-3 rounded-2xl bg-muted px-4 py-3.5 transition-colors hover:bg-muted/70 border border-border"
             >
               <Search className="h-5 w-5 shrink-0 text-muted-foreground" />
@@ -362,7 +372,7 @@ export default function LandingPage() {
                     className="motion-press h-9 rounded-xl px-5 text-xs font-bold shadow-lg shadow-primary/30"
                     asChild
                   >
-                    <Link href="/dashboard/garages">Explore Now</Link>
+                    <Link href="/garages">Explore Now</Link>
                   </Button>
                   <Button
                     variant="outline"
@@ -385,7 +395,7 @@ export default function LandingPage() {
               {trendingServices.map((s) => (
                 <Link
                   key={s}
-                  href="/dashboard/garages"
+                  href="/garages"
                   className="flex-shrink-0 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary"
                 >
                   {s}
@@ -427,7 +437,7 @@ export default function LandingPage() {
                 <div className="mb-3 flex items-center justify-between">
                   <h2 className="text-base font-bold">All Categories</h2>
                   <Link
-                    href="/dashboard/garages"
+                    href="/garages"
                     className="flex items-center gap-0.5 text-sm font-semibold text-primary hover:underline"
                   >
                     See all <ChevronRight className="h-3.5 w-3.5" />
@@ -437,7 +447,7 @@ export default function LandingPage() {
                   {categories.map(({ label, labelAr, icon: Icon, color }) => (
                     <Link
                       key={label}
-                      href="/dashboard/garages"
+                      href="/garages"
                       className="mkt-card flex flex-col items-center gap-2 p-3 text-center transition-colors hover:border-primary/30 hover:bg-primary/5"
                     >
                       <div className={cn('flex h-12 w-12 items-center justify-center rounded-2xl', color)}>
@@ -464,7 +474,7 @@ export default function LandingPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Link
-                      href="/dashboard/garages"
+                      href="/garages"
                       className="flex items-center gap-0.5 text-sm font-semibold text-primary hover:underline"
                     >
                       See map <ChevronRight className="h-3.5 w-3.5" />
@@ -503,7 +513,7 @@ export default function LandingPage() {
                       return (
                         <Link
                           key={g.id}
-                          href={`/dashboard/garages/${g.id}`}
+                          href={`/garages/${g.id}`}
                           className="group mkt-card motion-surface flex items-center gap-3 p-3"
                         >
                           <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted">
@@ -552,7 +562,7 @@ export default function LandingPage() {
               <div className="bento-card p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-sm font-bold">Featured Services</h3>
-                  <Link href="/dashboard/garages" className="text-xs font-semibold text-primary hover:underline">
+                  <Link href="/garages" className="text-xs font-semibold text-primary hover:underline">
                     View all
                   </Link>
                 </div>
@@ -562,7 +572,7 @@ export default function LandingPage() {
                     return (
                       <Link
                         key={svc.label}
-                        href="/dashboard/garages"
+                        href="/garages"
                         className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-muted"
                       >
                         <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">
@@ -606,7 +616,7 @@ export default function LandingPage() {
                     className="motion-press mt-4 h-8 rounded-xl bg-white px-5 text-xs font-bold text-[var(--qw-primary)] hover:bg-white/90"
                     asChild
                   >
-                    <Link href="/dashboard/garages">Book Now</Link>
+                    <Link href="/garages">Book Now</Link>
                   </Button>
                 </div>
               </div>
@@ -655,7 +665,7 @@ export default function LandingPage() {
             <div className="mb-3 flex items-center justify-between px-4">
               <h2 className="text-base font-bold">Featured Services</h2>
               <Link
-                href="/dashboard/garages"
+                href="/garages"
                 className="flex items-center gap-0.5 text-sm font-semibold text-primary"
               >
                 View all <ChevronRight className="h-3.5 w-3.5" />
@@ -668,7 +678,7 @@ export default function LandingPage() {
                 return (
                   <Link
                     key={svc.label}
-                    href="/dashboard/garages"
+                    href="/garages"
                     className="group mkt-card w-[130px] flex-shrink-0 overflow-hidden"
                   >
                     <div className="relative h-[88px] w-full bg-muted">
@@ -707,7 +717,7 @@ export default function LandingPage() {
                   className="motion-press mt-4 h-9 rounded-xl bg-white px-5 text-xs font-bold text-[var(--qw-primary)] hover:bg-white/90"
                   asChild
                 >
-                  <Link href="/dashboard/garages">Book Now</Link>
+                  <Link href="/garages">Book Now</Link>
                 </Button>
               </div>
             </div>
@@ -742,7 +752,7 @@ export default function LandingPage() {
                   className="motion-press mt-4 h-9 rounded-xl bg-white px-5 text-xs font-bold text-[var(--qw-primary)] hover:bg-white/90"
                   asChild
                 >
-                  <Link href="/dashboard/garages">Book Now</Link>
+                  <Link href="/garages">Book Now</Link>
                 </Button>
               </div>
             </div>
@@ -750,7 +760,7 @@ export default function LandingPage() {
             {/* Top Offers grid */}
             <div className="mt-4 flex items-center justify-between">
               <h3 className="text-sm font-bold">Top Offers For You</h3>
-              <Link href="/dashboard/garages" className="text-xs font-semibold text-primary">
+              <Link href="/garages" className="text-xs font-semibold text-primary">
                 View all →
               </Link>
             </div>
@@ -760,7 +770,7 @@ export default function LandingPage() {
                 return (
                   <Link
                     key={offer.service}
-                    href="/dashboard/garages"
+                    href="/garages"
                     className="mkt-card overflow-hidden"
                   >
                     <div className="relative h-16 w-full bg-muted">
@@ -841,30 +851,34 @@ export default function LandingPage() {
           </section>
 
           {/* ══════════════════════════════════════════════════
-              VENDOR CTA
+              VENDOR CTA — signed-out visitors only. A customer who is
+              already inside the app has no reason to be pitched the vendor
+              side of the marketplace.
           ══════════════════════════════════════════════════ */}
-          <section className="px-4 py-3">
-            <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-5 shadow-sm">
-              <div className="ambient-blob -right-10 -top-10 h-40 w-40 bg-primary/10 animate-glow-breathe" />
-              <div className="relative">
-                <p className="section-label text-primary">For Vendors</p>
-                <h2 className="mt-1.5 text-base font-bold leading-snug">
-                  Turn your garage into a bookable mobile storefront.
-                </h2>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  حوّل كراجك إلى واجهة متجر قابلة للحجز.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button className="motion-press h-9 rounded-xl px-5 text-xs font-bold" asChild>
-                    <Link href="/vendor/signup">List your garage</Link>
-                  </Button>
-                  <Button variant="outline" className="motion-press h-9 rounded-xl px-4 text-xs hover:border-primary/40 hover:bg-primary/5" asChild>
-                    <Link href="/vendor/login">Vendor login</Link>
-                  </Button>
+          {!isSignedIn && (
+            <section className="px-4 py-3">
+              <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-5 shadow-sm">
+                <div className="ambient-blob -right-10 -top-10 h-40 w-40 bg-primary/10 animate-glow-breathe" />
+                <div className="relative">
+                  <p className="section-label text-primary">For Vendors</p>
+                  <h2 className="mt-1.5 text-base font-bold leading-snug">
+                    Turn your garage into a bookable mobile storefront.
+                  </h2>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    حوّل كراجك إلى واجهة متجر قابلة للحجز.
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button className="motion-press h-9 rounded-xl px-5 text-xs font-bold" asChild>
+                      <Link href="/vendor/signup">List your garage</Link>
+                    </Button>
+                    <Button variant="outline" className="motion-press h-9 rounded-xl px-4 text-xs hover:border-primary/40 hover:bg-primary/5" asChild>
+                      <Link href="/vendor/login">Vendor login</Link>
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
         </main>
 
@@ -883,11 +897,15 @@ export default function LandingPage() {
 
           <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
             {[
-              { label: 'Browse',    href: '/dashboard/garages' },
-              { label: 'Sign up',   href: '/signup' },
-              { label: 'Sign in',   href: '/login' },
-              { label: 'Vendors',   href: '/vendor/signup' },
-              { label: 'Vendor login', href: '/vendor/login' },
+              { label: 'Browse',    href: '/garages' },
+              ...(isSignedIn
+                ? [{ label: 'My Dashboard', href: '/dashboard' }]
+                : [
+                    { label: 'Sign up',   href: '/signup' },
+                    { label: 'Sign in',   href: '/login' },
+                    { label: 'Vendors',   href: '/vendor/signup' },
+                    { label: 'Vendor login', href: '/vendor/login' },
+                  ]),
               { label: 'Privacy Policy', href: '/privacy' },
               { label: 'Terms of Service', href: '/terms' },
             ].map((l) => (
@@ -909,10 +927,10 @@ export default function LandingPage() {
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 pb-[max(env(safe-area-inset-bottom),0px)] backdrop-blur sm:hidden">
         <div className="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-2">
           <NavItem icon={Home}        label="Home"     active href="/" />
-          <NavItem icon={Compass}     label="Explore"         href="/dashboard/garages" />
+          <NavItem icon={Compass}     label="Explore"         href="/garages" />
           <div className="flex h-16 flex-col items-center justify-start">
             <Link
-              href="/dashboard/garages"
+              href="/garages"
               aria-label="Book a service"
               className="flex h-14 w-14 -translate-y-4 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/40 ring-4 ring-background transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/25"
             >

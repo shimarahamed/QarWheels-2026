@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import dynamic from "next/dynamic";
-import { format } from "date-fns";
 import { collection, query, Timestamp, where } from "firebase/firestore";
 import {
-  ArrowRight,
   CalendarClock,
   ChevronRight,
   CircleDollarSign,
@@ -17,6 +15,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { AIBusinessInsights } from "@/components/vendor/ai-business-insights";
+import { JobBoard } from "@/components/vendor/jobs/job-board";
 import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,31 +47,6 @@ const LIVE_HINT = (
     Live data
   </span>
 );
-
-function UpcomingBooking({ booking }: { booking: WithId<Booking> }) {
-  const date = toDate(booking.bookingDate);
-
-  return (
-    <Link
-      href="/vendor/dashboard/bookings"
-      className="group flex items-start justify-between gap-4 rounded-2xl border border-border/60 bg-background/70 p-4 transition-all duration-300 hover:border-primary/40 hover:bg-background hover:shadow-sm"
-    >
-      <div className="min-w-0">
-        <p className="truncate font-bold text-sm">{booking.serviceName}</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {booking.customerName || "Customer"}
-        </p>
-        <p className="mt-2 text-xs text-muted-foreground">{format(date, "h:mm a")}</p>
-      </div>
-      <div className="flex flex-col items-end gap-2">
-        <Badge variant="outline" className="shrink-0 bg-primary/5 text-primary border-primary/20">
-          {format(date, "MMM d")}
-        </Badge>
-        <ArrowRight className="h-4 w-4 text-muted-foreground/50 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-primary" />
-      </div>
-    </Link>
-  );
-}
 
 export default function VendorDashboard() {
   const { firestore } = useFirebase();
@@ -226,6 +200,25 @@ export default function VendorDashboard() {
             ))}
       </StatCardGrid>
 
+      {/* ── Live job board ─────────────────────────────────────── */}
+      <Card className="border border-border/60 bg-card shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle className="text-base font-bold">Shop floor, right now</CardTitle>
+            <p className="mt-0.5 text-xs text-muted-foreground">Every job in flight, from request to ready-for-pickup.</p>
+          </div>
+          <Button asChild size="sm" variant="outline" className="h-8 rounded-full px-3 text-xs hover:border-primary/40 hover:bg-primary/5 hover:text-primary">
+            <Link href="/vendor/dashboard/bookings">
+              All bookings
+              <ChevronRight className="ml-1 h-3.5 w-3.5" />
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <JobBoard bookings={bookings} isLoading={isLoading} />
+        </CardContent>
+      </Card>
+
       {/* ── Revenue Chart + Sidebar widgets ───────────────────── */}
       <section className="grid gap-5 xl:grid-cols-[1.4fr_0.6fr]">
         <Card className="border border-border/60 bg-card shadow-sm">
@@ -254,35 +247,6 @@ export default function VendorDashboard() {
               { label: "Review booking pipeline", href: "/vendor/dashboard/bookings", done: (bookings?.length || 0) > 0 },
             ]}
           />
-
-          {/* Upcoming appointments */}
-          <Card className="border border-border/60 bg-card shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-base font-bold">Next appointments</CardTitle>
-              <Button asChild size="sm" variant="outline" className="h-8 rounded-full px-3 text-xs hover:border-primary/40 hover:bg-primary/5 hover:text-primary">
-                <Link href="/vendor/dashboard/bookings">
-                  View all
-                  <ChevronRight className="ml-1 h-3.5 w-3.5" />
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {isLoading ? (
-                <>
-                  <Skeleton className="h-20 rounded-2xl" />
-                  <Skeleton className="h-20 rounded-2xl" />
-                </>
-              ) : upcomingBookings.length > 0 ? (
-                upcomingBookings.map((booking) => (
-                  <UpcomingBooking key={booking.id} booking={booking} />
-                ))
-              ) : (
-                <p className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-                  No upcoming appointments yet.
-                </p>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </section>
     </div>

@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -68,11 +69,12 @@ function formatDate(value: unknown): string {
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export default function VendorInvoicesPage() {
+function VendorInvoicesPageInner() {
   const { business, activeBranch, canSeeAllBranches } = useVendor();
   const { firestore } = useFirebase();
   const { user } = useUser();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
 
   const [invoices, setInvoices] = useState<WithId<Invoice>[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -148,6 +150,61 @@ export default function VendorInvoicesPage() {
   );
 
   const selectedBooking = invoiceableBookings.find((b) => b.id === bookingId) ?? null;
+
+  /**
+   * Prefills the line items from the job card's own record of the work —
+   * parts actually consumed (from `partsUsed`) and time actually logged
+   * (from `laborEntries`, priced as a flat labor-hour rate since a booking
+   * carries no per-technician rate) — plus the booking's own service fee as
+   * a base line. Everything stays editable afterward; this just saves
+   * retyping what the job card already knows.
+   */
+  function prefillFromBooking(booking: WithId<Booking>) {
+    const rows: DraftLineItem[] = [];
+
+    rows.push({
+      key: Math.random().toString(36).slice(2),
+      description: booking.serviceName,
+      quantity: '1',
+      unitPrice: (booking.cost ?? 0).toFixed(2),
+    });
+
+    for (const part of booking.partsUsed ?? []) {
+      rows.push({
+        key: Math.random().toString(36).slice(2),
+        description: part.name,
+        quantity: String(part.qty),
+        unitPrice: part.unitPrice.toFixed(2),
+      });
+    }
+
+    const totalLaborMinutes = (booking.laborEntries ?? []).reduce((sum, e) => sum + e.minutes, 0);
+    if (totalLaborMinutes > 0) {
+      rows.push({
+        key: Math.random().toString(36).slice(2),
+        description: `Labor (${(totalLaborMinutes / 60).toFixed(1)} hrs logged)`,
+        quantity: '1',
+        unitPrice: '0.00',
+      });
+    }
+
+    setLineItems(rows);
+  }
+
+  // Deep link from a job card's "Create invoice from this job" — opens the
+  // dialog pre-selected and pre-filled rather than making the vendor find
+  // the booking again in the dropdown.
+  useEffect(() => {
+    const deepLinkId = searchParams.get('bookingId');
+    if (!deepLinkId || bookingId) return;
+    const booking = invoiceableBookings.find((b) => b.id === deepLinkId);
+    if (booking) {
+      setBookingId(booking.id);
+      prefillFromBooking(booking);
+      setIsCreateOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, invoiceableBookings]);
 
   // Live total, computed in minor units throughout — no float arithmetic.
   const subtotalMinorUnits = lineItems.reduce((sum, item) => {
@@ -370,7 +427,14 @@ export default function VendorInvoicesPage() {
           <div className="space-y-4 pt-2">
             <div className="space-y-2">
               <Label htmlFor="booking">Completed booking</Label>
-              <Select value={bookingId} onValueChange={setBookingId}>
+              <Select
+                value={bookingId}
+                onValueChange={(id) => {
+                  setBookingId(id);
+                  const booking = invoiceableBookings.find((b) => b.id === id);
+                  if (booking) prefillFromBooking(booking);
+                }}
+              >
                 <SelectTrigger id="booking">
                   <SelectValue placeholder="Select a completed booking" />
                 </SelectTrigger>
@@ -504,5 +568,18 @@ export default function VendorInvoicesPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/**
+ * useSearchParams (for the job-card deep link) requires a Suspense boundary
+ * per Next.js's client-navigation contract — see src/app/dashboard/book/page.tsx
+ * for the same pattern.
+ */
+export default function VendorInvoicesPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto flex w-full max-w-7xl"><Skeleton className="h-96 w-full rounded-2xl" /></div>}>
+      <VendorInvoicesPageInner />
+    </Suspense>
   );
 }
