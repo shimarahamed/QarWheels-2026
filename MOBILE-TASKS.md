@@ -38,6 +38,20 @@ Jest reported React `act(...)` warnings for VirtualizedList and ErrorState in
 Expo reports missing Sentry organization/project configuration. Neither warning
 is being treated as proof that the app is ready for a production release.
 
+## Vendor Booking Timeout Follow-Up (2026-11-01)
+
+- [x] Stop initial loading after 15 seconds without a response; expose the existing retry action.
+- [x] Allow the current listener to recover automatically when a delayed snapshot arrives.
+- [x] Replace the listener on retry and ignore stale success/error callbacks.
+- [x] Cancel the pending timer and unsubscribe when unmounted.
+- [x] Reset the deadline when vendor scope changes; cancel the previous scope's timer.
+- [x] Clear the timer immediately on listener success or failure.
+- [x] Re-run TypeScript and both focused vendor suites: 16 tests passed.
+
+The implementation was already included in commit `a28131a`. This follow-up adds
+five explicit lifecycle regression tests in `__tests__/vendor-merge.test.ts`.
+No runtime, dependency, environment, or web/backend changes were needed.
+
 ## Implemented Before Delegation
 
 - Shared public garage subscription and cached, bounded service queries (three concurrent batches).

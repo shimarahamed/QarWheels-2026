@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react-native';
+import { act, cleanup, renderHook } from '@testing-library/react-native';
 import { onSnapshot, where } from 'firebase/firestore';
 import { useAuthContext } from '@/lib/AuthContext';
 import { useVendorFirestoreBookings } from '@/lib/firestoreOps';
@@ -107,4 +107,78 @@ it('preserves a customized vendor profile during migration', async () => {
   const custom = { ...vendorProfile, businessName: 'My updated business' };
   const result = await useQarWheelStore.persist.getOptions().migrate!({ vendorProfile: custom }, 1);
   expect(result).toMatchObject({ vendorProfile: custom });
+});
+
+describe('vendor booking timeout lifecycle', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => {
+    cleanup();
+    jest.useRealTimers();
+  });
+
+  it('times out at 15 seconds and recovers when the current listener responds', () => {
+    const { result } = renderHook(() => useVendorFirestoreBookings());
+    act(() => jest.advanceTimersByTime(14_999));
+    expect(result.current).toMatchObject({ loading: true, error: false });
+    act(() => jest.advanceTimersByTime(1));
+    expect(result.current).toMatchObject({ loading: false, error: true });
+    expect(unsubscribe).not.toHaveBeenCalled();
+
+    act(() => snapshots[0]({ docs: [{ id: 'recovered', data: () => ({}) }] }));
+    expect(result.current).toMatchObject({ loading: false, error: false });
+    expect(useQarWheelStore.getState().vendorBookings[0].id).toBe('recovered');
+    expect(onSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries with one replacement listener and rejects stale success and error callbacks', () => {
+    const { result } = renderHook(() => useVendorFirestoreBookings());
+    act(() => jest.advanceTimersByTime(15_000));
+    act(() => result.current.retry());
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+    expect(onSnapshot).toHaveBeenCalledTimes(2);
+    expect(result.current).toMatchObject({ loading: true, error: false });
+
+    act(() => snapshots[1]({ docs: [{ id: 'current', data: () => ({}) }] }));
+    act(() => {
+      snapshots[0]({ docs: [{ id: 'stale', data: () => ({}) }] });
+      errors[0]();
+    });
+    expect(result.current).toMatchObject({ loading: false, error: false });
+    expect(useQarWheelStore.getState().vendorBookings.map((entry) => entry.id)).toEqual(['current']);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('cancels the pending deadline and ignores callbacks after unmount', () => {
+    const { unmount } = renderHook(() => useVendorFirestoreBookings());
+    expect(jest.getTimerCount()).toBe(1);
+    unmount();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+    expect(jest.getTimerCount()).toBe(0);
+    act(() => {
+      snapshots[0]({ docs: [{ id: 'unmounted', data: () => ({}) }] });
+      errors[0]();
+      jest.advanceTimersByTime(15_000);
+    });
+    expect(useQarWheelStore.getState().vendorBookings).toEqual([]);
+  });
+
+  it('gives a changed vendor scope its own deadline and cancels the previous one', () => {
+    const { result, rerender } = renderHook(() => useVendorFirestoreBookings());
+    act(() => jest.advanceTimersByTime(10_000));
+    jest.mocked(useAuthContext).mockReturnValue({ ...context, businessId: 'business-b' } as never);
+    rerender({});
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+    expect(jest.getTimerCount()).toBe(1);
+    act(() => jest.advanceTimersByTime(5_000));
+    expect(result.current).toMatchObject({ loading: true, error: false });
+    act(() => jest.advanceTimersByTime(10_000));
+    expect(result.current).toMatchObject({ loading: false, error: true });
+  });
+
+  it('clears the pending deadline immediately on a listener error', () => {
+    const { result } = renderHook(() => useVendorFirestoreBookings());
+    act(() => errors[0]());
+    expect(result.current).toMatchObject({ loading: false, error: true });
+    expect(jest.getTimerCount()).toBe(0);
+  });
 });
