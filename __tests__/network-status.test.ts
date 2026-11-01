@@ -1,5 +1,5 @@
 import NetInfo from '@react-native-community/netinfo';
-import { renderHook, waitFor } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 import { useNetworkStatus } from '@/lib/useNetworkStatus';
 
@@ -14,10 +14,11 @@ describe('useNetworkStatus', () => {
     mockNetInfo.addEventListener.mockReturnValue(jest.fn());
   });
 
-  it('starts optimistic so no banner flashes on cold start', () => {
+  it('starts optimistic so no banner flashes on cold start', async () => {
     mockNetInfo.fetch.mockResolvedValue({ isConnected: true, isInternetReachable: true });
     const { result } = renderHook(() => useNetworkStatus());
     expect(result.current.isOffline).toBe(false);
+    await waitFor(() => expect(result.current.isInternetReachable).toBe(true));
   });
 
   it('reports offline when there is no connection', async () => {
@@ -31,7 +32,9 @@ describe('useNetworkStatus', () => {
     // would flash it on every launch.
     mockNetInfo.fetch.mockResolvedValue({ isConnected: true, isInternetReachable: null });
     const { result } = renderHook(() => useNetworkStatus());
-    await waitFor(() => expect(result.current.isConnected).toBe(true));
+    await act(async () => {});
+    expect(result.current.isInternetReachable).toBeNull();
+    expect(result.current.isConnected).toBe(true);
     expect(result.current.isOffline).toBe(false);
   });
 
@@ -41,13 +44,38 @@ describe('useNetworkStatus', () => {
     await waitFor(() => expect(result.current.isOffline).toBe(true));
   });
 
-  it('unsubscribes on unmount', () => {
+  it('unsubscribes on unmount', async () => {
     const unsubscribe = jest.fn();
     mockNetInfo.fetch.mockResolvedValue({ isConnected: true, isInternetReachable: true });
     mockNetInfo.addEventListener.mockReturnValue(unsubscribe);
 
-    const { unmount } = renderHook(() => useNetworkStatus());
+    const { result, unmount } = renderHook(() => useNetworkStatus());
+    await waitFor(() => expect(result.current.isInternetReachable).toBe(true));
     unmount();
     expect(unsubscribe).toHaveBeenCalled();
+  });
+
+  it('does not label an unknown interface as offline', async () => {
+    mockNetInfo.fetch.mockResolvedValue({ isConnected: null, isInternetReachable: null });
+    const { result } = renderHook(() => useNetworkStatus());
+    await act(async () => {});
+    expect(result.current.isOffline).toBe(false);
+  });
+
+  it('does not overwrite a newer network event with an old fetch response', async () => {
+    let resolve!: (value: unknown) => void;
+    mockNetInfo.fetch.mockReturnValue(new Promise((done) => { resolve = done; }));
+    const { result } = renderHook(() => useNetworkStatus());
+    const listener = mockNetInfo.addEventListener.mock.calls[0][0];
+    act(() => listener({ isConnected: true, isInternetReachable: true }));
+    await act(async () => { resolve({ isConnected: false, isInternetReachable: false }); });
+    expect(result.current.isOffline).toBe(false);
+  });
+
+  it('handles a failed connectivity probe without an unhandled rejection', async () => {
+    mockNetInfo.fetch.mockRejectedValue(new Error('probe failed'));
+    const { result } = renderHook(() => useNetworkStatus());
+    await act(async () => {});
+    expect(result.current.isOffline).toBe(false);
   });
 });

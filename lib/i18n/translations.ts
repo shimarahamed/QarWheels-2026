@@ -39,6 +39,9 @@ export const en = {
     body: 'The screen could not be loaded. Try again, and if it keeps happening let us know.',
     notFoundTitle: 'Not found',
     notFoundBody: 'This record may have been removed.',
+    loadFailedTitle: "Couldn't load this",
+    loadFailedBodyOffline: "You're offline. Reconnect and try again.",
+    loadFailedBodyOnline: 'Something went wrong loading this. Please try again.',
   },
   booking: {
     chooseVehicle: 'Choose vehicle',
@@ -119,6 +122,9 @@ export const ar: Catalogue = {
     body: 'تعذّر تحميل الشاشة. حاول مرة أخرى، وإذا تكرر الأمر فأخبرنا.',
     notFoundTitle: 'غير موجود',
     notFoundBody: 'ربما تم حذف هذا السجل.',
+    loadFailedTitle: 'تعذّر التحميل',
+    loadFailedBodyOffline: 'أنت غير متصل بالإنترنت. أعد الاتصال وحاول مرة أخرى.',
+    loadFailedBodyOnline: 'حدث خطأ أثناء التحميل. حاول مرة أخرى.',
   },
   booking: {
     chooseVehicle: 'اختر السيارة',

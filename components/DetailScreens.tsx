@@ -12,7 +12,7 @@ import {
   lookupCar,
   lookupCategory,
 } from '@/lib/marketplace';
-import { useBranches, useGarage, useBranchServices } from '@/lib/firestoreOps';
+import { useBranches, useGarage, useBranchServices, cancelBooking as cancelRemoteBooking } from '@/lib/firestoreOps';
 import RecordNotFound from '@/components/RecordNotFound';
 import { findVendorInvoiceByBooking } from '@/lib/vendor-data';
 import { categoryColors, colors, getThemedStatusColors, radius, shadow, spacing, statusColors, typography } from '@/lib/theme';
@@ -28,6 +28,7 @@ import {
   getBookingStatusDescription,
   getBookingStatusIndex,
   getBookingStatusLabel,
+  actorAllowedTransitions,
 } from '@/lib/booking-workflow';
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -403,7 +404,7 @@ export function JobDetailScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { vendors, jobs, loading } = useBranches();
+  const { vendors, jobs, loading } = useBranches({ includeServices: true });
   const job = jobs.find((j) => j.id === id);
 
   if (!job) {
@@ -652,7 +653,6 @@ export function BookingDetailScreen() {
   const vendorInvoices = useQarWheelStore((s) => s.vendorInvoices);
   const createVendorInvoice = useQarWheelStore((s) => s.createVendorInvoice);
   const cancelBooking = useQarWheelStore((s) => s.cancelBooking);
-  const rescheduleBooking = useQarWheelStore((s) => s.rescheduleBooking);
   const themeMode = useQarWheelStore((s) => s.themeMode);
   const themedStatusColors = getThemedStatusColors(themeMode);
   // Prefer the user's own booking; the seed lookup is strict so a stale link
@@ -670,7 +670,7 @@ export function BookingDetailScreen() {
 
   const sc = themedStatusColors[booking.status] ?? themedStatusColors.Pending;
   const currentIndex = getBookingStatusIndex(booking.status);
-  const canModify = booking.status !== 'Cancelled' && booking.status !== 'Completed';
+  const canModify = actorAllowedTransitions('customer', booking.status).includes('Cancelled');
   const isCancelled = booking.status === 'Cancelled';
   const isCompleted = booking.status === 'Completed';
 
@@ -693,7 +693,15 @@ export function BookingDetailScreen() {
         {
           text: 'Cancel booking',
           style: 'destructive',
-          onPress: () => { cancelBooking(storeBooking.id); void success(); },
+          onPress: async () => {
+            try {
+              await cancelRemoteBooking(storeBooking.id);
+              cancelBooking(storeBooking.id);
+              void success();
+            } catch {
+              Alert.alert('Cancellation failed', 'Your booking has not been cancelled. Please retry.');
+            }
+          },
         },
       ],
     );
@@ -701,25 +709,7 @@ export function BookingDetailScreen() {
 
   function handleReschedule() {
     if (!canModify || !storeBooking) return;
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const afterTomorrow = new Date();
-    afterTomorrow.setDate(afterTomorrow.getDate() + 2);
-    const slots = [
-      { label: 'Tomorrow, 10:00 AM', date: tomorrow, time: '10:00 AM' },
-      { label: 'Tomorrow, 03:30 PM', date: tomorrow, time: '03:30 PM' },
-      { label: 'Next day, 11:30 AM', date: afterTomorrow, time: '11:30 AM' },
-    ];
-    Alert.alert(
-      'Reschedule booking',
-      'Choose a new slot — the garage will reconfirm availability.',
-      [
-        { text: slots[0].label, onPress: () => rescheduleBooking(storeBooking.id, { date: slots[0].label, bookingDate: slots[0].date.toISOString(), timeSlot: slots[0].time }) },
-        { text: slots[1].label, onPress: () => rescheduleBooking(storeBooking.id, { date: slots[1].label, bookingDate: slots[1].date.toISOString(), timeSlot: slots[1].time }) },
-        { text: slots[2].label, onPress: () => rescheduleBooking(storeBooking.id, { date: slots[2].label, bookingDate: slots[2].date.toISOString(), timeSlot: slots[2].time }) },
-        { text: 'Cancel', style: 'cancel' },
-      ],
-    );
+    Alert.alert('Reschedule with the garage', 'Contact the garage to agree on a new time. Your current booking remains unchanged.');
   }
 
   return (
@@ -732,7 +722,7 @@ export function BookingDetailScreen() {
           <Icon name="arrow-back" size={20} color={c.text} />
         </AnimatedPressable>
         <Text style={[bds.navTitle, { color: c.text }]}>Booking</Text>
-        <AnimatedPressable style={[bds.navBtn, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.push('/notifications')} scaleValue={0.96}>
+        <AnimatedPressable accessibilityRole="button" accessibilityLabel="Message garage" style={[bds.navBtn, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.push(booking.garageId ? route(`/chat/${booking.garageId}`) : '/messages')} scaleValue={0.96}>
           <Icon name="chatbubble-ellipses-outline" size={18} color={c.text} />
         </AnimatedPressable>
       </View>
@@ -854,6 +844,7 @@ export function BookingDetailScreen() {
             <AnimatedPressable
               style={[bds.actionCard, { backgroundColor: c.surface, borderColor: c.border, opacity: canModify ? 1 : 0.45 }]}
               onPress={handleReschedule}
+              disabled={!canModify}
               scaleValue={0.96}
             >
               <View style={[bds.actionCardIcon, { backgroundColor: c.primaryLight }]}>

@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthContext } from '@/lib/AuthContext';
 import { addCar } from '@/lib/firestoreOps';
+import { vehicleCreateSchema } from '@/lib/validation';
 import type { ObdSnapshot } from '@/lib/obd-reader';
 import { endObdSession, startObdSession } from '@/lib/obd-reader';
 import { useQarColors } from '@/lib/store';
@@ -135,6 +136,7 @@ export default function AddCarScreen() {
   const [saving, setSaving] = useState(false);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => () => { endObdSession(); }, []);
 
   // Pulse animation while scanning
   useEffect(() => {
@@ -159,17 +161,8 @@ export default function AddCarScreen() {
   // ── Step 1 validation ───────────────────────────────────────────────────────
 
   function handleDetailsContinue() {
-    const { make, model, year, licensePlate, currentMileage } = values;
-    if (!make.trim()) { Alert.alert('Missing field', 'Please enter the make (e.g. Nissan).'); return; }
-    if (!model.trim()) { Alert.alert('Missing field', 'Please enter the model (e.g. Patrol).'); return; }
-    const y = parseInt(year, 10);
-    if (!year || isNaN(y) || y < 1990 || y > new Date().getFullYear() + 1) {
-      Alert.alert('Invalid year', 'Please enter a valid vehicle year.'); return;
-    }
-    if (!licensePlate.trim()) { Alert.alert('Missing field', 'Please enter the license plate.'); return; }
-    if (!currentMileage || isNaN(parseInt(currentMileage, 10))) {
-      Alert.alert('Missing field', 'Please enter the current mileage.'); return;
-    }
+    const result = vehicleCreateSchema.safeParse({ ...values, year: Number(values.year), currentMileage: values.currentMileage.trim() ? Number(values.currentMileage) : NaN });
+    if (!result.success) { Alert.alert('Check vehicle details', result.error.issues[0].message); return; }
     setStep('obd');
   }
 
@@ -180,16 +173,17 @@ export default function AddCarScreen() {
     const session = startObdSession();
 
     try {
-      await session.connect((state, message) => {
+      const connected = await session.connect((state, message) => {
         setObdState({ phase: state === 'reading' ? 'reading' : 'scanning', message });
       });
+      if (!connected) throw new Error('A supported physical OBD adapter is required. Skip this step to save your vehicle without diagnostic readings.');
       setObdState({ phase: 'reading', message: 'Reading vehicle data…' });
       const snapshot = await session.readAll((_, message) => {
         setObdState({ phase: 'reading', message });
       });
 
       // Auto-fill VIN from OBD if user hasn't entered one
-      if (snapshot.vin && !values.vin.trim()) {
+      if (!snapshot.simulationMode && snapshot.vin && !values.vin.trim()) {
         setField('vin', snapshot.vin);
       }
       setObdState({ phase: 'done', snapshot });
@@ -214,18 +208,18 @@ export default function AddCarScreen() {
     if (!user) { Alert.alert('Not signed in', 'Please sign in to add a vehicle.'); return; }
     setSaving(true);
 
-    const obdSnapshot = obdState.phase === 'done' ? obdState.snapshot : null;
+    const obdSnapshot = obdState.phase === 'done' && !obdState.snapshot.simulationMode ? obdState.snapshot : null;
 
     try {
       await addCar(user.uid, {
         make: values.make.trim(),
         model: values.model.trim(),
-        year: parseInt(values.year, 10),
+        year: Number(values.year),
         vin: values.vin.trim(),
         licensePlate: values.licensePlate.trim().toUpperCase(),
         color: values.color.trim() || 'Unknown',
-        currentMileage: parseInt(values.currentMileage, 10),
-        health: obdSnapshot?.healthScore ?? 90,
+        currentMileage: values.currentMileage.trim() ? Number(values.currentMileage) : NaN,
+        health: obdSnapshot?.healthScore,
         dataSource: obdSnapshot ? (obdSnapshot.simulationMode ? 'manual' : 'obd') : 'manual',
         obdDiagnostics: obdSnapshot
           ? {
@@ -302,7 +296,7 @@ export default function AddCarScreen() {
                   { label: 'Model', key: 'model', placeholder: 'e.g. Patrol, X5, Camry' },
                   { label: 'Year', key: 'year', placeholder: 'e.g. 2023', numeric: true },
                   { label: 'License plate', key: 'licensePlate', placeholder: 'e.g. QAR 1234' },
-                  { label: 'VIN', key: 'vin', placeholder: '17-character VIN (auto-filled by OBD)', optional: true },
+                  { label: 'VIN', key: 'vin', placeholder: '17-character VIN', optional: false },
                   { label: 'Color', key: 'color', placeholder: 'e.g. White, Silver', optional: true },
                   { label: 'Current mileage (km)', key: 'currentMileage', placeholder: 'e.g. 42000', numeric: true },
                 ] as { label: string; key: keyof FormValues; placeholder: string; numeric?: boolean; optional?: boolean }[]
@@ -590,7 +584,7 @@ export default function AddCarScreen() {
                 <View style={[rev.card, { backgroundColor: c.surfaceAlt, borderColor: c.border, flexDirection: 'row', gap: 10, alignItems: 'center' }]}>
                   <Ionicons name="information-circle" size={18} color={c.muted} />
                   <Text style={[{ color: c.muted, flex: 1, fontSize: 13 }]}>
-                    No OBD scan — health score will default to 90%. You can scan later from the vehicle detail screen.
+                    No diagnostic scan recorded. Vehicle health will remain unknown.
                   </Text>
                 </View>
               )}

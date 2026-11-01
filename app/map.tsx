@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
-  Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors } from '@/lib/store';
@@ -11,6 +11,7 @@ import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { useBranches } from '@/lib/firestoreOps';
 import { useDeviceLocation } from '@/lib/geo';
 import type { Garage } from '@/lib/marketplace';
+import GarageMap from '@/components/GarageMap';
 
 function sortGarages(list: Garage[], mode: string): Garage[] {
   const copy = [...list];
@@ -20,99 +21,8 @@ function sortGarages(list: Garage[], mode: string): Garage[] {
   return copy.sort((a, b) => a.distanceKm - b.distanceKm); // Nearest
 }
 
-// react-native-maps is not yet installed (requires native build).
-// This screen renders a visual map grid with positioned garage pins.
-// Replace the MapPlaceholder component with a real MapView once EAS build is set up.
-
-const { width: SCREEN_W } = Dimensions.get('window');
-const MAP_H = 260;
-
-// Doha bounding box (lat/lng → pixel)
-const LAT_MIN = 25.22, LAT_MAX = 25.42;
-const LNG_MIN = 51.42, LNG_MAX = 51.62;
-
-function latToY(lat: number) {
-  return ((LAT_MAX - lat) / (LAT_MAX - LAT_MIN)) * MAP_H;
-}
-function lngToX(lng: number) {
-  return ((lng - LNG_MIN) / (LNG_MAX - LNG_MIN)) * (SCREEN_W - spacing.page * 2);
-}
-
 const SORT_OPTIONS = ['Nearest', 'Top rated', 'Price: Low', 'Available now'] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
-
-// Doha center — used only to place the user-location marker when no device
-// fix is available yet; garage pins always use each branch's real stored
-// latitude/longitude, never a placeholder coordinate.
-const DOHA_CENTER = { lat: 25.285, lng: 51.531 };
-
-function MapPlaceholder({ garageList, selected, onSelect, userLocation }: {
-  garageList: Garage[];
-  selected: Garage | null;
-  onSelect: (g: Garage) => void;
-  userLocation: { lat: number; lng: number } | null;
-}) {
-  const c = useQarColors();
-  const pinnable = garageList.filter((g) => g.latitude !== undefined && g.longitude !== undefined);
-  const user = userLocation ?? DOHA_CENTER;
-
-  return (
-    <View style={[mapS.container, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-      {/* Grid lines */}
-      {[...Array(5)].map((_, i) => (
-        <View key={`h${i}`} style={[mapS.gridH, { top: (MAP_H / 5) * i, borderBottomColor: c.border }]} />
-      ))}
-      {[...Array(5)].map((_, i) => (
-        <View key={`v${i}`} style={[mapS.gridV, { left: ((SCREEN_W - spacing.page * 2) / 5) * i, borderRightColor: c.border }]} />
-      ))}
-
-      {/* User location */}
-      <View style={[mapS.userPin, { top: latToY(user.lat), left: lngToX(user.lng) }]}>
-        <View style={[mapS.userRing, { borderColor: c.primary }]} />
-        <View style={[mapS.userDot, { backgroundColor: c.primary }]} />
-      </View>
-
-      {/* Garage pins — real branch coordinates only */}
-      {pinnable.map((g) => {
-        const isSelected = selected?.id === g.id;
-        return (
-          <Pressable
-            key={g.id}
-            style={[mapS.garagePin, {
-              top: latToY(g.latitude!) - 16,
-              left: lngToX(g.longitude!) - 20,
-              backgroundColor: isSelected ? c.primary : c.surface,
-              borderColor: isSelected ? c.primary : c.border,
-              ...shadow.sm,
-            }]}
-            onPress={() => onSelect(g)}
-          >
-            <Text style={[mapS.pinText, { color: isSelected ? '#fff' : c.primary }]}>{g.startingPrice}</Text>
-          </Pressable>
-        );
-      })}
-
-      {/* Map notice */}
-      <View style={[mapS.notice, { backgroundColor: `${c.primary}14` }]}>
-        <Ionicons name="map-outline" size={11} color={c.primary} />
-        <Text style={[mapS.noticeText, { color: c.primary }]}>Full map requires native build (react-native-maps)</Text>
-      </View>
-    </View>
-  );
-}
-
-const mapS = StyleSheet.create({
-  container: { width: '100%', height: MAP_H, borderRadius: radius.xl, borderWidth: 1, overflow: 'hidden', position: 'relative' },
-  gridH: { position: 'absolute', left: 0, right: 0, borderBottomWidth: StyleSheet.hairlineWidth },
-  gridV: { position: 'absolute', top: 0, bottom: 0, borderRightWidth: StyleSheet.hairlineWidth },
-  userPin: { position: 'absolute', width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  userRing: { position: 'absolute', width: 28, height: 28, borderRadius: 14, borderWidth: 2, opacity: 0.4 },
-  userDot: { width: 10, height: 10, borderRadius: 5 },
-  garagePin: { position: 'absolute', borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4 },
-  pinText: { fontSize: 12, fontWeight: '900' },
-  notice: { position: 'absolute', bottom: 8, left: 8, right: 8, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 5 },
-  noticeText: { fontSize: 12, fontWeight: '700' },
-});
 
 export default function MapScreen() {
   const c = useQarColors();
@@ -160,13 +70,14 @@ export default function MapScreen() {
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         <MotionScreen>
-          {/* Visual map */}
-          <MapPlaceholder
-            garageList={vendors}
-            selected={selected}
+          <View style={s.mapFrame}>
+          <GarageMap
+            garages={filtered}
+            selectedId={selected?.id}
             onSelect={setSelected}
-            userLocation={deviceLocation ? { lat: deviceLocation.latitude, lng: deviceLocation.longitude } : null}
+            userLocation={deviceLocation ? { latitude: deviceLocation.latitude, longitude: deviceLocation.longitude } : null}
           />
+          </View>
 
           {/* Sort strip */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.sortStrip}>
@@ -265,6 +176,7 @@ const s = StyleSheet.create({
   searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.lg, borderWidth: 1, paddingHorizontal: 12, height: 40 },
   searchInput: { flex: 1, fontSize: 13 },
   content: { padding: spacing.page, gap: spacing.gap, paddingBottom: 40 },
+  mapFrame: { borderRadius: radius.xl, overflow: 'hidden', ...shadow.sm },
   sortStrip: { gap: 8, paddingBottom: 2 },
   sortChip: { borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 7 },
   sortText: { fontSize: 12, fontWeight: '800' },

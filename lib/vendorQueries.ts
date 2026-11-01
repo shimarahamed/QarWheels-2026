@@ -1,92 +1,85 @@
 import { collection, documentId, getDocs, onSnapshot, query, where } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { createContext, createElement, useContext, useEffect, useState, type PropsWithChildren } from 'react';
 import { firestore } from './firebase';
 import { useAuthContext } from './AuthContext';
 import { useQarWheelStore } from './store';
 import { isBusinessWideRole } from './permissions';
 
 export type VendorBranch = {
-  id: string;
-  businessId: string;
-  name: string;
-  status: string;
-  city: string;
-  country: string;
+  id: string; businessId: string; name: string; status: string; city: string; country: string;
 };
 
-// Firestore 'in' queries cap at 30 values — branchIds from a claim will
-// never realistically exceed that for a single staff member, but guard it
-// anyway rather than silently truncating.
-const MAX_IN_CLAUSE = 30;
-
-/**
- * Fetches the actual Branch documents for the signed-in vendor's scope (every
- * branch for a business-wide role, or just the claimed subset for everyone
- * else), and manages which one is "active" — mirrors
- * src/components/vendor/vendor-provider.tsx on the web side. Call once near
- * the top of the vendor screen tree (e.g. in a vendor layout) and read
- * `activeBranch`/`branches`/`setActiveBranch` from there.
- */
-export function useVendorBranches() {
-  const { businessId, branchIds, role } = useAuthContext();
+function useVendorBranchData() {
+  const { user, businessId, branchIds, role, claimsLoading } = useAuthContext();
   const activeBranchId = useQarWheelStore((s) => s.activeBranchId);
-  const setActiveBranchIdInStore = useQarWheelStore((s) => s.setActiveBranchId);
-
-  const [branches, setBranches] = useState<VendorBranch[]>([]);
-  const [loading, setLoading] = useState(true);
-
+  const setActiveBranchId = useQarWheelStore((s) => s.setActiveBranchId);
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState<{ scope: string; branches: VendorBranch[]; loading: boolean; error: boolean }>({
+    scope: '', branches: [], loading: true, error: false,
+  });
   const canSeeAllBranches = role !== 'customer' && role !== 'master_admin' && isBusinessWideRole(role);
-
+  const scope = JSON.stringify([user?.uid, businessId, branchIds, role, claimsLoading]);
   useEffect(() => {
-    if (!businessId) {
-      setBranches([]);
-      setLoading(false);
+    let active = true;
+    setResult({ scope, branches: [], loading: true, error: false });
+    if (!user || !businessId || claimsLoading) {
+      setResult({ scope, branches: [], loading: Boolean(claimsLoading), error: false });
       return;
     }
-
+    const timer = setTimeout(() => { if (active) setResult({ scope, branches: [], loading: false, error: true }); }, 15_000);
+    const receive = (branches: VendorBranch[]) => {
+      if (!active) return;
+      clearTimeout(timer);
+      const scoped = branches.filter((branch) => branch.businessId === businessId);
+      const selected = useQarWheelStore.getState().activeBranchId;
+      if (!scoped.some((branch) => branch.id === selected)) setActiveBranchId(scoped[0]?.id ?? null);
+      setResult({ scope, branches: scoped, loading: false, error: false });
+    };
+    const fail = () => {
+      if (!active) return;
+      clearTimeout(timer);
+      setResult({ scope, branches: [], loading: false, error: true });
+    };
+    const mapDocs = (docs: { id: string; data(): unknown }[]) => docs.map((entry) => ({
+      ...(entry.data() as Omit<VendorBranch, 'id'>), id: entry.id,
+    }));
+    let unsubscribe: (() => void) | undefined;
     if (canSeeAllBranches) {
-      const q = query(collection(firestore, 'branches'), where('businessId', '==', businessId));
-      const unsub = onSnapshot(q, (snap) => {
-        setBranches(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<VendorBranch, 'id'>) })));
-        setLoading(false);
-      }, () => setLoading(false));
-      return unsub;
+      unsubscribe = onSnapshot(query(collection(firestore, 'branches'), where('businessId', '==', businessId)),
+        (snapshot) => receive(mapDocs(snapshot.docs)), fail);
+    } else {
+      void (async () => {
+        const branches: VendorBranch[] = [];
+        for (let i = 0; i < branchIds.length; i += 30) {
+          if (!active) return;
+          const snapshot = await getDocs(query(collection(firestore, 'branches'),
+            where(documentId(), 'in', branchIds.slice(i, i + 30))));
+          branches.push(...mapDocs(snapshot.docs));
+        }
+        receive(branches);
+      })().catch(fail);
     }
-
-    if (branchIds.length === 0) {
-      setBranches([]);
-      setLoading(false);
-      return;
-    }
-
-    // Scoped staff/manager: fetch only their assigned branches. onSnapshot
-    // doesn't support 'in' + real-time cleanly across doc-id fan-out the
-    // same way a single collection query does, so this reads once; the
-    // active-branch document itself (bookings, inventory, etc.) still gets
-    // real-time listeners downstream — only this branch metadata is static
-    // per session, which is an acceptable trade-off since branch names/
-    // status change rarely.
-    (async () => {
-      const ids = branchIds.slice(0, MAX_IN_CLAUSE);
-      const snap = await getDocs(query(collection(firestore, 'branches'), where(documentId(), 'in', ids)));
-      setBranches(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<VendorBranch, 'id'>) })));
-      setLoading(false);
-    })().catch(() => setLoading(false));
-  }, [businessId, branchIds.join(','), canSeeAllBranches]);
-
-  useEffect(() => {
-    if (branches.length === 0) return;
-    if (activeBranchId && branches.some((b) => b.id === activeBranchId)) return;
-    setActiveBranchIdInStore(branches[0].id);
-  }, [branches, activeBranchId, setActiveBranchIdInStore]);
-
-  const activeBranch = branches.find((b) => b.id === activeBranchId) ?? branches[0] ?? null;
-
+    return () => { active = false; clearTimeout(timer); unsubscribe?.(); };
+  }, [scope, attempt, setActiveBranchId]);
+  const branches = result.scope === scope ? result.branches : [];
   return {
-    branches,
-    activeBranch,
-    setActiveBranch: setActiveBranchIdInStore,
-    canSeeAllBranches,
-    loading,
+    branches, activeBranch: branches.find((branch) => branch.id === activeBranchId) ?? null,
+    setActiveBranch: (id: string) => { if (branches.some((branch) => branch.id === id)) setActiveBranchId(id); },
+    canSeeAllBranches, loading: result.scope !== scope || result.loading,
+    error: result.scope === scope && result.error,
+    retry: () => setAttempt((value) => value + 1),
   };
+}
+
+const VendorBranchesContext = createContext<ReturnType<typeof useVendorBranchData> | null>(null);
+
+export function VendorBranchesProvider({ children }: PropsWithChildren) {
+  const value = useVendorBranchData();
+  return createElement(VendorBranchesContext.Provider, { value }, children);
+}
+
+export function useVendorBranches() {
+  const value = useContext(VendorBranchesContext);
+  if (!value) throw new Error('Vendor branches require VendorBranchesProvider.');
+  return value;
 }

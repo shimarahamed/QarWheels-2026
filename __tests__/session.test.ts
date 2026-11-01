@@ -4,6 +4,18 @@ import { useQarWheelStore } from '@/lib/store';
 // most sensitively — uploaded licence and ID documents on a shared device.
 
 describe('clearPersonalData', () => {
+  it('migrates unverified legacy money and accountless caches while preserving personal files', async () => {
+    const migrate = useQarWheelStore.persist.getOptions().migrate!;
+    const old = {
+      walletBalance: 500, invoices: [{ status: 'Paid' }], bookings: [{ id: 'local-only' }],
+      vendorCustomers: [{ id: 'previous-customer' }], documents: [{ uri: 'file:///licence.jpg' }],
+      language: 'ar',
+    };
+    const migrated = await migrate(old, 0);
+    expect(migrated).toMatchObject({
+      walletBalance: 0, invoices: [], bookings: [], vendorCustomers: [], language: 'ar', documents: old.documents,
+    });
+  });
   beforeEach(() => {
     const store = useQarWheelStore.getState();
     store.addAddress({ label: 'Home', line: 'Building 24', area: 'Doha' });
@@ -15,6 +27,13 @@ describe('clearPersonalData', () => {
       amount: 180,
       status: 'Paid',
       method: 'Wallet',
+    });
+    useQarWheelStore.setState({
+      vendorProfile: { ...store.vendorProfile, businessName: 'Previous business' },
+      vendorBookings: [{ id: 'previous-booking' } as never],
+      vendorCustomers: [{ id: 'previous-customer' } as never],
+      vendorInvoices: [{ id: 'previous-invoice' } as never],
+      vendorStaff: [{ id: 'previous-staff' } as never],
     });
   });
 
@@ -36,6 +55,11 @@ describe('clearPersonalData', () => {
     expect(after.bookings).toEqual([]);
     expect(after.favoriteGarageIds).toEqual([]);
     expect(after.vendorAuthenticated).toBe(false);
+    expect(after.vendorBookings).toEqual([]);
+    expect(after.vendorCustomers).toEqual([]);
+    expect(after.vendorInvoices).toEqual([]);
+    expect(after.vendorStaff).toEqual([]);
+    expect(after.vendorProfile.businessName).not.toBe('Previous business');
   });
 
   it('keeps device preferences, which are not personal data', () => {

@@ -89,6 +89,8 @@ export default function QuoteRequestModal() {
         customerEmail: user.email ?? '',
         vendorId: garage.id,
         vendorName: garage.name,
+        businessId: garage.businessId ?? '',
+        branchId: garage.id,
         carId: car.id,
         carName: `${car.year} ${car.make} ${car.model}`,
         serviceName: issue.trim(),

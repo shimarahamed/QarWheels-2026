@@ -1,42 +1,76 @@
-# Dependency audit triage
+# Mobile release remediation status
 
-Last reviewed: 2026-08-23 · Expo SDK 54.0.37
+Update 2026-10-31: see [Mobile Integration Status](./MERGE-STATUS.md) for the selective
+Desktop merge, current verification results, and remaining native/release requirements.
+The remediation history below is retained.
 
-`npm audit` reports **23 advisories (9 high, 14 moderate)**. All 23 collapse to
-**three transitive packages**, every one of which belongs to Expo's build
-toolchain rather than the application bundle.
+Reviewed: 2026-10-29. Expo SDK 57; this directory is an independent Git
+repository. The shared backend/rules checklist is in `../SECURITY-AUDIT.md`.
 
-| Root package | Severity | Advisory | Reaches a user's device? |
-|---|---|---|---|
-| `image-size` ≤2.0.2 | high | [GHSA-5p2g-fcmc-qvqq](https://github.com/advisories/GHSA-5p2g-fcmc-qvqq) — DoS via infinite loop in JXL/HEIF parsers | **No** — `expo › @expo/metro › metro` |
-| `postcss` ≤8.5.17 | high | [GHSA-r28c-9q8g-f849](https://github.com/advisories/GHSA-r28c-9q8g-f849) — path traversal via `sourceMappingURL` | **No** — `expo › @expo/metro-config` |
-| `uuid` <11.1.1 | moderate | [GHSA-w5hq-g745-h8pq](https://github.com/advisories/GHSA-w5hq-g745-h8pq) — missing buffer bounds check | **No** — `expo › @expo/config-plugins › xcode` |
+## Implemented fixes
 
-## Decision: accept, do not force-fix
+- [x] Booking writes include business/branch scope and initial status history.
+- [x] The remote booking succeeds before local confirmation, navigation, or invoice creation.
+- [x] Local booking records retain the Firestore ID and merge listener updates without duplicates.
+- [x] Booking subscriptions support both current web fields and legacy mobile field names.
+- [x] Cancellation waits for a Firestore transaction before updating local state.
+- [x] Unsupported rescheduling does not pretend to change the confirmed appointment.
+- [x] Reviews require a completed booking owned by the current customer; the booking ID prevents duplicates.
+- [x] Rating controls expose accessible labels, radio roles, and selection state.
+- [x] Card/wallet payments, wallet top-ups, and card saving are unavailable until a real payment provider exists.
+- [x] Pay-at-garage bookings remain unpaid; local history is not presented as proof of settlement.
+- [x] Failed damage analysis displays an error instead of fabricated diagnostic results.
+- [x] Analysis requests require authentication and validate response data before rendering.
+- [x] Sign-out clears customer/vendor personal caches; persistence migration removes old unverified balances, bookings, and invoices.
+- [x] Marketplace service reads batch branch IDs and ignore superseded asynchronous results.
+- [x] Application Zod, shell-quote, and gRPC resolutions are patched.
+- [x] Expo modules match SDK 57 recommendations; React and its test renderer match exactly.
+- [x] EAS selects an SDK-compatible Android build image automatically.
+- [x] Mobile CI installs its own lockfile and runs compatibility, typecheck, tests, critical dependency audit, and export.
 
-Reasoning:
+## Verification
 
-1. **No runtime exposure.** Metro is the bundler, `@expo/metro-config` configures
-   it, and `config-plugins`/`xcode` run during prebuild. None are linked into the
-   iOS or Android binary, so no attacker-controlled input reaches them from a
-   shipped app.
-2. **The threat model does not apply.** All three advisories require feeding
-   hostile input to the tool — a malicious image to `image-size`, a crafted
-   `sourceMappingURL` to `postcss`. On a developer or CI machine building our own
-   first-party source, that input is already trusted.
-3. **`npm audit fix --force` would downgrade the SDK.** These versions are pinned
-   by `expo@54`. Overriding them means either an unsupported dependency graph or
-   a forced SDK change — materially more risk than the advisories carry.
+- [x] `npx expo install --check`: dependencies are up to date.
+- [x] `npm run verify`: passed after SDK patch alignment.
+- [x] TypeScript: passed.
+- [x] Jest: 70 tests passed across 10 suites, without asynchronous `act` warnings.
+- [x] Static web export: 153 routes generated.
+- [x] Lockfile clean-install dry run with strict peer dependency resolution.
+- [x] Dependency audit refreshed after SDK patch alignment.
+- [ ] Android/iOS device and screen-reader testing. No native EAS build was submitted.
 
-## Re-review triggers
+The export warns that Sentry organization/project are not configured locally and
+that push-token listeners are unsupported on web. Neither is treated as evidence
+that native monitoring or notifications have been verified.
 
-- Upgrading the Expo SDK — re-run and re-triage; upstream usually resolves these.
-- Any **new** advisory naming a package that ships in the bundle
-  (`react-native`, `firebase`, `expo-*` runtime modules, `zustand`).
-- Any advisory rated **critical**.
+Local static-export preview: `http://127.0.0.1:8081` (HTTP 200 verified).
 
-Command used:
+## Dependency risks still open
 
-```sh
-npm audit --json
-```
+`npm audit --omit=dev` reports 17 affected package findings: 11 low, 3 moderate,
+3 high, and 0 critical. These count dependency chains, not independently proven
+application exploits. The older SDK 54 triage is superseded by this report.
+
+| Severity | Dependency | Status and required handling |
+| --- | --- | --- |
+| High | Expo CLI's nested Zod 3 | [Oversized-collection memory exhaustion](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5). The app directly uses patched Zod 4, but Expo's nested version remains flagged. Keep build tools private and use trusted build inputs; review upstream updates before release. |
+| Moderate | `decode-uri-component`, via `query-string` / Expo Router | [Malformed-input denial of service](https://github.com/advisories/GHSA-vcc3-ghjq-m6fr). Do not assume all Expo advisories are build-only: routing parses URLs. The patched decoder changes module format and cannot safely replace the old callable CommonJS API through a blanket override. An upstream-compatible fix is still required. |
+| Low | `deepmerge`, through Expo tooling | [Prototype pollution](https://github.com/advisories/GHSA-gcqx-w48m-w2h4). No patched release is listed. Avoid untrusted configuration inputs and monitor the upstream dependency chain. |
+
+Do not run `npm audit fix --force`: the current proposed Expo downgrade is not
+a compatible remediation. The remaining advisories have not been accepted on
+the user's behalf, and the critical-only CI gate does not mean a clean audit.
+
+## Release checklist
+
+- [ ] Deploy shared Firestore and Storage rule changes together before client release.
+- [ ] Review outstanding upstream advisories and rerun audits for the release lockfile.
+- [ ] Validate login, booking, cancellation, reviews, sign-out, and accessibility on physical Android/iOS devices.
+- [ ] Supply production Firebase, Google sign-in, backend URL, and Sentry configuration through the build environment.
+- [ ] Implement and verify provider-backed payments/webhooks before enabling card or wallet features.
+- [ ] Build and validate native release artifacts before store submission.
+
+Verdict: do not treat the current build as production-approved until the open
+dependency risks, backend rule deployment, production configuration, and device
+validation have been addressed. No production deployment or store submission
+was performed.

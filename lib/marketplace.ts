@@ -9,6 +9,7 @@ export type ServiceCategory = {
 
 export type Garage = {
   id: string;
+  businessId?: string;
   name: string;
   type: string;
   category: string;

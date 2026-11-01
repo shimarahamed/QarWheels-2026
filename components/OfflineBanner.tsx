@@ -28,11 +28,13 @@ export function OfflineBanner() {
     }).start();
   }, [isOffline, slide]);
 
-  // Keep it mounted while animating out, but never intercept touches.
+  if (!isOffline) return null;
+
   return (
     <Animated.View
       pointerEvents="none"
       accessibilityLiveRegion="polite"
+      accessibilityRole="alert"
       style={[
         styles.wrap,
         {
@@ -58,11 +60,6 @@ export function OfflineBanner() {
 
 const styles = StyleSheet.create({
   wrap: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
     paddingBottom: spacing.xs,
     paddingHorizontal: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,

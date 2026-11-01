@@ -9,6 +9,8 @@ import type React from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
+  Keyboard,
   Image,
   Platform,
   Pressable,
@@ -22,22 +24,25 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import ErrorState from '@/components/ErrorState';
 import { type Booking, type Garage, serviceCategories } from '@/lib/marketplace';
-import { type FirestoreBooking, type FirestoreCar, useFirestoreBookings, useBranches } from '@/lib/firestoreOps';
-import { auth, firestore } from '@/lib/firebase';
+import { type FirestoreBooking, type FirestoreCar, useCars, useFirestoreBookings, useBranches, cancelBooking as cancelRemoteBooking } from '@/lib/firestoreOps';
+import { auth } from '@/lib/firebase';
 import { useAuthContext } from '@/lib/AuthContext';
 import { getQarColors, getThemedStatusColors, type QarColors, radius, shadow, spacing, typography } from '@/lib/theme';
 import { tap } from '@/lib/haptics';
 import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { signOutCompletely } from '@/lib/session';
+import { recordedHealth } from '@/lib/vehicle-records';
 import { RemoteImage } from '@/components/RemoteImage';
 import { MotionScreen } from '@/lib/motion';
 import {
   getBookingStatusDescription,
   getBookingStatusIndex,
   getBookingStatusLabel,
+  isBookingTerminal,
+  actorAllowedTransitions,
   type BookingWorkflowStatus,
 } from '@/lib/booking-workflow';
 
@@ -131,6 +136,7 @@ const ACCOUNT_MENU_SECTIONS = [
     title: 'Vehicles & bookings',
     items: [
       { label: 'My cars', icon: 'car-sport-outline' as IoniconName, href: '/(tabs)/cars', color: '#E31E24' },
+      { label: 'Vehicle & preferences', icon: 'speedometer-outline' as IoniconName, href: '/settings/vehicle-preferences', color: '#3B82F6' },
       { label: 'Saved garages', icon: 'heart-outline' as IoniconName, href: '/settings/saved-garages', color: '#EF4444' },
       { label: 'Booking history', icon: 'calendar-outline' as IoniconName, href: '/booking-history', color: '#22C55E' },
     ],
@@ -147,9 +153,8 @@ const ACCOUNT_MENU_SECTIONS = [
   {
     title: 'Preferences',
     items: [
-      { label: 'Notifications', icon: 'notifications-outline' as IoniconName, href: '/settings/notifications', color: '#F59E0B' },
-      { label: 'Language', icon: 'language-outline' as IoniconName, href: '/settings/language', color: '#22D3EE' },
-      { label: 'Privacy & data safety', icon: 'shield-outline' as IoniconName, href: '/privacy-security', color: '#A78BFA' },
+      { label: 'Notifications & privacy', icon: 'notifications-outline' as IoniconName, href: '/settings/notifications', color: '#F59E0B' },
+      { label: 'System settings', icon: 'settings-outline' as IoniconName, href: '/settings/system-settings', color: '#22D3EE' },
       { label: 'Subscriptions', icon: 'repeat-outline' as IoniconName, href: '/subscriptions', color: '#22C55E' },
       { label: 'Coupons & rewards', icon: 'pricetag-outline' as IoniconName, href: '/coupons', color: '#EF4444' },
     ],
@@ -181,8 +186,6 @@ function useRefresh(onRefresh?: () => Promise<void>) {
     setRefreshing(true);
     try {
       await onRefresh?.();
-      // Minimum visual delay so the spinner is satisfying
-      await new Promise<void>((r) => setTimeout(r, 600));
     } finally {
       setRefreshing(false);
     }
@@ -238,7 +241,7 @@ function GarageListCard({ garage, c }: { garage: Garage; c: QarColors }) {
       <View style={ss.garageBody}>
         <View style={ss.garageTopRow}>
           <Text numberOfLines={1} style={[ss.garageName, { color: c.text }]}>{garage.name}</Text>
-          <Pressable hitSlop={8} onPress={() => { void tap(); toggleFav(garage.id); }}>
+          <Pressable accessibilityRole="button" accessibilityLabel={isFav ? `Unsave ${garage.name}` : `Save ${garage.name}`} accessibilityState={{ selected: isFav }} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }} onPress={(event) => { event.stopPropagation(); void tap(); toggleFav(garage.id); }}>
             <Icon name={isFav ? 'heart' : 'heart-outline'} size={18} color={isFav ? '#EF4444' : c.muted} />
           </Pressable>
         </View>
@@ -292,18 +295,16 @@ export function HomeScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const unread = useQarWheelStore((s) => s.notifications.filter((n) => !n.read).length);
   const [activeBrand, setActiveBrand] = useState('All');
-  const { vendors: liveVendors, loading: vendorsLoading } = useBranches();
+  const { vendors: liveVendors, loading: vendorsLoading, error: vendorsError, refresh: refreshVendors } = useBranches();
 
   const firstName = user?.displayName?.split(' ')[0] ?? user?.email?.split('@')[0] ?? 'there';
   const trustCardWidth = Math.floor((screenWidth - spacing.page * 2 - 10) / 2);
 
-  const handleRefresh = async () => {
-    // Firestore listeners are always live — nothing to re-fetch.
-    // The 600ms minimum in useRefresh provides the satisfying spinner feedback.
-  };
+  const handleRefresh = refreshVendors;
 
   return (
     <ScreenWrap c={c} onRefresh={handleRefresh}>
+      {vendorsError && <ErrorState compact onRetry={() => void refreshVendors()} />}
 
       {/* ── Header ─────────────────────────────────────────────── */}
       <View style={[ss.header, { paddingHorizontal: spacing.page }]}>
@@ -510,8 +511,11 @@ export function HomeScreen() {
         </View>
         {vendorsLoading
           ? <ActivityIndicator color={c.primary} style={{ marginVertical: 16 }} />
-          : liveVendors.map((g) => <GarageListCard key={g.id} garage={g} c={c} />)
+          : liveVendors.slice(0, 5).map((g) => <GarageListCard key={g.id} garage={g} c={c} />)
         }
+        {liveVendors.length > 5 && <Pressable accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }} onPress={() => router.push('/search')}>
+          <Text style={{ color: c.primary, fontWeight: '700' }}>View all garages</Text>
+        </Pressable>}
       </View>
 
       {/* ── Promotional Banner ──────────────────────────────────── */}
@@ -602,7 +606,7 @@ export function HomeScreen() {
                   haystack.includes(kw),
                 );
               })
-              .map((g) => <GarageListCard key={g.id} garage={g} c={c} />)
+              .slice(0, 5).map((g) => <GarageListCard key={g.id} garage={g} c={c} />)
         }
         {/* Fallback when live data has no German-specialist entries yet */}
         {!vendorsLoading && liveVendors.filter((g) => {
@@ -659,139 +663,93 @@ function SearchGarageList({ c }: { c: QarColors }) {
 // ══════════════════════════════════════════════════════════════════
 // SEARCH SCREEN
 // ══════════════════════════════════════════════════════════════════
-const RECENT_SEARCHES = ['AC Service near me', 'German specialist garages', 'Oil change under AED 199'];
-const SMART_SUGGESTIONS = [
-  'AC Service near me',
-  'German specialist garages',
-  'Oil change under AED 199',
-  'Best rated garages in Dubai',
-  '24/7 Garages near me',
-];
-const TRENDING = ['AC Service', 'Oil Change', 'Brake Repair', 'Battery Replacement'];
-
 export function SearchScreen() {
   const router = useRouter();
   const c = useQarColors();
   const [searchQuery, setSearchQuery] = useState('');
-  const inputRef = useRef<TextInput>(null);
-  const { vendors, loading: vendorsLoading } = useBranches();
-
-  // Auto-focus input on mount
-  useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 120);
-    return () => clearTimeout(t);
-  }, []);
-
-  const trimmed = searchQuery.trim().toLowerCase();
-  const filteredVendors = trimmed
-    ? vendors.filter((g) =>
-        g.name.toLowerCase().includes(trimmed) ||
-        g.type?.toLowerCase().includes(trimmed) ||
-        g.area?.toLowerCase().includes(trimmed) ||
-        g.category?.toLowerCase().includes(trimmed),
-      )
-    : vendors;
-
-  const showSuggestions = trimmed.length === 0;
-
+  const [recent, setRecent] = useState<string[]>([]);
+  const deferredQuery = useDeferredValue(searchQuery);
+  const { vendors, loading, error, refresh } = useBranches();
+  const trimmed = deferredQuery.trim().toLocaleLowerCase();
+  const filteredVendors = useMemo(() => {
+    const terms = trimmed.split(/\s+/).filter(Boolean);
+    return vendors.filter((garage) => {
+      const searchable = [garage.name, garage.type, garage.area, garage.category, ...garage.tags].join(' ').toLocaleLowerCase();
+      return terms.every((term) => searchable.includes(term));
+    });
+  }, [vendors, trimmed]);
+  const suggestions = useMemo(() => [...new Set(vendors.map((garage) => garage.type).filter(Boolean))].slice(0, 5), [vendors]);
+  const remember = () => {
+    const value = searchQuery.trim();
+    if (value) setRecent((previous) => [value, ...previous.filter((item) => item !== value)].slice(0, 5));
+    Keyboard.dismiss();
+  };
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['top']}>
-      <ScrollView
-        style={{ backgroundColor: c.background }}
-        contentContainerStyle={{ paddingBottom: TAB_BOTTOM, gap: 20 }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Search header */}
-        <View style={{ paddingHorizontal: spacing.page, paddingTop: 14, gap: 14 }}>
-          <View style={[ss.searchBarActive, { backgroundColor: c.surface, borderColor: c.primary }]}>
-            <Icon name="search-outline" size={19} color={c.muted} />
-            <TextInput
-              ref={inputRef}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Garages, services, parts..."
-              placeholderTextColor={c.muted}
-              returnKeyType="search"
-              clearButtonMode="while-editing"
-              style={[ss.searchInput, { color: c.text, flex: 1 }]}
-              autoCorrect={false}
-              autoCapitalize="none"
-            />
-            <Pressable onPress={() => { setSearchQuery(''); router.back(); }} hitSlop={8}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: c.primary }}>Cancel</Text>
-            </Pressable>
-          </View>
-
-          {showSuggestions && (
-            <>
-              {/* Recent Searches */}
-              <View style={[ss.suggestCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-                <Text style={[ss.suggestHeading, { color: c.textSecondary }]}>Recent Searches</Text>
-                {RECENT_SEARCHES.map((item) => (
-                  <Pressable key={item} style={[ss.suggestRow, { borderTopColor: c.border }]}
-                    onPress={() => { void tap(); setSearchQuery(item); }}>
-                    <Icon name="time-outline" size={15} color={c.muted} />
-                    <Text style={[ss.suggestText, { color: c.text, flex: 1 }]}>{item}</Text>
-                    <Icon name="close" size={14} color={c.muted} />
-                  </Pressable>
-                ))}
-              </View>
-
-              {/* Smart Suggestions */}
-              <View style={[ss.suggestCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-                <Text style={[ss.suggestHeading, { color: c.textSecondary }]}>Smart Suggestions</Text>
-                {SMART_SUGGESTIONS.map((item) => (
-                  <Pressable key={item} style={[ss.suggestRow, { borderTopColor: c.border }]}
-                    onPress={() => { void tap(); setSearchQuery(item); }}>
-                    <Icon name="search-outline" size={15} color={c.muted} />
-                    <Text style={[ss.suggestText, { color: c.text, flex: 1 }]}>{item}</Text>
-                    <Icon name="chevron-forward" size={14} color={c.muted} />
-                  </Pressable>
-                ))}
-              </View>
-
-              {/* Trending Services */}
-              <View style={{ gap: 8 }}>
-                <Text style={[ss.suggestHeading, { color: c.textSecondary }]}>Trending Services</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                  {TRENDING.map((t) => (
-                    <Pressable
-                      key={t}
-                      style={[ss.trendChip, { backgroundColor: c.surface, borderColor: c.border }]}
-                      onPress={() => { void tap(); setSearchQuery(t); }}
-                    >
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: c.text }}>{t}</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-            </>
-          )}
+      <View style={{ padding: spacing.page, gap: 12 }}>
+        <Text accessibilityRole="header" style={[ss.pageTitle, { color: c.text }]}>Find a garage</Text>
+        <View style={[ss.searchBarActive, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Icon name="search-outline" size={19} color={c.muted} />
+          <TextInput value={searchQuery} onChangeText={setSearchQuery}
+            accessibilityLabel="Search garages" placeholder="Name, area, or service type"
+            placeholderTextColor={c.muted} returnKeyType="search" onSubmitEditing={remember}
+            autoCorrect={false} autoCapitalize="none"
+            style={[ss.searchInput, { color: c.text, flex: 1, minWidth: 0 }]} />
+          {searchQuery !== '' && <Pressable accessibilityRole="button" accessibilityLabel="Clear search"
+            style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
+            onPress={() => setSearchQuery('')}>
+            <Icon name="close-circle-outline" size={22} color={c.muted} />
+          </Pressable>}
+          <Pressable accessibilityRole="button" accessibilityLabel="Back to home"
+            style={{ minHeight: 44, justifyContent: 'center' }}
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}>
+            <Text style={{ color: c.primary, fontWeight: '700' }}>Back</Text>
+          </Pressable>
         </View>
-
-        {/* Garage results */}
-        <View style={ss.landingSection}>
-          <SectionRow
-            title={trimmed ? `Results for "${searchQuery}"` : 'Garage Listings'}
-            linkLabel="Map"
-            onPress={() => router.push('/map')}
-            c={c}
-          />
-          {vendorsLoading
-            ? <ActivityIndicator color={c.primary} style={{ marginVertical: 16 }} />
-            : filteredVendors.length === 0
-              ? (
-                <View style={[ss.emptyBox, { backgroundColor: c.surface, borderColor: c.border }]}>
-                  <Icon name="search-outline" size={36} color={c.muted} />
-                  <Text style={[ss.emptyTitle, { color: c.textSecondary }]}>No results</Text>
-                  <Text style={[ss.emptyDesc, { color: c.muted }]}>Try a different name, area, or service type.</Text>
-                </View>
-              )
-              : filteredVendors.map((g) => <GarageListCard key={g.id} garage={g} c={c} />)
-          }
-        </View>
-      </ScrollView>
+      </View>
+      <FlatList
+        data={filteredVendors} keyExtractor={(garage) => garage.id}
+        renderItem={({ item }) => <GarageListCard garage={item} c={c} />}
+        initialNumToRender={8} maxToRenderPerBatch={8} windowSize={7}
+        keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
+        contentContainerStyle={{ paddingHorizontal: spacing.page, paddingBottom: TAB_BOTTOM + 18, gap: 12 }}
+        refreshing={loading && vendors.length > 0} onRefresh={() => void refresh()}
+        ListHeaderComponent={<View style={{ gap: 12 }}>
+          {!searchQuery && recent.length > 0 && <View style={{ gap: 4 }}>
+            <Text accessibilityRole="header" style={[ss.suggestHeading, { color: c.textSecondary }]}>Recent searches</Text>
+            {recent.map((item) => <View key={item} style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Search for ${item}`}
+                style={{ flex: 1, minHeight: 44, justifyContent: 'center' }} onPress={() => setSearchQuery(item)}>
+                <Text style={{ color: c.text }}>{item}</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Remove search ${item}`}
+                style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+                onPress={() => setRecent((previous) => previous.filter((value) => value !== item))}>
+                <Icon name="close" color={c.muted} />
+              </Pressable>
+            </View>)}
+          </View>}
+          {!searchQuery && suggestions.length > 0 && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            {suggestions.map((item) => <Pressable key={item} accessibilityRole="button"
+              accessibilityLabel={`Search for ${item}`} onPress={() => setSearchQuery(item)}
+              style={[ss.trendChip, { minHeight: 44, justifyContent: 'center', backgroundColor: c.surface, borderColor: c.border }]}>
+              <Text style={{ color: c.text }}>{item}</Text>
+            </Pressable>)}
+          </ScrollView>}
+          <SectionRow title={loading && !vendors.length ? 'Garages' : `${filteredVendors.length} garages`}
+            linkLabel="Map" onPress={() => router.push('/map')} c={c} />
+          {error && <ErrorState compact onRetry={() => void refresh()} />}
+        </View>}
+        ListEmptyComponent={loading ? <ActivityIndicator accessibilityLabel="Loading garages" color={c.primary} style={{ padding: 24 }} />
+          : error ? null : <View style={ss.emptyBox}>
+            <Icon name="search-outline" size={36} color={c.muted} />
+            <Text style={[ss.emptyTitle, { color: c.text }]}>{trimmed ? 'No matching garages' : 'No garages listed yet'}</Text>
+            <Text style={[ss.emptyDesc, { color: c.textSecondary }]}>{trimmed ? 'Try another name, area, or service type.' : 'Pull down to check again.'}</Text>
+            {trimmed !== '' && <Pressable accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }} onPress={() => setSearchQuery('')}>
+              <Text style={{ color: c.primary, fontWeight: '700' }}>Clear search</Text>
+            </Pressable>}
+          </View>}
+      />
     </SafeAreaView>
   );
 }
@@ -804,14 +762,15 @@ export function BookingsScreen() {
   const c = useQarColors();
   const themeMode = useQarWheelStore((s) => s.themeMode);
   const statusColorsThemed = getThemedStatusColors(themeMode);
-  const bookings = useQarWheelStore((s) => s.bookings);
   const cancelBooking = useQarWheelStore((s) => s.cancelBooking);
-  const rescheduleBooking = useQarWheelStore((s) => s.rescheduleBooking);
   const [activeTab, setActiveTab] = useState<'Active' | BookingWorkflowStatus | 'History'>('Active');
 
   // Live sync from Firestore — merges into Zustand on top of local/seed bookings
   const { user } = useAuthContext();
-  useFirestoreBookings(user?.uid ?? null);
+  const feed = useFirestoreBookings(user?.uid ?? null);
+  const bookings = feed.bookings;
+  const cancellingRef = useRef(new Set<string>());
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const sortedBookings = [...bookings].sort((a, b) => {
     const left = a.bookingDate ? new Date(a.bookingDate).getTime() : 0;
@@ -819,8 +778,8 @@ export function BookingsScreen() {
     return right - left;
   });
   const filteredBookings = sortedBookings.filter((booking) => {
-    if (activeTab === 'Active') return booking.status !== 'Completed' && booking.status !== 'Cancelled';
-    if (activeTab === 'History') return booking.status === 'Completed';
+    if (activeTab === 'Active') return !isBookingTerminal(booking.status);
+    if (activeTab === 'History') return isBookingTerminal(booking.status);
     return booking.status === activeTab;
   });
   const tabs: { key: 'Active' | BookingWorkflowStatus | 'History'; label: string }[] = [
@@ -831,36 +790,41 @@ export function BookingsScreen() {
     { key: 'History', label: 'History' },
     { key: 'Cancelled', label: 'Cancelled' },
   ];
-  const upcoming = bookings.filter((b) => b.status !== 'Completed' && b.status !== 'Cancelled').length;
+  const upcoming = bookings.filter((b) => !isBookingTerminal(b.status)).length;
   const pending = bookings.filter((b) => b.status === 'Pending').length;
-  const history = bookings.filter((b) => b.status === 'Completed').length;
+  const history = bookings.filter((b) => isBookingTerminal(b.status)).length;
 
   function handleCancel(booking: Booking) {
-    if (booking.status === 'Completed' || booking.status === 'Cancelled') return;
+    if (!actorAllowedTransitions('customer', booking.status).includes('Cancelled')) return;
     Alert.alert('Cancel booking?', 'This will cancel your request and notify the garage.', [
       { text: 'Keep booking', style: 'cancel' },
-      { text: 'Cancel booking', style: 'destructive', onPress: () => cancelBooking(booking.id) },
+      { text: 'Cancel booking', style: 'destructive', onPress: async () => {
+        if (cancellingRef.current.has(booking.id)) return;
+        cancellingRef.current.add(booking.id);
+        setCancellingId(booking.id);
+        try {
+          await cancelRemoteBooking(booking.id);
+          cancelBooking(booking.id);
+        } catch {
+          Alert.alert('Cancellation failed', 'Your booking has not been cancelled. Please retry.');
+        } finally { cancellingRef.current.delete(booking.id); setCancellingId(null); }
+      } },
     ]);
   }
 
   function handleReschedule(booking: Booking) {
-    if (booking.status === 'Completed' || booking.status === 'Cancelled') return;
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    rescheduleBooking(booking.id, { date: 'Tomorrow, 10:00 AM', bookingDate: tomorrow.toISOString(), timeSlot: '10:00 AM' });
-    Alert.alert('Reschedule requested', 'Your booking was moved to Tomorrow, 10:00 AM and is waiting for garage confirmation.');
+    if (isBookingTerminal(booking.status) || booking.status === 'Cancelled') return;
+    Alert.alert('Reschedule with the garage', 'Contact the garage to agree on a new time. Your current booking remains unchanged.');
   }
-
-  const { control: refreshControl } = useRefresh();
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['top']}>
-      <ScrollView
-        style={{ backgroundColor: c.background }}
+      <FlatList
+        data={filteredBookings} keyExtractor={(booking) => booking.id}
+        initialNumToRender={6} maxToRenderPerBatch={6} windowSize={7}
         contentContainerStyle={{ padding: spacing.page, paddingBottom: TAB_BOTTOM + 18, gap: 16 }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={refreshControl}
-      >
+        refreshing={feed.loading && bookings.length > 0} onRefresh={feed.refresh}
+        ListHeaderComponent={<View style={{ gap: 16 }}>
         <View style={{ gap: 2 }}>
           <Text style={[ss.pageEyebrow, { color: c.primary }]}>Appointments</Text>
           <Text style={[ss.pageTitle, { color: c.text }]}>My bookings</Text>
@@ -892,6 +856,7 @@ export function BookingsScreen() {
                 key={tab.key}
                 style={[ss.bookingTab, { backgroundColor: active ? c.primary : c.surface, borderColor: active ? c.primary : c.border }]}
                 onPress={() => setActiveTab(tab.key)}
+                accessibilityRole="tab" accessibilityLabel={`${tab.label}, ${count} bookings`} accessibilityState={{ selected: active }}
               >
                 <Text style={[ss.bookingTabText, { color: active ? '#fff' : c.textSecondary }]}>{tab.label}</Text>
                 <View style={[ss.bookingTabBadge, { backgroundColor: active ? 'rgba(255,255,255,0.25)' : c.surfaceAlt }]}>
@@ -901,20 +866,19 @@ export function BookingsScreen() {
             );
           })}
         </ScrollView>
-
-        {filteredBookings.length === 0 && (
-          <View style={[ss.emptyBox, { backgroundColor: c.surface, borderColor: c.border }]}> 
+          {feed.error && <ErrorState compact onRetry={feed.refresh} />}
+        </View>}
+        ListEmptyComponent={feed.loading ? <ActivityIndicator color={c.primary} accessibilityLabel="Loading bookings" style={{ padding: 24 }} />
+          : feed.error ? null : <View style={ss.emptyBox}>
             <Icon name="calendar-outline" size={40} color={c.muted} />
-            <Text style={[ss.emptyTitle, { color: c.textSecondary }]}>No {activeTab.toString().toLowerCase()} bookings</Text>
-            <Text style={[ss.emptyDesc, { color: c.muted }]}>Book a service or switch tabs to view another status.</Text>
-          </View>
-        )}
-
-        {filteredBookings.map((booking) => {
+            <Text style={[ss.emptyTitle, { color: c.text }]}>No {activeTab.toLowerCase()} bookings</Text>
+            <Text style={[ss.emptyDesc, { color: c.textSecondary }]}>Choose a garage to book your next service.</Text>
+          </View>}
+        renderItem={({ item: booking }) => {
           const sc = statusColorsThemed[booking.status] ?? statusColorsThemed.Pending;
           const progressIndex = Math.max(getBookingStatusIndex(booking.status), 0);
-          const progressPercent = booking.status === 'Cancelled' ? 100 : Math.round(((progressIndex + 1) / 6) * 100);
-          const canModify = booking.status !== 'Completed' && booking.status !== 'Cancelled';
+          const progressPercent = isBookingTerminal(booking.status) ? (booking.status === 'Completed' ? 100 : 0) : Math.round(((progressIndex + 1) / 6) * 100);
+          const canModify = actorAllowedTransitions('customer', booking.status).includes('Cancelled') && cancellingId !== booking.id;
           return (
             <Pressable
               key={booking.id}
@@ -944,31 +908,30 @@ export function BookingsScreen() {
                 </View>
               </View>
               <View style={[ss.bookingActions, { borderTopColor: c.border }]}> 
-                <Pressable style={ss.bookingAction} onPress={() => router.push('/notifications')}>
+                <Pressable style={ss.bookingAction} accessibilityRole="button" accessibilityLabel={`Message ${booking.garage}`} onPress={(event) => { event.stopPropagation(); router.push(booking.garageId ? route(`/chat/${booking.garageId}`) : '/messages'); }}>
                   <Icon name="chatbubble-ellipses-outline" size={15} color={c.primary} />
                   <Text style={[ss.bookingActionText, { color: c.primary }]}>Message</Text>
                 </Pressable>
                 <View style={[ss.bookingActionSep, { backgroundColor: c.border }]} />
-                <Pressable style={ss.bookingAction} onPress={() => handleReschedule(booking)}>
+                <Pressable style={ss.bookingAction} accessibilityRole="button" accessibilityLabel={`Reschedule ${booking.service}`} disabled={!canModify} onPress={(event) => { event.stopPropagation(); handleReschedule(booking); }}>
                   <Icon name="calendar-outline" size={15} color={canModify ? c.primary : c.muted} />
                   <Text style={[ss.bookingActionText, { color: canModify ? c.primary : c.muted }]}>Reschedule</Text>
                 </Pressable>
                 <View style={[ss.bookingActionSep, { backgroundColor: c.border }]} />
-                <Pressable style={ss.bookingAction} onPress={() => handleCancel(booking)}>
+                <Pressable style={ss.bookingAction} accessibilityRole="button" accessibilityLabel={`Cancel ${booking.service}`} disabled={!canModify} accessibilityState={{ disabled: !canModify, busy: cancellingId === booking.id }} onPress={(event) => { event.stopPropagation(); handleCancel(booking); }}>
                   <Icon name="close-circle-outline" size={15} color={canModify ? c.danger : c.muted} />
-                  <Text style={[ss.bookingActionText, { color: canModify ? c.danger : c.muted }]}>Cancel</Text>
+                  <Text style={[ss.bookingActionText, { color: canModify ? c.danger : c.muted }]}>{cancellingId === booking.id ? 'Cancelling...' : 'Cancel'}</Text>
                 </Pressable>
               </View>
             </Pressable>
           );
-        })}
-
-        <Pressable style={[ss.primaryBtn, { backgroundColor: c.primary, ...shadow.primary }]}
-          onPress={() => router.push(route('/checkout/emergency'))}>
+        }}
+        ListFooterComponent={<Pressable accessibilityRole="button" style={[ss.primaryBtn, { backgroundColor: c.primary }]}
+          onPress={() => router.push('/search')}>
           <Icon name="add-circle-outline" size={19} color="#fff" />
           <Text style={[ss.primaryBtnText, { color: '#fff' }]}>New booking</Text>
-        </Pressable>
-      </ScrollView>
+        </Pressable>}
+      />
     </SafeAreaView>
   );
 }
@@ -978,21 +941,7 @@ export function CarsScreen() {
   const router = useRouter();
   const c = useQarColors();
   const { user } = useAuthContext();
-  const [carList, setCarList] = useState<FirestoreCar[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) { setLoading(false); return; }
-    const q = query(collection(firestore, 'users', user.uid, 'cars'));
-    return onSnapshot(
-      q,
-      (snap) => {
-        setCarList(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<FirestoreCar, 'id'>) })));
-        setLoading(false);
-      },
-      (_err) => { setLoading(false); },
-    );
-  }, [user]);
+  const { cars: carList, isLoading: loading } = useCars(user?.uid);
 
   function hColor(pct: number) { return pct >= 80 ? '#22C55E' : pct >= 60 ? '#F59E0B' : '#EF4444'; }
   function hLabel(pct: number) { return pct >= 80 ? 'Great' : pct >= 60 ? 'Fair' : 'Needs attention'; }
@@ -1011,14 +960,13 @@ export function CarsScreen() {
         return 'Service due';
       }
     }
-    return (car.health ?? 90) < 70 ? 'Inspection due' : 'On track';
+    return 'Not scheduled';
   }
 
   const totalCars = carList.length;
-  const avgHealth = totalCars
-    ? Math.round(carList.reduce((sum, car) => sum + (car.health ?? 90), 0) / totalCars)
-    : 0;
-  const attentionCount = carList.filter((car) => (car.health ?? 90) < 70).length;
+  const scores = carList.map(recordedHealth).filter((score): score is number => score !== null);
+  const avgHealth = scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) : null;
+  const attentionCount = scores.filter((score) => score < 70).length;
 
   const { control: refreshControl } = useRefresh();
 
@@ -1056,7 +1004,7 @@ export function CarsScreen() {
             <View style={ss.garageStatRow}>
               {[
                 { label: 'Cars', value: String(totalCars), icon: 'car-sport-outline' as IoniconName },
-                { label: 'Avg health', value: totalCars ? `${avgHealth}%` : '--', icon: 'pulse-outline' as IoniconName },
+                { label: 'Avg scan', value: avgHealth === null ? '--' : `${avgHealth}%`, icon: 'pulse-outline' as IoniconName },
                 { label: 'Alerts', value: String(attentionCount), icon: 'warning-outline' as IoniconName },
               ].map((item) => (
                 <View key={item.label} style={[ss.garageStat, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
@@ -1092,9 +1040,9 @@ export function CarsScreen() {
         )}
 
         {carList.map((car) => {
-          const hc = hColor(car.health ?? 90);
-          const hl = hLabel(car.health ?? 90);
-          const health = car.health ?? 90;
+          const health = recordedHealth(car);
+          const hc = health === null ? c.muted : hColor(health);
+          const hl = health === null ? 'Not measured' : 'Recorded scan';
           return (
             <Pressable
               key={car.id}
@@ -1122,9 +1070,9 @@ export function CarsScreen() {
               {/* ── Health bar ── */}
               <View style={ss.carCard2HealthRow}>
                 <View style={[ss.carCard2HealthTrack, { backgroundColor: c.surfaceAlt }]}>
-                  <View style={[ss.carCard2HealthFill, { width: `${health}%` as any, backgroundColor: hc }]} />
+                  <View style={[ss.carCard2HealthFill, { width: `${health ?? 0}%`, backgroundColor: hc }]} />
                 </View>
-                <Text style={[ss.carCard2HealthPct, { color: hc }]}>{health}%</Text>
+                <Text style={[ss.carCard2HealthPct, { color: hc }]}>{health === null ? '--' : `${health}%`}</Text>
               </View>
 
               {/* ── Stat chips ── */}
@@ -1196,15 +1144,8 @@ export function AccountScreen() {
   const favoriteGarageIds = useQarWheelStore((s) => s.favoriteGarageIds);
   const vendorInvoices = useQarWheelStore((s) => s.vendorInvoices);
 
-  // Live car count from Firestore (mirrors CarsScreen)
-  const [accountCarList, setAccountCarList] = useState<FirestoreCar[]>([]);
-  useEffect(() => {
-    if (!user) return;
-    const q = query(collection(firestore, 'users', user.uid, 'cars'));
-    return onSnapshot(q, (snap) => {
-      setAccountCarList(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<FirestoreCar, 'id'>) })));
-    });
-  }, [user]);
+  // Live car count from Firestore (shared hook — same subscription as CarsScreen)
+  const { cars: accountCarList } = useCars(user?.uid);
 
   const totalVehicles = accountCarList.length;
   const totalBookings = bookings.length;
@@ -1594,7 +1535,7 @@ const ss = StyleSheet.create({
   bookingProgressTrack: { height: 7, borderRadius: 999, overflow: 'hidden', marginTop: 5 },
   bookingProgressFill: { height: '100%', borderRadius: 999 },
   bookingActions: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth },
-  bookingAction:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 13 },
+  bookingAction:  { flex: 1, minHeight: 44, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 13 },
   bookingActionText: { fontSize: 12, fontWeight: '800' },
   bookingActionSep:  { width: StyleSheet.hairlineWidth, marginVertical: 10 },
 

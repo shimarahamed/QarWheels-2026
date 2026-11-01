@@ -14,11 +14,14 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 jest.mock('firebase/firestore', () => ({
   arrayUnion: (...values) => ({ __op: 'arrayUnion', values }),
   arrayRemove: (...values) => ({ __op: 'arrayRemove', values }),
+  addDoc: jest.fn(() => Promise.resolve({ id: 'created-booking' })),
   collection: jest.fn(),
   doc: jest.fn(() => ({})),
   getDocs: jest.fn(() => Promise.resolve({ docs: [] })),
   onSnapshot: jest.fn(() => jest.fn()),
   query: jest.fn(),
+  orderBy: jest.fn(),
+  documentId: jest.fn(() => '__name__'),
   serverTimestamp: jest.fn(() => new Date().toISOString()),
   setDoc: jest.fn(() => Promise.resolve()),
   updateDoc: jest.fn(() => Promise.resolve()),
@@ -46,6 +49,13 @@ jest.mock('@react-native-community/netinfo', () => ({
     ),
     addEventListener: jest.fn(() => jest.fn()),
   },
+}));
+
+// Native font loading is outside these component tests; keep real icon rendering.
+jest.mock('expo-font', () => ({
+  ...jest.requireActual('expo-font'),
+  isLoaded: jest.fn(() => true),
+  loadAsync: jest.fn(() => Promise.resolve()),
 }));
 
 // lib/haptics.ts chains .catch() onto every call, so these must resolve a

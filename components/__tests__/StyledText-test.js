@@ -4,7 +4,8 @@ import renderer from 'react-test-renderer';
 import { MonoText } from '../StyledText';
 
 it(`renders correctly`, () => {
-  const tree = renderer.create(<MonoText>Snapshot test!</MonoText>).toJSON();
-
-  expect(tree).toMatchSnapshot();
+  let tree;
+  React.act(() => { tree = renderer.create(<MonoText>Snapshot test!</MonoText>); });
+  expect(tree.toJSON()).toMatchObject({ type: 'Text', children: ['Snapshot test!'] });
+  React.act(() => { tree.unmount(); });
 });

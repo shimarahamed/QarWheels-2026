@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import ErrorState from '@/components/ErrorState';
 import { Stack, useLocalSearchParams, useRouter, useSegments } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -74,8 +75,6 @@ type PaymentMethodId = 'garage' | 'card' | 'wallet';
 
 const paymentMethods: { id: PaymentMethodId; label: string; icon: IconName }[] = [
   { id: 'garage', label: 'Pay at garage', icon: 'cash-outline' },
-  { id: 'card', label: 'Card ending 4242', icon: 'card-outline' },
-  { id: 'wallet', label: 'QarWheel wallet', icon: 'wallet-outline' },
 ];
 
 function paymentLabel(id: PaymentMethodId) {
@@ -153,7 +152,6 @@ export default function BookingComposer() {
   const { user } = useAuthContext();
   const createLocalBooking = useQarWheelStore((s) => s.createBooking);
   const walletBalance = useQarWheelStore((s) => s.walletBalance);
-  const chargeWallet = useQarWheelStore((s) => s.chargeWallet);
   const addInvoice = useQarWheelStore((s) => s.addInvoice);
   const savedAddresses = useQarWheelStore((s) => s.addresses);
   const [reviewing, setReviewing] = useState(false);
@@ -161,7 +159,7 @@ export default function BookingComposer() {
   const [loadingCars, setLoadingCars] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const days = useMemo(() => nextDays(), []);
-  const { vendors: liveGarages, jobs: liveJobs, loading: vendorsLoading } = useBranches();
+  const { vendors: liveGarages, jobs: liveJobs, loading: vendorsLoading, error: vendorsError, refresh: refreshVendors } = useBranches({ includeServices: true });
 
   // The form opens collapsed: every choice already has a sensible default, so
   // the first thing the user sees is a short recap they can confirm, not eight
@@ -249,7 +247,8 @@ export default function BookingComposer() {
       }));
 
   const selectedGarage = liveGarages.find((g) => g.id === selectedGarageId) ?? liveGarages[0];
-  const selectedService = liveJobs.find((j) => j.id === selectedServiceId) ?? liveJobs[0];
+  const garageJobs = liveJobs.filter((job) => job.garageId === selectedGarage?.id);
+  const selectedService = garageJobs.find((job) => job.id === selectedServiceId) ?? garageJobs[0];
   const selectedCar = selectableCars.find((car) => car.id === selectedCarId) ?? selectableCars[0];
   const selectedDay = days.find((day) => day.id === selectedDayId) ?? days[0];
   const chosenAddOns = addOns.filter((item) => selectedAddOns.includes(item.id));
@@ -257,7 +256,8 @@ export default function BookingComposer() {
   const servicePrice = selectedService ? priceFromLabel(selectedService.price) : 0;
   const logisticsTotal = (pickupEnabled ? 40 : 0) + (dropoffEnabled ? 40 : 0);
   const estimatedTotal = servicePrice + addOnTotal + logisticsTotal;
-  const canSubmit = Boolean(selectedCar && selectedGarage && selectedService && selectedDay && selectedTime);
+  const canSubmit = Boolean(!vendorsLoading && !vendorsError && selectedCar && selectedGarage && selectedService && selectedDay && selectedTime);
+  const submissionInFlight = useRef(false);
 
   // ── Live total ──
   // The price is the one number the user is tracking while they toggle
@@ -313,12 +313,13 @@ export default function BookingComposer() {
   }
 
   async function handleSubmit() {
-    if (!canSubmit || submitting) return;
+    if (!canSubmit || submitting || submissionInFlight.current) return;
     if (!selectedCar) {
       Alert.alert('Vehicle required', 'Choose a vehicle before confirming the booking.');
       return;
     }
 
+    submissionInFlight.current = true;
     setReviewing(false);
     setSubmitting(true);
     const bookingDate = new Date(selectedDay.iso);
@@ -327,7 +328,7 @@ export default function BookingComposer() {
     const hour = period === 'PM' && rawHour !== 12 ? rawHour + 12 : rawHour;
     bookingDate.setHours(hour, rawMinute, 0, 0);
 
-    const localBooking = createLocalBooking({
+    const bookingDetails = {
       garage: selectedGarage?.name ?? '',
       garageId: selectedGarage?.id ?? '',
       service: selectedService?.title ?? '',
@@ -338,7 +339,7 @@ export default function BookingComposer() {
       date: `${selectedDay.label}, ${selectedTime}`,
       bookingDate: bookingDate.toISOString(),
       timeSlot: selectedTime,
-      status: 'Pending',
+      status: 'Pending' as const,
       totalAmount: estimatedTotal,
       pickupEnabled,
       dropoffEnabled,
@@ -347,15 +348,19 @@ export default function BookingComposer() {
       paymentMethod: paymentLabel(payment),
       addOns: chosenAddOns.map((item) => item.title),
       serviceCategory: selectedGarage?.category ?? '',
-    });
+    };
 
     try {
-      if (user && selectedCar.source === 'firestore') {
-        await createFirestoreBooking(user.uid, {
+      if (!user || selectedCar.source !== 'firestore' || !selectedGarage?.businessId) {
+        throw new Error('Sign in, save your vehicle, and choose an available garage before booking.');
+      }
+      const remote = await createFirestoreBooking(user.uid, {
           customerName: user.displayName ?? 'QarWheel Customer',
           customerEmail: user.email ?? '',
-          vendorId: selectedGarage?.id ?? '',
-          vendorName: selectedGarage?.name ?? '',
+          vendorId: selectedGarage.id,
+          vendorName: selectedGarage.name,
+          businessId: selectedGarage.businessId,
+          branchId: selectedGarage.id,
           carId: selectedCar.id,
           carName: selectedCar.name,
           serviceName: selectedService?.title ?? '',
@@ -368,47 +373,26 @@ export default function BookingComposer() {
             selectedAddOns.length ? `Add-ons: ${selectedAddOns.join(', ')}` : '',
             `Payment: ${paymentLabel(payment)}`,
           ].filter(Boolean).join('\n'),
-        });
-      }
+      });
+      const localBooking = createLocalBooking({ ...bookingDetails, id: remote.id });
 
-      // Record the money side so Wallet, Transactions and Invoices reflect a
-      // booking that actually happened rather than static sample rows.
-      // chargeWallet returns false when the balance moved between the
-      // pre-flight check and here; that must not be invoiced as paid.
-      let settled = true;
-      if (payment === 'wallet') {
-        settled = chargeWallet(
-          estimatedTotal,
-          `${selectedService?.title ?? 'Service'} · ${selectedGarage?.name ?? ''}`,
-          localBooking.id,
-        );
-      }
       addInvoice({
         bookingId: localBooking.id,
         garage: selectedGarage?.name ?? '',
         service: selectedService?.title ?? 'Service',
         vehicle: selectedCar.name,
         amount: estimatedTotal,
-        // Only money that actually moved counts as paid. Pay-at-garage is
-        // settled in person, so it stays unpaid until the garage marks it.
-        status: payment === 'card' || (payment === 'wallet' && settled) ? 'Paid' : 'Unpaid',
+        status: 'Unpaid',
         method: paymentLabel(payment),
       });
-
-      if (payment === 'wallet' && !settled) {
-        Alert.alert(
-          'Wallet charge failed',
-          'Your booking was created, but the wallet could not be charged. Settle it from the booking or top up your wallet.',
-        );
-      }
 
       void success();
       router.replace(route(`/booking/${localBooking.id}`));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Booking could not be created.';
-      Alert.alert('Booking saved locally', `${message}\n\nYour local booking summary is still available.`);
-      router.replace(route(`/booking/${localBooking.id}`));
+      Alert.alert('Booking not sent', `${message}\n\nPlease retry. The garage has not received this request.`);
     } finally {
+      submissionInFlight.current = false;
       setSubmitting(false);
     }
   }
@@ -465,6 +449,7 @@ export default function BookingComposer() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {vendorsError && <ErrorState compact onRetry={() => void refreshVendors()} />}
         {/* ── Hero ──
             One tinted card carrying what is being booked and where. Everything
             below it is a choice; this is the context. */}
@@ -566,7 +551,7 @@ export default function BookingComposer() {
                     description={`${garage.area} · ${garage.rating} rating · ${garage.responseTime} response`}
                     icon="business-outline"
                     selected={selectedGarageId === garage.id}
-                    onPress={() => setSelectedGarageId(garage.id)}
+                    onPress={() => { setSelectedGarageId(garage.id); setSelectedServiceId(''); }}
                     c={c}
                   />
                 ))
@@ -574,8 +559,7 @@ export default function BookingComposer() {
             </Panel>
           )}
 
-          {fromContext ? null : (
-            <Panel
+          <Panel
               id="service"
               icon="construct-outline"
               title="Service"
@@ -588,8 +572,9 @@ export default function BookingComposer() {
                 <ActivityIndicator color={c.primary} style={{ marginVertical: 8 }} />
               ) : (
                 <View style={styles.serviceGrid}>
-                  {liveJobs.map((job) => {
-                    const selected = selectedServiceId === job.id;
+                  {garageJobs.length === 0 && <Text style={{ color: c.textSecondary }}>No services are available for this garage.</Text>}
+                  {garageJobs.map((job) => {
+                    const selected = selectedService?.id === job.id;
                     return (
                       <AnimatedPressable
                         key={job.id}
@@ -618,7 +603,6 @@ export default function BookingComposer() {
                 </View>
               )}
             </Panel>
-          )}
 
           <Panel
             id="schedule"

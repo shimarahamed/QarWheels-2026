@@ -448,7 +448,7 @@ function useDiscovery(queryText = '', categoryId?: string) {
   const [sort, setSort] = useState<SortKey>('Best match');
   const [filters, setFilters] = useState<FilterKey[]>([]);
   const normalized = useDebounced(queryText.trim().toLowerCase());
-  const { vendors, jobs, loading } = useBranches();
+  const { vendors, jobs, loading } = useBranches({ includeServices: true });
 
   const garagesById = useMemo(() => new Map(vendors.map((g) => [g.id, g] as const)), [vendors]);
 
@@ -669,7 +669,7 @@ export function ServiceDetailScreen() {
   const c = useQarColors();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const targetId = Array.isArray(id) ? id[0] : (id ?? '');
-  const { vendors, jobs, loading } = useBranches();
+  const { vendors, jobs, loading } = useBranches({ includeServices: true });
   const service = jobs.find((job) => job.id === targetId);
 
   if (!service) {

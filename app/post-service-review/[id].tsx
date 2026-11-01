@@ -135,6 +135,9 @@ export default function PostServiceReviewScreen() {
                   onPressIn={() => setHovered(star)}
                   onPressOut={() => setHovered(0)}
                   hitSlop={8}
+                  accessibilityRole="radio"
+                  accessibilityLabel={`${star} stars for overall rating`}
+                  accessibilityState={{ selected: rating === star }}
                 >
                   <Ionicons
                     name={star <= displayRating ? 'star' : 'star-outline'}
@@ -163,6 +166,9 @@ export default function PostServiceReviewScreen() {
                       key={star}
                       onPress={() => setAspectRatings((prev) => ({ ...prev, [aspect.id]: star }))}
                       hitSlop={6}
+                      accessibilityRole="radio"
+                      accessibilityLabel={`${star} stars for ${aspect.label}`}
+                      accessibilityState={{ selected: aspectRatings[aspect.id] === star }}
                     >
                       <Ionicons
                         name={star <= (aspectRatings[aspect.id] ?? 0) ? 'star' : 'star-outline'}

@@ -5,6 +5,7 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'fire
 import { getAuth } from 'firebase/auth';
 import { firebaseApp } from '@/lib/firebase';
 import { useState } from 'react';
+import { z } from 'zod';
 import {
   Alert, Image, Pressable, ScrollView, StyleSheet, Text, View, ActivityIndicator,
 } from 'react-native';
@@ -16,13 +17,14 @@ import { radius, shadow, spacing, typography } from '@/lib/theme';
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheel.qa';
 const MAX_PHOTOS = 6;
 
-type AnalysisResult = {
-  severity: 'minor' | 'moderate' | 'severe';
-  areas: string[];
-  estimatedCost: string;
-  recommendation: string;
-  repairTime: string;
-};
+const AnalysisResultSchema = z.object({
+  severity: z.enum(['minor', 'moderate', 'severe']),
+  areas: z.array(z.string().max(200)).max(20),
+  estimatedCost: z.string().max(200),
+  recommendation: z.string().max(3000),
+  repairTime: z.string().max(200),
+});
+type AnalysisResult = z.infer<typeof AnalysisResultSchema>;
 
 async function uploadPhoto(uri: string, uid: string, index: number): Promise<string> {
   const storage = getStorage(firebaseApp);
@@ -36,14 +38,16 @@ async function uploadPhoto(uri: string, uid: string, index: number): Promise<str
 }
 
 async function analyzeImages(urls: string[], description: string): Promise<AnalysisResult> {
+  const token = await getAuth().currentUser?.getIdToken();
+  if (!token) throw new Error('Sign in before requesting an assessment.');
   const res = await fetch(`${BACKEND_URL}/api/damage/analyze`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ imageUrls: urls, description }),
     signal: AbortSignal.timeout(30_000),
   });
   if (!res.ok) throw new Error(`Analysis failed (${res.status})`);
-  return res.json() as Promise<AnalysisResult>;
+  return AnalysisResultSchema.parse(await res.json());
 }
 
 const SEVERITY_META = {
@@ -87,19 +91,14 @@ export default function DamageUploadScreen() {
     }
     setUploading(true);
     try {
-      const uid = getAuth().currentUser?.uid ?? 'anonymous';
+      const uid = getAuth().currentUser?.uid;
+      if (!uid) throw new Error('Sign in before uploading photos.');
       const urls = await Promise.all(photos.map((uri, i) => uploadPhoto(uri, uid, i)));
       const analysis = await analyzeImages(urls, description);
       setResult(analysis);
     } catch (e) {
-      // Demo fallback when backend unavailable
-      setResult({
-        severity: 'moderate',
-        areas: ['Front bumper', 'Hood'],
-        estimatedCost: 'QAR 800 – 1,400',
-        recommendation: 'Panel beating and repainting required. Visit a certified body shop for a full quote.',
-        repairTime: '2–3 days',
-      });
+      setResult(null);
+      Alert.alert('Analysis unavailable', 'No assessment was produced. Please try again.');
     } finally {
       setUploading(false);
     }

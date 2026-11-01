@@ -8,6 +8,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -16,13 +17,18 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchMarketplaceServices, marketplaceSource } from './marketplace-source';
 import { firestore } from './firebase';
 import { useQarWheelStore } from './store';
 import { useAuthContext } from './AuthContext';
 import type { Booking, Garage, PopularJob } from './marketplace';
 import type { BookingWorkflowStatus } from './booking-workflow';
 import { haversineKm, useDeviceLocation, type DeviceLocation } from './geo';
+import { vehicleCreateSchema } from './validation';
+import { recordedHealth } from './vehicle-records';
+import { canAccess, isBusinessWideRole } from './permissions';
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -67,7 +73,7 @@ export type FirestoreCar = {
   licensePlate: string;
   color: string;
   currentMileage: number;
-  health: number;
+  health?: number;
   nextServiceDate?: string;
   imageUrl?: string;
   obdDiagnostics?: ObdDiagnostics;
@@ -84,6 +90,8 @@ export async function createBooking(
     customerEmail: string;
     vendorId: string;
     vendorName: string;
+    businessId: string;
+    branchId: string;
     carId: string;
     carName: string;
     serviceName: string;
@@ -92,6 +100,9 @@ export async function createBooking(
     notes?: string;
   },
 ) {
+  if (!userId || !input.businessId || !input.branchId || !input.carId || !input.serviceName.trim()) {
+    throw new Error('Choose a saved vehicle and an available garage service.');
+  }
   const tomorrow = new Date(Date.now() + 86_400_000);
   return addDoc(collection(firestore, 'bookings'), {
     userId,
@@ -99,12 +110,16 @@ export async function createBooking(
     customerEmail: input.customerEmail,
     vendorId: input.vendorId,
     vendorName: input.vendorName,
+    businessId: input.businessId,
+    branchId: input.branchId,
+    branchName: input.vendorName,
     carId: input.carId,
     carName: input.carName,
     carDescription: input.carName,
     serviceName: input.serviceName,
     bookingDate: input.bookingDate ?? tomorrow.toISOString(),
     status: 'Pending',
+    statusHistory: [{ status: 'Pending', at: new Date(), byUid: userId, byRole: 'customer' }],
     cost: input.cost ?? 0,
     notes: input.notes ?? '',
     createdAt: serverTimestamp(),
@@ -113,9 +128,24 @@ export async function createBooking(
 }
 
 export async function cancelBooking(bookingId: string) {
-  return updateDoc(doc(firestore, 'bookings', bookingId), {
-    status: 'Cancelled',
-    updatedAt: serverTimestamp(),
+  const uid = getAuth().currentUser?.uid;
+  if (!uid) throw new Error('Sign in before cancelling a booking');
+  const ref = doc(firestore, 'bookings', bookingId);
+  return runTransaction(firestore, async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists()) throw new Error('Booking not found');
+    const booking = snapshot.data();
+    if (['Completed', 'Cancelled', 'Declined', 'NoShow'].includes(booking.status)) {
+      throw new Error('This booking can no longer be cancelled');
+    }
+    transaction.update(ref, {
+      status: 'Cancelled',
+      statusHistory: [
+        ...(booking.statusHistory ?? []),
+        { status: 'Cancelled', at: new Date(), byUid: uid, byRole: 'customer' },
+      ],
+      updatedAt: serverTimestamp(),
+    });
   });
 }
 
@@ -137,18 +167,16 @@ export async function addCar(
     dataSource?: 'manual' | 'obd' | 'smartcar';
   },
 ) {
+  if (!userId) throw new Error('Sign in before adding a vehicle.');
+  const parsed = vehicleCreateSchema.safeParse(input);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? 'Check the vehicle details.');
+  const health = recordedHealth(input);
   return addDoc(collection(firestore, 'users', userId, 'cars'), {
     userId,
-    make: input.make,
-    model: input.model,
-    year: input.year,
-    vin: input.vin,
-    licensePlate: input.licensePlate,
-    color: input.color,
-    currentMileage: input.currentMileage,
-    health: input.health ?? 90,
+    ...parsed.data,
+    ...(health === null ? {} : { health }),
     dataSource: input.dataSource ?? 'manual',
-    ...(input.obdDiagnostics ? { obdDiagnostics: input.obdDiagnostics } : {}),
+    ...(input.obdDiagnostics?.simulationMode === false ? { obdDiagnostics: input.obdDiagnostics } : {}),
     ...(input.smartcarConnected ? { smartcarConnected: true } : {}),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -157,6 +185,64 @@ export async function addCar(
 
 export async function deleteCar(userId: string, carId: string) {
   return deleteDoc(doc(firestore, 'users', userId, 'cars', carId));
+}
+
+/**
+ * Real-time list of the signed-in user's cars. Replaces what used to be two
+ * separate inline `onSnapshot` subscriptions to the same
+ * `users/{uid}/cars` collection in CarsScreen and AccountScreen
+ * (components/Marketplace.tsx) — one shared hook instead of two copies that
+ * could drift.
+ */
+export function useCars(userId: string | null | undefined): { cars: FirestoreCar[]; isLoading: boolean } {
+  const [cars, setCars] = useState<FirestoreCar[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) { setCars([]); setIsLoading(false); return; }
+    setIsLoading(true);
+    const q = query(collection(firestore, 'users', userId, 'cars'));
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setCars(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<FirestoreCar, 'id'>) })));
+        setIsLoading(false);
+      },
+      () => { setCars([]); setIsLoading(false); },
+    );
+    return unsub;
+  }, [userId]);
+
+  return { cars, isLoading };
+}
+
+/**
+ * Sets which car is the user's default vehicle. Stored on the user's own
+ * profile doc (users/{uid}.defaultCarId) rather than a flag on each car doc —
+ * "default" is a single-valued preference of the user, not a property of the
+ * vehicle, so this avoids needing a batched unset-elsewhere-on-set write.
+ */
+export async function setDefaultCar(userId: string, carId: string) {
+  return setDoc(doc(firestore, 'users', userId), { defaultCarId: carId, updatedAt: serverTimestamp() }, { merge: true });
+}
+
+// ── Notification preferences ──────────────────────────────────────
+// Mirrors the web app's UserProfile.notificationPreferences shape exactly
+// (src/lib/types.ts) so the same users/{uid} field means the same thing on
+// both platforms.
+
+export type NotificationPreferences = {
+  bookingConfirmations: boolean;
+  serviceReminders: boolean;
+  promotionalOffers: boolean;
+};
+
+export async function saveNotificationPreferences(userId: string, prefs: NotificationPreferences) {
+  return setDoc(
+    doc(firestore, 'users', userId),
+    { notificationPreferences: prefs, updatedAt: serverTimestamp() },
+    { merge: true },
+  );
 }
 
 // ── User profile operations ───────────────────────────────────────
@@ -200,14 +286,21 @@ export async function saveReview(review: {
   serviceLabel: string;
   garageName: string;
 }) {
-  await addDoc(collection(firestore, 'reviews'), {
-    ...review,
+  const booking = await getDoc(doc(firestore, 'bookings', review.bookingId));
+  if (!booking.exists() || booking.data().status !== 'Completed' || booking.data().userId !== review.userId) {
+    throw new Error('Only your completed bookings can be reviewed');
+  }
+  await setDoc(doc(firestore, 'reviews', review.bookingId), {
+    bookingId: review.bookingId,
+    businessId: booking.data().businessId,
+    branchId: booking.data().branchId,
+    userId: review.userId,
+    rating: review.rating,
+    comment: review.comment,
+    service: review.serviceLabel,
+    customerName: getAuth().currentUser?.displayName ?? 'QarWheel Customer',
+    date: new Date().toISOString(),
     createdAt: serverTimestamp(),
-  });
-  // Update booking to mark it as reviewed
-  await updateDoc(doc(firestore, 'bookings', review.bookingId), {
-    reviewed: true,
-    updatedAt: serverTimestamp(),
   });
 }
 
@@ -236,9 +329,17 @@ function toIsoString(value: unknown): string {
  */
 export function useFirestoreBookings(userId: string | null) {
   const mergeFirestoreBookings = useQarWheelStore((s) => s.mergeFirestoreBookings);
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState<{ userId: string | null; bookings: Booking[]; loading: boolean; error: boolean }>({ userId: null, bookings: [], loading: true, error: false });
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      setResult({ userId: null, bookings: [], loading: false, error: false });
+      return;
+    }
+    let active = true;
+    setResult((previous) => ({ userId, bookings: previous.userId === userId ? previous.bookings : [], loading: true, error: false }));
+    const timer = setTimeout(() => { if (active) setResult((previous) => ({ ...previous, loading: false, error: true })); }, 15_000);
 
     const q = query(
       collection(firestore, 'bookings'),
@@ -247,14 +348,16 @@ export function useFirestoreBookings(userId: string | null) {
     );
 
     const unsub = onSnapshot(q, (snap) => {
+      if (!active) return;
+      clearTimeout(timer);
       const firestoreBookings: Booking[] = snap.docs.map((d) => {
         const data = d.data();
         return {
           id: d.id,
-          garage: data.vendorName ?? '',
-          garageId: data.vendorId ?? '',
+          garage: data.branchName ?? data.vendorName ?? '',
+          garageId: data.branchId ?? data.vendorId ?? '',
           service: data.serviceName ?? '',
-          vehicle: data.carName ?? '',
+          vehicle: data.carDescription ?? data.carName ?? '',
           vehicleId: data.carId,
           date: toIsoString(data.bookingDate),
           bookingDate: toIsoString(data.bookingDate),
@@ -267,10 +370,21 @@ export function useFirestoreBookings(userId: string | null) {
         };
       });
       mergeFirestoreBookings(firestoreBookings);
+      setResult({ userId, bookings: firestoreBookings, loading: false, error: false });
+    }, () => {
+      if (!active) return;
+      clearTimeout(timer);
+      setResult((previous) => ({ ...previous, loading: false, error: true }));
     });
 
-    return unsub;
-  }, [userId, mergeFirestoreBookings]);
+    return () => { active = false; clearTimeout(timer); unsub(); };
+  }, [userId, mergeFirestoreBookings, attempt]);
+  return {
+    bookings: result.userId === userId ? result.bookings : [],
+    loading: result.userId !== userId || result.loading,
+    error: result.userId === userId && result.error,
+    refresh: () => setAttempt((value) => value + 1),
+  };
 }
 
 // ── Business / branch document types ─────────────────────────────────────────
@@ -428,6 +542,7 @@ export function branchToGarage(
     : 0;
   return {
     id: d.id,
+    businessId: String(data.businessId ?? ''),
     name: String(data.name ?? 'Unknown'),
     type: 'Car Service & Repair',
     category: 'Auto repair shop',
@@ -484,73 +599,30 @@ function branchServiceToJob(serviceDoc: { id: string; data: () => Record<string,
  * kept as a separate re-map step from the Firestore listener itself so a
  * location update doesn't tear down and re-attach the snapshot subscription.
  */
-export function useBranches(): { vendors: Garage[]; jobs: PopularJob[]; loading: boolean } {
-  const [rawDocs, setRawDocs] = useState<QueryDocumentSnapshot[]>([]);
-  const [jobs, setJobs] = useState<PopularJob[]>([]);
-  const [loading, setLoading] = useState(true);
+export function useBranches({ includeServices = false }: { includeServices?: boolean } = {}) {
+  const catalog = useSyncExternalStore(marketplaceSource.subscribe, marketplaceSource.getSnapshot, marketplaceSource.getServerSnapshot);
   const { location } = useDeviceLocation();
-
-  const vendors = useMemo(
-    () => rawDocs.map((d) => branchToGarage(d, location)),
-    [rawDocs, location],
-  );
-
-  useEffect(() => {
-    // Public branch listing must filter on isListed, not status — firestore.rules'
-    // `list` rule for branches can only statically verify a query filtered on
-    // `isListed == true` (Firestore proves list-rule safety from the query's own
-    // where() clauses, not from each returned doc's data), so a status-filtered
-    // query gets denied outright for signed-out/non-member readers even though
-    // every matching doc would satisfy the rule. `vacationMode` (the vendor's own
-    // pause) is then applied client-side so this needs no extra composite index.
-    const q = query(collection(firestore, 'branches'), where('isListed', '==', true));
-    const unsub = onSnapshot(
-      q,
-      async (snap) => {
-        const listedDocs = snap.docs.filter((d) => !d.data().vacationMode);
-
-        if (listedDocs.length === 0) {
-          setRawDocs([]);
-          setJobs([]);
-          setLoading(false);
-          return;
-        }
-        setRawDocs(listedDocs);
-
-        // Load the bookable services for each listed branch.
-        const allJobs: PopularJob[] = [];
-        await Promise.all(
-          listedDocs.map(async (branchDoc) => {
-            try {
-              const serviceSnap = await getDocs(
-                query(
-                  collection(firestore, 'branch_services'),
-                  where('branchId', '==', branchDoc.id),
-                  where('active', '==', true),
-                ),
-              );
-              serviceSnap.docs.forEach((sDoc) => {
-                allJobs.push(branchServiceToJob(sDoc, branchDoc.id));
-              });
-            } catch { /* branch has no services yet */ }
-          }),
-        );
-        setJobs(allJobs);
-        setLoading(false);
-      },
-      () => {
-        // Firestore unavailable → empty state, not fake data. Screens using
-        // this hook should show a retry / offline affordance when vendors is
-        // empty and loading is false.
-        setRawDocs([]);
-        setJobs([]);
-        setLoading(false);
-      },
-    );
-    return unsub;
-  }, []);
-
-  return { vendors, jobs, loading };
+  const branchIds = useMemo(() => catalog.docs.map((entry) => entry.id).sort(), [catalog.docs]);
+  const services = useQuery({
+    queryKey: ['marketplace-services', branchIds],
+    queryFn: ({ signal }) => fetchMarketplaceServices(branchIds, signal),
+    enabled: includeServices && branchIds.length > 0 && !catalog.loading && !catalog.error,
+    staleTime: 60_000,
+  });
+  const vendors = useMemo(() => catalog.docs.map((entry) => branchToGarage(entry, location)), [catalog.docs, location]);
+  const jobs = useMemo(() => includeServices
+    ? (services.data ?? []).map((entry) => branchServiceToJob(entry, String(entry.data().branchId)))
+    : [], [includeServices, services.data]);
+  const refresh = async () => {
+    await marketplaceSource.retry();
+    if (includeServices && branchIds.length) await services.refetch();
+  };
+  return {
+    vendors, jobs,
+    loading: catalog.loading || (includeServices && branchIds.length > 0 && !catalog.error && services.isPending),
+    error: catalog.error || (includeServices && services.isError),
+    refresh,
+  };
 }
 
 // ── useBranchServices — bookable services for a single branch ────────────────
@@ -625,36 +697,53 @@ export function useGarage(branchId: string | undefined): { garage: Garage | null
 
 // ── useVendorBookings — bookings addressed to this vendor ─────────────────────
 
-export function useVendorFirestoreBookings(vendorId: string | null) {
+export function useVendorFirestoreBookings() {
   const mergeVendorBookings = useQarWheelStore((s) => s.mergeVendorFirestoreBookings);
+  const activeBranchId = useQarWheelStore((s) => s.activeBranchId);
+  const { user, businessId, branchIds, role, claimsLoading } = useAuthContext();
+  const vendorRole = role !== 'customer' && role !== 'master_admin' ? role : null;
+  const businessWide = vendorRole ? isBusinessWideRole(vendorRole) : false;
+  const allowed = Boolean(user && businessId && vendorRole && canAccess(vendorRole, 'bookings') && !claimsLoading);
+  const scope = JSON.stringify([user?.uid, businessId, role, activeBranchId, branchIds, claimsLoading]);
+  const [result, setResult] = useState({ scope: '', loading: true, error: false });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    if (!vendorId) return;
-
-    const q = query(
-      collection(firestore, 'bookings'),
-      where('vendorId', '==', vendorId),
-      orderBy('createdAt', 'desc'),
-    );
+    let active = true;
+    mergeVendorBookings([]);
+    if (!allowed || (!businessWide && (!activeBranchId || !branchIds.includes(activeBranchId)))) {
+      setResult({ scope, loading: false, error: false });
+      return;
+    }
+    setResult({ scope, loading: true, error: false });
+    const constraints = [where('businessId', '==', businessId)];
+    if (activeBranchId) constraints.push(where('branchId', '==', activeBranchId));
+    const q = query(collection(firestore, 'bookings'), ...constraints);
+    const deadline = setTimeout(() => {
+      if (active) setResult({ scope, loading: false, error: true });
+    }, 15_000);
 
     const unsub = onSnapshot(q, (snap) => {
+      if (!active) return;
+      clearTimeout(deadline);
       const bookings = snap.docs.map((d) => {
         const data = d.data();
         return {
           id: d.id,
           customerName: String(data.customerName ?? data.carName ?? 'Customer'),
           customerPhone: String(data.customerPhone ?? ''),
-          vehicle: String(data.carName ?? ''),
+          vehicle: String(data.carDescription ?? data.carName ?? ''),
           vehiclePlate: String(data.vehiclePlate ?? ''),
           service: String(data.serviceName ?? ''),
           serviceCategory: String(data.serviceCategory ?? 'repair'),
           date: (() => {
             try {
-              if (!data.bookingDate) return 'Today';
+              if (!data.bookingDate) return 'Not scheduled';
               const d = new Date(toIsoString(data.bookingDate));
-              if (isNaN(d.getTime())) return 'Today';
+              if (isNaN(d.getTime())) return 'Not scheduled';
+              if (d.toLocaleDateString('en-QA', { timeZone: 'Asia/Qatar' }) === new Date().toLocaleDateString('en-QA', { timeZone: 'Asia/Qatar' })) return 'Today';
               return d.toLocaleDateString('en-QA', { weekday: 'short', month: 'short', day: 'numeric' });
-            } catch { return 'Today'; }
+            } catch { return 'Not scheduled'; }
           })(),
           timeSlot: String(data.timeSlot ?? ''),
           status: (data.status ?? 'Pending') as BookingWorkflowStatus,
@@ -672,9 +761,17 @@ export function useVendorFirestoreBookings(vendorId: string | null) {
           createdAt: toIsoString(data.createdAt) || new Date().toISOString(),
         };
       });
+      bookings.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       mergeVendorBookings(bookings);
-    }, () => { /* offline — keep seed data */ });
+      setResult({ scope, loading: false, error: false });
+    }, () => {
+      if (!active) return;
+      clearTimeout(deadline);
+      mergeVendorBookings([]);
+      setResult({ scope, loading: false, error: true });
+    });
 
-    return unsub;
-  }, [vendorId, mergeVendorBookings]);
+    return () => { active = false; clearTimeout(deadline); unsub(); };
+  }, [scope, allowed, businessWide, businessId, activeBranchId, mergeVendorBookings, attempt]);
+  return { loading: result.scope !== scope || result.loading, error: result.scope === scope && result.error, retry: () => setAttempt((value) => value + 1) };
 }

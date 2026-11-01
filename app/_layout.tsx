@@ -5,10 +5,14 @@ import * as Notifications from 'expo-notifications';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import 'react-native-reanimated';
 
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
+import { featureAvailabilityScreenLayout } from '@/components/FeatureAvailabilityGate';
+import { BiometricGate } from '@/components/BiometricGate';
+import { lockBiometricSession } from '@/lib/biometrics';
+import { isVendorClaims } from '@/lib/roles';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider, useAuthContext } from '@/lib/AuthContext';
@@ -54,8 +58,7 @@ export default function RootLayout() {
 }
 
 function AuthGuard({ children }: { children: ReactNode }) {
-  const { user, loading, wasAuthenticated, role } = useAuthContext();
-  const vendorAuthenticated = useQarWheelStore((state) => state.vendorAuthenticated);
+  const { user, loading, wasAuthenticated, role, claims, claimsLoading } = useAuthContext();
   const segments = useSegments();
   const router = useRouter();
   // Read inside the listener via a ref rather than closing over `role`
@@ -63,6 +66,12 @@ function AuthGuard({ children }: { children: ReactNode }) {
   // never see a value captured from the first render.
   const roleRef = useRef(role);
   roleRef.current = role;
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'background') lockBiometricSession();
+    });
+    return () => subscription.remove();
+  }, []);
 
   // Register the device for push and attach the token to the user's profile.
   // Without this the token never leaves the device and no booking update can
@@ -102,20 +111,16 @@ function AuthGuard({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Wait until Firebase has resolved auth state
-    if (loading) return;
+    if (loading || claimsLoading) return;
 
     const inAuthGroup   = segments[0] === '(auth)';
-    const inTabsGroup   = segments[0] === '(tabs)';
-    const inVendorGroup = segments[0] === 'vendor';
 
     if (user) {
       // Logged in — send to tabs if still stuck in auth flow
-      if (inAuthGroup) router.replace('/(tabs)' as never);
-      return;
-    }
-
-    if (vendorAuthenticated) {
-      if (!inVendorGroup && !inAuthGroup) router.replace('/vendor/dashboard' as never);
+      const onboarding = new Set(['biometric', 'email-verification', 'location-permission', 'notifications-permission', 'appearance', 'account-success']);
+      if (inAuthGroup && !onboarding.has(segments[1] ?? '')) {
+        router.replace(isVendorClaims(claims) ? '/vendor/dashboard' : '/(tabs)');
+      }
       return;
     }
 
@@ -125,7 +130,7 @@ function AuthGuard({ children }: { children: ReactNode }) {
     if (!inAuthGroup && !wasAuthenticated) {
       router.replace('/(auth)/splash' as never);
     }
-  }, [user, vendorAuthenticated, loading, wasAuthenticated, segments, router]);
+  }, [user, claims, claimsLoading, loading, wasAuthenticated, segments, router]);
 
   return <>{children}</>;
 }
@@ -147,6 +152,7 @@ function RootLayoutNav() {
           <AuthGuard>
             <OfflineBanner />
             <Stack
+              screenLayout={({ children, route }) => <BiometricGate>{featureAvailabilityScreenLayout({ children, route })}</BiometricGate>}
               screenOptions={{
                 // Pin the container background so no white void is ever exposed
                 // during slide/fade transitions between screens.

@@ -2,11 +2,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import type { ComponentProps, ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { updateProfile } from 'firebase/auth';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import { useAuthContext } from '@/lib/AuthContext';
 import { auth, firestore } from '@/lib/firebase';
@@ -16,7 +16,14 @@ import { success, tap } from '@/lib/haptics';
 import { useTranslation } from '@/lib/i18n';
 import { promptRestartForRTL } from '@/lib/i18n/restart';
 import type { Garage } from '@/lib/marketplace';
-import { useBranches } from '@/lib/firestoreOps';
+import {
+  useBranches,
+  useCars,
+  setDefaultCar,
+  saveNotificationPreferences,
+  type FirestoreCar,
+  type NotificationPreferences,
+} from '@/lib/firestoreOps';
 import { MotionScreen, MotionSurface } from '@/lib/motion';
 import {
   useQarColors,
@@ -47,7 +54,9 @@ export type AccountSection =
   | 'invoices'
   | 'subscriptions'
   | 'coupons'
-  | 'vendorMode';
+  | 'vendorMode'
+  | 'systemSettings'
+  | 'vehiclePreferences';
 
 type AccountProfile = {
   name: string;
@@ -74,7 +83,13 @@ const sectionCopy: Record<AccountSection, { title: string; eyebrow: string; icon
   subscriptions: { title: 'Subscriptions', eyebrow: 'Plans', icon: 'repeat-outline' },
   coupons: { title: 'Coupons', eyebrow: 'Offers', icon: 'pricetag-outline' },
   vendorMode: { title: 'Vendor mode', eyebrow: 'Business', icon: 'business-outline' },
+  systemSettings: { title: 'System settings', eyebrow: 'App', icon: 'settings-outline' },
+  vehiclePreferences: { title: 'Vehicle & preferences', eyebrow: 'Garage', icon: 'car-sport-outline' },
 };
+
+// Support line shown on System Settings — the same number contact-us.tsx uses.
+const SUPPORT_PHONE_DISPLAY = '+974 4000 1234';
+const SUPPORT_PHONE_TEL = 'tel:+97440001234';
 
 const sectionTabs: Array<{ id: AccountSection; label: string; icon: IconName }> = [
   { id: 'profile', label: 'Profile', icon: 'person-outline' },
@@ -82,7 +97,9 @@ const sectionTabs: Array<{ id: AccountSection; label: string; icon: IconName }> 
   { id: 'paymentMethods', label: 'Pay', icon: 'card-outline' },
   { id: 'wallet', label: 'Wallet', icon: 'wallet-outline' },
   { id: 'documents', label: 'Docs', icon: 'folder-outline' },
-  { id: 'privacy', label: 'Security', icon: 'shield-outline' },
+  { id: 'privacy', label: 'Notify & Security', icon: 'shield-outline' },
+  { id: 'vehiclePreferences', label: 'Vehicle', icon: 'car-sport-outline' },
+  { id: 'systemSettings', label: 'System', icon: 'settings-outline' },
 ];
 
 function route(path: string) {
@@ -102,6 +119,8 @@ function fromSettingsSection(section?: string): AccountSection {
     documents: 'documents',
     addresses: 'addresses',
     profile: 'profile',
+    'system-settings': 'systemSettings',
+    'vehicle-preferences': 'vehiclePreferences',
   };
   return map[normalized] ?? 'profile';
 }
@@ -121,6 +140,8 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
   const { language, changeLanguage } = useTranslation();
   const notifications = useQarWheelStore((s) => s.notifications);
   const markNotificationsRead = useQarWheelStore((s) => s.markNotificationsRead);
+  const themeMode = useQarWheelStore((s) => s.themeMode);
+  const toggleThemeMode = useQarWheelStore((s) => s.toggleThemeMode);
   const [section, setSection] = useState<AccountSection>(initialSection);
   const [saving, setSaving] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -131,11 +152,69 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
     country: 'Qatar',
     area: 'Doha',
   });
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [bookingEnabled, setBookingEnabled] = useState(true);
-  const [promoEnabled, setPromoEnabled] = useState(false);
-  const [biometricEnabled, setBiometricEnabled] = useState(true);
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+
+  // Notification preferences — genuinely persisted to users/{uid} (mirrors
+  // the web app's UserProfile.notificationPreferences). Previously these
+  // three toggles were plain component useState that reset on every app
+  // restart; they're now loaded from and saved to Firestore.
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>({
+    bookingConfirmations: true,
+    serviceReminders: true,
+    promotionalOffers: false,
+  });
+  const [savingNotificationPrefs, setSavingNotificationPrefs] = useState(false);
+
+  // Vehicles + default vehicle preference, for the Profile stat tiles and
+  // the Vehicle & Preferences screen.
+  const { cars, isLoading: isLoadingCars } = useCars(user?.uid);
+  const [defaultCarId, setDefaultCarIdState] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) { setDefaultCarIdState(null); return; }
+    let cancelled = false;
+    getDoc(doc(firestore, 'users', user.uid))
+      .then((snap) => {
+        if (cancelled) return;
+        const data = snap.data();
+        if (data?.notificationPreferences) {
+          setNotificationPrefs({
+            bookingConfirmations: data.notificationPreferences.bookingConfirmations ?? true,
+            serviceReminders: data.notificationPreferences.serviceReminders ?? true,
+            promotionalOffers: data.notificationPreferences.promotionalOffers ?? false,
+          });
+        }
+        setDefaultCarIdState(typeof data?.defaultCarId === 'string' ? data.defaultCarId : null);
+      })
+      .catch(() => { /* keep defaults — this is a preference, not critical data */ });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  async function updateNotificationPref(key: keyof NotificationPreferences, value: boolean) {
+    const next = { ...notificationPrefs, [key]: value };
+    setNotificationPrefs(next);
+    if (!user) return;
+    setSavingNotificationPrefs(true);
+    try {
+      await saveNotificationPreferences(user.uid, next);
+    } catch {
+      // Revert on failure so the switch doesn't lie about what's saved.
+      setNotificationPrefs(notificationPrefs);
+      Alert.alert('Could not save', 'Your notification preference could not be saved. Please try again.');
+    } finally {
+      setSavingNotificationPrefs(false);
+    }
+  }
+
+  async function chooseDefaultCar(carId: string) {
+    setDefaultCarIdState(carId);
+    if (!user) return;
+    try {
+      await setDefaultCar(user.uid, carId);
+      void success();
+    } catch {
+      Alert.alert('Could not save', 'Your default vehicle could not be saved. Please try again.');
+    }
+  }
 
   // ── Account domain, from the persisted store ──────────────────────────────
   const addresses = useQarWheelStore((s) => s.addresses);
@@ -145,7 +224,6 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
   const setDefaultAddress = useQarWheelStore((s) => s.setDefaultAddress);
   const walletBalance = useQarWheelStore((s) => s.walletBalance);
   const walletTransactions = useQarWheelStore((s) => s.walletTransactions);
-  const topUpWallet = useQarWheelStore((s) => s.topUpWallet);
   const invoices = useQarWheelStore((s) => s.invoices);
   const documents = useQarWheelStore((s) => s.documents);
   const addDocument = useQarWheelStore((s) => s.addDocument);
@@ -323,23 +401,6 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
 
   // ── Wallet ────────────────────────────────────────────────────────────────
 
-  function handleTopUpWallet() {
-    // Fixed denominations keep this to one tap. A custom amount routes to the
-    // card screen, where the real payment sheet lives.
-    Alert.alert('Top up wallet', 'How much would you like to add?', [
-      ...[50, 100, 250].map((amount) => ({
-        text: `QAR ${amount}`,
-        onPress: () => {
-          const balance = topUpWallet(amount, 'Card');
-          void success();
-          Alert.alert('Wallet topped up', `${money(amount)} added. Your balance is now ${money(balance)}.`);
-        },
-      })),
-      { text: 'Other amount', onPress: () => router.push('/payment-method/new' as never) },
-      { text: 'Cancel', style: 'cancel' as const },
-    ]);
-  }
-
   async function handleExportStatement() {
     if (walletTransactions.length === 0) {
       Alert.alert('Nothing to export', 'There are no transactions on your account yet.');
@@ -350,9 +411,9 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
         `${new Date(t.createdAt).toLocaleDateString()}  ${t.reference}  ${t.amount > 0 ? '+' : ''}${t.amount.toFixed(2)}  ${t.description}  (balance ${t.balanceAfter.toFixed(2)})`,
     );
     const statement = [
-      'QarWheel wallet statement',
+      'QarWheel device-only wallet history (not a payment statement)',
       `Generated ${new Date().toLocaleString()}`,
-      `Closing balance: ${money(walletBalance)}`,
+      `Previously displayed local balance: ${money(walletBalance)}`,
       '',
       ...lines,
     ].join('\n');
@@ -419,30 +480,61 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
 
   function renderSection() {
     if (section === 'profile' || section === 'editProfile') {
+      if (section === 'editProfile') {
+        return (
+          <>
+            <SectionCard title="Personal details" subtitle="Used for booking confirmation, invoices, pickup, and support." icon="person-outline" c={c}>
+              <Field label="Full name" value={profile.name} onChangeText={(name) => setProfile((state) => ({ ...state, name }))} c={c} editable />
+              <Field label="Email" value={profile.email} onChangeText={(email) => setProfile((state) => ({ ...state, email }))} c={c} editable={false} />
+              <Field label="Phone" value={profile.phone} onChangeText={(phone) => setProfile((state) => ({ ...state, phone }))} c={c} editable keyboardType="phone-pad" />
+              <Field label="Country" value={profile.country} onChangeText={(country) => setProfile((state) => ({ ...state, country }))} c={c} editable />
+              <Field label="Preferred area" value={profile.area} onChangeText={(area) => setProfile((state) => ({ ...state, area }))} c={c} editable />
+              <PrimaryButton label={saving ? 'Saving...' : 'Save profile'} icon="checkmark-circle-outline" onPress={saveProfile} c={c} disabled={saving} />
+            </SectionCard>
+            <ComingSoonCard
+              title="Profile photo upload"
+              description="Uploading a custom avatar isn't available yet — your initials are shown instead."
+              icon="camera-outline"
+              c={c}
+            />
+          </>
+        );
+      }
+
+      // Real telemetry-shaped stats — vehicle count, fleet mileage, and
+      // bookings, all sourced from useCars()/the bookings store. No
+      // fabricated CAN-bus/safety-index/passport numbers.
+      const totalMileage = cars.reduce((sum, car) => sum + (car.currentMileage || 0), 0);
+      const upcomingCount = bookings.filter((b) => b.status === 'Confirmed' || b.status === 'Pending').length;
+
       return (
         <>
-          <SectionCard title="Personal details" subtitle="Used for booking confirmation, invoices, pickup, and support." icon="person-outline" c={c}>
-            <Field label="Full name" value={profile.name} onChangeText={(name) => setProfile((state) => ({ ...state, name }))} c={c} editable={section === 'editProfile'} />
-            <Field label="Email" value={profile.email} onChangeText={(email) => setProfile((state) => ({ ...state, email }))} c={c} editable={section === 'editProfile'} keyboardType="email-address" />
-            <Field label="Phone" value={profile.phone} onChangeText={(phone) => setProfile((state) => ({ ...state, phone }))} c={c} editable={section === 'editProfile'} keyboardType="phone-pad" />
-            <Field label="Country" value={profile.country} onChangeText={(country) => setProfile((state) => ({ ...state, country }))} c={c} editable={section === 'editProfile'} />
-            <Field label="Preferred area" value={profile.area} onChangeText={(area) => setProfile((state) => ({ ...state, area }))} c={c} editable={section === 'editProfile'} />
-            {section === 'editProfile' ? (
-              <PrimaryButton label={saving ? 'Saving...' : 'Save profile'} icon="checkmark-circle-outline" onPress={saveProfile} c={c} disabled={saving} />
-            ) : (
-              <PrimaryButton label="Edit profile" icon="create-outline" onPress={() => setSection('editProfile')} c={c} />
-            )}
+          <SectionCard title="Your account" subtitle="Personal details, saved to your QarWheel profile." icon="person-outline" c={c}>
+            <Field label="Full name" value={profile.name} onChangeText={() => {}} c={c} editable={false} />
+            <Field label="Email" value={profile.email} onChangeText={() => {}} c={c} editable={false} />
+            <Field label="Phone" value={profile.phone} onChangeText={() => {}} c={c} editable={false} />
+            <Field label="Location" value={[profile.area, profile.country].filter(Boolean).join(', ')} onChangeText={() => {}} c={c} editable={false} />
+            <PrimaryButton label="Edit profile" icon="create-outline" onPress={() => setSection('editProfile')} c={c} />
           </SectionCard>
-          <SectionCard title="Account readiness" subtitle="Production-ready profile services connected from the account page." icon="analytics-outline" c={c}>
+
+          <SectionCard title="Your fleet at a glance" subtitle="Live counts from your saved vehicles and bookings." icon="speedometer-outline" c={c}>
             <SummaryGrid
               c={c}
               items={[
-                { label: 'Bookings', value: String(bookings.length), icon: 'calendar-outline' },
-                { label: 'Saved', value: String(favorites.length), icon: 'heart-outline' },
-                { label: 'Verified docs', value: '3', icon: 'checkmark-done-outline' },
-                { label: 'Wallet', value: 'QAR 280', icon: 'wallet-outline' },
+                { label: 'Vehicles', value: isLoadingCars ? '—' : String(cars.length), icon: 'car-sport-outline' },
+                { label: 'Fleet mileage', value: isLoadingCars ? '—' : `${totalMileage.toLocaleString()} km`, icon: 'speedometer-outline' },
+                { label: 'Upcoming', value: String(upcomingCount), icon: 'calendar-outline' },
+                { label: 'Total bookings', value: String(bookings.length), icon: 'receipt-outline' },
               ]}
             />
+          </SectionCard>
+
+          <SectionCard title="Manage" subtitle="Everything else about your account, in one place." icon="grid-outline" c={c}>
+            <ActionRow label="Notifications & privacy" meta="Alerts, data export, delete account" icon="shield-checkmark-outline" onPress={() => setSection('privacy')} c={c} />
+            <ActionRow label="Vehicle & preferences" meta={`${cars.length} vehicle${cars.length === 1 ? '' : 's'} saved`} icon="car-sport-outline" onPress={() => setSection('vehiclePreferences')} c={c} />
+            <ActionRow label="System settings" meta="Theme, language, support" icon="settings-outline" onPress={() => setSection('systemSettings')} c={c} />
+            <ActionRow label="Documents" meta={`${documents.length} in your vault`} icon="folder-open-outline" onPress={() => setSection('documents')} c={c} />
+            <ActionRow label="Wallet" meta="Unavailable" icon="wallet-outline" onPress={() => setSection('wallet')} c={c} />
           </SectionCard>
         </>
       );
@@ -477,54 +569,20 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
 
     if (section === 'paymentMethods') {
       return (
-        <SectionCard title="Cards and checkout" subtitle="Manage saved cards, default payment, receipts, and secure checkout behavior." icon="card-outline" c={c}>
-          <PaymentCard brand="Visa" label="Personal card" number="**** 2481" status="Default" c={c} />
-          <PaymentCard brand="Mastercard" label="Business card" number="**** 9144" status="Backup" c={c} />
-          <ActionRow label="Add new card" meta="Tokenized through the payment gateway" icon="add-circle-outline" onPress={() => router.push(route('/saved-cards'))} c={c} />
-          <ActionRow label="Payment security" meta="3DS, receipts, and refund preferences" icon="shield-checkmark-outline" onPress={() => setSection('privacy')} c={c} />
+        <SectionCard title="Cards and checkout" subtitle="Card payments are not available yet." icon="card-outline" c={c}>
+          <Text style={[styles.rowMeta, { color: c.textSecondary }]}>Pay at the garage after your service.</Text>
         </SectionCard>
       );
     }
 
     if (section === 'wallet') {
-      const spent = walletTransactions
-        .filter((t) => t.amount < 0)
-        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
-      const added = walletTransactions
-        .filter((t) => t.amount > 0)
-        .reduce((sum, t) => sum + t.amount, 0);
-      const recent = walletTransactions.slice(0, 3);
-
       return (
-        <>
-          <MotionSurface style={[styles.walletCard, { backgroundColor: c.dark, borderColor: c.primaryMid }]}>
-            <Text style={styles.walletEyebrow}>Available balance</Text>
-            <Text style={styles.walletAmount}>{money(walletBalance)}</Text>
-            <Text style={styles.walletMeta}>
-              {walletTransactions.length === 0
-                ? 'Top up to pay for services without reaching for a card.'
-                : `${money(added)} added · ${money(spent)} spent across ${walletTransactions.length} ${walletTransactions.length === 1 ? 'entry' : 'entries'}.`}
-            </Text>
-          </MotionSurface>
-
-          <SectionCard title="Wallet actions" subtitle="Move money through credits, refunds, and rewards." icon="wallet-outline" c={c}>
-            <ActionRow label="Top up wallet" meta="Add balance before a service" icon="add-outline" onPress={handleTopUpWallet} c={c} />
-            <ActionRow
-              label="View all transactions"
-              meta={walletTransactions.length ? `${walletTransactions.length} recorded` : 'Nothing recorded yet'}
-              icon="receipt-outline"
-              onPress={() => setSection('transactions')}
-              c={c}
-            />
-            <ActionRow label="Coupons and rewards" meta="Apply eligible offers" icon="pricetag-outline" onPress={() => setSection('coupons')} c={c} />
-          </SectionCard>
-
-          {recent.length > 0 && (
-            <SectionCard title="Recent activity" subtitle="The last few movements on your balance." icon="time-outline" c={c}>
-              {recent.map((txn) => <TransactionRow key={txn.id} txn={txn} c={c} />)}
-            </SectionCard>
-          )}
-        </>
+        <SectionCard title="Wallet unavailable" subtitle="Wallet payments and top-ups are not enabled." icon="wallet-outline" c={c}>
+          <Text style={[styles.rowMeta, { color: c.textSecondary }]}>Pay at the garage after your service.</Text>
+          {walletTransactions.length > 0 ? (
+            <ActionRow label="Earlier device-only history" meta="Not a verified payment record" icon="receipt-outline" onPress={() => setSection('transactions')} c={c} />
+          ) : null}
+        </SectionCard>
       );
     }
 
@@ -578,28 +636,161 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
       );
     }
 
-    if (section === 'privacy') {
+    // Notifications & Privacy — combines the two former separate sections
+    // under one screen (matching the mockup's grouping). Both the old
+    // 'notifications' and 'privacy' AccountSection ids land here so every
+    // existing route (/settings/notifications, /privacy-security) keeps
+    // working.
+    if (section === 'privacy' || section === 'notifications') {
+      const unread = notifications.filter((item) => !item.read).length;
       return (
-        <SectionCard title="Privacy and security" subtitle="Control sign-in, sharing, data exports, and account protection." icon="shield-checkmark-outline" c={c}>
-          <ToggleRow label="Biometric unlock" meta="Prepare native Face ID / Touch ID support" value={biometricEnabled} onValueChange={setBiometricEnabled} c={c} />
-          <ToggleRow label="Two-factor login" meta="Require an extra code for sensitive actions" value={twoFactorEnabled} onValueChange={setTwoFactorEnabled} c={c} />
-          <ActionRow label="Export my data" meta="Profile, vehicles, bookings, invoices" icon="download-outline" onPress={handleExportData} c={c} />
-          <ActionRow label="Privacy Policy" meta="How we collect, use, and share your data" icon="document-text-outline" onPress={() => router.push('/privacy-policy' as never)} c={c} />
-          <ActionRow label="Terms of Service" meta="The terms that govern using QarWheel" icon="document-text-outline" onPress={() => router.push('/terms-of-service' as never)} c={c} />
-          <ActionRow label={deletingAccount ? 'Deleting…' : 'Delete my account'} meta="Permanently deletes your login and personal data" icon="trash-outline" onPress={deletingAccount ? () => {} : confirmDeleteAccount} c={c} danger />
-        </SectionCard>
+        <>
+          <SectionCard title="Notification preferences" subtitle="Choose what reaches you about bookings and offers." icon="notifications-outline" c={c}>
+            <ToggleRow
+              label="Booking confirmations"
+              meta="Alerts for new bookings and status changes"
+              value={notificationPrefs.bookingConfirmations}
+              onValueChange={(v) => updateNotificationPref('bookingConfirmations', v)}
+              c={c}
+              disabled={savingNotificationPrefs}
+            />
+            <ToggleRow
+              label="Service reminders"
+              meta="Before pickup, drop-off, and service completion"
+              value={notificationPrefs.serviceReminders}
+              onValueChange={(v) => updateNotificationPref('serviceReminders', v)}
+              c={c}
+              disabled={savingNotificationPrefs}
+            />
+            <ToggleRow
+              label="Promotional offers"
+              meta="News from saved garages and QarWheel"
+              value={notificationPrefs.promotionalOffers}
+              onValueChange={(v) => updateNotificationPref('promotionalOffers', v)}
+              c={c}
+              disabled={savingNotificationPrefs}
+            />
+            <ActionRow label={`Mark ${unread} unread as read`} meta="Clear notification badges" icon="checkmark-done-outline" onPress={() => { markNotificationsRead(); void success(); }} c={c} />
+          </SectionCard>
+
+          <SectionCard title="Privacy and account" subtitle="Data export, legal, and account deletion." icon="shield-checkmark-outline" c={c}>
+            <ActionRow label="Export my data" meta="Profile, vehicles, bookings, invoices" icon="download-outline" onPress={handleExportData} c={c} />
+            <ActionRow label="Privacy Policy" meta="How we collect, use, and share your data" icon="document-text-outline" onPress={() => router.push('/privacy-policy' as never)} c={c} />
+            <ActionRow label="Terms of Service" meta="The terms that govern using QarWheel" icon="document-text-outline" onPress={() => router.push('/terms-of-service' as never)} c={c} />
+            <ActionRow label={deletingAccount ? 'Deleting…' : 'Delete my account'} meta="Permanently deletes your login and personal data" icon="trash-outline" onPress={deletingAccount ? () => {} : confirmDeleteAccount} c={c} danger />
+          </SectionCard>
+
+          <SectionCard title="Device security" subtitle="Unlock this account with your device credentials." icon="finger-print-outline" c={c}>
+            <ActionRow label="Biometric unlock" meta="Face ID / fingerprint" icon="finger-print-outline" onPress={() => router.push('/(auth)/biometric?source=settings')} c={c} />
+          </SectionCard>
+        </>
       );
     }
 
-    if (section === 'notifications') {
-      const unread = notifications.filter((item) => !item.read).length;
+    if (section === 'systemSettings') {
       return (
-        <SectionCard title="Notification center" subtitle="Choose what reaches the mobile app, email, and SMS." icon="notifications-outline" c={c}>
-          <ToggleRow label="Push notifications" meta="Booking, quote, service, and payment updates" value={pushEnabled} onValueChange={setPushEnabled} c={c} />
-          <ToggleRow label="Booking reminders" meta="Before pickup, drop-off, and service completion" value={bookingEnabled} onValueChange={setBookingEnabled} c={c} />
-          <ToggleRow label="Promotions" meta="Offers from saved garages and QarWheel" value={promoEnabled} onValueChange={setPromoEnabled} c={c} />
-          <ActionRow label={`Mark ${unread} unread as read`} meta="Clear notification badges" icon="checkmark-done-outline" onPress={() => { markNotificationsRead(); void success(); }} c={c} />
-        </SectionCard>
+        <>
+          <SectionCard title="Appearance" subtitle="Choose how QarWheel looks on this device." icon="color-palette-outline" c={c}>
+            <View style={[styles.segmentGroup, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+              {(['dark', 'light'] as const).map((mode) => {
+                const active = themeMode === mode;
+                return (
+                  <AnimatedPressable
+                    key={mode}
+                    style={[styles.segmentOption, active && { backgroundColor: c.primary }]}
+                    onPress={() => { if (!active) { toggleThemeMode(); void tap(); } }}
+                  >
+                    <Text style={[styles.segmentText, { color: active ? '#fff' : c.textSecondary }]}>
+                      {mode === 'dark' ? 'Cockpit Dark' : 'Daylight'}
+                    </Text>
+                  </AnimatedPressable>
+                );
+              })}
+            </View>
+          </SectionCard>
+
+          <SectionCard title="Language and region" subtitle="Set the app language and see the display currency." icon="language-outline" c={c}>
+            {(['en', 'ar'] as const).map((lang) => (
+              <ActionRow
+                key={lang}
+                label={lang === 'en' ? 'English' : 'العربية'}
+                meta={lang === 'en' ? 'Left-to-right interface' : 'Right-to-left interface'}
+                icon={language === lang ? 'checkmark-circle' : 'radio-button-off-outline'}
+                onPress={() => {
+                  const needsRestart = changeLanguage(lang);
+                  void success();
+                  if (needsRestart) void promptRestartForRTL();
+                }}
+                c={c}
+              />
+            ))}
+            <View style={[styles.actionRow, { borderColor: c.border }]}>
+              <View style={[styles.actionIcon, { backgroundColor: c.primaryLight }]}>
+                <Ionicons name="cash-outline" size={17} color={c.primary} />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[styles.rowTitle, { color: c.text }]}>Currency</Text>
+                <Text style={[styles.rowMeta, { color: c.textSecondary }]}>QarWheel operates in Qatar only</Text>
+              </View>
+              <Text style={[styles.rowTitle, { color: c.text }]}>QAR</Text>
+            </View>
+          </SectionCard>
+
+          <SectionCard title="Support" subtitle="Reach the QarWheel team directly." icon="call-outline" c={c}>
+            <ActionRow
+              label="Call support"
+              meta={`${SUPPORT_PHONE_DISPLAY} · Sun–Thu 8 AM – 8 PM`}
+              icon="call-outline"
+              onPress={() => Linking.openURL(SUPPORT_PHONE_TEL)}
+              c={c}
+            />
+            <ActionRow label={deletingAccount ? 'Deleting…' : 'Delete my account'} meta="Permanently deletes your login and personal data" icon="trash-outline" onPress={deletingAccount ? () => {} : confirmDeleteAccount} c={c} danger />
+          </SectionCard>
+
+          <ComingSoonCard
+            title="Hardware, sync & device management"
+            description="Cloud sync status, offline cache controls, and authorized-device management are on the roadmap."
+            icon="hardware-chip-outline"
+            c={c}
+          />
+        </>
+      );
+    }
+
+    if (section === 'vehiclePreferences') {
+      return (
+        <>
+          <SectionCard title="Your vehicles" subtitle="Pick which car is used by default when booking a service." icon="car-sport-outline" c={c}>
+            {isLoadingCars ? (
+              <EmptyState title="Loading your vehicles…" body="This will just take a moment." icon="car-sport-outline" c={c} />
+            ) : cars.length === 0 ? (
+              <EmptyState
+                title="No vehicles yet"
+                body="Add a car to set a default vehicle and see it here."
+                icon="car-sport-outline"
+                c={c}
+              />
+            ) : (
+              cars.map((carItem) => (
+                <VehiclePreferenceRow
+                  key={carItem.id}
+                  car={carItem}
+                  isDefault={defaultCarId === carItem.id}
+                  onSetDefault={() => chooseDefaultCar(carItem.id)}
+                  c={c}
+                />
+              ))
+            )}
+            <PrimaryButton label="Manage vehicles" icon="car-sport-outline" onPress={() => router.push(route('/(tabs)/cars'))} c={c} />
+          </SectionCard>
+
+          <ComingSoonCard
+            title="OBD streaming, units & service radius"
+            description="Live OBD-II stream mode, distance/pressure/temperature units, preferred service radius, and workshop certification filters are on the roadmap."
+            icon="pulse-outline"
+            c={c}
+          />
+        </>
       );
     }
 
@@ -658,21 +849,21 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
       return (
         <SectionCard
           title="Transactions"
-          subtitle="Every movement on your wallet, newest first."
+          subtitle="Device-only entries from earlier builds; not verified payments."
           icon="receipt-outline"
           c={c}
         >
           {walletTransactions.length === 0 ? (
             <EmptyState
               title="No transactions yet"
-              body="Top up your wallet or pay for a service and the record appears here."
+              body="Wallet payments are not enabled."
               icon="receipt-outline"
               c={c}
             />
           ) : (
             <>
               {walletTransactions.map((txn) => <TransactionRow key={txn.id} txn={txn} c={c} />)}
-              <PrimaryButton label="Export statement" icon="download-outline" onPress={handleExportStatement} c={c} />
+              <PrimaryButton label="Export local history" icon="download-outline" onPress={handleExportStatement} c={c} />
             </>
           )}
         </SectionCard>
@@ -774,7 +965,10 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabRow}>
           {sectionTabs.map((tab) => {
-            const active = section === tab.id || (section === 'editProfile' && tab.id === 'profile');
+            const active =
+              section === tab.id ||
+              (section === 'editProfile' && tab.id === 'profile') ||
+              (section === 'notifications' && tab.id === 'privacy');
             return (
               <AnimatedPressable
                 key={tab.id}
@@ -974,20 +1168,83 @@ function PaymentCard({ brand, label, number, status, c }: { brand: string; label
   );
 }
 
-function ToggleRow({ label, meta, value, onValueChange, c }: {
+function ToggleRow({ label, meta, value, onValueChange, c, disabled }: {
   label: string;
   meta: string;
   value: boolean;
   onValueChange: (value: boolean) => void;
   c: ReturnType<typeof useQarColors>;
+  disabled?: boolean;
 }) {
   return (
-    <View style={[styles.actionRow, { borderColor: c.border }]}>
+    <View style={[styles.actionRow, { borderColor: c.border, opacity: disabled ? 0.6 : 1 }]}>
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={[styles.rowTitle, { color: c.text }]}>{label}</Text>
         <Text style={[styles.rowMeta, { color: c.textSecondary }]}>{meta}</Text>
       </View>
-      <Switch value={value} onValueChange={onValueChange} trackColor={{ false: c.surfaceAlt, true: c.primaryMid }} thumbColor={value ? c.primary : c.muted} />
+      <Switch value={value} onValueChange={onValueChange} disabled={disabled} trackColor={{ false: c.surfaceAlt, true: c.primaryMid }} thumbColor={value ? c.primary : c.muted} />
+    </View>
+  );
+}
+
+/** One reusable placeholder for any mockup cluster with no real feature
+ * behind it yet — a single honest card instead of one fake control per item. */
+function ComingSoonCard({ title, description, icon, c }: {
+  title: string;
+  description: string;
+  icon: IconName;
+  c: ReturnType<typeof useQarColors>;
+}) {
+  return (
+    <MotionSurface style={[styles.comingSoonCard, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+      <View style={[styles.actionIcon, { backgroundColor: c.surface }]}>
+        <Ionicons name={icon} size={18} color={c.muted} />
+      </View>
+      <View style={{ flex: 1, gap: 3 }}>
+        <View style={styles.comingSoonHeader}>
+          <Text style={[styles.rowTitle, { color: c.text }]}>{title}</Text>
+          <View style={[styles.defaultChip, { backgroundColor: c.surface }]}>
+            <Text style={[styles.defaultChipText, { color: c.muted }]}>Coming soon</Text>
+          </View>
+        </View>
+        <Text style={[styles.rowMeta, { color: c.textSecondary }]}>{description}</Text>
+      </View>
+    </MotionSurface>
+  );
+}
+
+/** A single vehicle row on the Vehicle & Preferences screen — real
+ * make/model/year, mileage, and data-source badge, plus a default-vehicle
+ * selector. */
+function VehiclePreferenceRow({ car, isDefault, onSetDefault, c }: {
+  car: FirestoreCar;
+  isDefault: boolean;
+  onSetDefault: () => void;
+  c: ReturnType<typeof useQarColors>;
+}) {
+  const sourceLabel = car.dataSource === 'obd' ? 'OBD connected' : car.dataSource === 'smartcar' ? 'Smartcar connected' : 'Manual entry';
+  return (
+    <View style={[styles.addressCard, { backgroundColor: c.surfaceAlt, borderColor: isDefault ? c.primary : c.border }]}>
+      <View style={styles.addressHead}>
+        <Ionicons name="car-sport" size={16} color={isDefault ? c.primary : c.muted} />
+        <Text style={[styles.rowTitle, { color: c.text, flex: 1 }]} numberOfLines={1}>{car.year} {car.make} {car.model}</Text>
+        {isDefault ? (
+          <View style={[styles.defaultChip, { backgroundColor: c.primaryLight }]}>
+            <Text style={[styles.defaultChipText, { color: c.primary }]}>Default</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={[styles.rowMeta, { color: c.textSecondary }]}>
+        {car.currentMileage.toLocaleString()} km · {sourceLabel}
+      </Text>
+      {!isDefault && (
+        <View style={styles.addressActions}>
+          <AnimatedPressable style={[styles.miniAction, { borderColor: c.border }]} onPress={onSetDefault} accessibilityLabel={`Make ${car.make} ${car.model} the default vehicle`}>
+            <Ionicons name="star-outline" size={13} color={c.textSecondary} />
+            <Text style={[styles.miniActionText, { color: c.textSecondary }]}>Set default</Text>
+          </AnimatedPressable>
+        </View>
+      )}
     </View>
   );
 }
@@ -1344,6 +1601,11 @@ const styles = StyleSheet.create({
   walletAmount: { color: '#fff', fontSize: 36, lineHeight: 42, fontWeight: '900' },
   walletMeta: { color: 'rgba(255,255,255,0.66)', ...typography.bodySm },
   emptyState: { alignItems: 'center', borderRadius: radius.xl, borderWidth: 1, padding: 22, gap: 8 },
+  comingSoonCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 13, borderRadius: radius.xl, borderWidth: 1, padding: 16 },
+  comingSoonHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  segmentGroup: { flexDirection: 'row', borderRadius: radius.lg, borderWidth: 1, padding: 4, gap: 4 },
+  segmentOption: { flex: 1, minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  segmentText: { ...typography.bodySm, fontWeight: '800' },
 
   // ── Account domain ────────────────────────────────────────────────────────
   noticeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: radius.lg, borderWidth: 1, padding: 14 },

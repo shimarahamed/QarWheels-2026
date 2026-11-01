@@ -16,7 +16,7 @@ export type NetworkStatus = {
 };
 
 function toStatus(state: NetInfoState): NetworkStatus {
-  const isConnected = state.isConnected ?? false;
+  const isConnected = state.isConnected ?? true;
   const isInternetReachable = state.isInternetReachable;
   return {
     isConnected,
@@ -35,8 +35,16 @@ export function useNetworkStatus(): NetworkStatus {
   });
 
   useEffect(() => {
-    NetInfo.fetch().then((state) => setStatus(toStatus(state)));
-    return NetInfo.addEventListener((state) => setStatus(toStatus(state)));
+    let active = true;
+    let eventReceived = false;
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      eventReceived = true;
+      if (active) setStatus(toStatus(state));
+    });
+    void NetInfo.fetch().then((state) => {
+      if (active && !eventReceived) setStatus(toStatus(state));
+    }).catch(() => {});
+    return () => { active = false; unsubscribe(); };
   }, []);
 
   return status;

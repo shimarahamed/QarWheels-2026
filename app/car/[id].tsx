@@ -1,3 +1,3 @@
-import { CarDetailScreen } from '@/components/DetailScreens';
+import VehicleOwnershipHub from '@/components/VehicleOwnershipHub';
 
-export default CarDetailScreen;
+export default VehicleOwnershipHub;

@@ -10,14 +10,14 @@
  *
  * Adapter compatibility: any ELM327 clone that exposes a BLE UART service
  * (Nordic UART: TX 6e400002, RX 6e400003, service 6e400001).
- * Tested adapter families: Veepeak OBDCheck BLE, FIXD, OBDLink CX.
+ * Physical adapter compatibility must be verified in a native development build.
  *
- * NOTE: react-native-ble-plx must be installed for this to run on device.
- * Without it the module works in SIMULATION mode (returns mocked data so
- * the UI can be developed without hardware).
+ * Requires native react-native-ble-plx; unavailable hardware fails explicitly.
  */
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+import { createBleManager } from './ble-manager';
 
 export type ObdFaultCode = {
   code: string;       // e.g. "P0300"
@@ -176,10 +176,12 @@ function parseVinResponse(raw: string): string | null {
 
 function parseDtcResponse(raw: string): ObdFaultCode[] {
   // Mode 03 response: "43 xx xx xx xx ..."  — pairs of bytes = one DTC each
-  const clean = raw.replace(/\s/g, '').replace(/43/g, '');
+  const clean = raw.replace(/\s/g, '').replace(/^43/i, '').replace(/>$/, '');
   const codes: ObdFaultCode[] = [];
   for (let i = 0; i < clean.length - 3; i += 4) {
-    const word = parseInt(clean.substring(i, i + 4), 16);
+    const chunk = clean.substring(i, i + 4);
+    if (!/^[0-9A-F]{4}$/i.test(chunk)) continue;
+    const word = parseInt(chunk, 16);
     if (word === 0) continue;
     const type = (word >> 14) & 0x03;
     const prefix = ['P', 'C', 'B', 'U'][type];
@@ -195,7 +197,7 @@ function parsePidA(raw: string, pid: string): number | null {
   const idx = raw.replace(/\s/g, '').indexOf(pattern);
   if (idx === -1) return null;
   const data = raw.replace(/\s/g, '').slice(idx + pattern.length);
-  return parseInt(data.substring(0, 2), 16);
+  return /^[0-9A-F]{2}/i.test(data) ? parseInt(data.substring(0, 2), 16) : null;
 }
 
 function parsePidAB(raw: string, pid: string): number | null {
@@ -205,6 +207,7 @@ function parsePidAB(raw: string, pid: string): number | null {
   const idx = stripped.indexOf(pattern);
   if (idx === -1) return null;
   const data = stripped.slice(idx + pattern.length);
+  if (!/^[0-9A-F]{4}/i.test(data)) return null;
   const a = parseInt(data.substring(0, 2), 16);
   const b = parseInt(data.substring(2, 4), 16);
   return (a * 256 + b) / 4; // RPM formula
@@ -216,18 +219,21 @@ function parseReadiness(raw: string): ReadinessMonitors {
   if (idx === -1) return defaultReadiness();
   const b = hexByte(stripped.slice(idx + 4), 1);
   const c = hexByte(stripped.slice(idx + 4), 2);
+  const d = hexByte(stripped.slice(idx + 4), 3);
+  // Unsupported monitors are neutral; a supported, incomplete monitor fails.
+  const complete = (supported: number, incomplete: number, bit: number) => !(supported & bit) || !(incomplete & bit);
   return {
-    misfire:            !!(b & 0x01),
-    fuelSystem:         !!(b & 0x02),
-    components:         !!(b & 0x04),
-    catalyst:           !!(c & 0x01),
-    heatedCatalyst:     !!(c & 0x02),
-    evap:               !!(c & 0x04),
-    secAirSystem:       !!(c & 0x08),
-    acRefrig:           !!(c & 0x10),
-    oxygenSensor:       !!(c & 0x20),
-    oxygenSensorHeater: !!(c & 0x40),
-    egrSystem:          !!(c & 0x80),
+    misfire:            complete(b, b >> 4, 0x01),
+    fuelSystem:         complete(b, b >> 4, 0x02),
+    components:         complete(b, b >> 4, 0x04),
+    catalyst:           complete(c, d, 0x01),
+    heatedCatalyst:     complete(c, d, 0x02),
+    evap:               complete(c, d, 0x04),
+    secAirSystem:       complete(c, d, 0x08),
+    acRefrig:           complete(c, d, 0x10),
+    oxygenSensor:       complete(c, d, 0x20),
+    oxygenSensorHeater: complete(c, d, 0x40),
+    egrSystem:          complete(c, d, 0x80),
   };
 }
 
@@ -289,154 +295,126 @@ function simulatedSnapshot(): ObdSnapshot {
 // ─── ObdSession ───────────────────────────────────────────────────────────────
 
 export class ObdSession {
-  private deviceId: string | null = null;
-  private manager: unknown = null;
+  private manager: import('react-native-ble-plx').BleManager | null = null;
+  private device: import('react-native-ble-plx').Device | null = null;
+  private monitor: { remove(): void } | null = null;
+  private cancelScan: (() => void) | null = null;
   private rxBuffer = '';
   private resolveCommand: ((v: string) => void) | null = null;
-  private simulation = false;
+  private rejectCommand: ((error: Error) => void) | null = null;
+  private generation = 0;
+  private reading = false;
 
-  private async loadBle() {
-    try {
-      // Dynamic import so the module doesn't crash when react-native-ble-plx
-      // isn't installed (e.g. in Expo Go or web).
-      const { BleManager } = await import('react-native-ble-plx' as string);
-      this.manager = new (BleManager as new () => unknown)();
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Scan for nearby ELM327 adapters and connect to the first one found.
-   * Resolves with `true` if connected, `false` if in simulation mode.
-   */
   async connect(onProgress: ObdProgressCallback, timeoutMs = 15_000): Promise<boolean> {
-    const hasBle = await this.loadBle();
-    if (!hasBle) {
-      onProgress('ready', 'No BLE module — running in simulation mode');
-      this.simulation = true;
-      return false;
+    this.disconnect();
+    const generation = this.generation;
+    const manager = await createBleManager();
+    if (generation !== this.generation) {
+      await manager.destroy();
+      throw new Error('Connection cancelled.');
     }
-
-    return new Promise((resolve, reject) => {
-      onProgress('scanning', 'Scanning for OBD adapter…');
-      const mgr = this.manager as {
-        startDeviceScan: (uuids: string[] | null, opts: unknown, cb: (err: unknown, d: unknown) => void) => void;
-        stopDeviceScan: () => void;
-      };
-
-      const timer = setTimeout(() => {
-        mgr.stopDeviceScan();
-        this.simulation = true;
-        onProgress('ready', 'No adapter found — running in simulation mode');
-        resolve(false);
-      }, timeoutMs);
-
-      mgr.startDeviceScan([BLE_SERVICE_UUID], null, async (error: unknown, device: unknown) => {
-        if (error) { clearTimeout(timer); reject(error); return; }
-        const d = device as { id: string; name: string | null; connect: () => Promise<unknown> };
-        const name = d.name ?? '';
-        if (!name.toLowerCase().includes('obd') && !name.toLowerCase().includes('elm')) return;
-
-        mgr.stopDeviceScan();
-        clearTimeout(timer);
-        onProgress('connecting', `Connecting to ${name}…`);
-
+    this.manager = manager;
+    try {
+      onProgress('scanning', 'Scanning for OBD adapter...');
+      const device = await new Promise<import('react-native-ble-plx').Device>((resolve, reject) => {
+        let settled = false;
+        const finish = (error?: Error, device?: import('react-native-ble-plx').Device) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          void manager.stopDeviceScan().catch(() => {});
+          this.cancelScan = null;
+          if (device) resolve(device);
+          else reject(error ?? new Error('No compatible OBD adapter found.'));
+        };
+        const timer = setTimeout(() => finish(), timeoutMs);
+        this.cancelScan = () => finish(new Error('Connection cancelled.'));
+        void manager.startDeviceScan([BLE_SERVICE_UUID], null, (error, device) => {
+          if (error) finish(error);
+          else if (device) finish(undefined, device);
+        }).catch((error) => finish(error));
+      });
+      onProgress('connecting', 'Connecting to OBD adapter...');
+      const connected = await device.connect({ timeout: timeoutMs });
+      if (generation !== this.generation) {
+        await connected.cancelConnection().catch(() => {});
+        throw new Error('Connection cancelled.');
+      }
+      this.device = connected;
+      const discovered = await connected.discoverAllServicesAndCharacteristics();
+      if (generation !== this.generation) throw new Error('Connection cancelled.');
+      this.device = discovered;
+      this.monitor = discovered.monitorCharacteristicForService(BLE_SERVICE_UUID, BLE_RX_UUID, (error, characteristic) => {
+        if (generation !== this.generation) return;
+        if (error) { this.rejectCommand?.(error); return; }
+        if (!characteristic?.value || !this.resolveCommand) return;
         try {
-          const connected = d as unknown as {
-            connect: () => Promise<unknown>;
-            discoverAllServicesAndCharacteristics: () => Promise<{
-              monitorCharacteristicForService: (
-                svc: string, char: string,
-                cb: (err: unknown, c: { value: string | null } | null) => void
-              ) => void;
-              writeCharacteristicWithResponseForService: (svc: string, char: string, val: string) => Promise<void>;
-            }>;
-          };
-          await d.connect();
-          const disc = await connected.discoverAllServicesAndCharacteristics();
-
-          disc.monitorCharacteristicForService(BLE_SERVICE_UUID, BLE_RX_UUID, (_err, char) => {
-            if (!char?.value) return;
-            const decoded = atob(char.value);
-            this.rxBuffer += decoded;
-            if (this.rxBuffer.includes('>')) {
-              const full = this.rxBuffer;
-              this.rxBuffer = '';
-              this.resolveCommand?.(full);
-              this.resolveCommand = null;
-            }
-          });
-
-          this.deviceId = d.id;
-          onProgress('initialising', 'Initialising ELM327…');
-          await this.sendCommand(AT.RESET, disc);
-          await this.sendCommand(AT.ECHO_OFF, disc);
-          await this.sendCommand(AT.LINEFEED_OFF, disc);
-          await this.sendCommand(AT.HEADERS_OFF, disc);
-          await this.sendCommand(AT.SPACES_OFF, disc);
-          await this.sendCommand(AT.AUTO_PROTOCOL, disc);
-
-          onProgress('ready', 'OBD adapter ready');
-          resolve(true);
-        } catch (e) {
-          onProgress('error', `Connection failed: ${String(e)}`);
-          reject(e);
+          this.rxBuffer += atob(characteristic.value);
+          if (this.rxBuffer.length > 16384) throw new Error('Invalid OBD response size.');
+          if (this.rxBuffer.includes('>')) this.resolveCommand(this.rxBuffer);
+        } catch (error) {
+          this.rejectCommand?.(error instanceof Error ? error : new Error('Invalid OBD response.'));
         }
       });
-    });
+      onProgress('initialising', 'Initialising ELM327...');
+      for (const command of [AT.RESET, AT.ECHO_OFF, AT.LINEFEED_OFF, AT.HEADERS_OFF, AT.SPACES_OFF, AT.AUTO_PROTOCOL]) {
+        await this.sendCommand(command, discovered);
+      }
+      onProgress('ready', 'OBD adapter ready');
+      return true;
+    } catch (error) {
+      if (generation === this.generation) this.disconnect();
+      onProgress('error', 'Unable to connect to the OBD adapter.');
+      throw error;
+    }
   }
 
-  private sendCommand(
-    cmd: string,
-    disc: { writeCharacteristicWithResponseForService: (svc: string, char: string, val: string) => Promise<void> },
-    timeoutMs = 3_000,
-  ): Promise<string> {
+  private sendCommand(cmd: string, device: import('react-native-ble-plx').Device, timeoutMs = 3_000): Promise<string> {
+    if (this.resolveCommand) return Promise.reject(new Error('An OBD command is already in progress.'));
+    if (this.device !== device) return Promise.reject(new Error('OBD adapter is disconnected.'));
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`Timeout: ${cmd}`)), timeoutMs);
-      this.resolveCommand = (v) => { clearTimeout(timer); resolve(v); };
-      const payload = btoa(`${cmd}\r`);
-      disc.writeCharacteristicWithResponseForService(BLE_SERVICE_UUID, BLE_TX_UUID, payload)
-        .catch(reject);
+      const cleanup = () => {
+        clearTimeout(timer);
+        this.resolveCommand = null;
+        this.rejectCommand = null;
+        this.rxBuffer = '';
+      };
+      const fail = (error: Error) => {
+        cleanup();
+        reject(error);
+        // A late response after timeout cannot be correlated safely.
+        this.disconnect();
+      };
+      const timer = setTimeout(() => fail(new Error(`Timeout: ${cmd}`)), timeoutMs);
+      this.rxBuffer = '';
+      this.rejectCommand = fail;
+      this.resolveCommand = (value) => { cleanup(); resolve(value); };
+      void device.writeCharacteristicWithResponseForService(BLE_SERVICE_UUID, BLE_TX_UUID, btoa(`${cmd}\r`))
+        .catch((error) => { if (this.rejectCommand === fail) fail(error); });
     });
   }
 
   /** Read all available OBD data and return a typed snapshot. */
   async readAll(onProgress: ObdProgressCallback): Promise<ObdSnapshot> {
-    if (this.simulation) {
-      onProgress('reading', 'Generating simulated OBD data…');
-      await new Promise((r) => setTimeout(r, 1200));
-      onProgress('ready', 'Simulation complete');
-      return simulatedSnapshot();
-    }
-
-    // Real BLE path — requires an active connection
-    const disc = this.manager as {
-      writeCharacteristicWithResponseForService: (svc: string, char: string, val: string) => Promise<void>;
-    };
+    if (!this.device) throw new Error('Connect an OBD adapter before reading.');
+    if (this.reading) throw new Error('An OBD scan is already in progress.');
+    this.reading = true;
+    try {
+    const disc = this.device;
 
     onProgress('reading', 'Reading VIN…');
     const vinRaw = await this.sendCommand(INFO_PID.VIN, disc, 6_000).catch(() => '');
     const vin = parseVinResponse(vinRaw);
 
     onProgress('reading', 'Reading fault codes…');
-    const dtcRaw = await this.sendCommand(DTC_MODE, disc, 5_000).catch(() => '');
+    const dtcRaw = await this.sendCommand(DTC_MODE, disc, 5_000);
+    if (!/^43[0-9A-F\s]*>\s*$/i.test(dtcRaw.trim())) throw new Error('The adapter did not return valid fault-code data.');
     const faultCodes = parseDtcResponse(dtcRaw);
 
     onProgress('reading', 'Reading live sensor data…');
     const [rpmRaw, speedRaw, coolRaw, throttleRaw, fuelRaw, oilRaw, intakeRaw, loadRaw, readyRaw] =
-      await Promise.allSettled([
-        this.sendCommand(PID.ENGINE_RPM, disc),
-        this.sendCommand(PID.VEHICLE_SPEED, disc),
-        this.sendCommand(PID.COOLANT_TEMP, disc),
-        this.sendCommand(PID.THROTTLE_POS, disc),
-        this.sendCommand(PID.FUEL_LEVEL, disc),
-        this.sendCommand(PID.OIL_TEMP, disc),
-        this.sendCommand(PID.INTAKE_TEMP, disc),
-        this.sendCommand(PID.ENGINE_LOAD, disc),
-        this.sendCommand(PID.READINESS, disc),
-      ]).then((results) => results.map((r) => (r.status === 'fulfilled' ? r.value : '')));
+      await this.readPids(disc);
+    if (!/4101[0-9A-F]{8}/i.test(readyRaw.replace(/\s/g, ''))) throw new Error('Readiness data is unavailable. Please retry the scan.');
 
     const coolantRaw2 = typeof coolRaw === 'string' ? coolRaw : '';
     const coolant = parsePidA(coolantRaw2, PID.COOLANT_TEMP);
@@ -476,13 +454,32 @@ export class ObdSession {
 
     onProgress('ready', 'OBD read complete');
     return snapshot;
+    } finally {
+      this.reading = false;
+    }
+  }
+
+  private async readPids(device: import('react-native-ble-plx').Device): Promise<string[]> {
+    const responses: string[] = [];
+    for (const pid of [PID.ENGINE_RPM, PID.VEHICLE_SPEED, PID.COOLANT_TEMP, PID.THROTTLE_POS, PID.FUEL_LEVEL, PID.OIL_TEMP, PID.INTAKE_TEMP, PID.ENGINE_LOAD, PID.READINESS]) {
+      responses.push(await this.sendCommand(pid, device));
+    }
+    return responses;
   }
 
   disconnect() {
-    if (!this.manager || !this.deviceId) return;
-    const mgr = this.manager as { cancelDeviceConnection: (id: string) => void };
-    try { mgr.cancelDeviceConnection(this.deviceId); } catch { /* ignore */ }
-    this.deviceId = null;
+    this.generation += 1;
+    this.cancelScan?.();
+    this.cancelScan = null;
+    const reject = this.rejectCommand;
+    this.rejectCommand = null;
+    reject?.(new Error('OBD adapter disconnected.'));
+    this.monitor?.remove();
+    this.monitor = null;
+    const manager = this.manager;
+    this.manager = null;
+    this.device = null;
+    if (manager) void manager.destroy().catch(() => {});
   }
 }
 

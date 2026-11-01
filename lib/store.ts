@@ -27,6 +27,15 @@ import {
   type CounterOffer,
 } from '@/lib/vendor-data';
 
+const emptyVendorProfile: VendorProfile = {
+  id: '', businessName: 'Your business', ownerName: '', email: '', phone: '',
+  category: '', area: '', city: '', openTime: '08:00', closeTime: '18:00',
+  workDays: [], slotDurationMin: 60, maxSlotsPerHour: 1, vacationMode: false,
+  notifications: { newBooking: true, bookingReminder: true, paymentReceived: true, reviewReceived: true },
+  kyc: { crNumber: '', licenseNumber: '', bankName: '', iban: '', status: 'Pending' },
+  rating: 0, totalReviews: 0, verified: false,
+};
+
 /** Short human-quotable reference for a ledger entry, e.g. "PAY-K3F9QX". */
 function makeReference(prefix: string) {
   const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -48,6 +57,7 @@ function makeId(prefix: string) {
 }
 
 type BookingCreateInput = Omit<Booking, 'id' | 'status' | 'vendorBookingId'> & {
+  id?: string;
   status?: Booking['status'];
   customerName?: string;
   customerPhone?: string;
@@ -433,6 +443,15 @@ export const useQarWheelStore = create<QarWheelState>()(
           notifications: [],
           vendorAuthenticated: false,
           activeBranchId: null,
+          vendorBookings: [],
+          vendorProfile: emptyVendorProfile,
+          vendorStaff: [],
+          vendorInventory: [],
+          vendorCustomers: [],
+          vendorInvoices: [],
+          vendorPromotions: [],
+          vendorServices: [],
+          counterOffers: [],
         }),
 
       toggleFavoriteGarage: (garageId) => {
@@ -468,8 +487,8 @@ export const useQarWheelStore = create<QarWheelState>()(
       },
       createBooking: (input) => {
         const createdAt = new Date().toISOString();
-        const bookingId = makeId('booking');
-        const vendorBookingId = makeId('vb_user');
+        const bookingId = input.id ?? makeId('booking');
+        const vendorBookingId = input.id ?? makeId('vb_user');
         const booking: Booking = {
           ...input,
           id: bookingId,
@@ -500,8 +519,8 @@ export const useQarWheelStore = create<QarWheelState>()(
           createdAt,
         };
         set((state) => ({
-          bookings: [booking, ...state.bookings],
-          vendorBookings: [vendorBooking, ...state.vendorBookings],
+          bookings: [booking, ...state.bookings.filter((item) => item.id !== bookingId)],
+          vendorBookings: input.id ? state.vendorBookings : [vendorBooking, ...state.vendorBookings],
           notifications: [
             {
               id: `notif_${booking.id}`,
@@ -596,21 +615,17 @@ export const useQarWheelStore = create<QarWheelState>()(
           return { bookings: [...firestoreBookings, ...pendingLocal] };
         }),
       mergeVendorFirestoreBookings: (incoming) =>
-        set((state) => {
-          const inIds = new Set(incoming.map((b) => b.id));
-          const seedOnly = state.vendorBookings.filter((b) => !inIds.has(b.id) && b.id.startsWith('vb_'));
-          return { vendorBookings: [...incoming, ...seedOnly] };
-        }),
+        set({ vendorBookings: incoming }),
       // ── Vendor ────────────────────────────────────────────────────────────────
-      vendorBookings: seedVendorBookings,
-      vendorProfile: seedVendorProfile,
-      vendorStaff: seedVendorStaff,
-      vendorInventory: seedVendorInventory,
-      vendorCustomers: seedVendorCustomers,
-      vendorInvoices: seedVendorInvoices,
-      vendorServices: seedVendorServices,
-      counterOffers: seedCounterOffers,
-      vendorPromotions: seedVendorPromotions,
+      vendorBookings: [],
+      vendorProfile: emptyVendorProfile,
+      vendorStaff: [],
+      vendorInventory: [],
+      vendorCustomers: [],
+      vendorInvoices: [],
+      vendorServices: [],
+      counterOffers: [],
+      vendorPromotions: [],
       updateVendorBookingStatus: (id, status) => {
         if (status === 'Completed') {
           const state = get();
@@ -897,6 +912,40 @@ export const useQarWheelStore = create<QarWheelState>()(
     }),
     {
       name: 'qarwheel-store-v2',
+      version: 2,
+      migrate: (persisted, version) => {
+        const previous = persisted as Record<string, unknown>;
+        if (version >= 1) {
+          const cleaned = { ...previous };
+          if (JSON.stringify(previous.vendorProfile) === JSON.stringify(seedVendorProfile)) cleaned.vendorProfile = emptyVendorProfile;
+          const fixtures: Record<string, { id: string }[]> = { vendorBookings: seedVendorBookings, vendorStaff: seedVendorStaff, vendorInventory: seedVendorInventory, vendorCustomers: seedVendorCustomers, vendorInvoices: seedVendorInvoices, vendorServices: seedVendorServices, counterOffers: seedCounterOffers, vendorPromotions: seedVendorPromotions };
+          for (const [key, samples] of Object.entries(fixtures)) {
+            const ids = new Set(samples.map((sample) => sample.id));
+            if (Array.isArray(previous[key])) cleaned[key] = previous[key].filter((item) => !ids.has(item?.id));
+          }
+          return cleaned;
+        }
+        return {
+        ...(persisted as Record<string, unknown>),
+        // Earlier builds treated local simulation as settled money and cached
+        // vendor records without an account owner. Reload these from authority.
+        walletBalance: 0,
+        walletTransactions: [],
+        invoices: [],
+        bookings: [],
+        vendorAuthenticated: false,
+        activeBranchId: null,
+        vendorProfile: emptyVendorProfile,
+        vendorBookings: [],
+        vendorCustomers: [],
+        vendorInvoices: [],
+        vendorStaff: [],
+        vendorInventory: [],
+        vendorPromotions: [],
+        vendorServices: [],
+        counterOffers: [],
+        };
+      },
       storage: createJSONStorage(() => AsyncStorage),
       onRehydrateStorage: () => (state) => {
         if (!state) return;

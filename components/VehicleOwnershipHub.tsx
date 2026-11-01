@@ -1,16 +1,17 @@
 ﻿import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import type { ComponentProps } from 'react';
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Platform, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { collection, onSnapshot, query } from 'firebase/firestore';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import { MotionScreen, MotionSurface } from '@/lib/motion';
-import { cars } from '@/lib/marketplace';
 import { useAuthContext } from '@/lib/AuthContext';
-import { firestore } from '@/lib/firebase';
 import type { FirestoreCar } from '@/lib/firestoreOps';
+import { useVehicleRecords } from '@/lib/useVehicleRecords';
+import { recordedHealth, recordedServiceCost, vehicleDate, type VehicleServiceRecord } from '@/lib/vehicle-records';
+import RecordNotFound from '@/components/RecordNotFound';
+import ErrorState from '@/components/ErrorState';
 import { useQarColors } from '@/lib/store';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { tap } from '@/lib/haptics';
@@ -42,7 +43,7 @@ type HubCar = {
   plate: string;
   mileage: string;
   nextService: string;
-  health: number;
+  health: number | null;
 };
 
 const sectionTabs: Array<{ id: VehicleHubSection; label: string; icon: IconName }> = [
@@ -86,16 +87,16 @@ function makePassportNumber(carId: string, vin: string) {
   return digits.join('').replace(/(\d{4})(?=\d)/g, '$1 ');
 }
 
-function passportPayload(input: { passportNumber: string; carName: string; vin: string; plate: string; health: number }) {
+function passportPayload(input: { passportNumber: string; carName: string; vin: string; plate: string; health: number | null }) {
   return [
     'QarWheel Digital Vehicle Passport',
     `Passport No: ${input.passportNumber}`,
     `Vehicle: ${input.carName}`,
     `VIN: ${input.vin}`,
     `Plate: ${input.plate}`,
-    'Status: Verified',
-    `Health: ${input.health}/100`,
-    'Access: Limited share pass',
+    'Status: Owner-provided record; not a vehicle inspection',
+    `Recorded diagnostic score: ${input.health === null ? 'Not measured' : `${input.health}/100`}`,
+    'Shared copy; access cannot be revoked after sharing',
   ].join('\n');
 }
 
@@ -107,19 +108,7 @@ function fromFirestoreCar(car: FirestoreCar): HubCar {
     plate: car.licensePlate || 'Plate pending',
     mileage: `${(car.currentMileage ?? 0).toLocaleString()} km`,
     nextService: car.nextServiceDate ? `Next service ${car.nextServiceDate}` : 'Service schedule not set',
-    health: car.health ?? 90,
-  };
-}
-
-function fromDemoCar(car: (typeof cars)[number]): HubCar {
-  return {
-    id: car.id,
-    name: car.name,
-    vin: car.vin,
-    plate: car.id === 'car_001' ? 'QTR 72841' : 'QTR 51208',
-    mileage: car.mileage,
-    nextService: car.nextService,
-    health: car.health,
+    health: recordedHealth(car),
   };
 }
 
@@ -128,38 +117,25 @@ export default function VehicleOwnershipHub({ initialSection = 'overview' }: { i
   const { id } = useLocalSearchParams<{ id: string }>();
   const c = useQarColors();
   const { user } = useAuthContext();
-  const [firestoreCars, setFirestoreCars] = useState<FirestoreCar[]>([]);
-  const routeId = id ?? cars[0].id;
-  const matchedFirestoreCar = firestoreCars.find((item) => item.id === routeId);
-  const matchedDemoCar = cars.find((item) => item.id === routeId);
-  const car = matchedFirestoreCar
-    ? fromFirestoreCar(matchedFirestoreCar)
-    : matchedDemoCar
-      ? fromDemoCar(matchedDemoCar)
-      : firestoreCars[0]
-        ? fromFirestoreCar(firestoreCars[0])
-        : fromDemoCar(cars[0]);
+  const vehicle = useVehicleRecords(user?.uid, id);
   const [section, setSection] = useState<VehicleHubSection>(initialSection);
-  const healthColor = car.health >= 80 ? c.success : car.health >= 60 ? c.warning : c.danger;
-  const healthLabel = car.health >= 80 ? 'Healthy' : car.health >= 60 ? 'Watch list' : 'Needs service';
-  const passportNumber = useMemo(() => makePassportNumber(car.id, car.vin), [car.id, car.vin]);
-
-  useEffect(() => {
-    if (!user) return;
-    const q = query(collection(firestore, 'users', user.uid, 'cars'));
-    return onSnapshot(q, (snap) => {
-      setFirestoreCars(snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Omit<FirestoreCar, 'id'>) })));
-    });
-  }, [user]);
+  if (vehicle.loading) return <SafeAreaView style={{ flex: 1, justifyContent: 'center', backgroundColor: c.background }}><ActivityIndicator accessibilityLabel="Loading vehicle" color={c.primary} /></SafeAreaView>;
+  if (vehicle.error) return <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}><ErrorState onRetry={vehicle.retry} /></SafeAreaView>;
+  if (!vehicle.car) return <RecordNotFound title="Vehicle unavailable" message="This vehicle is not in your account. Choose a vehicle from My cars." />;
+  const car = fromFirestoreCar(vehicle.car);
+  const healthColor = car.health === null ? c.muted : car.health >= 80 ? c.success : car.health >= 60 ? c.warning : c.danger;
+  const healthLabel = car.health === null ? 'Not measured' : 'Recorded scan';
+  const passportNumber = makePassportNumber(car.id, car.vin);
+  const serviceCost = recordedServiceCost(vehicle.records);
 
   const metrics: HubMetric[] = [
-    { label: 'Health', value: `${car.health}%`, icon: 'pulse-outline', tone: car.health >= 80 ? 'success' : 'warning' },
+    { label: 'Recorded score', value: car.health === null ? 'Not measured' : `${car.health}%`, icon: 'pulse-outline', tone: 'primary' },
     { label: 'Mileage', value: car.mileage, icon: 'speedometer-outline', tone: 'primary' },
     { label: 'Next service', value: car.nextService, icon: 'calendar-outline', tone: 'warning' },
-    { label: 'Monthly cost', value: 'QAR 640', icon: 'cash-outline', tone: 'ai' },
+    { label: 'Recorded service cost', value: vehicle.recordsError || vehicle.recordsLoading ? 'Unavailable' : `QAR ${serviceCost.toFixed(2)}`, icon: 'cash-outline', tone: 'ai' },
   ];
 
-  const visibleSections = useMemo<VehicleHubSection[]>(() => {
+  const visibleSections: VehicleHubSection[] = (() => {
     if (section === 'passport') return ['passport', 'documents', 'insurance'];
     if (section === 'history') return ['history', 'maintenance', 'expenses'];
     if (section === 'documents') return ['documents', 'passport', 'insurance'];
@@ -169,7 +145,7 @@ export default function VehicleOwnershipHub({ initialSection = 'overview' }: { i
     if (section === 'expenses') return ['expenses', 'history', 'insurance'];
     if (section === 'predictive') return ['predictive', 'maintenance', 'tiresBattery'];
     return ['overview', 'passport', 'maintenance', 'history', 'documents', 'tiresBattery', 'insurance', 'expenses', 'predictive'];
-  }, [section]);
+  })();
 
   async function handleSharePassport() {
     const payload = passportPayload({
@@ -197,10 +173,10 @@ export default function VehicleOwnershipHub({ initialSection = 'overview' }: { i
       vehicle: car.name,
       vin: car.vin,
       plate: car.plate,
-      status: 'Verified',
-      health: `${car.health}/100`,
-      access: 'Limited share pass',
-      issuedAt: '2026-06-02',
+      status: 'Owner-provided record; not a vehicle inspection',
+      health: car.health,
+      access: 'Shared copy; not revocable',
+      exportedAt: new Date().toISOString(),
     };
 
     if (Platform.OS === 'web') {
@@ -230,18 +206,18 @@ export default function VehicleOwnershipHub({ initialSection = 'overview' }: { i
       }
     }
 
-    Alert.alert('Passport ready', 'Use Share to send the passport now. Native file export can be connected to device storage during app packaging.');
+    void handleSharePassport();
   }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[styles.navbar, { backgroundColor: c.background, borderBottomColor: c.border }]}>
-        <AnimatedPressable style={[styles.navButton, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.back()} hitSlop={8}>
+        <AnimatedPressable accessibilityRole="button" accessibilityLabel="Back" style={[styles.navButton, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/cars')} hitSlop={8}>
           <Ionicons name="chevron-back" size={20} color={c.text} />
         </AnimatedPressable>
         <Text style={[styles.navTitle, { color: c.text }]} numberOfLines={1}>Vehicle dashboard</Text>
-        <AnimatedPressable style={[styles.navButton, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.push(route(`/checkout/${car.id}`))} hitSlop={8}>
+        <AnimatedPressable accessibilityRole="button" accessibilityLabel="Find a garage" style={[styles.navButton, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.push('/(tabs)/search')} hitSlop={8}>
           <Ionicons name="calendar-outline" size={19} color={c.primary} />
         </AnimatedPressable>
       </View>
@@ -267,11 +243,11 @@ export default function VehicleOwnershipHub({ initialSection = 'overview' }: { i
           </View>
           <View style={styles.healthBarWrap}>
             <View style={styles.healthBarRow}>
-              <Text style={[styles.healthBarLabel, { color: c.textSecondary }]}>Vehicle health score</Text>
-              <Text style={[styles.healthBarValue, { color: healthColor }]}>{car.health}/100</Text>
+              <Text style={[styles.healthBarLabel, { color: c.textSecondary }]}>Recorded diagnostic score</Text>
+              <Text style={[styles.healthBarValue, { color: healthColor }]}>{car.health === null ? 'Not measured' : `${car.health}/100`}</Text>
             </View>
             <View style={[styles.healthTrack, { backgroundColor: c.surfaceAlt }]}>
-              <View style={[styles.healthFill, { width: `${car.health}%`, backgroundColor: healthColor }]} />
+              <View style={[styles.healthFill, { width: `${car.health ?? 0}%`, backgroundColor: healthColor }]} />
             </View>
           </View>
         </MotionScreen>
@@ -282,6 +258,8 @@ export default function VehicleOwnershipHub({ initialSection = 'overview' }: { i
             return (
               <AnimatedPressable
                 key={tab.id}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
                 style={[styles.tabChip, { backgroundColor: active ? c.primary : c.surface, borderColor: active ? c.primary : c.border }]}
                 onPress={() => { void tap(); setSection(tab.id); }}
               >
@@ -321,15 +299,15 @@ export default function VehicleOwnershipHub({ initialSection = 'overview' }: { i
             c={c}
           />
         ) : null}
-        {visibleSections.includes('maintenance') ? <MaintenanceCard carId={car.id} c={c} /> : null}
-        {visibleSections.includes('history') ? <ServiceHistoryCard c={c} /> : null}
+        {visibleSections.includes('maintenance') ? <MaintenanceCard nextServiceDate={vehicle.car.nextServiceDate} c={c} /> : null}
+        {visibleSections.includes('history') ? <ServiceHistoryCard records={vehicle.records} loading={vehicle.recordsLoading} error={vehicle.recordsError} retry={vehicle.retry} c={c} /> : null}
         {visibleSections.includes('documents') ? <DocumentsCard c={c} /> : null}
-        {visibleSections.includes('tiresBattery') ? <TiresBatteryCard c={c} /> : null}
+        {visibleSections.includes('tiresBattery') ? <TiresBatteryCard car={vehicle.car} c={c} /> : null}
         {visibleSections.includes('insurance') ? <InsuranceCard c={c} /> : null}
-        {visibleSections.includes('expenses') ? <ExpensesCard c={c} /> : null}
-        {visibleSections.includes('predictive') ? <PredictiveCard carId={car.id} c={c} /> : null}
+        {visibleSections.includes('expenses') ? <ExpensesCard total={serviceCost} unavailable={vehicle.recordsError || vehicle.recordsLoading} c={c} /> : null}
+        {visibleSections.includes('predictive') ? <PredictiveCard c={c} /> : null}
 
-        <AnimatedPressable style={[styles.primaryButton, { backgroundColor: c.primary }]} onPress={() => router.push(route(`/checkout/${car.id}`))}>
+        <AnimatedPressable style={[styles.primaryButton, { backgroundColor: c.primary }]} onPress={() => router.push('/(tabs)/search')}>
           <Ionicons name="calendar-outline" size={18} color="#fff" />
           <Text style={styles.primaryButtonText}>Book service for this vehicle</Text>
         </AnimatedPressable>
@@ -351,7 +329,7 @@ function DigitalPassportCard({
   carName: string;
   vin: string;
   plate: string;
-  health: number;
+  health: number | null;
   passportNumber: string;
   onShare: () => void;
   onDownload: () => void;
@@ -359,15 +337,14 @@ function DigitalPassportCard({
 }) {
   return (
     <MotionSurface style={[styles.passportCard, { backgroundColor: c.dark, borderColor: c.primaryMid }]}>
-      <View style={styles.passportGlow} />
       <View style={styles.passportTop}>
         <View style={{ flex: 1, gap: 3 }}>
           <Text style={styles.passportEyebrow}>QarWheel vehicle passport</Text>
           <Text style={styles.passportBrand}>QARWHEEL PASS</Text>
         </View>
         <View style={styles.verifiedPill}>
-          <Ionicons name="checkmark-circle" size={14} color="#fff" />
-          <Text style={styles.verifiedText}>Verified</Text>
+          <Ionicons name="document-text-outline" size={14} color="#fff" />
+          <Text style={styles.verifiedText}>Owner record</Text>
         </View>
       </View>
 
@@ -392,35 +369,29 @@ function DigitalPassportCard({
         </View>
         <View style={{ gap: 2 }}>
           <Text style={styles.passportItemLabel}>Health</Text>
-          <Text style={styles.passportTitle}>{health}/100</Text>
+          <Text style={styles.passportTitle}>{health === null ? 'Not measured' : `${health}/100`}</Text>
         </View>
       </View>
 
       <View style={styles.passportGrid}>
         <PassportItem label="VIN" value={vin} />
         <PassportItem label="Plate" value={plate} />
-        <PassportItem label="Valid thru" value="06/29" />
-        <PassportItem label="Access" value="Limited share" />
+        <PassportItem label="Source" value="Owner-provided" />
+        <PassportItem label="Access" value="Shared copy" />
       </View>
 
       <View style={styles.passportShareRow}>
-        <View style={styles.qrBox}>
-          <View style={styles.qrDot} />
-          <View style={[styles.qrDot, { width: 18 }]} />
-          <View style={[styles.qrDot, { height: 18 }]} />
-          <View style={styles.qrDot} />
-        </View>
         <AnimatedPressable style={styles.passportAction} onPress={onShare}>
           <Ionicons name="share-social-outline" size={16} color="#fff" />
           <Text style={styles.passportActionText}>Share</Text>
         </AnimatedPressable>
-        <AnimatedPressable style={styles.passportAction} onPress={onDownload}>
+        {Platform.OS === 'web' && <AnimatedPressable style={styles.passportAction} onPress={onDownload}>
           <Ionicons name="download-outline" size={16} color="#fff" />
           <Text style={styles.passportActionText}>Download</Text>
-        </AnimatedPressable>
+        </AnimatedPressable>}
       </View>
 
-      <Text style={styles.passportFine}>Unique number is generated from the vehicle ID and VIN for stable share/download records.</Text>
+      <Text style={styles.passportFine}>Not a vehicle inspection or proof of ownership. Shared copies cannot be revoked.</Text>
     </MotionSurface>
   );
 }
@@ -457,28 +428,22 @@ function SectionCard({ title, subtitle, icon, c, children }: {
   );
 }
 
-function MaintenanceCard({ carId, c }: { carId: string; c: ReturnType<typeof useQarColors> }) {
+function MaintenanceCard({ nextServiceDate, c }: { nextServiceDate?: string; c: ReturnType<typeof useQarColors> }) {
   const router = useRouter();
   return (
-    <SectionCard title="Maintenance schedule" subtitle="Upcoming jobs based on mileage, time, and climate." icon="calendar-number-outline" c={c}>
-      {[
-        { title: 'Oil and filter service', meta: 'Due in 12 days', tone: c.warning },
-        { title: 'AC cooling check', meta: 'Recommended before peak heat', tone: c.primary },
-        { title: 'Brake inspection', meta: 'In 2,800 km', tone: c.success },
-      ].map((item) => <TimelineRow key={item.title} title={item.title} meta={item.meta} color={item.tone} c={c} />)}
-      <SmallButton label="Schedule maintenance" icon="calendar-outline" onPress={() => router.push(route(`/checkout/${carId}`))} c={c} />
+    <SectionCard title="Maintenance schedule" subtitle="Saved service date" icon="calendar-number-outline" c={c}>
+      <TimelineRow title="Next service" meta={vehicleDate(nextServiceDate)} color={c.primary} c={c} />
+      <SmallButton label="Find a garage" icon="search-outline" onPress={() => router.push('/(tabs)/search')} c={c} />
     </SectionCard>
   );
 }
 
-function ServiceHistoryCard({ c }: { c: ReturnType<typeof useQarColors> }) {
+function ServiceHistoryCard({ records, loading, error, retry, c }: { records: VehicleServiceRecord[]; loading: boolean; error: boolean; retry: () => void; c: ReturnType<typeof useQarColors> }) {
   return (
-    <SectionCard title="Service history" subtitle="Mileage-linked records with invoices and garage notes." icon="time-outline" c={c}>
-      {[
-        { title: 'Oil change', meta: '38,000 km · QSpeedy Auto Garage · QAR 120', tone: c.success },
-        { title: 'Brake inspection', meta: '35,000 km · CrooZr Auto Center · QAR 80', tone: c.primary },
-        { title: 'AC service', meta: '30,000 km · Digital invoice attached', tone: c.ai },
-      ].map((item) => <TimelineRow key={item.title} title={item.title} meta={item.meta} color={item.tone} c={c} />)}
+    <SectionCard title="Service history" subtitle="Latest 100 saved records" icon="time-outline" c={c}>
+      {loading ? <ActivityIndicator accessibilityLabel="Loading service records" color={c.primary} /> : error ? <ErrorState compact onRetry={retry} /> : records.length === 0 ? <Text style={{ color: c.textSecondary }}>No service records yet.</Text> : records.map((record) => (
+        <TimelineRow key={record.id} title={record.serviceType} meta={[vehicleDate(record.serviceDate), record.mileageAtService === null ? null : `${record.mileageAtService.toLocaleString()} km`, record.cost === null ? 'Cost not recorded' : `QAR ${record.cost.toFixed(2)}`, record.serviceDescription].filter(Boolean).join(' | ')} color={c.primary} c={c} />
+      ))}
     </SectionCard>
   );
 }
@@ -486,22 +451,21 @@ function ServiceHistoryCard({ c }: { c: ReturnType<typeof useQarColors> }) {
 function DocumentsCard({ c }: { c: ReturnType<typeof useQarColors> }) {
   return (
     <SectionCard title="Documents vault" subtitle="Registration, insurance, inspection, invoices, and ownership files." icon="folder-open-outline" c={c}>
-      <DocRow title="Mulkiya / registration" status="Valid until Sep 2026" icon="document-text-outline" c={c} />
-      <DocRow title="Insurance policy" status="Comprehensive · expires Aug 2026" icon="shield-checkmark-outline" c={c} />
-      <DocRow title="Service invoices" status="7 verified records" icon="receipt-outline" c={c} />
+      <Text style={{ color: c.textSecondary }}>No verified documents linked to this vehicle.</Text>
     </SectionCard>
   );
 }
 
-function TiresBatteryCard({ c }: { c: ReturnType<typeof useQarColors> }) {
+function TiresBatteryCard({ car, c }: { car: FirestoreCar; c: ReturnType<typeof useQarColors> }) {
+  const scan = recordedHealth(car) === null ? null : car.obdDiagnostics;
+  const voltage = scan?.batteryVoltage;
   return (
     <SectionCard title="Tires and battery" subtitle="Safety checks for tire pressure, rotation, battery age, and heat risk." icon="shield-checkmark-outline" c={c}>
       <View style={styles.splitRow}>
-        <MiniPanel title="Tires" value="34 PSI" meta="Rotate in 1,200 km" icon="radio-button-on-outline" c={c} />
-        <MiniPanel title="Battery" value="12.6V" meta="Heat risk medium" icon="battery-charging-outline" c={c} />
+        <MiniPanel title="Tires" value="Not measured" meta="No pressure reading" icon="radio-button-on-outline" c={c} />
+        <MiniPanel title="Battery" value={typeof voltage === 'number' && Number.isFinite(voltage) ? `${voltage.toFixed(1)}V` : 'Not measured'} meta={scan ? `Recorded ${vehicleDate(scan.scannedAt)}` : 'No diagnostic scan'} icon="battery-charging-outline" c={c} />
       </View>
-      <TimelineRow title="Front tire tread" meta="Good · 6.1 mm average" color={c.success} c={c} />
-      <TimelineRow title="Battery replacement forecast" meta="6-8 months remaining" color={c.warning} c={c} />
+      <Text style={{ color: c.textSecondary }}>Recorded readings do not confirm that a vehicle is safe to drive.</Text>
     </SectionCard>
   );
 }
@@ -509,36 +473,25 @@ function TiresBatteryCard({ c }: { c: ReturnType<typeof useQarColors> }) {
 function InsuranceCard({ c }: { c: ReturnType<typeof useQarColors> }) {
   return (
     <SectionCard title="Insurance and registration" subtitle="Policy, Mulkiya, inspection, renewal reminders, and stored proofs." icon="document-lock-outline" c={c}>
-      <View style={styles.splitRow}>
-        <MiniPanel title="Policy" value="Active" meta="Comprehensive" icon="shield-outline" c={c} />
-        <MiniPanel title="Mulkiya" value="96 days" meta="Until renewal" icon="id-card-outline" c={c} />
-      </View>
-      <DocRow title="Inspection certificate" status="Passed · next due Sep 2026" icon="checkmark-done-outline" c={c} />
+      <Text style={{ color: c.textSecondary }}>Policy, registration and inspection status are not verified.</Text>
     </SectionCard>
   );
 }
 
-function ExpensesCard({ c }: { c: ReturnType<typeof useQarColors> }) {
+function ExpensesCard({ total, unavailable, c }: { total: number; unavailable: boolean; c: ReturnType<typeof useQarColors> }) {
   return (
-    <SectionCard title="Expenses" subtitle="Total cost of ownership by service, fuel, insurance, parts, and fees." icon="pie-chart-outline" c={c}>
-      <View style={styles.expenseBars}>
-        <ExpenseBar label="Service and repair" value={45} amount="QAR 2,420" color={c.primary} c={c} />
-        <ExpenseBar label="Fuel" value={32} amount="QAR 1,720" color={c.warning} c={c} />
-        <ExpenseBar label="Insurance and registration" value={23} amount="QAR 1,250" color={c.ai} c={c} />
-      </View>
+    <SectionCard title="Expenses" subtitle="Costs in the latest 100 saved service records; not proof of payment" icon="pie-chart-outline" c={c}>
+      <Text style={{ color: c.text }}>{unavailable ? 'Service costs unavailable' : `Recorded service cost: QAR ${total.toFixed(2)}`}</Text>
     </SectionCard>
   );
 }
 
-function PredictiveCard({ carId, c }: { carId: string; c: ReturnType<typeof useQarColors> }) {
+function PredictiveCard({ c }: { c: ReturnType<typeof useQarColors> }) {
   const router = useRouter();
   return (
     <SectionCard title="Predictive maintenance" subtitle="AI care recommendations using mileage, weather, records, and symptoms." icon="sparkles-outline" c={c}>
-      <TimelineRow title="Oil service risk rising" meta="82% confidence · schedule within 2 weeks" color={c.warning} c={c} />
-      <TimelineRow title="AC efficiency check" meta="Qatar heat pattern suggests early inspection" color={c.ai} c={c} />
-      <TimelineRow title="Brake system" meta="Low risk after recent inspection" color={c.success} c={c} />
-      <SmallButton label="Ask AI mechanic" icon="sparkles-outline" onPress={() => router.push(route('/ai-mechanic'))} c={c} />
-      <SmallButton label="Book recommended service" icon="calendar-outline" onPress={() => router.push(route(`/checkout/${carId}`))} c={c} />
+      <Text style={{ color: c.textSecondary }}>No maintenance prediction has been generated for this vehicle.</Text>
+      <SmallButton label="Find a garage" icon="search-outline" onPress={() => router.push('/(tabs)/search')} c={c} />
     </SectionCard>
   );
 }

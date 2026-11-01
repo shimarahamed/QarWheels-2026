@@ -4,6 +4,7 @@ import { auth } from './firebase';
 import { clearPushTokenFromProfile } from './notifications';
 import { identifyUser, track } from './observability';
 import { useQarWheelStore } from './store';
+import { disableBiometricUnlock } from './biometrics';
 
 // ─── Session teardown ────────────────────────────────────────────────────────
 // Signing out has to do more than drop the Firebase credential. The persisted
@@ -34,6 +35,7 @@ export async function signOutCompletely(): Promise<void> {
     // Runs even if signOut throws: leaving personal data behind is worse than
     // an inconsistent auth state, which the auth listener resolves anyway.
     useQarWheelStore.getState().clearPersonalData();
+    await disableBiometricUnlock().catch(() => {});
     identifyUser(null);
   }
 }

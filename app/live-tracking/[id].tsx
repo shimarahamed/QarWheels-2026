@@ -1,13 +1,18 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
+import { auth } from '@/lib/firebase';
+import { useGarage } from '@/lib/firestoreOps';
+import TrackingMap from '@/components/TrackingMap';
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheel.qa';
+const BACKEND_URL = process.env.EXPO_PUBLIC_API_BASE_URL
+  ?? process.env.EXPO_PUBLIC_BACKEND_URL
+  ?? 'https://api.qarwheel.qa';
 const POLL_MS = 10_000;
 
 type DriverLocation = {
@@ -20,11 +25,15 @@ type DriverLocation = {
 
 async function fetchDriverLocation(bookingId: string): Promise<DriverLocation | null> {
   try {
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) return null;
     const res = await fetch(`${BACKEND_URL}/api/tracking/${bookingId}`, {
+      headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(8_000),
     });
     if (!res.ok) return null;
-    return res.json() as Promise<DriverLocation>;
+    const payload = await res.json() as DriverLocation | { data: DriverLocation };
+    return 'data' in payload ? payload.data : payload;
   } catch {
     return null;
   }
@@ -37,24 +46,15 @@ const STEP_LABELS: Record<string, string> = {
   arrived:    'Driver arrived',
 };
 
-// Doha garage coordinates (mock — real coords come from backend)
-const DOHA_GARAGES = [
-  { name: 'QSpeedy Auto Garage', lat: 25.2854, lng: 51.5310 },
-  { name: 'CrooZr Auto Center',  lat: 25.2920, lng: 51.5290 },
-  { name: 'Mega Auto Service',   lat: 25.2740, lng: 51.4980 },
-];
-
 export default function LiveTrackingScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const booking = useQarWheelStore((s) => s.bookings.find((b) => b.id === id));
+  const { garage } = useGarage(booking?.garageId);
 
   const [driverLoc, setDriverLoc] = useState<DriverLocation | null>(null);
   const [loading, setLoading] = useState(true);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  const garage = DOHA_GARAGES.find((g) => booking?.garage.includes(g.name.split(' ')[0])) ?? DOHA_GARAGES[0];
 
   useEffect(() => {
     let active = true;
@@ -70,17 +70,6 @@ export default function LiveTrackingScreen() {
     return () => { active = false; clearInterval(interval); };
   }, [id]);
 
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.4, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pulseAnim]);
-
   const step = driverLoc?.step ?? 'dispatched';
   const eta = driverLoc?.etaMinutes ?? null;
   const stepColor = step === 'arrived' ? c.success : c.primary;
@@ -94,49 +83,30 @@ export default function LiveTrackingScreen() {
           <Ionicons name="arrow-back" size={20} color={c.text} />
         </Pressable>
         <Text style={[s.navTitle, { color: c.text }]}>Live tracking</Text>
-        <View style={[s.livePill, { backgroundColor: c.primary }]}>
+        <View style={[s.livePill, { backgroundColor: driverLoc ? c.primary : c.muted }]}>
           <View style={s.liveDot} />
-          <Text style={s.liveText}>LIVE</Text>
+          <Text style={s.liveText}>{driverLoc ? 'LIVE' : 'WAITING'}</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         <MotionScreen>
 
-          {/* Map placeholder — react-native-maps requires native build */}
-          <View style={[s.mapPlaceholder, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-            {/* Simulated map: garage marker + driver position */}
-            <View style={s.mapInner}>
-              {/* Grid lines */}
-              {[0.25, 0.5, 0.75].map((p) => (
-                <View key={`h${p}`} style={[s.gridLine, s.gridLineH, { top: `${p * 100}%` as unknown as number, backgroundColor: c.border }]} />
-              ))}
-              {[0.25, 0.5, 0.75].map((p) => (
-                <View key={`v${p}`} style={[s.gridLine, s.gridLineV, { left: `${p * 100}%` as unknown as number, backgroundColor: c.border }]} />
-              ))}
-
-              {/* Garage pin */}
-              <View style={[s.garagePin, { backgroundColor: c.primary, left: '50%', top: '50%' }]}>
-                <Ionicons name="storefront" size={14} color="#fff" />
-              </View>
-
-              {/* Driver pin with pulse */}
-              <View style={[s.driverPinWrap, { left: '30%', top: '35%' }]}>
-                <Animated.View style={[s.driverPulse, { borderColor: stepColor, transform: [{ scale: pulseAnim }] }]} />
-                <View style={[s.driverPin, { backgroundColor: stepColor }]}>
-                  <Ionicons name="car-sport" size={14} color="#fff" />
-                </View>
-              </View>
+          {garage?.latitude !== undefined && garage.longitude !== undefined ? (
+            <View style={[s.mapFrame, { borderColor: c.border }]}>
+              <TrackingMap
+                garage={{ latitude: garage.latitude, longitude: garage.longitude }}
+                driver={driverLoc ? { latitude: driverLoc.lat, longitude: driverLoc.lng } : null}
+                garageName={garage.name}
+              />
             </View>
-
-            {/* Map overlay note */}
-            <View style={[s.mapNote, { backgroundColor: `${c.background}CC` }]}>
-              <Ionicons name="map-outline" size={13} color={c.muted} />
-              <Text style={[s.mapNoteText, { color: c.muted }]}>
-                Full map requires native build · Coordinates: {garage.lat.toFixed(4)}, {garage.lng.toFixed(4)}
-              </Text>
+          ) : (
+            <View style={[s.mapUnavailable, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+              <Ionicons name="location-outline" size={28} color={c.muted} />
+              <Text style={[s.mapUnavailableTitle, { color: c.text }]}>Garage location unavailable</Text>
+              <Text style={[s.mapUnavailableText, { color: c.muted }]}>Tracking will appear when this branch publishes its coordinates.</Text>
             </View>
-          </View>
+          )}
 
           {/* ETA card */}
           <View style={[s.etaCard, { backgroundColor: stepColor === c.success ? c.successBg : c.primaryLight, borderColor: `${stepColor}33` }]}>
@@ -153,6 +123,9 @@ export default function LiveTrackingScreen() {
               )}
               {loading && (
                 <Text style={[s.etaTime, { color: c.muted }]}>Connecting to driver…</Text>
+              )}
+              {!loading && !driverLoc && (
+                <Text style={[s.etaTime, { color: c.muted }]}>No live driver position is available yet.</Text>
               )}
             </View>
             <Text style={[s.pollNote, { color: c.muted }]}>↻ {POLL_MS / 1000}s</Text>
@@ -220,33 +193,10 @@ const s = StyleSheet.create({
 
   content: { padding: spacing.page, gap: spacing.gap, paddingBottom: 40 },
 
-  mapPlaceholder: {
-    height: 240, borderRadius: radius.xl, borderWidth: 1, overflow: 'hidden', ...shadow.sm,
-  },
-  mapInner: { flex: 1, position: 'relative' },
-  gridLine: { position: 'absolute' },
-  gridLineH: { left: 0, right: 0, height: StyleSheet.hairlineWidth },
-  gridLineV: { top: 0, bottom: 0, width: StyleSheet.hairlineWidth },
-  garagePin: {
-    position: 'absolute', width: 28, height: 28, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center',
-    transform: [{ translateX: -14 }, { translateY: -14 }],
-    ...shadow.sm,
-  },
-  driverPinWrap: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  driverPulse: {
-    position: 'absolute', width: 40, height: 40, borderRadius: 20,
-    borderWidth: 2, opacity: 0.4,
-  },
-  driverPin: {
-    width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', ...shadow.sm,
-  },
-  mapNote: {
-    position: 'absolute', bottom: 8, left: 8, right: 8,
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 6,
-  },
-  mapNoteText: { fontSize: 12, fontWeight: '600', flex: 1 },
+  mapFrame: { height: 240, borderRadius: radius.xl, borderWidth: 1, overflow: 'hidden', ...shadow.sm },
+  mapUnavailable: { height: 240, borderRadius: radius.xl, borderWidth: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 },
+  mapUnavailableTitle: { fontSize: 16, fontWeight: '800' },
+  mapUnavailableText: { fontSize: 13, textAlign: 'center', lineHeight: 19 },
 
   etaCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: radius.xl, borderWidth: 1, padding: 16, ...shadow.xs },
   etaIcon: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },

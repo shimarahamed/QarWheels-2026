@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 /** Great-circle distance between two lat/lng points, in kilometers. */
 export function haversineKm(
@@ -37,79 +37,46 @@ export type DeviceLocation = { latitude: number; longitude: number };
  */
 let cachedLocation: DeviceLocation | null = null;
 let cachedAt = 0;
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes — long enough to avoid
-// re-fetching on every screen focus, short enough that a genuinely moving
-// user (the whole point of "distance to garage") doesn't see a stale
-// value for the rest of their session.
+let pendingLocation: Promise<DeviceLocation | null> | null = null;
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+export function getDeviceLocation(): Promise<DeviceLocation | null> {
+  const ttl = cachedLocation ? CACHE_TTL_MS : 30_000;
+  if (cachedAt && Date.now() - cachedAt < ttl) return Promise.resolve(cachedLocation);
+  if (pendingLocation) return pendingLocation;
+  let timer: ReturnType<typeof setTimeout>;
+  const locate = async () => {
+    const { status } = await Location.getForegroundPermissionsAsync();
+    if (status !== Location.PermissionStatus.GRANTED) return null;
+    const position = await Location.getLastKnownPositionAsync({ maxAge: CACHE_TTL_MS })
+      ?? await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    const { latitude, longitude } = position.coords;
+    return Number.isFinite(latitude) && Number.isFinite(longitude)
+      && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 ? { latitude, longitude } : null;
+  };
+  pendingLocation = Promise.race([
+    locate(),
+    new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), 12_000); }),
+  ]).catch(() => null).then((value) => {
+    cachedLocation = value;
+    cachedAt = Date.now();
+    return value;
+  }).finally(() => {
+    clearTimeout(timer);
+    pendingLocation = null;
+  });
+  return pendingLocation;
+}
 
 export function useDeviceLocation(): { location: DeviceLocation | null; loading: boolean } {
   const [location, setLocation] = useState<DeviceLocation | null>(cachedLocation);
-  const [loading, setLoading] = useState(!cachedLocation);
-  const mounted = useRef(true);
-
+  const [loading, setLoading] = useState(!cachedAt);
   useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
+    let active = true;
+    void getDeviceLocation().then((value) => {
+      if (active) { setLocation(value); setLoading(false); }
+    });
+    return () => { active = false; };
   }, []);
-
-  useEffect(() => {
-    const isFresh = cachedLocation && Date.now() - cachedAt < CACHE_TTL_MS;
-    if (isFresh) {
-      setLocation(cachedLocation);
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const { status } = await Location.getForegroundPermissionsAsync();
-        if (status !== Location.PermissionStatus.GRANTED) {
-          // Don't prompt from here — permission is requested explicitly in
-          // the onboarding flow (app/(auth)/location-permission.tsx). A
-          // background hook silently popping a system dialog on an
-          // unrelated screen (e.g. mid-scroll on the marketplace) is a bad
-          // pattern; this just uses whatever the user already granted.
-          if (!cancelled && mounted.current) {
-            setLocation(null);
-            setLoading(false);
-          }
-          return;
-        }
-
-        const position = await Location.getLastKnownPositionAsync({
-          maxAge: CACHE_TTL_MS,
-        }) ?? await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-
-        const next: DeviceLocation = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        };
-        cachedLocation = next;
-        cachedAt = Date.now();
-
-        if (!cancelled && mounted.current) {
-          setLocation(next);
-          setLoading(false);
-        }
-      } catch {
-        // Location services off, permission revoked mid-flight, timeout —
-        // all non-fatal. Distance just stays unknown.
-        if (!cancelled && mounted.current) {
-          setLocation(null);
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   return { location, loading };
 }

@@ -2,14 +2,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getAuth } from 'firebase/auth';
 import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen, MotionSurface } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { getStatusColor, getStatusLabel } from '@/lib/vendor-data';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
 import { BranchSwitcher } from '@/components/vendor/BranchSwitcher';
-import { useVendorFirestoreBookings } from '@/lib/firestoreOps';
 
 export default function VendorDashboard() {
   const c = useQarColors();
@@ -18,10 +16,6 @@ export default function VendorDashboard() {
   const profile = useQarWheelStore((s) => s.vendorProfile);
   const bookings = useQarWheelStore((s) => s.vendorBookings);
 
-  const uid = getAuth().currentUser?.uid ?? null;
-
-  // Sync live bookings from Firestore into the vendor dashboard
-  useVendorFirestoreBookings(uid);
 
   // Profile publishing is an explicit action on the settings screen, not a
   // side effect of viewing the dashboard — this used to overwrite real
@@ -44,7 +38,7 @@ export default function VendorDashboard() {
     color: string;
     route?: string;
   }[] = [
-    { label: "Today's Revenue", value: `QAR ${todayRevenue}`, icon: 'cash-outline', color: c.success },
+    { label: "Today's Booked Value", value: `QAR ${todayRevenue}`, icon: 'cash-outline', color: c.success },
     { label: 'Pending', value: String(pending), icon: 'time-outline', color: c.warning, route: '/vendor/requests' },
     { label: 'In Progress', value: String(inProgress), icon: 'construct-outline', color: c.primary },
     { label: 'Ready Pickup', value: String(readyPickup), icon: 'checkmark-circle-outline', color: c.ai },

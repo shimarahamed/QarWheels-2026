@@ -1,5 +1,16 @@
 import { z } from 'zod';
 
+export const vehicleCreateSchema = z.object({
+  make: z.string().trim().min(1, 'Enter the vehicle make.').max(50),
+  model: z.string().trim().min(1, 'Enter the vehicle model.').max(50),
+  // The deployed data contract currently caps model years at 2027.
+  year: z.number().int().min(1900).max(Math.min(new Date().getFullYear() + 1, 2027)),
+  vin: z.string().trim().toUpperCase().regex(/^[A-HJ-NPR-Z0-9]{17}$/, 'Enter a valid 17-character VIN.'),
+  licensePlate: z.string().trim().min(1, 'Enter the license plate.').max(20),
+  color: z.string().trim().max(40),
+  currentMileage: z.number().int().min(0, 'Mileage cannot be negative.').max(1_000_000, 'Check the mileage; the maximum is 1,000,000 km.'),
+});
+
 // ─── Shared input validation ─────────────────────────────────────────────────
 // One place for the rules, so a field validates the same way wherever it
 // appears. Messages are written for the person typing, not the developer:

@@ -62,19 +62,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // onAuthStateChanged) also fires when the token is refreshed with new custom
   // claims, e.g. right after syncClaimsForUser mints an updated `qw` claim.
   useEffect(() => {
-    return onIdTokenChanged(auth, async (u) => {
+    let generation = 0;
+    const unsubscribe = onIdTokenChanged(auth, async (u) => {
+      const current = ++generation;
       setUser(u);
       setLoading(false);
+      setClaims(null);
+      setClaimsLoading(Boolean(u));
       if (u) {
         setWasAuth(true);
         AsyncStorage.setItem(PERSIST_KEY, 'true').catch(() => {});
         try {
           const tokenResult = await u.getIdTokenResult();
-          setClaims(readQwClaims(tokenResult.claims));
+          if (current === generation) setClaims(readQwClaims(tokenResult.claims));
         } catch {
-          setClaims(null);
+          if (current === generation) setClaims(null);
         }
-        setClaimsLoading(false);
+        if (current === generation) setClaimsLoading(false);
       } else {
         setWasAuth(false);
         AsyncStorage.removeItem(PERSIST_KEY).catch(() => {});
@@ -82,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setClaimsLoading(false);
       }
     });
+    return () => { generation += 1; unsubscribe(); };
   }, []);
 
   const refreshClaims = useCallback(async () => {
