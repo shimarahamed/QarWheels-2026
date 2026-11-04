@@ -3,6 +3,7 @@ from pathlib import Path
 from html.parser import HTMLParser
 from urllib.parse import urlsplit, unquote
 from collections import Counter
+import re
 
 ROOT = Path(__file__).resolve().parent / 'website'
 
@@ -55,6 +56,15 @@ for path, page in pages.items():
             page.errors.append('Missing fragment: ' + link)
         checked += 1
     errors += [str(path.relative_to(ROOT)) + ': ' + problem for problem in page.errors]
+# Font files and stylesheet resources are part of the portable package too.
+for path in ROOT.rglob('*.css'):
+    for raw in re.findall(r'url\(([^)]+)\)', path.read_text(encoding='utf-8')):
+        url = urlsplit(raw.strip(' \t\r\n\'"'))
+        if url.scheme or url.netloc or not url.path: continue
+        target = (path.parent / unquote(url.path)).resolve()
+        if not target.is_relative_to(ROOT.resolve()) or not target.is_file():
+            errors.append(str(path.relative_to(ROOT)) + ': Missing stylesheet resource: ' + url.path)
+        checked += 1
 if errors:
     print('\n'.join(errors))
     raise SystemExit(1)

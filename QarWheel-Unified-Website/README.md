@@ -22,10 +22,14 @@ python validate.py
 node --check source/assets/unified.js
 ```
 
+Use `python build.py --package` to rebuild and refresh `QarWheel-Unified-Shared-Hosting.zip` together. Stylesheet and script URLs include content hashes so design changes appear on a normal reload.
+
 Python 3.10+ is sufficient for building and validating; Node is only used for the optional JavaScript syntax check.
 
 - `source/home.py`: English/Arabic homepage, mobile illustration, interactive product stories, service categories and business workspace.
 - `source/assets/unified.css`: new visual system, shared page refinements, dark theme, responsive and RTL behavior.
+- `source/assets/premium.css`: the exact requested light/dark palette, floating glass header, responsive menu, typography and interaction polish.
+- `source/assets/fonts.css` and `source/assets/fonts/`: locally hosted variable Manrope, Inter and Noto Sans Arabic fonts with their open-source licenses. No Google Fonts request is made by visitors.
 - `source/assets/unified.js`: accessible navigation, dialog, product/journey tabs and theme persistence.
 - `source/assets/theme-init.js`: applies the saved theme before first paint.
 - `source/templates/`: editable bilingual inner-page copy and shared footer/dialog content inherited from the refined package. Homepage body content is replaced by `home.py` at build time; its original FAQ, Qatar banner and launch section are retained.
@@ -42,6 +46,12 @@ Python 3.10+ is sufficient for building and validating; Node is only used for th
 | Mobile application | Shared theme colors and rounded surfaces, vehicle card, compact quick actions, gold AI cue, category icons, bottom navigation and status chips |
 
 The product screens are illustrative HTML compositions, not live app screenshots. They contain no real bookings, providers, ratings, prices or customer data. The business website does not implement the main app's authentication or booking backend.
+
+## Typography and motion
+
+Manrope headings pair with Inter body copy; Arabic uses Noto Sans Arabic throughout. The palette follows the specified `#E10600` brand red, neutral light and graphite dark surfaces, with `#FF766C` emphasis text in dark mode.
+
+The glass navigation stays above the page as a floating capsule. Its mobile dropdown uses a stronger tint to keep page text from showing through. Entrances, section reveals, product-tab changes, FAQ content and hover states use short, interruptible animations. Pointer depth on the product illustration is limited to precise pointers. Reduced-motion preferences suppress nonessential movement, including when the preference changes while the page is open. Content remains visible without animation scripts.
 
 ## Before public launch
 

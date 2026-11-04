@@ -2,6 +2,8 @@
 from pathlib import Path
 import re
 import shutil
+import hashlib
+from zipfile import ZipFile, ZIP_DEFLATED
 from source.home import home, product_preview, service_categories, business_preview
 
 ROOT = Path(__file__).resolve().parent
@@ -48,6 +50,13 @@ def build():
         html = html.replace('<main id="main">', '<main id="main" tabindex="-1">')
         if slug == 'product':
             html = html.replace('<section class="product-overview">', '<section class="product-overview" id="service-discovery">')
+        # Changed styles and scripts get new URLs so a normal reload shows the
+        # current design even when a browser or shared host caches static files.
+        def version_asset(match):
+            asset = SOURCE / 'assets' / match['file']
+            digest = hashlib.sha256(asset.read_bytes()).hexdigest()[:10]
+            return match['prefix'] + match['file'] + '?v=' + digest + match['quote']
+        html = re.sub(r'(?P<prefix>(?:href|src)="[^"]*assets/)(?P<file>[^"?]+\.(?:css|js))(?P<quote>")', version_asset, html)
         target = OUT / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(html, encoding='utf-8')
@@ -58,5 +67,23 @@ def build():
     print(f'Built {len(pages)} English/Arabic pages and 404.html in {OUT}')
 
 
+def package():
+    archive = ROOT / 'QarWheel-Unified-Shared-Hosting.zip'
+    with ZipFile(archive, 'w', ZIP_DEFLATED) as zipped:
+        for path in sorted(OUT.rglob('*')):
+            if path.is_file():
+                zipped.write(path, path.relative_to(OUT))
+    with ZipFile(archive) as zipped:
+        if zipped.testzip() is not None:
+            raise RuntimeError('Deployment archive failed its integrity check')
+        print(f'Packaged {len(zipped.namelist())} files in {archive.name}')
+
+
 if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--package', action='store_true', help='Refresh the shared-hosting ZIP after building')
+    args = parser.parse_args()
     build()
+    if args.package:
+        package()

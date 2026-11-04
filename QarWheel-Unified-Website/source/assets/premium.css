@@ -19,6 +19,7 @@
   --glass: rgba(244, 245, 247, .72);
   --glass-edge: rgba(255, 255, 255, .88);
   --glass-highlight: rgba(255, 255, 255, .7);
+  --menu-glass: rgba(244, 245, 247, .98);
   --glass-shadow: 0 12px 40px rgba(23, 32, 48, .07), 0 2px 6px rgba(23, 32, 48, .025);
 }
 html[data-theme=dark] {
@@ -34,6 +35,7 @@ html[data-theme=dark] {
   --glass: rgba(32, 34, 40, .72);
   --glass-edge: rgba(255, 255, 255, .17);
   --glass-highlight: rgba(255, 255, 255, .1);
+  --menu-glass: rgba(32, 34, 40, .98);
   --glass-shadow: 0 16px 48px rgba(0, 0, 0, .26), 0 2px 8px rgba(0, 0, 0, .12);
 }
 html { scroll-padding-top: 118px; }
@@ -63,6 +65,7 @@ body.unified {
 .unified .u-phone { font-family: var(--font-body); }
 .unified .u-phone h3 { font-family: var(--font-display); font-weight: 650; }
 .unified .u-phone-brand { font-family: var(--font-display); }
+.unified .u-phone .u-avatar { background: #ECEEF1; color: #535861; }
 .unified .u-hero-copy .eyebrow { color: var(--muted); }
 .unified .announcement { background: transparent; border: 0; height: 30px; font-size: 9px; }
 
@@ -227,7 +230,9 @@ html[dir=rtl] .unified .nav-links a { font-size: 12px; padding-inline: 10px; }
   .unified .nav-links.open { display: flex; animation: qw-menu-in 240ms var(--ease-out); }
   .unified .nav-links a, html[dir=rtl] .unified .nav-links a { font-size: 14px; padding: 13px 18px; border: 0; border-radius: 15px; }
   @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .unified .nav-links { background: var(--glass); backdrop-filter: blur(28px) saturate(170%); -webkit-backdrop-filter: blur(28px) saturate(170%); }
+    /* Nested backdrop roots cannot blur the page below the header in every
+       browser. An almost-solid tint keeps menu text legible in that case. */
+    .unified .nav-links { background: var(--menu-glass); backdrop-filter: blur(28px) saturate(170%); -webkit-backdrop-filter: blur(28px) saturate(170%); }
   }
 }
 @media(max-width:760px) {
