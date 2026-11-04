@@ -6,6 +6,10 @@ import {
 
 export type VendorBookingStatus = BookingWorkflowStatus;
 
+export function bookingAmountLabel(amount: number): string {
+  return Number.isFinite(amount) && amount > 0 ? `QAR ${amount}` : 'Quote pending';
+}
+
 export type VendorBooking = {
   id: string;
   customerName: string;

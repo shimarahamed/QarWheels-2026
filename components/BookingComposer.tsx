@@ -25,14 +25,15 @@ import Animated, {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import AnimatedPressable from '@/components/AnimatedPressable';
+import { RemoteImage } from '@/components/RemoteImage';
 import { MotionSurface, fadeEntering, motion, smoothLayout } from '@/lib/motion';
 import { useAuthContext } from '@/lib/AuthContext';
 import { createBooking as createFirestoreBooking, type FirestoreCar, useBranches } from '@/lib/firestoreOps';
 import { firestore } from '@/lib/firebase';
-import { cars } from '@/lib/marketplace';
 import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { success, tap } from '@/lib/haptics';
+import { garageDistanceLabel } from '@/lib/marketplace-display';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -40,22 +41,21 @@ type SelectableCar = {
   id: string;
   name: string;
   meta: string;
-  source: 'seed' | 'firestore';
+  source: 'firestore';
 };
 
 type AddOn = {
   id: string;
   title: string;
   description: string;
-  price: number;
   icon: IconName;
 };
 
 const addOns: AddOn[] = [
-  { id: 'pickup', title: 'Pickup coordination', description: 'Garage calls before driver dispatch.', price: 25, icon: 'car-outline' },
-  { id: 'wash', title: 'Exterior wash', description: 'Quick wash before return.', price: 35, icon: 'water-outline' },
-  { id: 'report', title: 'Digital health report', description: 'Photos, checks, and recommendations.', price: 45, icon: 'document-text-outline' },
-  { id: 'priority', title: 'Priority handling', description: 'Move this booking into the express lane.', price: 60, icon: 'flash-outline' },
+  { id: 'pickup', title: 'Pickup coordination', description: 'Ask the garage to call before dispatch.', icon: 'car-outline' },
+  { id: 'wash', title: 'Exterior wash', description: 'Request a wash before return.', icon: 'water-outline' },
+  { id: 'report', title: 'Digital health report', description: 'Request photos and recommendations.', icon: 'document-text-outline' },
+  { id: 'priority', title: 'Priority handling', description: 'Ask whether an earlier slot is available.', icon: 'flash-outline' },
 ];
 
 // Slots grouped by part of day. A flat grid of six times makes the user read
@@ -116,8 +116,8 @@ function nextDays() {
 }
 
 function priceFromLabel(value: string) {
-  const match = value.match(/\d+/);
-  return match ? Number(match[0]) : 120;
+  const match = value.match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : null;
 }
 
 function serviceIcon(serviceId: string): IconName {
@@ -150,13 +150,14 @@ export default function BookingComposer() {
   }, [segments]);
   const c = useQarColors();
   const { user } = useAuthContext();
+  const userId = user?.uid;
   const createLocalBooking = useQarWheelStore((s) => s.createBooking);
-  const walletBalance = useQarWheelStore((s) => s.walletBalance);
-  const addInvoice = useQarWheelStore((s) => s.addInvoice);
   const savedAddresses = useQarWheelStore((s) => s.addresses);
   const [reviewing, setReviewing] = useState(false);
   const [firestoreCars, setFirestoreCars] = useState<FirestoreCar[]>([]);
   const [loadingCars, setLoadingCars] = useState(true);
+  const [carsError, setCarsError] = useState(false);
+  const [carsRetry, setCarsRetry] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const days = useMemo(() => nextDays(), []);
   const { vendors: liveGarages, jobs: liveJobs, loading: vendorsLoading, error: vendorsError, refresh: refreshVendors } = useBranches({ includeServices: true });
@@ -171,14 +172,9 @@ export default function BookingComposer() {
     setOpenPanel((current) => (current === panel ? null : panel));
   }
 
-  const initialCarId = useMemo(() => {
-    if (id && cars.some((car) => car.id === id)) return id;
-    return cars[0]?.id ?? '';
-  }, [id]);
-
   const [selectedGarageId, setSelectedGarageId] = useState('');
   const [selectedServiceId, setSelectedServiceId] = useState('');
-  const [selectedCarId, setSelectedCarId] = useState(initialCarId);
+  const [selectedCarId, setSelectedCarId] = useState(id ?? '');
   // True when id resolved to a specific garage or job — hides the full pickers
   const [fromContext, setFromContext] = useState(false);
 
@@ -199,7 +195,7 @@ export default function BookingComposer() {
   }, [id, liveGarages, liveJobs, vendorsLoading, selectedGarageId, selectedServiceId]);
   const [selectedDayId, setSelectedDayId] = useState(days[1]?.id ?? days[0].id);
   const [selectedTime, setSelectedTime] = useState(timeSlots[1]);
-  const [selectedAddOns, setSelectedAddOns] = useState<string[]>(['report']);
+  const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [pickupEnabled, setPickupEnabled] = useState(id === 'emergency');
   const [dropoffEnabled, setDropoffEnabled] = useState(true);
   // Prefill from the user's default saved address rather than a placeholder
@@ -212,38 +208,49 @@ export default function BookingComposer() {
   const [payment, setPayment] = useState<PaymentMethodId>('garage');
 
   useEffect(() => {
-    if (!user) {
+    setFirestoreCars([]);
+    setCarsError(false);
+    if (!userId) {
       setLoadingCars(false);
       return;
     }
 
-    const q = query(collection(firestore, 'users', user.uid, 'cars'));
-    return onSnapshot(
+    setLoadingCars(true);
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (!settled) {
+        setCarsError(true);
+        setLoadingCars(false);
+      }
+    }, 15_000);
+    const q = query(collection(firestore, 'users', userId, 'cars'));
+    const unsubscribe = onSnapshot(
       q,
       (snap) => {
+        settled = true;
+        clearTimeout(timeout);
         const docs = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<FirestoreCar, 'id'>) }));
         setFirestoreCars(docs);
+        setCarsError(false);
         setLoadingCars(false);
-        if (docs[0] && selectedCarId === initialCarId) {
-          setSelectedCarId(docs[0].id);
-        }
+        setSelectedCarId((current) => docs.some((car) => car.id === current)
+          ? current : docs.find((car) => car.id === id)?.id ?? docs[0]?.id ?? '');
       },
-      () => setLoadingCars(false),
+      () => {
+        settled = true;
+        clearTimeout(timeout);
+        setCarsError(true);
+        setLoadingCars(false);
+      },
     );
-  }, [initialCarId, selectedCarId, user]);
+    return () => { settled = true; clearTimeout(timeout); unsubscribe(); };
+  }, [carsRetry, id, userId]);
 
-  const selectableCars: SelectableCar[] = firestoreCars.length
-    ? firestoreCars.map((car) => ({
+  const selectableCars: SelectableCar[] = firestoreCars.map((car) => ({
         id: car.id,
         name: `${car.year} ${car.make} ${car.model}`,
         meta: `${car.licensePlate || 'No plate'} · ${car.currentMileage?.toLocaleString?.() ?? car.currentMileage ?? 0} km`,
         source: 'firestore',
-      }))
-    : cars.map((car) => ({
-        id: car.id,
-        name: car.name,
-        meta: `${car.mileage} · ${car.nextService}`,
-        source: 'seed',
       }));
 
   const selectedGarage = liveGarages.find((g) => g.id === selectedGarageId) ?? liveGarages[0];
@@ -252,11 +259,10 @@ export default function BookingComposer() {
   const selectedCar = selectableCars.find((car) => car.id === selectedCarId) ?? selectableCars[0];
   const selectedDay = days.find((day) => day.id === selectedDayId) ?? days[0];
   const chosenAddOns = addOns.filter((item) => selectedAddOns.includes(item.id));
-  const addOnTotal = chosenAddOns.reduce((sum, item) => sum + item.price, 0);
-  const servicePrice = selectedService ? priceFromLabel(selectedService.price) : 0;
-  const logisticsTotal = (pickupEnabled ? 40 : 0) + (dropoffEnabled ? 40 : 0);
-  const estimatedTotal = servicePrice + addOnTotal + logisticsTotal;
-  const canSubmit = Boolean(!vendorsLoading && !vendorsError && selectedCar && selectedGarage && selectedService && selectedDay && selectedTime);
+  const servicePrice = selectedService ? priceFromLabel(selectedService.price) : null;
+  const listedPrice = servicePrice ?? 0;
+  const priceLabel = servicePrice === null ? 'Quote required' : currency(servicePrice);
+  const canSubmit = Boolean(!vendorsLoading && !vendorsError && !loadingCars && !carsError && selectedCar && selectedGarage && selectedService && selectedDay && selectedTime);
   const submissionInFlight = useRef(false);
 
   // ── Live total ──
@@ -265,16 +271,16 @@ export default function BookingComposer() {
   // pulse on change is what connects "I turned on drop-off" to "the number
   // moved" without the user having to hunt for it.
   const totalPulse = useSharedValue(1);
-  const previousTotal = useRef(estimatedTotal);
+  const previousTotal = useRef(listedPrice);
   useEffect(() => {
-    if (previousTotal.current !== estimatedTotal) {
-      previousTotal.current = estimatedTotal;
+    if (previousTotal.current !== listedPrice) {
+      previousTotal.current = listedPrice;
       totalPulse.value = withSequence(
         withTiming(1.08, { duration: motion.fast / 2 }),
         withSpring(1, motion.pressOut),
       );
     }
-  }, [estimatedTotal, totalPulse]);
+  }, [listedPrice, totalPulse]);
   const totalAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: totalPulse.value }] }));
 
   function toggleAddOn(addOnId: string) {
@@ -295,19 +301,6 @@ export default function BookingComposer() {
       Alert.alert('Vehicle required', 'Choose a vehicle before confirming the booking.');
       return;
     }
-    // Catch an unpayable wallet booking here, not after the slot is taken.
-    if (payment === 'wallet' && walletBalance < estimatedTotal) {
-      Alert.alert(
-        'Not enough wallet balance',
-        `This booking is QAR ${estimatedTotal.toFixed(2)} but your wallet holds QAR ${walletBalance.toFixed(2)}. Top up or pick another payment method.`,
-        [
-          { text: 'Change method', style: 'cancel' },
-          { text: 'Top up', onPress: () => router.push('/wallet' as never) },
-        ],
-      );
-      return;
-    }
-
     void tap();
     setReviewing(true);
   }
@@ -340,7 +333,7 @@ export default function BookingComposer() {
       bookingDate: bookingDate.toISOString(),
       timeSlot: selectedTime,
       status: 'Pending' as const,
-      totalAmount: estimatedTotal,
+      totalAmount: 0,
       pickupEnabled,
       dropoffEnabled,
       address: pickupEnabled ? address : undefined,
@@ -365,7 +358,6 @@ export default function BookingComposer() {
           carName: selectedCar.name,
           serviceName: selectedService?.title ?? '',
           bookingDate: bookingDate.toISOString(),
-          cost: estimatedTotal,
           notes: [
             notes.trim(),
             pickupEnabled ? `Pickup: ${address}` : '',
@@ -375,16 +367,6 @@ export default function BookingComposer() {
           ].filter(Boolean).join('\n'),
       });
       const localBooking = createLocalBooking({ ...bookingDetails, id: remote.id });
-
-      addInvoice({
-        bookingId: localBooking.id,
-        garage: selectedGarage?.name ?? '',
-        service: selectedService?.title ?? 'Service',
-        vehicle: selectedCar.name,
-        amount: estimatedTotal,
-        status: 'Unpaid',
-        method: paymentLabel(payment),
-      });
 
       void success();
       router.replace(route(`/booking/${localBooking.id}`));
@@ -398,14 +380,14 @@ export default function BookingComposer() {
   }
 
   const addOnSummary = chosenAddOns.length
-    ? `${chosenAddOns.length} selected · ${currency(addOnTotal)}`
+    ? `${chosenAddOns.length} requested`
     : 'None';
   const logisticsSummary = pickupEnabled && dropoffEnabled
-    ? `Pickup and drop-off · ${currency(logisticsTotal)}`
+    ? 'Pickup and drop-off requested'
     : pickupEnabled
-      ? `Pickup only · ${currency(logisticsTotal)}`
+      ? 'Pickup requested'
       : dropoffEnabled
-        ? `Drop-off only · ${currency(logisticsTotal)}`
+        ? 'Drop-off requested'
         : 'I will drive it in myself';
 
   return (
@@ -453,8 +435,15 @@ export default function BookingComposer() {
         {/* ── Hero ──
             One tinted card carrying what is being booked and where. Everything
             below it is a choice; this is the context. */}
-        <MotionSurface style={[styles.hero, { backgroundColor: c.surface, borderColor: c.primaryMid }]}>
-          <View style={[styles.heroGlow, { backgroundColor: c.primaryLight }]} pointerEvents="none" />
+        <MotionSurface style={[styles.hero, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <View style={styles.heroPhoto}>
+            <RemoteImage uri={selectedGarage?.imageUrl} style={styles.heroPhotoImage} fallbackIcon="business-outline" accessibilityLabel={selectedGarage ? `${selectedGarage.name} workshop` : 'Selected garage'} />
+            <View style={styles.heroPhotoCaption}>
+              <Text style={styles.heroPhotoLabel}>SELECTED GARAGE</Text>
+              <Text style={styles.heroPhotoName} numberOfLines={2}>{selectedGarage?.name ?? 'Choose a garage'}</Text>
+              {selectedGarage?.verified ? <View style={styles.heroVerified}><Ionicons name="shield-checkmark" size={14} color="#fff" /><Text style={styles.heroVerifiedText}>Verified partner</Text></View> : null}
+            </View>
+          </View>
           <View style={styles.heroTop}>
             <View style={[styles.heroIcon, { backgroundColor: c.primary }]}>
               <Ionicons name={serviceIcon(selectedService?.id ?? '')} size={24} color="#fff" />
@@ -468,47 +457,40 @@ export default function BookingComposer() {
           </View>
 
           {selectedGarage ? (
-            <View style={[styles.heroGarage, { borderTopColor: c.border }]}>
-              <Ionicons name="business" size={14} color={c.textSecondary} />
-              <Text style={[styles.heroGarageName, { color: c.text }]} numberOfLines={1}>
-                {selectedGarage.name}
-              </Text>
-              <View style={[styles.ratingPill, { backgroundColor: c.aiBg }]}>
-                <Ionicons name="star" size={11} color={c.gold} />
-                <Text style={[styles.ratingText, { color: c.gold }]}>{selectedGarage.rating}</Text>
-              </View>
-            </View>
-          ) : null}
-
-          {selectedGarage ? (
             <View style={styles.heroFacts}>
-              <HeroFact icon="navigate-outline" value={`${selectedGarage.distanceKm} km`} label="Away" c={c} />
+              <HeroFact icon="navigate-outline" value={garageDistanceLabel(selectedGarage.distanceKm)} label="Distance" c={c} />
               <HeroFact icon="flash-outline" value={selectedGarage.responseTime} label="Response" c={c} />
               <HeroFact
                 icon={selectedGarage.openNow ? 'checkmark-circle-outline' : 'time-outline'}
-                value={selectedGarage.openNow ? 'Open' : 'Closed'}
+                value={selectedGarage.openNow === null ? 'Unknown' : selectedGarage.openNow ? 'Open' : 'Closed'}
                 label="Right now"
                 c={c}
-                tone={selectedGarage.openNow ? c.success : c.warning}
+                tone={selectedGarage.openNow === null ? c.muted : selectedGarage.openNow ? c.success : c.warning}
               />
             </View>
           ) : null}
         </MotionSurface>
 
+        <View style={styles.formHeading}>
+          <Text style={[styles.formHeadingTitle, { color: c.text }]}>Your request</Text>
+          <Text style={[styles.formHeadingNote, { color: c.textSecondary }]}>Select a preferred time. The garage will confirm availability and final price.</Text>
+        </View>
+
         {/* ── The form ──
             Every row states its current value and opens in place. The screen
             therefore starts as a readable recap and only grows where the user
             actually wants to change something. */}
-        <MotionSurface delay={20} style={[styles.panelGroup, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <MotionSurface delay={20} style={styles.panelGroup}>
           <Panel
             id="vehicle"
             icon="car-sport-outline"
             title="Vehicle"
-            value={selectedCar?.name ?? (loadingCars ? 'Loading your garage…' : 'Select a car')}
+            value={selectedCar?.name ?? (loadingCars ? 'Loading your garage…' : carsError ? 'Unable to load vehicles' : 'Select a car')}
             open={openPanel === 'vehicle'}
             onToggle={togglePanel}
             c={c}
           >
+            {carsError ? <ErrorState compact onRetry={() => setCarsRetry((value) => value + 1)} /> : null}
             {selectableCars.map((car) => (
               <OptionRow
                 key={car.id}
@@ -520,7 +502,7 @@ export default function BookingComposer() {
                 c={c}
               />
             ))}
-            {!loadingCars && selectableCars.length === 0 ? (
+            {!loadingCars && !carsError && selectableCars.length === 0 ? (
               <AnimatedPressable
                 style={[styles.emptyAction, { backgroundColor: c.primaryLight, borderColor: c.primary }]}
                 onPress={() => router.push('/add-car' as never)}
@@ -548,7 +530,7 @@ export default function BookingComposer() {
                   <OptionRow
                     key={garage.id}
                     title={garage.name}
-                    description={`${garage.area} · ${garage.rating} rating · ${garage.responseTime} response`}
+                    description={[garage.area, garage.rating > 0 ? `${garage.rating} rating` : '', garage.responseTime].filter(Boolean).join(' · ')}
                     icon="business-outline"
                     selected={selectedGarageId === garage.id}
                     onPress={() => { setSelectedGarageId(garage.id); setSelectedServiceId(''); }}
@@ -594,7 +576,7 @@ export default function BookingComposer() {
                         <View style={{ gap: 3 }}>
                           <Text style={[styles.serviceTitle, { color: c.text }]}>{job.title}</Text>
                           <Text style={[styles.serviceMeta, { color: c.textSecondary }]}>
-                            {job.duration ?? '45 min'} · {job.warranty ?? 'Service warranty'}
+                            {[job.duration, job.warranty].filter(Boolean).join(' · ') || 'Details confirmed by garage'}
                           </Text>
                         </View>
                       </AnimatedPressable>
@@ -607,7 +589,7 @@ export default function BookingComposer() {
           <Panel
             id="schedule"
             icon="calendar-outline"
-            title="When"
+            title="Preferred time"
             value={`${selectedDay.label}, ${selectedTime}`}
             open={openPanel === 'schedule'}
             onToggle={togglePanel}
@@ -649,7 +631,7 @@ export default function BookingComposer() {
                         onPress={() => { void tap(); setSelectedTime(slot); }}
                         accessibilityRole="radio"
                         accessibilityState={{ selected }}
-                        accessibilityLabel={`${band.label} slot ${slot}`}
+                        accessibilityLabel={`${band.label} preferred time ${slot}`}
                       >
                         <Text style={[styles.timeText, { color: selected ? '#fff' : c.text }]}>{slot}</Text>
                       </AnimatedPressable>
@@ -669,7 +651,7 @@ export default function BookingComposer() {
             onToggle={togglePanel}
             c={c}
           >
-            <ToggleRow title="Pickup from my location" description="+QAR 40 driver dispatch" value={pickupEnabled} onValueChange={setPickupEnabled} c={c} />
+            <ToggleRow title="Pickup from my location" description="Garage confirms availability and price" value={pickupEnabled} onValueChange={setPickupEnabled} c={c} />
             {pickupEnabled ? (
               <>
                 {/* Saved addresses first — typing a full address on a phone is
@@ -708,7 +690,7 @@ export default function BookingComposer() {
                 />
               </>
             ) : null}
-            <ToggleRow title="Drop-off after service" description="+QAR 40 return delivery" value={dropoffEnabled} onValueChange={setDropoffEnabled} c={c} />
+            <ToggleRow title="Drop-off after service" description="Garage confirms availability and price" value={dropoffEnabled} onValueChange={setDropoffEnabled} c={c} />
           </Panel>
 
           <Panel
@@ -725,7 +707,7 @@ export default function BookingComposer() {
                 key={item.id}
                 title={item.title}
                 description={item.description}
-                trailing={currency(item.price)}
+                trailing="Request"
                 icon={item.icon}
                 selected={selectedAddOns.includes(item.id)}
                 onPress={() => toggleAddOn(item.id)}
@@ -748,7 +730,6 @@ export default function BookingComposer() {
             <View style={styles.paymentRow}>
               {paymentMethods.map((method) => {
                 const selected = payment === method.id;
-                const shortfall = method.id === 'wallet' && walletBalance < estimatedTotal;
                 return (
                   <AnimatedPressable
                     key={method.id}
@@ -756,17 +737,12 @@ export default function BookingComposer() {
                     onPress={() => { void tap(); setPayment(method.id); }}
                     accessibilityRole="radio"
                     accessibilityState={{ selected }}
-                    accessibilityLabel={
-                      shortfall
-                        ? `Pay with ${method.label}. Balance QAR ${walletBalance}, not enough for this booking.`
-                        : `Pay with ${method.label}`
-                    }
+                    accessibilityLabel={`Pay with ${method.label}`}
                   >
                     <Ionicons name={method.icon} size={15} color={selected ? c.primary : c.textSecondary} />
                     <Text style={[styles.paymentText, { color: selected ? c.primary : c.text }]}>{method.label}</Text>
                     {/* Surface the shortfall on the chip, so the user is not
                         told about it only after tapping Review. */}
-                    {shortfall ? <Ionicons name="alert-circle" size={14} color={c.warning} /> : null}
                   </AnimatedPressable>
                 );
               })}
@@ -790,20 +766,15 @@ export default function BookingComposer() {
             explained. Keeping the two separate means the sticky bar can stay
             one line tall. */}
         <MotionSurface delay={40} style={[styles.ledger, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <Text style={[styles.ledgerTitle, { color: c.muted }]}>Price breakdown</Text>
-          <PriceRow label={selectedService?.title ?? 'Service'} value={servicePrice} c={c} />
-          {chosenAddOns.map((item) => (
-            <PriceRow key={item.id} label={item.title} value={item.price} c={c} sub />
-          ))}
-          {pickupEnabled ? <PriceRow label="Pickup" value={40} c={c} sub /> : null}
-          {dropoffEnabled ? <PriceRow label="Drop-off" value={40} c={c} sub /> : null}
+          <Text style={[styles.ledgerTitle, { color: c.muted }]}>Price information</Text>
+          {servicePrice !== null ? <PriceRow label={selectedService?.title ?? 'Service'} value={servicePrice} c={c} /> : null}
           <View style={[styles.totalLine, { backgroundColor: c.border }]} />
           <View style={styles.priceRow}>
-            <Text style={[styles.totalLabel, { color: c.text }]}>Estimated total</Text>
-            <Text style={[styles.totalValue, { color: c.primary }]}>{currency(estimatedTotal)}</Text>
+            <Text style={[styles.totalLabel, { color: c.text }]}>Listed service price</Text>
+            <Text style={[styles.totalValue, { color: c.primary }]} numberOfLines={2}>{priceLabel}</Text>
           </View>
           <Text style={[styles.ledgerNote, { color: c.muted }]}>
-            The garage confirms the final price after inspection. You are not charged yet.
+            The garage must confirm the time, any requested extras or transport, and the final price. You are not charged now.
           </Text>
         </MotionSurface>
       </ScrollView>
@@ -823,9 +794,9 @@ export default function BookingComposer() {
         ]}
       >
         <View style={styles.actionTotals}>
-          <Text style={[styles.actionLabel, { color: c.textSecondary }]}>Estimated total</Text>
-          <Animated.Text style={[styles.actionTotal, { color: c.text }, totalAnimStyle]}>
-            {currency(estimatedTotal)}
+          <Text style={[styles.actionLabel, { color: c.textSecondary }]}>Listed service price</Text>
+          <Animated.Text style={[styles.actionTotal, { color: c.text }, totalAnimStyle]} numberOfLines={2}>
+            {priceLabel}
           </Animated.Text>
         </View>
         <AnimatedPressable
@@ -833,7 +804,7 @@ export default function BookingComposer() {
           onPress={handleReview}
           disabled={!canSubmit || submitting}
           scaleValue={0.97}
-          accessibilityLabel={`Review booking, estimated total ${currency(estimatedTotal)}`}
+          accessibilityLabel={`Review booking request, ${priceLabel}`}
         >
           {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>Review</Text>}
           {!submitting ? <Ionicons name="arrow-forward" size={18} color="#fff" /> : null}
@@ -841,8 +812,8 @@ export default function BookingComposer() {
       </View>
 
       {/* ── Confirmation review ──
-          The last chance to catch a wrong car, date or address before a slot
-          is reserved and money moves. */}
+          The last chance to catch a wrong car, date or address before the
+          request is sent. The garage confirms time and price later. */}
       <Modal
         visible={reviewing}
         transparent
@@ -860,16 +831,16 @@ export default function BookingComposer() {
           />
           <View style={[styles.reviewSheet, { backgroundColor: c.surface, borderColor: c.border, paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
             <View style={[styles.reviewGrabber, { backgroundColor: c.border }]} />
-            <Text style={[styles.reviewTitle, { color: c.text }]} accessibilityRole="header">Confirm your booking</Text>
+            <Text style={[styles.reviewTitle, { color: c.text }]} accessibilityRole="header">Review booking request</Text>
             <Text style={[styles.reviewSubtitle, { color: c.textSecondary }]}>
-              Check the details below. Nothing is booked until you confirm.
+              Check the details below. The garage will confirm your preferred time and final price.
             </Text>
 
             <ScrollView style={styles.reviewScroll} showsVerticalScrollIndicator={false}>
               <ReviewRow icon="car-sport-outline" label="Vehicle" value={selectedCar?.name ?? '—'} c={c} />
               <ReviewRow icon="construct-outline" label="Service" value={selectedService?.title ?? '—'} c={c} />
               <ReviewRow icon="business-outline" label="Garage" value={selectedGarage?.name ?? '—'} c={c} />
-              <ReviewRow icon="calendar-outline" label="When" value={`${selectedDay.label}, ${selectedTime}`} c={c} />
+              <ReviewRow icon="calendar-outline" label="Preferred time" value={`${selectedDay.label}, ${selectedTime}`} c={c} />
               {chosenAddOns.length > 0 && (
                 <ReviewRow
                   icon="add-circle-outline"
@@ -889,26 +860,16 @@ export default function BookingComposer() {
               />
               {notes.trim() ? <ReviewRow icon="chatbox-outline" label="Notes" value={notes.trim()} c={c} last /> : null}
 
-              {/* The total is itemised here too. Asking someone to confirm a
-                  number they cannot check is how disputes start. */}
+              {/* This is a listed price, never a confirmed invoice. */}
               <View style={[styles.reviewTotal, { backgroundColor: c.surfaceAlt, borderColor: c.primaryMid }]}>
-                <PriceRow label={selectedService?.title ?? 'Service'} value={servicePrice} c={c} />
-                {chosenAddOns.map((item) => (
-                  <PriceRow key={item.id} label={item.title} value={item.price} c={c} sub />
-                ))}
-                {pickupEnabled ? <PriceRow label="Pickup" value={40} c={c} sub /> : null}
-                {dropoffEnabled ? <PriceRow label="Drop-off" value={40} c={c} sub /> : null}
+                {servicePrice !== null ? <PriceRow label={selectedService?.title ?? 'Service'} value={servicePrice} c={c} /> : null}
                 <View style={[styles.totalLine, { backgroundColor: c.border }]} />
                 <View style={styles.priceRow}>
-                  <Text style={[styles.totalLabel, { color: c.text }]}>Estimated total</Text>
-                  <Text style={[styles.reviewTotalValue, { color: c.primary }]}>{currency(estimatedTotal)}</Text>
+                  <Text style={[styles.totalLabel, { color: c.text }]}>Listed service price</Text>
+                  <Text style={[styles.reviewTotalValue, { color: c.primary }]} numberOfLines={2}>{priceLabel}</Text>
                 </View>
                 <Text style={[styles.reviewTotalNote, { color: c.muted }]}>
-                  {payment === 'wallet'
-                    ? `Charged to your wallet now. Balance after booking: ${currency(Math.max(walletBalance - estimatedTotal, 0))}.`
-                    : payment === 'garage'
-                      ? 'You pay the garage directly when the work is done.'
-                      : 'Final price is confirmed by the garage after inspection.'}
+                  Pay the garage after they confirm the work and final amount. Requested extras and transport may change the price.
                 </Text>
               </View>
             </ScrollView>
@@ -929,12 +890,12 @@ export default function BookingComposer() {
                 accessibilityLabel={
                   submitting
                     ? 'Sending your booking request'
-                    : `Confirm and send booking request, ${currency(estimatedTotal)}`
+                    : `Send booking request, ${priceLabel}`
                 }
               >
                 {submitting
                   ? <><ActivityIndicator color="#fff" /><Text style={styles.confirmText} numberOfLines={1}>Booking…</Text></>
-                  : <><Ionicons name="checkmark" size={18} color="#fff" /><Text style={styles.confirmText} numberOfLines={1}>Confirm booking</Text></>}
+                  : <><Ionicons name="checkmark" size={18} color="#fff" /><Text style={styles.confirmText} numberOfLines={1}>Send request</Text></>}
               </AnimatedPressable>
             </View>
           </View>
@@ -1006,7 +967,7 @@ function Panel({
   return (
     <Animated.View
       layout={smoothLayout}
-      style={[styles.panel, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border }]}
+      style={[styles.panel, { backgroundColor: c.surface, borderColor: c.border }]}
     >
       <AnimatedPressable
         style={styles.panelHeader}
@@ -1181,44 +1142,39 @@ const styles = StyleSheet.create({
 
   // ── Hero ──────────────────────────────────────────────────────────────────
   hero: {
-    borderRadius: radius.xl,
+    borderRadius: radius.xs,
     borderWidth: 1,
-    padding: 16,
     gap: 14,
     overflow: 'hidden',
-    ...shadow.sm,
   },
-  heroGlow: {
-    position: 'absolute',
-    top: -70,
-    end: -50,
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-  },
-  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 13 },
-  heroIcon: { width: 50, height: 50, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
+  heroPhoto: { height: 150, justifyContent: 'flex-end', backgroundColor: '#11161D' },
+  heroPhotoImage: { ...StyleSheet.absoluteFill },
+  heroPhotoCaption: { padding: 12, gap: 3, backgroundColor: 'rgba(8,10,13,0.88)' },
+  heroPhotoLabel: { color: '#F7C948', ...typography.overline },
+  heroPhotoName: { color: '#fff', ...typography.h3 },
+  heroVerified: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  heroVerifiedText: { color: '#fff', ...typography.caption },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 16 },
+  heroIcon: { width: 44, height: 44, borderRadius: radius.xs, alignItems: 'center', justifyContent: 'center' },
   eyebrow: { ...typography.overline },
   heroTitle: { fontSize: 22, lineHeight: 27, fontWeight: '900', letterSpacing: -0.4 },
   heroGarage: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
   heroGarageName: { flex: 1, ...typography.caption, fontWeight: '800' },
   ratingPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full },
   ratingText: { fontSize: 12, fontWeight: '900' },
-  heroFacts: { flexDirection: 'row', gap: 8 },
+  heroFacts: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 16 },
   heroFact: { flex: 1, alignItems: 'center', gap: 3, minWidth: 0 },
   heroFactValue: { ...typography.caption, fontWeight: '900' },
   heroFactLabel: { ...typography.caption, fontSize: 12 },
 
   // ── Disclosure panels ─────────────────────────────────────────────────────
-  panelGroup: {
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    overflow: 'hidden',
-    ...shadow.xs,
-  },
-  panel: { paddingHorizontal: 14 },
+  formHeading: { gap: 4, marginTop: 8 },
+  formHeadingTitle: { ...typography.h3 },
+  formHeadingNote: { ...typography.bodySm },
+  panelGroup: { gap: 8 },
+  panel: { paddingHorizontal: 14, borderRadius: radius.xs, borderWidth: 1, overflow: 'hidden' },
   panelHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 64, paddingVertical: 10 },
-  panelIcon: { width: 38, height: 38, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  panelIcon: { width: 38, height: 38, borderRadius: radius.xs, alignItems: 'center', justifyContent: 'center' },
   panelTitle: { ...typography.label },
   panelValue: { fontSize: 15, lineHeight: 20, fontWeight: '800' },
   panelBody: { gap: 10, paddingBottom: 16, paddingTop: 2 },
@@ -1240,21 +1196,21 @@ const styles = StyleSheet.create({
   emptyActionText: { ...typography.h4 },
 
   serviceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  serviceCard: { flexBasis: '47%', flexGrow: 1, minHeight: 128, borderRadius: radius.lg, borderWidth: 1, padding: 13, justifyContent: 'space-between' },
+  serviceCard: { flexBasis: '47%', flexGrow: 1, minHeight: 128, borderRadius: radius.xs, borderWidth: 1, padding: 13, justifyContent: 'space-between' },
   serviceTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   servicePrice: { ...typography.caption, fontWeight: '900' },
   serviceTitle: { fontSize: 13, lineHeight: 17, fontWeight: '900' },
   serviceMeta: { fontSize: 12, lineHeight: 15, fontWeight: '600' },
 
   dayRow: { gap: 10, paddingVertical: 2, paddingEnd: spacing.page },
-  dayCard: { width: 72, minHeight: 88, borderRadius: radius.lg, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  dayCard: { width: 72, minHeight: 88, borderRadius: radius.xs, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
   dayLabel: { ...typography.caption },
   dayNumber: { fontSize: 24, lineHeight: 28, fontWeight: '900', fontVariant: ['tabular-nums'] },
   band: { gap: 8 },
   bandHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   bandLabel: { ...typography.label },
   timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  timeChip: { flexBasis: '30%', flexGrow: 1, minHeight: 46, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  timeChip: { flexBasis: '30%', flexGrow: 1, minHeight: 46, borderRadius: radius.xs, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   timeText: { ...typography.caption, fontWeight: '900', fontVariant: ['tabular-nums'] },
 
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: radius.lg, borderWidth: 1, padding: 14, minHeight: 68 },
@@ -1285,8 +1241,8 @@ const styles = StyleSheet.create({
   priceValue: { ...typography.h4, fontVariant: ['tabular-nums'] },
   priceValueSub: { ...typography.caption, fontWeight: '800', fontVariant: ['tabular-nums'] },
   totalLine: { height: StyleSheet.hairlineWidth, marginVertical: 2 },
-  totalLabel: { ...typography.h4 },
-  totalValue: { ...typography.h2, fontVariant: ['tabular-nums'] },
+  totalLabel: { ...typography.h4, flex: 1 },
+  totalValue: { ...typography.h2, flexShrink: 1, textAlign: 'right', fontVariant: ['tabular-nums'] },
 
   // ── Sticky action bar ─────────────────────────────────────────────────────
   actionBar: {
@@ -1304,12 +1260,12 @@ const styles = StyleSheet.create({
   },
   actionTotals: { flex: 1, gap: 2, minWidth: 0 },
   actionLabel: { ...typography.caption },
-  actionTotal: { fontSize: 22, lineHeight: 26, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  actionTotal: { fontSize: 18, lineHeight: 22, fontWeight: '900', fontVariant: ['tabular-nums'] },
   confirmButton: {
     minHeight: 54,
     minWidth: 148,
     paddingHorizontal: 22,
-    borderRadius: radius.xl,
+    borderRadius: radius.xs,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -1353,7 +1309,7 @@ const styles = StyleSheet.create({
   },
   reviewTotalLabel: { ...typography.caption, fontWeight: '800' },
   reviewTotalNote: { ...typography.caption, marginTop: 2 },
-  reviewTotalValue: { ...typography.h2, fontVariant: ['tabular-nums'] },
+  reviewTotalValue: { ...typography.h2, flexShrink: 1, textAlign: 'right', fontVariant: ['tabular-nums'] },
   // `stretch` makes both buttons take the height of the taller one, so the
   // pair stays level when Confirm's label wraps or swaps to the spinner.
   reviewActions: { flexDirection: 'row', alignItems: 'stretch', gap: 10, marginTop: 14 },

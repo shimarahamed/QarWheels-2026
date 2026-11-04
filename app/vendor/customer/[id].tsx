@@ -6,7 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { palette, radius, shadow, spacing, typography } from '@/lib/theme';
-import { vendorBookings } from '@/lib/vendor-data';
+import { MissingRecord } from '@/components/vendor/MissingRecord';
+import { bookingAmountLabel } from '@/lib/vendor-data';
 
 const TIER_COLORS: Record<string, string> = {
   Platinum: '#E5E4E2',
@@ -21,12 +22,13 @@ export default function CustomerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const customers = useQarWheelStore((s) => s.vendorCustomers);
   const updateNotes = useQarWheelStore((s) => s.updateVendorCustomerNotes);
+  const vendorBookings = useQarWheelStore((s) => s.vendorBookings);
 
-  const customer = customers.find((cu) => cu.id === id || cu.name.replace(/\s/g, '_') === id)
-    ?? customers[0];
+  const customer = customers.find((cu) => cu.id === id || cu.name.replace(/\s/g, '_') === id);
 
+  const [notes, setNotes] = useState(customer?.notes ?? '');
+  if (!customer) return <MissingRecord title="Customer unavailable" />;
   const customerBookings = vendorBookings.filter((b) => b.customerName === customer.name);
-  const [notes, setNotes] = useState(customer.notes);
   const tierColor = TIER_COLORS[customer.loyaltyTier] ?? '#C0C0C0';
 
   return (
@@ -128,7 +130,7 @@ export default function CustomerScreen() {
                       <Text style={[s.historyService, { color: c.text }]}>{b.service}</Text>
                       <Text style={[s.historyDate, { color: c.muted }]}>{typeof b.date === 'string' ? b.date : ''}{b.timeSlot ? ` · ${b.timeSlot}` : ''}</Text>
                     </View>
-                    <Text style={[s.historyAmount, { color: c.text }]}>QAR {String(b.totalAmount ?? 0)}</Text>
+                    <Text style={[s.historyAmount, { color: c.text }]}>{bookingAmountLabel(b.totalAmount)}</Text>
                   </Pressable>
                 ))}
               </View>

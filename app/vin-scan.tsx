@@ -32,6 +32,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  type TextInputInstance,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -117,7 +118,7 @@ export default function VinScanScreen() {
   const [errorMsg, setErrorMsg] = useState('');
   const [cameraLoading, setCameraLoading] = useState(false);
 
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   function shake() {

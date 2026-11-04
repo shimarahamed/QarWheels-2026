@@ -37,6 +37,7 @@ import { signOutCompletely } from '@/lib/session';
 import { recordedHealth } from '@/lib/vehicle-records';
 import { RemoteImage } from '@/components/RemoteImage';
 import { MotionScreen } from '@/lib/motion';
+import { formatBookingDate } from '@/lib/booking-date';
 import {
   getBookingStatusDescription,
   getBookingStatusIndex,
@@ -94,11 +95,7 @@ const FEATURED_SERVICES = [
   { id: 's5', label: 'Tire Change',   price: 'From AED 249', imageUrl: 'https://images.unsplash.com/photo-1551522435-a13afa10f103?auto=format&fit=crop&w=300&q=80' },
 ];
 
-const TOP_OFFERS = [
-  { id: 'o1', service: 'Oil Change',   discount: '15% OFF', until: 'Valid till 30 May', imageUrl: 'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=200&q=80' },
-  { id: 'o2', service: 'Brake Pads',   discount: '10% OFF', until: 'Valid till 30 May', imageUrl: 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=200&q=80' },
-  { id: 'o3', service: 'Full Service', discount: 'AED 99',  until: 'Limited Time',      imageUrl: 'https://images.unsplash.com/photo-1559416523-140ddc3d238c?auto=format&fit=crop&w=200&q=80' },
-];
+const TOP_OFFERS: { id: string; service: string; discount: string; until: string; imageUrl: string }[] = [];
 
 const TRUST_ITEMS = [
   { icon: 'shield-checkmark' as IoniconName, label: 'Verified Garages',  labelAr: 'كراجات موثقة',        iconColor: '#E31E24', bg: 'rgba(227,30,36,0.14)'  },
@@ -232,18 +229,18 @@ function GarageListCard({ garage, c }: { garage: Garage; c: QarColors }) {
   const toggleFav = useQarWheelStore((s) => s.toggleFavoriteGarage);
 
   return (
-    <Pressable
-      style={[ss.garageCard, { backgroundColor: c.surface, borderColor: isFav ? c.primary : c.border }]}
-      onPress={() => { void tap(); router.push(route(`/garage/${garage.id}`)); }}
-    >
+    <View style={[ss.garageCard, { backgroundColor: c.surface, borderColor: isFav ? c.primary : c.border }]}>
+      <Pressable
+        style={ss.garageDetails}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${garage.name}`}
+        onPress={() => { void tap(); router.push(route(`/garage/${garage.id}`)); }}
+      >
       <RemoteImage uri={garage.imageUrl} style={ss.garageThumb} fallbackIcon="business-outline" accessibilityLabel={garage.name} />
 
       <View style={ss.garageBody}>
         <View style={ss.garageTopRow}>
           <Text numberOfLines={1} style={[ss.garageName, { color: c.text }]}>{garage.name}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel={isFav ? `Unsave ${garage.name}` : `Save ${garage.name}`} accessibilityState={{ selected: isFav }} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }} onPress={(event) => { event.stopPropagation(); void tap(); toggleFav(garage.id); }}>
-            <Icon name={isFav ? 'heart' : 'heart-outline'} size={18} color={isFav ? '#EF4444' : c.muted} />
-          </Pressable>
         </View>
 
         <Text style={[ss.garageSpecialty, { color: c.muted }]}>{garage.type}</Text>
@@ -263,7 +260,7 @@ function GarageListCard({ garage, c }: { garage: Garage; c: QarColors }) {
           <View style={[ss.openPill, { backgroundColor: garage.openNow ? 'rgba(34,197,94,0.14)' : c.surfaceAlt }]}>
             <View style={[ss.openDot, { backgroundColor: garage.openNow ? '#22C55E' : c.muted }]} />
             <Text style={[ss.openText, { color: garage.openNow ? '#22C55E' : c.muted }]}>
-              {garage.openNow ? 'Open' : 'Closed'}
+              {garage.openNow === null ? 'Hours unavailable' : garage.openNow ? 'Open' : 'Closed'}
             </Text>
           </View>
 
@@ -281,7 +278,11 @@ function GarageListCard({ garage, c }: { garage: Garage; c: QarColors }) {
           ))}
         </View>
       </View>
-    </Pressable>
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={isFav ? `Unsave ${garage.name}` : `Save ${garage.name}`} accessibilityState={{ selected: isFav }} style={ss.garageFavorite} onPress={() => { void tap(); toggleFav(garage.id); }}>
+        <Icon name={isFav ? 'heart' : 'heart-outline'} size={18} color={isFav ? '#EF4444' : c.muted} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -441,7 +442,7 @@ export function HomeScreen() {
               <RemoteImage uri={svc.imageUrl} style={ss.featSvcImage} fallbackIcon="construct-outline" accessibilityLabel={svc.label} />
               <View style={ss.featSvcInfo}>
                 <Text style={[ss.featSvcLabel, { color: c.text }]}>{svc.label}</Text>
-                <Text style={[ss.featSvcPrice, { color: c.muted }]}>{svc.price}</Text>
+                <Text style={[ss.featSvcPrice, { color: c.muted }]}>Browse garages</Text>
               </View>
             </Pressable>
           ))}
@@ -461,7 +462,7 @@ export function HomeScreen() {
             <Text style={ss.bookCtaSubAr}>سريع. موثوق. بأسعار مناسبة.</Text>
             <Pressable
               style={[ss.bookCtaBtn, { backgroundColor: '#fff' }]}
-              onPress={() => { void tap(); router.push(route('/checkout/emergency')); }}
+              onPress={() => { void tap(); router.push('/services'); }}
             >
               <Text style={[ss.bookCtaBtnText, { color: c.primary }]}>Book Now</Text>
             </Pressable>
@@ -527,10 +528,8 @@ export function HomeScreen() {
         />
         <View style={ss.promoOverlay} />
         <View style={ss.promoContent}>
-          <Text style={ss.promoEyebrow}>Summer AC Special</Text>
-          <Text style={ss.promoSub}>On All AC Services</Text>
-          <Text style={ss.promoDiscount}>20%</Text>
-          <Text style={ss.promoOff}>OFF</Text>
+          <Text style={ss.promoEyebrow}>AC Service</Text>
+          <Text style={ss.promoSub}>Find an AC specialist</Text>
           <Pressable
             style={[ss.promoBtn, { backgroundColor: '#fff' }]}
             onPress={() => { void tap(); router.push(route('/checkout/ac')); }}
@@ -543,7 +542,7 @@ export function HomeScreen() {
       {/* ── Top Offers For You ──────────────────────────────────── */}
       <View style={ss.landingSection}>
         <SectionRow
-          title="Top Offers For You"
+          title="Offers"
           linkLabel="View all"
           onPress={() => router.push('/offers')}
           c={c}
@@ -741,7 +740,7 @@ export function SearchScreen() {
           {error && <ErrorState compact onRetry={() => void refresh()} />}
         </View>}
         ListEmptyComponent={loading ? <ActivityIndicator accessibilityLabel="Loading garages" color={c.primary} style={{ padding: 24 }} />
-          : error ? null : <View style={ss.emptyBox}>
+          : error ? undefined : <View style={ss.emptyBox}>
             <Icon name="search-outline" size={36} color={c.muted} />
             <Text style={[ss.emptyTitle, { color: c.text }]}>{trimmed ? 'No matching garages' : 'No garages listed yet'}</Text>
             <Text style={[ss.emptyDesc, { color: c.textSecondary }]}>{trimmed ? 'Try another name, area, or service type.' : 'Pull down to check again.'}</Text>
@@ -814,7 +813,10 @@ export function BookingsScreen() {
 
   function handleReschedule(booking: Booking) {
     if (isBookingTerminal(booking.status) || booking.status === 'Cancelled') return;
-    Alert.alert('Reschedule with the garage', 'Contact the garage to agree on a new time. Your current booking remains unchanged.');
+    Alert.alert('Ask for a new time', 'Message the garage to agree on a new time. Your current booking stays unchanged until they confirm it.', [
+      { text: 'Not now', style: 'cancel' },
+      { text: 'Message garage', onPress: () => router.push(booking.garageId ? route(`/chat/${booking.garageId}`) : '/messages') },
+    ]);
   }
 
   return (
@@ -828,7 +830,13 @@ export function BookingsScreen() {
         <View style={{ gap: 2 }}>
           <Text style={[ss.pageEyebrow, { color: c.primary }]}>Appointments</Text>
           <Text style={[ss.pageTitle, { color: c.text }]}>My bookings</Text>
+          {feed.hasMore ? <Text style={{ color: c.muted, fontSize: 12 }}>Counts show loaded bookings</Text> : null}
         </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="New booking" style={[ss.primaryBtn, { backgroundColor: c.primary }]}
+          onPress={() => router.push('/search')}>
+          <Icon name="add-circle-outline" size={19} color="#fff" />
+          <Text style={[ss.primaryBtnText, { color: '#fff' }]}>New booking</Text>
+        </Pressable>
 
         <View style={[ss.summaryStrip, { backgroundColor: c.surface, borderColor: c.border }]}>
           {[
@@ -869,30 +877,41 @@ export function BookingsScreen() {
           {feed.error && <ErrorState compact onRetry={feed.refresh} />}
         </View>}
         ListEmptyComponent={feed.loading ? <ActivityIndicator color={c.primary} accessibilityLabel="Loading bookings" style={{ padding: 24 }} />
-          : feed.error ? null : <View style={ss.emptyBox}>
+          : feed.error ? undefined : <View style={ss.emptyBox}>
             <Icon name="calendar-outline" size={40} color={c.muted} />
             <Text style={[ss.emptyTitle, { color: c.text }]}>No {activeTab.toLowerCase()} bookings</Text>
-            <Text style={[ss.emptyDesc, { color: c.textSecondary }]}>Choose a garage to book your next service.</Text>
+            <Text style={[ss.emptyDesc, { color: c.textSecondary }]}>{feed.hasMore ? 'Load older bookings to continue searching this history.' : 'Choose a garage to book your next service.'}</Text>
           </View>}
+        ListFooterComponent={feed.hasMore ? <Pressable
+          accessibilityRole="button" accessibilityLabel="Load older bookings"
+          accessibilityState={{ disabled: feed.loadingMore }}
+          disabled={feed.loadingMore}
+          style={[ss.primaryBtn, { backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, minHeight: 44, justifyContent: 'center' }]}
+          onPress={feed.loadMore}>
+          {feed.loadingMore ? <ActivityIndicator color={c.primary} /> : <Text style={[ss.primaryBtnText, { color: c.primary }]}>Load older bookings</Text>}
+        </Pressable> : undefined}
         renderItem={({ item: booking }) => {
           const sc = statusColorsThemed[booking.status] ?? statusColorsThemed.Pending;
           const progressIndex = Math.max(getBookingStatusIndex(booking.status), 0);
           const progressPercent = isBookingTerminal(booking.status) ? (booking.status === 'Completed' ? 100 : 0) : Math.round(((progressIndex + 1) / 6) * 100);
           const canModify = actorAllowedTransitions('customer', booking.status).includes('Cancelled') && cancellingId !== booking.id;
           return (
-            <Pressable
+            <View
               key={booking.id}
               style={[ss.bookingCard, { backgroundColor: c.surface, borderColor: c.border }]}
-              onPress={() => { void tap(); router.push(route(`/booking/${booking.id}`)); }}
             >
-              <View style={ss.bookingTop}>
+              <Pressable style={ss.bookingPrimary}
+                accessibilityRole="button"
+                accessibilityLabel={`View ${booking.service} booking at ${booking.garage}`}
+                onPress={() => { void tap(); router.push(route(`/booking/${booking.id}`)); }}>
+                <View style={ss.bookingTop}>
                 <View style={[ss.statusPill, { backgroundColor: sc.bg }]}> 
                   <View style={[ss.statusDot, { backgroundColor: sc.dot }]} />
                   <Text style={[ss.statusText, { color: sc.text }]}>{getBookingStatusLabel(booking.status)}</Text>
                 </View>
-                <Text style={[ss.bookingDate, { color: c.muted }]}>{typeof booking.date === 'string' ? booking.date : ''}</Text>
-              </View>
-              <View style={ss.bookingBody}>
+                <Text style={[ss.bookingDate, { color: c.muted }]}>{formatBookingDate(booking.bookingDate || booking.date)}</Text>
+                </View>
+                <View style={ss.bookingBody}>
                 <Text style={[ss.bookingService, { color: c.text }]}>{booking.service}</Text>
                 <Text style={[ss.bookingStatusDesc, { color: c.textSecondary }]}>{getBookingStatusDescription(booking.status)}</Text>
                 <View style={ss.bookingMeta}>
@@ -906,31 +925,27 @@ export function BookingsScreen() {
                 <View style={[ss.bookingProgressTrack, { backgroundColor: c.surfaceAlt }]}> 
                   <View style={[ss.bookingProgressFill, { width: `${progressPercent}%`, backgroundColor: sc.dot }]} />
                 </View>
-              </View>
+                </View>
+              </Pressable>
               <View style={[ss.bookingActions, { borderTopColor: c.border }]}> 
-                <Pressable style={ss.bookingAction} accessibilityRole="button" accessibilityLabel={`Message ${booking.garage}`} onPress={(event) => { event.stopPropagation(); router.push(booking.garageId ? route(`/chat/${booking.garageId}`) : '/messages'); }}>
+                <Pressable style={ss.bookingAction} accessibilityRole="button" accessibilityLabel={`Message ${booking.garage}`} onPress={() => router.push(booking.garageId ? route(`/chat/${booking.garageId}`) : '/messages')}>
                   <Icon name="chatbubble-ellipses-outline" size={15} color={c.primary} />
                   <Text style={[ss.bookingActionText, { color: c.primary }]}>Message</Text>
                 </Pressable>
                 <View style={[ss.bookingActionSep, { backgroundColor: c.border }]} />
-                <Pressable style={ss.bookingAction} accessibilityRole="button" accessibilityLabel={`Reschedule ${booking.service}`} disabled={!canModify} onPress={(event) => { event.stopPropagation(); handleReschedule(booking); }}>
+                <Pressable style={ss.bookingAction} accessibilityRole="button" accessibilityLabel={`Ask to reschedule ${booking.service}`} disabled={!canModify} accessibilityState={{ disabled: !canModify }} onPress={() => handleReschedule(booking)}>
                   <Icon name="calendar-outline" size={15} color={canModify ? c.primary : c.muted} />
-                  <Text style={[ss.bookingActionText, { color: canModify ? c.primary : c.muted }]}>Reschedule</Text>
+                  <Text style={[ss.bookingActionText, { color: canModify ? c.primary : c.muted }]}>Ask new time</Text>
                 </Pressable>
                 <View style={[ss.bookingActionSep, { backgroundColor: c.border }]} />
-                <Pressable style={ss.bookingAction} accessibilityRole="button" accessibilityLabel={`Cancel ${booking.service}`} disabled={!canModify} accessibilityState={{ disabled: !canModify, busy: cancellingId === booking.id }} onPress={(event) => { event.stopPropagation(); handleCancel(booking); }}>
+                <Pressable style={ss.bookingAction} accessibilityRole="button" accessibilityLabel={`Cancel ${booking.service}`} disabled={!canModify} accessibilityState={{ disabled: !canModify, busy: cancellingId === booking.id }} onPress={() => handleCancel(booking)}>
                   <Icon name="close-circle-outline" size={15} color={canModify ? c.danger : c.muted} />
                   <Text style={[ss.bookingActionText, { color: canModify ? c.danger : c.muted }]}>{cancellingId === booking.id ? 'Cancelling...' : 'Cancel'}</Text>
                 </Pressable>
               </View>
-            </Pressable>
+            </View>
           );
         }}
-        ListFooterComponent={<Pressable accessibilityRole="button" style={[ss.primaryBtn, { backgroundColor: c.primary }]}
-          onPress={() => router.push('/search')}>
-          <Icon name="add-circle-outline" size={19} color="#fff" />
-          <Text style={[ss.primaryBtnText, { color: '#fff' }]}>New booking</Text>
-        </Pressable>}
       />
     </SafeAreaView>
   );
@@ -941,7 +956,7 @@ export function CarsScreen() {
   const router = useRouter();
   const c = useQarColors();
   const { user } = useAuthContext();
-  const { cars: carList, isLoading: loading } = useCars(user?.uid);
+  const { cars: carList, isLoading: loading, error: carsError, refresh: refreshCars } = useCars(user?.uid);
 
   function hColor(pct: number) { return pct >= 80 ? '#22C55E' : pct >= 60 ? '#F59E0B' : '#EF4444'; }
   function hLabel(pct: number) { return pct >= 80 ? 'Great' : pct >= 60 ? 'Fair' : 'Needs attention'; }
@@ -968,15 +983,12 @@ export function CarsScreen() {
   const avgHealth = scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) : null;
   const attentionCount = scores.filter((score) => score < 70).length;
 
-  const { control: refreshControl } = useRefresh();
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['top']}>
       <ScrollView
         style={{ backgroundColor: c.background }}
         contentContainerStyle={{ padding: spacing.page, paddingBottom: TAB_BOTTOM + 18, gap: 16 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={refreshControl}
       >
         <View style={ss.carsHeroWrap}>
           <View style={{ flex: 1, gap: 3 }}>
@@ -995,7 +1007,7 @@ export function CarsScreen() {
           </Pressable>
         </View>
 
-        <View style={[ss.garageOverview, { backgroundColor: c.surface, borderColor: c.border }]}>
+        {(!loading && !carsError || carList.length > 0) && <View style={[ss.garageOverview, { backgroundColor: c.surface, borderColor: c.border }]}>
           <View style={[ss.garageOverviewIcon, { backgroundColor: c.primaryLight }]}>
             <Icon name="shield-checkmark-outline" size={24} color={c.primary} />
           </View>
@@ -1015,16 +1027,18 @@ export function CarsScreen() {
               ))}
             </View>
           </View>
-        </View>
+        </View>}
 
-        {loading && (
+        {loading && carList.length === 0 && (
           <View style={[ss.loadBox, { backgroundColor: c.surface, borderColor: c.border }]}>
             <ActivityIndicator color={c.primary} />
             <Text style={[ss.loadText, { color: c.muted }]}>Loading vehicles…</Text>
           </View>
         )}
 
-        {!loading && carList.length === 0 && (
+        {carsError && <ErrorState compact onRetry={refreshCars} />}
+
+        {!loading && !carsError && carList.length === 0 && (
           <View style={[ss.emptyBox, { backgroundColor: c.surface, borderColor: c.border }]}>
             <Icon name="car-outline" size={40} color={c.muted} />
             <Text style={[ss.emptyTitle, { color: c.textSecondary }]}>Your garage is empty</Text>
@@ -1140,56 +1154,17 @@ export function AccountScreen() {
   const { user } = useAuthContext();
   const themeMode = useQarWheelStore((s) => s.themeMode);
   const toggleTheme = useQarWheelStore((s) => s.toggleThemeMode);
-  const bookings = useQarWheelStore((s) => s.bookings);
   const favoriteGarageIds = useQarWheelStore((s) => s.favoriteGarageIds);
-  const vendorInvoices = useQarWheelStore((s) => s.vendorInvoices);
 
   // Live car count from Firestore (shared hook — same subscription as CarsScreen)
-  const { cars: accountCarList } = useCars(user?.uid);
+  const { cars: accountCarList, isLoading: accountCarsLoading, error: accountCarsError } = useCars(user?.uid);
 
   const totalVehicles = accountCarList.length;
-  const totalBookings = bookings.length;
   const totalSaved = favoriteGarageIds.length;
-  const totalSpent = vendorInvoices
-    .filter((inv) => inv.status === 'Paid')
-    .reduce((sum, inv) => sum + (inv.total ?? 0), 0);
-  const spentLabel = totalSpent > 0 ? `QAR ${totalSpent.toLocaleString()}` : 'QAR 0';
 
   const initial = user?.displayName?.[0] ?? user?.email?.[0]?.toUpperCase() ?? 'U';
   const name = user?.displayName ?? 'QarWheel User';
   const email = user?.email ?? '';
-
-  const menuSections = [
-    {
-      title: 'Vehicles & bookings',
-      items: [
-        { label: 'My cars',         icon: 'car-sport-outline' as IoniconName, href: '/(tabs)/cars',    color: '#E31E24', isTab: true },
-        { label: 'Saved garages',   icon: 'heart-outline' as IoniconName,    href: 'saved-garages',   color: '#EF4444' },
-        { label: 'Booking history', icon: 'calendar-outline' as IoniconName,  href: 'payment-methods', color: '#22C55E' },
-      ],
-    },
-    {
-      title: 'Payments & security',
-      items: [
-        { label: 'Payment methods', icon: 'card-outline' as IoniconName,   href: 'payment-methods', color: c.primary },
-        { label: 'Wallet balance',  icon: 'wallet-outline' as IoniconName,  href: 'payment-methods', color: '#818CF8' },
-      ],
-    },
-    {
-      title: 'Preferences',
-      items: [
-        { label: 'Notifications',           icon: 'notifications-outline' as IoniconName, href: 'notifications',       color: '#F59E0B' },
-        { label: 'Language: English / عربي', icon: 'language-outline' as IoniconName,     href: 'language',            color: '#22D3EE' },
-        { label: 'Privacy & data safety',   icon: 'shield-outline' as IoniconName,        href: 'privacy-data-safety', color: '#A78BFA' },
-      ],
-    },
-    {
-      title: 'Business',
-      items: [
-        { label: 'Vendor mode', icon: 'business-outline' as IoniconName, href: 'vendor-mode', color: '#F59E0B' },
-      ],
-    },
-  ];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['top']}>
@@ -1197,7 +1172,6 @@ export function AccountScreen() {
         style={{ backgroundColor: c.background }}
         contentContainerStyle={{ padding: spacing.page, paddingBottom: TAB_BOTTOM + 18, gap: 16 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={() => {}} tintColor={c.primary} colors={[c.primary]} />}
       >
         <View style={{ gap: 2 }}>
           <Text style={[ss.pageEyebrow, { color: c.primary }]}>QarWheel</Text>
@@ -1243,16 +1217,14 @@ export function AccountScreen() {
         {/* Stats */}
         <View style={[ss.statsStrip, { backgroundColor: c.surface, borderColor: c.border }]}>
           {[
-            { label: 'Vehicles', value: String(totalVehicles), icon: 'car-outline' as IoniconName },
-            { label: 'Bookings', value: String(totalBookings), icon: 'calendar-outline' as IoniconName },
-            { label: 'Saved',    value: String(totalSaved),    icon: 'heart-outline' as IoniconName },
-            { label: 'Spent',    value: spentLabel,            icon: 'wallet-outline' as IoniconName },
+            { label: 'Vehicles', value: accountCarsError ? '--' : accountCarsLoading ? '...' : String(totalVehicles), icon: 'car-outline' as IoniconName },
+            { label: 'Saved garages', value: String(totalSaved), icon: 'heart-outline' as IoniconName },
           ].map((s, i) => (
             <View
               key={s.label}
               style={[
                 ss.statItem,
-                i < 3 && { borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: c.border },
+                i < 1 && { borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: c.border },
               ]}
             >
               <Icon name={s.icon} size={18} color={c.primary} />
@@ -1307,7 +1279,7 @@ export function AccountScreen() {
           <Text style={[ss.signOutText, { color: '#EF4444' }]}>Sign out</Text>
         </Pressable>
 
-        <Text style={[ss.version, { color: c.muted }]}>QarWheel v2.0.0 · Qatar & UAE</Text>
+        <Text style={[ss.version, { color: c.muted }]}>QarWheel</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -1423,9 +1395,11 @@ const ss = StyleSheet.create({
 
   // Garage card — consistent internal padding and gap
   garageCard:     { flexDirection: 'row', borderRadius: 16, borderWidth: 1, overflow: 'hidden', alignItems: 'center', padding: 12, gap: 12 },
+  garageDetails:  { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  garageFavorite: { position: 'absolute', right: 8, top: 8, zIndex: 1, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   garageThumb:    { width: 70, height: 70, borderRadius: 11 },
   garageBody:     { flex: 1, minWidth: 0, gap: 4 },
-  garageTopRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
+  garageTopRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, paddingRight: 44 },
   garageName:     { flex: 1, fontSize: 14, fontWeight: '800' },
   garageSpecialty:{ fontSize: 12, fontWeight: '500' },
   garageFactRow:  { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
@@ -1517,16 +1491,17 @@ const ss = StyleSheet.create({
 
   // Booking card
   bookingTabRow:   { gap: 10, paddingEnd: spacing.page },
-  bookingTab:      { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 42, borderRadius: 999, borderWidth: 1, paddingHorizontal: 14 },
+  bookingTab:      { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44, borderRadius: 999, borderWidth: 1, paddingHorizontal: 14 },
   bookingTabText:  { fontSize: 12, fontWeight: '900' },
   bookingTabBadge: { minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   bookingTabBadgeText: { fontSize: 12, fontWeight: '900' },
   bookingCard:    { borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
-  bookingTop:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, paddingBottom: 8 },
+  bookingPrimary: { minHeight: 44 },
+  bookingTop:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between', padding: 14, paddingBottom: 8 },
   statusPill:     { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
   statusDot:      { width: 7, height: 7, borderRadius: 4 },
   statusText:     { fontSize: 12, fontWeight: '900' },
-  bookingDate:    { fontSize: 12, fontWeight: '600' },
+  bookingDate:    { fontSize: 12, fontWeight: '600', flexShrink: 1 },
   bookingBody:    { paddingHorizontal: 14, paddingBottom: 14, gap: 5 },
   bookingService: { fontSize: 17, fontWeight: '900' },
   bookingStatusDesc: { fontSize: 12, fontWeight: '600', lineHeight: 17 },

@@ -10,11 +10,11 @@ import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { firebaseApp, auth } from '@/lib/firebase';
 import { useAuthContext } from '@/lib/AuthContext';
+import { apiBaseUrl, apiPost } from '@/lib/api';
 
 // KYC is served by our own Next.js app (src/app/api/vendor/kyc), not the
 // external EXPO_PUBLIC_BACKEND_URL other screens use — so it reaches the app
 // the same way mobile/lib/api.ts does.
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:9002';
 
 const STATUS_CONFIG = {
   Pending:  { bg: 'rgba(245,158,11,0.15)',  text: '#F59E0B', icon: 'time-outline' as const, label: 'Under Review' },
@@ -57,21 +57,7 @@ async function submitKycToBackend(
     documentPaths: string[];
   },
 ) {
-  const res = await fetch(`${API_BASE_URL}/api/vendor/kyc`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(20_000),
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`KYC submission failed (${res.status})${body ? `: ${body}` : ''}`);
-  }
-  const { data } = (await res.json()) as { data: { status: string; submittedAt: string } };
-  return data;
+  return apiPost<{ status: string; submittedAt: string }>('/api/vendor/kyc', token, payload);
 }
 
 export default function KYCScreen() {
@@ -119,6 +105,12 @@ export default function KYCScreen() {
       Alert.alert('Sign in required', 'Please sign in as a vendor to submit KYC.');
       return;
     }
+    try {
+      apiBaseUrl();
+    } catch (error) {
+      Alert.alert('Server unavailable', error instanceof Error ? error.message : 'Backend API is not configured.');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -131,14 +123,6 @@ export default function KYCScreen() {
 
       setUploadProgress('Submitting for review…');
 
-      // Update local store state immediately (optimistic UI only)
-      submitVendorKyc({
-        crNumber: crNumber.trim(),
-        licenseNumber: licenseNumber.trim(),
-        bankName: bankName.trim(),
-        iban: iban.trim().toUpperCase(),
-      });
-
       // The server route is the ONLY writer of kyc.* on the vendor doc — it
       // always sets status back to 'Pending', so a client can never self-approve.
       const token = await currentUser.getIdToken();
@@ -148,6 +132,13 @@ export default function KYCScreen() {
         bankName: bankName.trim(),
         iban: iban.trim().toUpperCase(),
         documentPaths,
+      });
+
+      submitVendorKyc({
+        crNumber: crNumber.trim(),
+        licenseNumber: licenseNumber.trim(),
+        bankName: bankName.trim(),
+        iban: iban.trim().toUpperCase(),
       });
 
       Alert.alert(

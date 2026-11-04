@@ -18,6 +18,7 @@ jest.mock('firebase/firestore', () => ({
   collection: jest.fn(),
   doc: jest.fn(() => ({})),
   getDocs: jest.fn(() => Promise.resolve({ docs: [] })),
+  limit: jest.fn(),
   onSnapshot: jest.fn(() => jest.fn()),
   query: jest.fn(),
   orderBy: jest.fn(),
@@ -83,7 +84,9 @@ jest.mock('expo-notifications', () => ({
   AndroidImportance: { HIGH: 4 },
 }));
 
-// Silence the Reanimated worklet warning in tests.
-jest.mock('react-native-reanimated', () =>
-  require('react-native-reanimated/mock'),
-);
+require('react-native-reanimated').setUpTests();
+
+jest.mock('@sentry/react-native', () => ({
+  init: jest.fn(), setUser: jest.fn(), captureException: jest.fn(),
+  addBreadcrumb: jest.fn(),
+}));

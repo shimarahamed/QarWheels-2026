@@ -5,7 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { findVendorBooking, getStatusColor, getStatusLabel } from '@/lib/vendor-data';
+import { getStatusColor, getStatusLabel } from '@/lib/vendor-data';
+import { MissingRecord } from '@/components/vendor/MissingRecord';
 import { getBookingStatusDescription } from '@/lib/booking-workflow';
 import { BookingActionSheet } from '@/components/vendor/BookingActionSheet';
 
@@ -14,7 +15,8 @@ export default function StatusUpdateScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const storeBooking = useQarWheelStore((state) => state.vendorBookings.find((b) => b.id === id));
-  const booking = storeBooking ?? findVendorBooking(id);
+  const booking = storeBooking;
+  if (!booking) return <MissingRecord title="Booking unavailable" />;
   const sc = getStatusColor(booking.status);
 
   return (

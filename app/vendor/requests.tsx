@@ -8,7 +8,7 @@ import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
 import { BookingActionSheet } from '@/components/vendor/BookingActionSheet';
-import type { VendorBooking } from '@/lib/vendor-data';
+import { bookingAmountLabel, type VendorBooking } from '@/lib/vendor-data';
 
 // No expiresAt is reliably populated yet, so "soonest expiring" is approximated
 // by oldest-request-first: the longer a customer has been waiting on an answer,
@@ -92,7 +92,7 @@ export default function VendorRequests() {
                       <Text style={[s.dateText, { color: c.muted }]}>
                         {b.date}{b.timeSlot ? ` · ${b.timeSlot}` : ''}
                       </Text>
-                      <Text style={[s.amount, { color: c.text }]}>QAR {b.totalAmount}</Text>
+                      <Text style={[s.amount, { color: c.text }]}>{bookingAmountLabel(b.totalAmount)}</Text>
                     </View>
                   </Pressable>
 

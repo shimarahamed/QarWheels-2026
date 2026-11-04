@@ -1,194 +1,117 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors } from '@/lib/store';
-import { MotionScreen, MotionSurface } from '@/lib/motion';
-import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { getAnalyticsForPeriod } from '@/lib/vendor-data';
+import ErrorState from '@/components/ErrorState';
+import { BranchSwitcher } from '@/components/vendor/BranchSwitcher';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
-const PERIODS = ['This Week', 'This Month', 'This Year'] as const;
+import { formatMinorUnits } from '@/lib/money';
+import { MotionScreen, MotionSurface } from '@/lib/motion';
+import { useQarColors } from '@/lib/store';
+import { radius, spacing, typography } from '@/lib/theme';
+import { aggregateVendorBookings, INSIGHT_LIMITS, INSIGHT_PERIODS, useVendorInsights, type InsightPeriod } from '@/lib/vendor-insights';
 
 export default function AnalyticsScreen() {
   const c = useQarColors();
   const vendorTabBottom = useVendorTabBottom();
-  const [period, setPeriod] = useState<(typeof PERIODS)[number]>('This Week');
-  const data = getAnalyticsForPeriod(period);
-
-  const maxRevenue = Math.max(...data.dailyRevenue.map((d) => d.revenue), 1);
-  const maxBookings = Math.max(...data.peakHours.map((h) => h.bookings), 1);
+  const [period, setPeriod] = useState<InsightPeriod>('This Week');
+  const insights = useVendorInsights('analytics');
+  const data = insights.status === 'ready' && insights.scope && !insights.limited
+    ? aggregateVendorBookings(insights.records, insights.scope, period) : null;
+  const maxBookings = Math.max(...(data?.bookingVolume.map((bucket) => bucket.count) ?? []), 1);
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.background }]} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
-
-      <View style={[s.navbar, { backgroundColor: c.background, borderBottomColor: c.border }]}>
+      <View style={[s.navbar, { borderBottomColor: c.border }]}>
         <Text style={[s.navTitle, { color: c.text }]}>Analytics</Text>
+        <BranchSwitcher />
+        <Pressable accessibilityRole="button" accessibilityLabel="Refresh analytics"
+          disabled={insights.status === 'loading'} onPress={insights.retry} style={s.iconButton}>
+          <Ionicons name="refresh" size={22} color={c.primary} />
+        </Pressable>
       </View>
-
-      {/* Period selector */}
-      <View style={[s.periodRow, { paddingTop: 60 }]}>
-        {PERIODS.map((p) => (
-          <Pressable
-            key={p}
-            style={[s.periodBtn, { backgroundColor: period === p ? c.primary : c.surface, borderColor: period === p ? c.primary : c.border }]}
-            onPress={() => setPeriod(p)}
-          >
-            <Text style={[s.periodText, { color: period === p ? '#fff' : c.muted }]}>{p}</Text>
+      <View style={s.periodRow} accessibilityRole="tablist">
+        {INSIGHT_PERIODS.map((value) => (
+          <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: period === value }}
+            onPress={() => setPeriod(value)}
+            style={[s.periodButton, { backgroundColor: period === value ? c.primary : c.surface, borderColor: c.border }]}>
+            <Text style={[s.periodText, { color: period === value ? '#fff' : c.textSecondary }]}>{value}</Text>
           </Pressable>
         ))}
       </View>
-
-      <ScrollView contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16 }]}
+        refreshControl={<RefreshControl refreshing={insights.status === 'loading'} onRefresh={insights.retry} tintColor={c.primary} />}>
         <MotionScreen>
-          {/* KPI row */}
-          <View style={s.kpiRow}>
-            {[
-              { label: 'Revenue', value: `QAR ${data.totalRevenue.toLocaleString()}`, icon: 'cash-outline' as const, color: c.success },
-              { label: 'Bookings', value: String(data.totalBookings), icon: 'calendar-outline' as const, color: c.primary },
-              { label: 'Avg Order', value: `QAR ${data.avgOrderValue}`, icon: 'trending-up-outline' as const, color: c.ai },
-              { label: 'Completion', value: `${data.completionRate}%`, icon: 'checkmark-circle-outline' as const, color: '#22C55E' },
-            ].map((kpi) => (
-              <View key={kpi.label} style={[s.kpiCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-                <View style={[s.kpiIcon, { backgroundColor: `${kpi.color}20` }]}>
-                  <Ionicons name={kpi.icon} size={16} color={kpi.color} />
-                </View>
-                <Text style={[s.kpiValue, { color: c.text }]}>{kpi.value}</Text>
-                <Text style={[s.kpiLabel, { color: c.muted }]}>{kpi.label}</Text>
+          {insights.status === 'loading' && <ActivityIndicator accessibilityLabel="Loading analytics" color={c.primary} />}
+          {insights.status === 'error' && <ErrorState onRetry={insights.retry} />}
+          {insights.status === 'blocked' && <Text style={[s.notice, { color: c.textSecondary }]}>{insights.message}</Text>}
+          {insights.limited && <Text style={[s.notice, { color: c.textSecondary }]}>
+            This branch has more than {INSIGHT_LIMITS.analytics} bookings. Complete analytics are unavailable on mobile; totals have not been calculated.
+          </Text>}
+          {data && <>
+            <Text style={[s.caption, { color: c.textSecondary }]}>Booking dates to now, Qatar time. Weeks start Monday.</Text>
+            {data.excludedRecords > 0 && <Text style={[s.notice, { color: c.textSecondary }]}>
+              {data.excludedRecords} records with missing or invalid dates or statuses excluded. Totals may be incomplete.
+            </Text>}
+            {data.totalBookings === 0 ? <View style={s.empty}>
+              <Ionicons name="bar-chart-outline" size={32} color={c.muted} />
+              <Text style={[s.sectionTitle, { color: c.text }]}>{data.excludedRecords ? 'No usable bookings in this period' : 'No bookings in this period'}</Text>
+            </View> : <>
+              <View style={s.kpiRow}>
+                {[
+                  { label: 'Completed booking value', value: data.completedValueMinor === null ? 'Unavailable' : formatMinorUnits(data.completedValueMinor), icon: 'cash-outline' as const },
+                  { label: 'Bookings', value: String(data.totalBookings), icon: 'calendar-outline' as const },
+                  { label: 'Avg completed value', value: data.averageCompletedValueMinor === null ? 'N/A' : formatMinorUnits(data.averageCompletedValueMinor), icon: 'trending-up-outline' as const },
+                  { label: 'Completion', value: `${data.completionRate}%`, icon: 'checkmark-circle-outline' as const },
+                ].map((kpi) => <View key={kpi.label} style={[s.kpiCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+                  <Ionicons name={kpi.icon} size={20} color={c.primary} />
+                  <Text style={[s.kpiValue, { color: c.text }]}>{kpi.value}</Text>
+                  <Text style={[s.caption, { color: c.textSecondary }]}>{kpi.label}</Text>
+                </View>)}
               </View>
-            ))}
-          </View>
-
-          {/* Revenue chart */}
-          <MotionSurface delay={20}>
-            <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
-              <Text style={[s.sectionTitle, { color: c.text }]}>Revenue — {period}</Text>
-              {data.totalRevenue === 0 ? (
-                <View style={s.chartEmpty}>
-                  <Ionicons name="bar-chart-outline" size={32} color={c.muted} />
-                  <Text style={[s.chartEmptyText, { color: c.muted }]}>No revenue data for this period</Text>
-                </View>
-              ) : (
-                <View style={s.chartArea}>
-                  {data.dailyRevenue.map((day) => {
-                    const barH = Math.max(4, (day.revenue / maxRevenue) * 120);
-                    return (
-                      <View key={day.day} style={s.barCol}>
-                        <Text style={[s.barValue, { color: c.muted }]}>
-                          {day.revenue > 0 ? `${Math.round(day.revenue / 1000 * 10) / 10}k` : ''}
-                        </Text>
-                        <View style={s.barWrap}>
-                          <View
-                            style={[
-                              s.bar,
-                              {
-                                height: barH,
-                                backgroundColor: day.revenue > 0 ? c.primary : c.surfaceAlt,
-                                borderRadius: radius.xs,
-                              },
-                            ]}
-                          />
+              <Text style={[s.caption, { color: c.textSecondary }]}>Value is the recorded cost of completed bookings, not collected payments.</Text>
+              {data.missingCosts > 0 && <Text style={[s.notice, { color: c.textSecondary }]}>
+                {data.missingCosts} completed bookings have missing or invalid costs. Value totals are unavailable.
+              </Text>}
+              <MotionSurface delay={20}>
+                <View style={[s.section, { borderColor: c.border }]}>
+                  <Text style={[s.sectionTitle, { color: c.text }]}>Booking Volume</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator>
+                    <View style={s.chart}>
+                      {data.bookingVolume.map((bucket) => <View key={bucket.key} style={s.barColumn}
+                        accessible accessibilityLabel={`${bucket.label}: ${bucket.count} bookings`}>
+                        <Text style={[s.caption, { color: c.textSecondary }]}>{bucket.count}</Text>
+                        <View style={s.barTrack}>
+                          <View style={[s.bar, { height: bucket.count / maxBookings * 100, backgroundColor: c.primary }]} />
                         </View>
-                        <Text style={[s.barDay, { color: c.muted }]}>{day.day}</Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-          </MotionSurface>
-
-          {/* Top services */}
-          <MotionSurface delay={40}>
-            <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
-              <Text style={[s.sectionTitle, { color: c.text }]}>Top Services</Text>
-              {data.topServices.map((svc, i) => {
-                const pct = (svc.revenue / data.totalRevenue) * 100;
-                return (
-                  <View key={svc.name} style={{ gap: 6 }}>
-                    <View style={s.svcRow}>
-                      <Text style={[s.svcRank, { color: c.muted }]}>#{i + 1}</Text>
-                      <Text style={[s.svcName, { color: c.text }]}>{svc.name}</Text>
-                      <Text style={[s.svcCount, { color: c.textSecondary }]}>{svc.count}x</Text>
-                      <Text style={[s.svcRevenue, { color: c.primary }]}>QAR {svc.revenue}</Text>
+                        <Text style={[s.caption, { color: c.textSecondary }]}>{bucket.label}</Text>
+                      </View>)}
                     </View>
-                    <View style={[s.svcBar, { backgroundColor: c.surfaceAlt }]}>
-                      <View style={[s.svcFill, { width: `${pct}%`, backgroundColor: c.primary }]} />
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </MotionSurface>
-
-          {/* Peak hours */}
-          <MotionSurface delay={60}>
-            <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
-              <Text style={[s.sectionTitle, { color: c.text }]}>Peak Hours</Text>
-              {data.totalBookings === 0 ? (
-                <View style={s.chartEmpty}>
-                  <Ionicons name="time-outline" size={32} color={c.muted} />
-                  <Text style={[s.chartEmptyText, { color: c.muted }]}>No bookings in this period</Text>
+                  </ScrollView>
                 </View>
-              ) : (
-                <View style={s.peakChart}>
-                  {data.peakHours.map((h) => {
-                    const barH = Math.max(4, (h.bookings / maxBookings) * 80);
-                    return (
-                      <View key={h.hour} style={s.peakCol}>
-                        <Text style={[s.peakValue, { color: c.muted }]}>{h.bookings}</Text>
-                        <View style={s.barWrap}>
-                          <View
-                            style={[s.bar, { height: barH, backgroundColor: h.bookings >= maxBookings - 1 ? c.primary : c.primaryLight, borderRadius: radius.xs }]}
-                          />
-                        </View>
-                        <Text style={[s.peakHour, { color: c.muted }]}>{h.hour}</Text>
-                      </View>
-                    );
-                  })}
+              </MotionSurface>
+              <MotionSurface delay={40}>
+                <View style={[s.section, { borderColor: c.border }]}>
+                  <Text style={[s.sectionTitle, { color: c.text }]}>Top Services by Bookings</Text>
+                  {data.topServices.map((service) => <View key={service.name} style={s.row}>
+                    <Text style={[s.rowName, { color: c.text }]}>{service.name}</Text>
+                    <Text style={[s.rowCount, { color: c.primary }]}>{service.count}</Text>
+                  </View>)}
                 </View>
-              )}
-            </View>
-          </MotionSurface>
-
-          {/* Funnel */}
-          <MotionSurface delay={80}>
-            <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
-              <Text style={[s.sectionTitle, { color: c.text }]}>Conversion Funnel</Text>
-              {data.funnelSteps.map((step, i) => {
-                const pct = i === 0 ? 100 : (step.count / data.funnelSteps[0].count) * 100;
-                return (
-                  <View key={step.step} style={{ gap: 6 }}>
-                    <View style={s.funnelRow}>
-                      <Text style={[s.funnelStep, { color: c.textSecondary }]}>{step.step}</Text>
-                      <Text style={[s.funnelCount, { color: c.text }]}>{step.count}</Text>
-                      <Text style={[s.funnelPct, { color: c.muted }]}>{Math.round(pct)}%</Text>
-                    </View>
-                    <View style={[s.funnelBar, { backgroundColor: c.surfaceAlt, width: `${pct}%` }]}>
-                      <View style={[s.funnelFill, { backgroundColor: c.primary }]} />
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </MotionSurface>
-
-          {/* Repeat rate */}
-          <MotionSurface delay={100}>
-            <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
-              <View style={s.repeatRow}>
-                <View style={{ gap: 3 }}>
-                  <Text style={[s.repeatTitle, { color: c.text }]}>Repeat Customer Rate</Text>
-                  <Text style={[s.repeatSub, { color: c.muted }]}>Customers who booked more than once</Text>
+              </MotionSurface>
+              <MotionSurface delay={60}>
+                <View style={[s.section, { borderColor: c.border }]}>
+                  <Text style={[s.sectionTitle, { color: c.text }]}>Booking Status</Text>
+                  {data.statuses.map((status) => <View key={status.name} style={s.row}>
+                    <Text style={[s.rowName, { color: c.text }]}>{status.name.replace(/([a-z])([A-Z])/g, '$1 $2')}</Text>
+                    <Text style={[s.rowCount, { color: c.textSecondary }]}>{status.count}</Text>
+                  </View>)}
                 </View>
-                <Text style={[s.repeatValue, { color: c.success }]}>{data.repeatRate}%</Text>
-              </View>
-              <View style={[s.repeatBar, { backgroundColor: c.surfaceAlt }]}>
-                <View style={[s.repeatFill, { width: `${data.repeatRate}%`, backgroundColor: c.success }]} />
-              </View>
-            </View>
-          </MotionSurface>
+              </MotionSurface>
+            </>}
+          </>}
         </MotionScreen>
       </ScrollView>
       <VendorTabBar />
@@ -198,74 +121,26 @@ export default function AnalyticsScreen() {
 
 const s = StyleSheet.create({
   safe: { flex: 1 },
-  navbar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    paddingHorizontal: spacing.page, 
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    ...shadow.sm,
-  },
-  navTitle: { ...typography.h3 },
-
-  periodRow: {
-    flexDirection: 'row', gap: 12,
-    paddingHorizontal: spacing.page, paddingVertical: 12,
-  },
-  periodBtn: { flex: 1, minHeight: 42, paddingVertical: 9, borderRadius: radius.full, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  periodText: { fontSize: 12, fontWeight: '700' },
-
-  content: { padding: spacing.page, gap: spacing.gap },
-
+  navbar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingHorizontal: spacing.page, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  navTitle: { ...typography.h3, flexGrow: 1 },
+  iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  periodRow: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.page, paddingVertical: 12 },
+  periodButton: { flex: 1, minHeight: 44, padding: 8, borderRadius: radius.sm, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  periodText: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  content: { padding: spacing.page },
+  caption: { fontSize: 12, lineHeight: 18 },
+  notice: { fontSize: 14, lineHeight: 22 },
+  empty: { alignItems: 'center', paddingVertical: 32, gap: 12 },
   kpiRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  kpiCard: {
-    flex: 1, minWidth: '44%', maxWidth: '50%', borderRadius: radius.lg, borderWidth: 1, padding: 12,
-    alignItems: 'center', gap: 5, ...shadow.xs,
-  },
-  kpiIcon: { width: 32, height: 32, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
-  kpiValue: { ...typography.h4 },
-  kpiLabel: { fontSize: 12, fontWeight: '700' },
-
-  section: { borderRadius: radius.xl, borderWidth: 1, padding: 16, gap: 14, ...shadow.sm },
+  kpiCard: { flexGrow: 1, flexBasis: '44%', minWidth: 120, borderRadius: radius.sm, borderWidth: 1, padding: 12, gap: 8 },
+  kpiValue: { fontSize: 19, lineHeight: 26, fontWeight: '800', flexShrink: 1 },
+  section: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 16, gap: 14 },
   sectionTitle: { ...typography.h4 },
-
-  chartEmpty: { alignItems: 'center', gap: 8, paddingVertical: 24 },
-  chartEmptyText: { fontSize: 13, fontWeight: '600' },
-
-  chartArea: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 160 },
-  barCol: { flex: 1, alignItems: 'center', gap: 4 },
-  barValue: { fontSize: 12, fontWeight: '700' },
-  barWrap: { flex: 1, justifyContent: 'flex-end', width: '100%', alignItems: 'center' },
-  bar: { width: '75%' },
-  barDay: { fontSize: 12, fontWeight: '700' },
-
-  svcRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  svcRank: { fontSize: 12, fontWeight: '700', width: 20 },
-  svcName: { flex: 1, fontSize: 13, fontWeight: '700' },
-  svcCount: { fontSize: 12, fontWeight: '600' },
-  svcRevenue: { fontSize: 12, fontWeight: '800', width: 60, textAlign: 'right' },
-  svcBar: { height: 6, borderRadius: 3, overflow: 'hidden' },
-  svcFill: { height: '100%', borderRadius: 3 },
-
-  peakChart: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 120 },
-  peakCol: { flex: 1, alignItems: 'center', gap: 3 },
-  peakValue: { fontSize: 12, fontWeight: '700' },
-  peakHour: { fontSize: 12, fontWeight: '700' },
-
-  funnelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  funnelStep: { flex: 1, fontSize: 13, fontWeight: '600' },
-  funnelCount: { fontSize: 13, fontWeight: '800' },
-  funnelPct: { fontSize: 12, fontWeight: '600', width: 36, textAlign: 'right' },
-  funnelBar: { height: 8, borderRadius: 4, overflow: 'hidden' },
-  funnelFill: { height: '100%', width: '100%' },
-
-  repeatRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  repeatTitle: { fontSize: 14, fontWeight: '800' },
-  repeatSub: { fontSize: 12, fontWeight: '500' },
-  repeatValue: { fontSize: 28, fontWeight: '900' },
-  repeatBar: { height: 8, borderRadius: 4, overflow: 'hidden' },
-  repeatFill: { height: '100%', borderRadius: 4 },
+  chart: { flexDirection: 'row', gap: 8 },
+  barColumn: { width: 48, alignItems: 'center', gap: 6 },
+  barTrack: { height: 100, width: 28, justifyContent: 'flex-end' },
+  bar: { width: '100%', borderRadius: 3 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  rowName: { flex: 1, fontSize: 14, lineHeight: 20 },
+  rowCount: { fontSize: 14, fontWeight: '700' },
 });

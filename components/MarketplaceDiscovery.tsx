@@ -22,6 +22,7 @@ import { useBranches } from '@/lib/firestoreOps';
 import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { tap } from '@/lib/haptics';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
+import { garageDistanceLabel, knownFirst } from '@/lib/marketplace-display';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 type SortKey = 'Best match' | 'Nearest' | 'Top rated' | 'Lowest price' | 'Fastest';
@@ -77,10 +78,10 @@ function filterGarages(list: Garage[], activeFilters: FilterKey[]) {
 
 function sortGarages(list: Garage[], sort: SortKey) {
   const copy = [...list];
-  if (sort === 'Nearest') return copy.sort((a, b) => a.distanceKm - b.distanceKm);
+  if (sort === 'Nearest') return copy.sort((a, b) => knownFirst(a.distanceKm) - knownFirst(b.distanceKm));
   if (sort === 'Top rated') return copy.sort((a, b) => b.rating - a.rating);
-  if (sort === 'Lowest price') return copy.sort((a, b) => a.startingPriceValue - b.startingPriceValue);
-  if (sort === 'Fastest') return copy.sort((a, b) => Number.parseInt(a.responseTime, 10) - Number.parseInt(b.responseTime, 10));
+  if (sort === 'Lowest price') return copy.sort((a, b) => knownFirst(a.startingPriceValue) - knownFirst(b.startingPriceValue));
+  if (sort === 'Fastest') return copy.sort((a, b) => knownFirst(Number.parseInt(a.responseTime, 10)) - knownFirst(Number.parseInt(b.responseTime, 10)));
   return copy.sort((a, b) => Number(b.verified) - Number(a.verified) || b.rating - a.rating);
 }
 
@@ -257,43 +258,41 @@ function GarageCard({ garage, compare }: { garage: Garage; compare?: boolean }) 
   // chip into a 76px column, so long prices truncated and the button was
   // below a comfortable tap target.
   return (
-    <AnimatedPressable
+    <View
       style={[s.garageCard, { backgroundColor: c.surface, borderColor: isFav ? c.primary : c.border }]}
-      onPress={() => { void tap(); router.push(route(`/garage/${garage.id}`)); }}
-      scaleValue={0.985}
-      accessibilityLabel={`${garage.name}, ${garage.rating} stars, ${garage.distanceKm.toFixed(1)} kilometres away, from ${garage.startingPrice}`}
     >
-      <View style={s.garageTop}>
+      <AnimatedPressable style={s.garageTop}
+        onPress={() => { void tap(); router.push(route(`/garage/${garage.id}`)); }}
+        scaleValue={0.985} accessibilityRole="button"
+        accessibilityLabel={`View ${garage.name}, ${garage.rating} stars, ${garageDistanceLabel(garage.distanceKm)}, ${garage.startingPrice}`}>
         <RemoteImage uri={garage.imageUrl} style={s.garageImage} fallbackIcon="business-outline" accessibilityLabel={garage.name} />
         <View style={s.rowBody}>
           <View style={s.titleLine}>
             <Text style={[s.rowTitle, { color: c.text }]} numberOfLines={1}>{garage.name}</Text>
-            <Pressable
-              hitSlop={10}
-              onPress={() => { void tap(); toggleFav(garage.id); }}
-              accessibilityRole="button"
-              accessibilityLabel={isFav ? `Remove ${garage.name} from saved` : `Save ${garage.name}`}
-              accessibilityState={{ selected: isFav }}
-            >
-              <Icon name={isFav ? 'heart' : 'heart-outline'} size={19} color={isFav ? c.danger : c.muted} />
-            </Pressable>
           </View>
 
           <View style={s.factRow}>
             <Fact icon="star" text={`${garage.rating}`} color="#F59E0B" />
             <Text style={[s.dot, { color: c.muted }]}>·</Text>
             <Text style={[s.rowMeta, { color: c.textSecondary }]} numberOfLines={1}>
-              {garage.area} · {garage.distanceKm.toFixed(1)} km
+              {garage.area} · {garageDistanceLabel(garage.distanceKm)}
             </Text>
           </View>
 
           <View style={s.tagRow}>
-            <Badge label={garage.openNow ? 'Open now' : garage.availability} tone={garage.openNow ? 'success' : 'muted'} />
+            <Badge label={garage.openNow === null ? 'Hours unavailable' : garage.openNow ? 'Open now' : 'Closed now'} tone={garage.openNow ? 'success' : 'muted'} />
             {garage.verified ? <Badge label="Verified" tone="primary" /> : null}
             {garage.pickupAvailable ? <Badge label="Pickup" tone="ai" /> : null}
           </View>
         </View>
-      </View>
+      </AnimatedPressable>
+      <Pressable style={s.garageFavorite}
+        onPress={() => { void tap(); toggleFav(garage.id); }}
+        accessibilityRole="button"
+        accessibilityLabel={isFav ? `Remove ${garage.name} from saved` : `Save ${garage.name}`}
+        accessibilityState={{ selected: isFav }}>
+        <Icon name={isFav ? 'heart' : 'heart-outline'} size={19} color={isFav ? c.danger : c.muted} />
+      </Pressable>
 
       <View style={[s.garageFooter, { borderTopColor: c.border }]}>
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -301,7 +300,7 @@ function GarageCard({ garage, compare }: { garage: Garage; compare?: boolean }) 
             {garage.startingPrice}
           </Text>
           <Text style={[s.priceMeta, { color: c.muted }]} numberOfLines={1}>
-            {garage.responseTime} · {compare ? garage.warranty : garage.availability}
+            {[garage.responseTime, compare ? garage.warranty : garage.availability].filter(Boolean).join(' · ')}
           </Text>
         </View>
         <AnimatedPressable
@@ -314,7 +313,7 @@ function GarageCard({ garage, compare }: { garage: Garage; compare?: boolean }) 
           <Icon name="arrow-forward" size={14} color="#fff" />
         </AnimatedPressable>
       </View>
-    </AnimatedPressable>
+    </View>
   );
 }
 
@@ -323,43 +322,48 @@ function ServiceCard({ service, garage }: { service: PopularJob; garage?: Garage
   const c = useQarColors();
 
   return (
-    <AnimatedPressable
-      style={[s.serviceCard, { backgroundColor: c.surface, borderColor: c.border }]}
-      onPress={() => { void tap(); router.push(route(`/service/${service.id}`)); }}
-      scaleValue={0.985}
-    >
-      <View style={[s.serviceIcon, { backgroundColor: c.primaryLight }]}>
-        <Icon name={categoryIcon(service.categoryId)} size={22} color={c.primary} />
-      </View>
-      <View style={s.rowBody}>
-        <View style={s.titleLine}>
-          <Text style={[s.rowTitle, { color: c.text }]} numberOfLines={1}>{service.title}</Text>
-          <Text style={[s.price, { color: c.primary }]}>{service.price}</Text>
+    <View style={[s.serviceCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <AnimatedPressable
+        style={s.servicePrimary}
+        onPress={() => { void tap(); router.push(route(`/service/${service.id}`)); }}
+        scaleValue={0.985}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${service.title} details`}
+      >
+        <View style={[s.serviceIcon, { backgroundColor: c.primaryLight }]}>
+          <Icon name={categoryIcon(service.categoryId)} size={22} color={c.primary} />
         </View>
-        {garage ? (
-          <Text style={[s.rowMeta, { color: c.textSecondary }]} numberOfLines={1}>{garage.name} · {garage.area}</Text>
-        ) : null}
-        <View style={s.factRow}>
-          {service.rating ?? garage?.rating ? (
-            <Fact icon="star" text={`${service.rating ?? garage?.rating}`} color="#F59E0B" />
+        <View style={s.rowBody}>
+          <View style={s.titleLine}>
+            <Text style={[s.rowTitle, { color: c.text }]} numberOfLines={1}>{service.title}</Text>
+            <Text style={[s.price, { color: c.primary }]}>{service.price}</Text>
+          </View>
+          {garage ? (
+            <Text style={[s.rowMeta, { color: c.textSecondary }]} numberOfLines={1}>{garage.name} · {garage.area}</Text>
           ) : null}
-          <Fact icon="time-outline" text={service.duration ?? '45 min'} color={c.muted} />
-          {service.distanceKm ?? garage?.distanceKm ? (
-            <Fact icon="navigate-outline" text={`${service.distanceKm ?? garage?.distanceKm} km`} color={c.muted} />
-          ) : null}
+          <View style={s.factRow}>
+            {service.rating ?? garage?.rating ? (
+              <Fact icon="star" text={`${service.rating ?? garage?.rating}`} color="#F59E0B" />
+            ) : null}
+            {service.duration ? <Fact icon="time-outline" text={service.duration} color={c.muted} /> : null}
+            {service.distanceKm ?? garage?.distanceKm ? (
+              <Fact icon="navigate-outline" text={`${service.distanceKm ?? garage?.distanceKm} km`} color={c.muted} />
+            ) : null}
+          </View>
+          <View style={s.tagRow}>
+            <Badge label={service.availability} tone={service.availability === 'Today' ? 'success' : 'warning'} />
+            {service.warranty ?? garage?.warranty ? (
+              <Badge label={(service.warranty ?? garage?.warranty) as string} tone="primary" />
+            ) : null}
+            {garage?.pickupAvailable ? <Badge label="Pickup" tone="ai" /> : null}
+          </View>
         </View>
-        <View style={s.tagRow}>
-          <Badge label={service.availability} tone={service.availability === 'Today' ? 'success' : 'warning'} />
-          {service.warranty ?? garage?.warranty ? (
-            <Badge label={(service.warranty ?? garage?.warranty) as string} tone="primary" />
-          ) : null}
-          {garage?.pickupAvailable ? <Badge label="Pickup" tone="ai" /> : null}
-        </View>
-      </View>
-      <Pressable style={[s.bookButton, { backgroundColor: c.primary }]} onPress={() => router.push(route(`/checkout/${service.id}`))}>
+      </AnimatedPressable>
+      <Pressable style={[s.bookButton, { backgroundColor: c.primary }]} onPress={() => router.push(route(`/checkout/${service.id}`))}
+        accessibilityRole="button" accessibilityLabel={`Book ${service.title}`}>
         <Text style={s.bookButtonText}>Book now</Text>
       </Pressable>
-    </AnimatedPressable>
+    </View>
   );
 }
 
@@ -708,7 +712,7 @@ export function ServiceDetailScreen() {
         </View>
         {garage ? (
           <View style={s.tagRow}>
-            <Badge label={`${garage.distanceKm.toFixed(1)} km away`} tone="primary" />
+            <Badge label={garageDistanceLabel(garage.distanceKm)} tone="primary" />
             <Badge label={`${garage.rating} rating`} tone="warning" />
             <Badge label={garage.pickupAvailable ? 'Pickup available' : 'Drop-off'} tone="ai" />
           </View>
@@ -903,6 +907,7 @@ const s = StyleSheet.create({
   resultHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   resultCount: { ...typography.bodySm, fontWeight: '700', flex: 1 },
   garageCard: { padding: 12, borderRadius: radius.xl, borderWidth: 1, gap: 10, ...shadow.xs },
+  garageFavorite: { position: 'absolute', top: 4, right: 4, zIndex: 1, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   garageTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   garageImage: { width: 74, height: 74, borderRadius: radius.md },
   garageFooter: {
@@ -925,7 +930,7 @@ const s = StyleSheet.create({
   bookNowText: { color: '#fff', ...typography.caption, fontWeight: '900' },
   dot: { ...typography.caption },
   rowBody: { flex: 1, minWidth: 0, gap: 5 },
-  titleLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  titleLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingRight: 44 },
   rowTitle: { ...typography.h4 },
   rowMeta: { ...typography.caption },
   factRow: { flexDirection: 'row', alignItems: 'center', gap: 7, flexWrap: 'wrap' },
@@ -936,8 +941,9 @@ const s = StyleSheet.create({
   badgeText: { ...typography.caption, fontWeight: '900' },
   price: { ...typography.caption, fontWeight: '900' },
   serviceCard: { flexDirection: 'row', alignItems: 'center', gap: 13, padding: 16, borderRadius: radius.xl, borderWidth: 1, ...shadow.xs },
+  servicePrimary: { flex: 1, minWidth: 0, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 13 },
   serviceIcon: { width: 46, height: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  bookButton: { minHeight: 40, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
+  bookButton: { minHeight: 44, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
   bookButtonText: { color: '#fff', ...typography.caption, fontWeight: '900' },
   detailCard: { gap: 14, padding: 18, borderRadius: radius.xl, borderWidth: 1, ...shadow.sm },
   detailTop: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },

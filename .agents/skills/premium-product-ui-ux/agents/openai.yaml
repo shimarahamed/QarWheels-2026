@@ -1,0 +1,4 @@
+interface:
+  display_name: "Premium Product UI/UX"
+  short_description: "160 practical UI/UX patterns for polished accessible products"
+  default_prompt: "Use $premium-product-ui-ux to audit and improve this application's UI/UX. Inspect existing components first, prioritize usability and accessibility, implement only relevant changes, and verify responsive and interaction behavior."

@@ -7,11 +7,11 @@ jest.mock('firebase/auth', () => ({ onIdTokenChanged: jest.fn() }));
 it('does not restore an old vendor scope after a newer session signs out', async () => {
   let listener!: (user: unknown) => Promise<void>;
   (onIdTokenChanged as jest.Mock).mockImplementation((_auth, next) => { listener = next; return jest.fn(); });
-  const { result } = renderHook(() => useAuthContext(), { wrapper: AuthProvider });
+  const { result } = await renderHook(() => useAuthContext(), { wrapper: AuthProvider });
   let resolve!: (value: unknown) => void;
   const token = new Promise((done) => { resolve = done; });
   let oldCallback!: Promise<void>;
-  act(() => { oldCallback = listener({ uid: 'old-vendor', getIdTokenResult: () => token }); });
+  await act(() => { oldCallback = listener({ uid: 'old-vendor', getIdTokenResult: () => token }); });
   expect(result.current.claimsLoading).toBe(true);
   await act(async () => { await listener(null); });
   await act(async () => {

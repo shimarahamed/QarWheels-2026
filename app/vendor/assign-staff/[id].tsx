@@ -5,18 +5,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { findVendorBooking } from '@/lib/vendor-data';
+import { MissingRecord } from '@/components/vendor/MissingRecord';
 
 export default function AssignStaffScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const booking = findVendorBooking(id);
+  const booking = useQarWheelStore((s) => s.vendorBookings.find((item) => item.id === id));
   const staff = useQarWheelStore((s) => s.vendorStaff);
   const vendorBookings = useQarWheelStore((s) => s.vendorBookings);
   const assignStaff = useQarWheelStore((s) => s.assignVendorBookingStaff);
+  if (!booking) return <MissingRecord title="Booking unavailable" />;
 
   function handleAssign(staffId: string, staffName: string) {
+    if (!booking) return;
     Alert.alert(
       'Assign Staff',
       `Assign ${staffName} to ${booking.customerName}'s booking?`,
@@ -62,6 +64,7 @@ export default function AssignStaffScreen() {
           </View>
 
           <Text style={[s.listHeading, { color: c.muted }]}>SELECT TECHNICIAN</Text>
+          {staff.length === 0 && <Text style={{ color: c.textSecondary }}>No staff are available in the current branch.</Text>}
 
           {staff.map((member) => {
             const activeBookings = vendorBookings.filter(

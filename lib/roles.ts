@@ -22,10 +22,18 @@ export type QwRole = QwClaims['r'] | 'customer';
 /** Extracts and type-narrows the `qw` custom claim from a decoded ID token's claims. */
 export function readQwClaims(rawClaims: Record<string, unknown> | undefined | null): QwClaims | null {
   const qw = rawClaims?.qw;
-  if (!qw || typeof qw !== 'object') return null;
+  if (!qw || typeof qw !== 'object' || Array.isArray(qw)) return null;
   const candidate = qw as Record<string, unknown>;
-  if (typeof candidate.r !== 'string') return null;
-  return candidate as unknown as QwClaims;
+  if (candidate.r === 'master_admin') {
+    return candidate.lvl === 'super' || candidate.lvl === 'ops' || candidate.lvl === 'support'
+      ? { r: 'master_admin', lvl: candidate.lvl } : null;
+  }
+  const roles: readonly string[] = ['business_owner', 'vendor_admin', 'vendor_manager', 'vendor_staff', 'vendor_cashier', 'vendor_inventory'];
+  if (typeof candidate.r !== 'string' || !roles.includes(candidate.r)
+    || typeof candidate.b !== 'string' || !candidate.b.trim() || candidate.b.includes('/')
+    || !Array.isArray(candidate.br)
+    || !candidate.br.every((id) => typeof id === 'string' && !!id.trim() && !id.includes('/'))) return null;
+  return { r: candidate.r as MembershipRole, b: candidate.b, br: [...new Set(candidate.br as string[])] };
 }
 
 export type VendorQwClaims = Extract<QwClaims, { b: string }>;

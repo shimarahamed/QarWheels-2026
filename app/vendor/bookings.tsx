@@ -1,12 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarWheelStore, useQarColors } from '@/lib/store';
-import { MotionScreen } from '@/lib/motion';
+import { useVendorFeedStatus } from '@/lib/vendor-feed-status';
+import { BranchSwitcher } from '@/components/vendor/BranchSwitcher';
+import ErrorState from '@/components/ErrorState';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { getStatusColor, getStatusLabel, type VendorBookingStatus } from '@/lib/vendor-data';
+import { bookingAmountLabel, getStatusColor, getStatusLabel, type VendorBookingStatus } from '@/lib/vendor-data';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
 
 const TABS: { key: VendorBookingStatus | 'All'; label: string }[] = [
@@ -18,6 +20,8 @@ const TABS: { key: VendorBookingStatus | 'All'; label: string }[] = [
   { key: 'ReadyForPickup', label: 'Ready' },
   { key: 'Completed', label: 'Done' },
   { key: 'Cancelled', label: 'Cancelled' },
+  { key: 'Declined', label: 'Declined' },
+  { key: 'NoShow', label: 'Missed' },
 ];
 
 export default function VendorBookings() {
@@ -25,6 +29,7 @@ export default function VendorBookings() {
   const router = useRouter();
   const vendorTabBottom = useVendorTabBottom();
   const bookings = useQarWheelStore((s) => s.vendorBookings);
+  const feed = useVendorFeedStatus();
   const [activeTab, setActiveTab] = useState<VendorBookingStatus | 'All'>('All');
 
   const filtered = activeTab === 'All' ? bookings : bookings.filter((b) => b.status === activeTab);
@@ -35,16 +40,18 @@ export default function VendorBookings() {
 
       <View style={[s.navbar, { backgroundColor: c.background, borderBottomColor: c.border }]}>
         <Text style={[s.navTitle, { color: c.text }]}>Bookings</Text>
+        <BranchSwitcher />
         <Text style={[s.navCount, { color: c.muted }]}>{filtered.length} bookings</Text>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[s.tabBar, { paddingTop: 60 }]} contentContainerStyle={s.tabBarContent}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabBar} contentContainerStyle={s.tabBarContent}>
         {TABS.map((tab) => {
           const count = tab.key === 'All' ? bookings.length : bookings.filter((b) => b.status === tab.key).length;
           const active = activeTab === tab.key;
           return (
             <Pressable
               key={tab.key}
+              accessibilityRole="tab" accessibilityLabel={`${tab.label}, ${count} bookings`} accessibilityState={{ selected: active }}
               style={[s.tab, { backgroundColor: active ? c.primary : c.surface, borderColor: active ? c.primary : c.border }]}
               onPress={() => setActiveTab(tab.key)}
             >
@@ -59,25 +66,25 @@ export default function VendorBookings() {
         })}
       </ScrollView>
 
-      <ScrollView contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16 }]} showsVerticalScrollIndicator={false}>
-        <MotionScreen>
-          {filtered.length === 0 ? (
-            <View style={s.emptyState}>
-              <Ionicons name="calendar-outline" size={40} color={c.muted} />
-              <Text style={[s.emptyTitle, { color: c.text }]}>No bookings</Text>
-              <Text style={[s.emptyText, { color: c.muted }]}>No {activeTab === 'All' ? '' : `${activeTab.toLowerCase()} `}bookings at the moment.</Text>
-            </View>
-          ) : (
-            <View style={{ gap: 10 }}>
-              {filtered.map((b) => {
+      <FlatList data={filtered} keyExtractor={(booking) => booking.id}
+        initialNumToRender={8} maxToRenderPerBatch={8} windowSize={7}
+        contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16, gap: 10 }]}
+        refreshing={feed.loading && bookings.length > 0} onRefresh={feed.retry}
+        ListHeaderComponent={feed.error ? <ErrorState compact onRetry={feed.retry} /> : undefined}
+        ListEmptyComponent={feed.loading ? <ActivityIndicator accessibilityLabel="Loading vendor bookings" color={c.primary} />
+          : feed.error ? undefined : <View style={s.emptyState}>
+            <Ionicons name="calendar-outline" size={40} color={c.muted} />
+            <Text style={[s.emptyTitle, { color: c.text }]}>No bookings</Text>
+            <Text style={[s.emptyText, { color: c.muted }]}>No bookings in this view.</Text>
+          </View>}
+        renderItem={({ item: b }) => {
                 const sc = getStatusColor(b.status);
                 return (
-                  <Pressable
+                  <View
                     key={b.id}
                     style={[s.card, { backgroundColor: c.surface, borderColor: c.border }]}
-                    onPress={() => router.push(`/vendor/booking-detail/${b.id}` as never)}
                   >
-                    <View style={s.cardTop}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`View booking for ${b.customerName}: ${b.service}`} onPress={() => router.push(`/vendor/booking-detail/${b.id}` as never)} style={s.cardTop}>
                       <View style={{ flex: 1, gap: 3 }}>
                         <Text style={[s.customerName, { color: c.text }]}>{b.customerName}</Text>
                         <Text style={[s.serviceName, { color: c.textSecondary }]}>{b.service}</Text>
@@ -90,10 +97,10 @@ export default function VendorBookings() {
                         </View>
                         <Text style={[s.dateText, { color: c.muted }]}>{typeof b.date === 'string' ? b.date : ''}{b.timeSlot ? ` · ${b.timeSlot}` : ''}</Text>
                       </View>
-                    </View>
+                    </Pressable>
 
                     <View style={[s.cardFooter, { borderTopColor: c.border }]}>
-                      <Text style={[s.amount, { color: c.text }]}>QAR {b.totalAmount}</Text>
+                      <Text style={[s.amount, { color: c.text }]}>{bookingAmountLabel(b.totalAmount)}</Text>
                       {b.staffName ? (
                         <View style={[s.staffChip, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                           <Ionicons name="person-outline" size={11} color={c.muted} />
@@ -102,6 +109,7 @@ export default function VendorBookings() {
                       ) : (
                         <Pressable
                           style={[s.assignBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
+                          accessibilityRole="button" accessibilityLabel={`Assign staff to ${b.service}`}
                           onPress={() => router.push(`/vendor/assign-staff/${b.id}` as never)}
                         >
                           <Text style={[s.assignText, { color: c.textSecondary }]}>Assign staff</Text>
@@ -110,25 +118,24 @@ export default function VendorBookings() {
                       <View style={s.cardActions}>
                         <Pressable
                           style={[s.actionBtn, { backgroundColor: c.primaryLight, borderColor: c.primaryMid }]}
+                          accessibilityRole="button" accessibilityLabel={`Update ${b.service}`}
                           onPress={() => router.push(`/vendor/status-update/${b.id}` as never)}
                         >
                           <Text style={[s.actionBtnText, { color: c.primary }]}>Update</Text>
                         </Pressable>
                         <Pressable
                           style={[s.actionBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
+                          accessibilityRole="button" accessibilityLabel={`Message ${b.customerName}`}
                           onPress={() => router.push(`/vendor/chat/${b.chatId}` as never)}
                         >
                           <Ionicons name="chatbubble-outline" size={14} color={c.textSecondary} />
                         </Pressable>
                       </View>
                     </View>
-                  </Pressable>
+                  </View>
                 );
-              })}
-            </View>
-          )}
-        </MotionScreen>
-      </ScrollView>
+        }}
+      />
       <VendorTabBar />
     </SafeAreaView>
   );
@@ -137,12 +144,7 @@ export default function VendorBookings() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    flexDirection: 'row', 
+    flexDirection: 'row', flexWrap: 'wrap', gap: 8,
     alignItems: 'center', 
     justifyContent: 'space-between',
     paddingHorizontal: spacing.page, 
@@ -172,7 +174,7 @@ const s = StyleSheet.create({
   emptyText: { fontSize: 14, fontWeight: '500', textAlign: 'center' },
 
   card: { borderRadius: radius.xl, borderWidth: 1, overflow: 'hidden', ...shadow.sm },
-  cardTop: { flexDirection: 'row', padding: 14, gap: 10 },
+  cardTop: { flexDirection: 'row', flexWrap: 'wrap', padding: 14, gap: 10 },
   customerName: { ...typography.h4 },
   serviceName: { fontSize: 13, fontWeight: '500' },
   vehicleText: { fontSize: 12, fontWeight: '500' },
@@ -185,7 +187,7 @@ const s = StyleSheet.create({
   dateText: { fontSize: 12, fontWeight: '600' },
 
   cardFooter: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8,
     paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth,
   },
   amount: { ...typography.h4, flex: 1 },
@@ -195,11 +197,13 @@ const s = StyleSheet.create({
   },
   staffText: { fontSize: 12, fontWeight: '600' },
   assignBtn: {
+    minHeight: 44, justifyContent: 'center',
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.full, borderWidth: 1,
   },
   assignText: { fontSize: 12, fontWeight: '700' },
   cardActions: { flexDirection: 'row', gap: 6 },
   actionBtn: {
+    minHeight: 44,
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.full,
     borderWidth: 1, alignItems: 'center', justifyContent: 'center',
   },

@@ -5,14 +5,15 @@ import * as Notifications from 'expo-notifications';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, type ReactNode } from 'react';
-import { AppState, Platform } from 'react-native';
+import { AppState, Platform, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { featureAvailabilityScreenLayout } from '@/components/FeatureAvailabilityGate';
 import { BiometricGate } from '@/components/BiometricGate';
 import { lockBiometricSession } from '@/lib/biometrics';
-import { isVendorClaims } from '@/lib/roles';
+import { authRedirect, settleSignInNavigation, useSignInNavigation } from '@/lib/auth-navigation';
+import { auth } from '@/lib/firebase';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider, useAuthContext } from '@/lib/AuthContext';
@@ -61,6 +62,7 @@ function AuthGuard({ children }: { children: ReactNode }) {
   const { user, loading, wasAuthenticated, role, claims, claimsLoading } = useAuthContext();
   const segments = useSegments();
   const router = useRouter();
+  const navigation = useSignInNavigation();
   // Read inside the listener via a ref rather than closing over `role`
   // directly — the listener is set up once (empty deps below) so it must
   // never see a value captured from the first render.
@@ -110,27 +112,11 @@ function AuthGuard({ children }: { children: ReactNode }) {
   }, [segments]);
 
   useEffect(() => {
-    // Wait until Firebase has resolved auth state
-    if (loading || claimsLoading) return;
-
-    const inAuthGroup   = segments[0] === '(auth)';
-
-    if (user) {
-      // Logged in — send to tabs if still stuck in auth flow
-      const onboarding = new Set(['biometric', 'email-verification', 'location-permission', 'notifications-permission', 'appearance', 'account-success']);
-      if (inAuthGroup && !onboarding.has(segments[1] ?? '')) {
-        router.replace(isVendorClaims(claims) ? '/vendor/dashboard' : '/(tabs)');
-      }
-      return;
-    }
-
-    // Not logged in. Only redirect to splash if:
-    // 1. We are outside the auth group, AND
-    // 2. The user was NOT previously authenticated (avoids flash-to-splash on remount)
-    if (!inAuthGroup && !wasAuthenticated) {
-      router.replace('/(auth)/splash' as never);
-    }
-  }, [user, claims, claimsLoading, loading, wasAuthenticated, segments, router]);
+    const destination = authRedirect({ userId: user?.uid, currentUserId: auth.currentUser?.uid,
+      loading, claimsLoading, wasAuthenticated, claims, segments, navigation });
+    if (segments[0] !== '(auth)') settleSignInNavigation();
+    if (destination) router.replace(destination);
+  }, [user, claims, claimsLoading, loading, wasAuthenticated, segments, router, navigation]);
 
   return <>{children}</>;
 }
@@ -150,7 +136,9 @@ function RootLayoutNav() {
       <AuthProvider>
         <AppQueryProvider>
           <AuthGuard>
+            <View style={{ flex: 1 }}>
             <OfflineBanner />
+            <View style={{ flex: 1 }}>
             <Stack
               screenLayout={({ children, route }) => <BiometricGate>{featureAvailabilityScreenLayout({ children, route })}</BiometricGate>}
               screenOptions={{
@@ -173,6 +161,8 @@ function RootLayoutNav() {
               <Stack.Screen name="modal" options={{ presentation: 'modal', animation: 'slide_from_bottom', animationDuration: motion.slow, animationMatchesGesture: true }} />
               <Stack.Screen name="add-car" options={{ presentation: 'modal', animation: 'slide_from_bottom', animationDuration: motion.slow, animationMatchesGesture: true }} />
             </Stack>
+            </View>
+            </View>
           </AuthGuard>
         </AppQueryProvider>
       </AuthProvider>

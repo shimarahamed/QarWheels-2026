@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors } from '@/lib/store';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
@@ -49,11 +49,13 @@ export function BranchSwitcher() {
           <SafeAreaView style={s.sheetWrap} edges={['bottom']}>
             <Pressable style={[s.sheet, { backgroundColor: c.surface, borderColor: c.border }]} onPress={(e) => e.stopPropagation()}>
               <Text style={[s.sheetTitle, { color: c.text }]}>Branches</Text>
+              <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ gap: 10 }}>
               {branches.map((branch: VendorBranch) => {
                 const isActive = activeBranch?.id === branch.id;
                 return (
                   <Pressable
                     key={branch.id}
+                    accessibilityRole="radio" accessibilityLabel={branch.name} accessibilityState={{ checked: isActive }}
                     style={[
                       s.row,
                       { borderColor: isActive ? c.primary : c.border, backgroundColor: isActive ? `${c.primary}12` : c.background },
@@ -68,6 +70,10 @@ export function BranchSwitcher() {
                   </Pressable>
                 );
               })}
+              </ScrollView>
+              <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={{ minHeight: 44, justifyContent: 'center' }}>
+                <Text style={{ color: c.primary }}>Close</Text>
+              </Pressable>
             </Pressable>
           </SafeAreaView>
         </Pressable>
@@ -85,6 +91,7 @@ const s = StyleSheet.create({
   staticText: { fontSize: 12, fontWeight: '700', flexShrink: 1 },
 
   trigger: {
+    minHeight: 44,
     flexDirection: 'row', alignItems: 'center', gap: 6,
     borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 6,
     maxWidth: 220,

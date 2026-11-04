@@ -6,11 +6,12 @@ import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import {
-  findVendorBooking,
+  bookingAmountLabel,
   getStatusColor,
   getStatusLabel,
   vendorCustomers,
 } from '@/lib/vendor-data';
+import { MissingRecord } from '@/components/vendor/MissingRecord';
 import { BOOKING_WORKFLOW, getBookingStatusIndex } from '@/lib/booking-workflow';
 
 function InfoRow({ label, value, c }: { label: string; value: string; c: ReturnType<typeof useQarColors> }) {
@@ -29,22 +30,21 @@ export default function BookingDetailScreen() {
   const storeBooking = useQarWheelStore((state) => state.vendorBookings.find((b) => b.id === id));
   const storeInvoices = useQarWheelStore((state) => state.vendorInvoices);
   const createVendorInvoice = useQarWheelStore((state) => state.createVendorInvoice);
-  const booking = storeBooking ?? findVendorBooking(id);
+  const booking = storeBooking;
+  if (!booking) return <MissingRecord title="Booking unavailable" />;
   const sc = getStatusColor(booking.status);
   const customer = vendorCustomers.find((cu) => cu.name === booking.customerName);
   const currentStatusIndex = getBookingStatusIndex(booking.status);
 
-  // Always resolve invoice for completed bookings; create on the fly for others if tapped
+  // Viewing a booking must never create a financial record as a render side effect.
   const invoice = (() => {
     const found = storeInvoices.find((item) => item.bookingId === booking.id);
     if (found) return found;
-    if (booking.status === 'Completed') {
-      try { return createVendorInvoice(booking.id); } catch { return undefined; }
-    }
     return undefined;
   })();
 
   function handleCreateInvoice() {
+    if (!booking) return;
     try {
       const created = createVendorInvoice(booking.id);
       router.push(`/vendor/invoice/${created.id}` as never);
@@ -138,7 +138,7 @@ export default function BookingDetailScreen() {
             <InfoRow label="Service" value={booking.service} c={c} />
             <InfoRow label="Category" value={booking.serviceCategory} c={c} />
             <InfoRow label="Date" value={`${typeof booking.date === 'string' ? booking.date : ''}${booking.timeSlot ? ` · ${booking.timeSlot}` : ''}`} c={c} />
-            <InfoRow label="Amount" value={`QAR ${booking.totalAmount}`} c={c} />
+            <InfoRow label="Amount" value={bookingAmountLabel(booking.totalAmount)} c={c} />
             {booking.paymentMethod ? <InfoRow label="Payment" value={booking.paymentMethod} c={c} /> : null}
             {booking.pickupEnabled || booking.dropoffEnabled ? (
               <InfoRow

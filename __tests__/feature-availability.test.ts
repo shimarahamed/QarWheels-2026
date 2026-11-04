@@ -4,6 +4,7 @@ const blockedRoutes = [
   '/roadside', '/damage-upload', '/damage-results', '/ai-mechanic',
   '/ai-support', '/repair-cost-forecast', '/support-ticket', '/contact-us',
   '/apply-coupon/booking-123', '/live-tracking/booking-123',
+  '/availability-calendar/garage-123', '/fuel-log/car-123',
   '/renew-policy/car-123', '/share-passport/car-123', '/payment-method/booking-123',
 ];
 
@@ -16,7 +17,8 @@ describe('mobile release availability', () => {
   });
 
   it.each([
-    'apply-coupon/[id]', 'live-tracking/[id]', 'renew-policy/[id]',
+    'apply-coupon/[id]', 'live-tracking/[id]', 'availability-calendar/[id]',
+    'fuel-log/[id]', 'renew-policy/[id]',
     'share-passport/[id]', 'payment-method/[id]',
   ])('also blocks an unfocused screen by its Expo route name: %s', (route) => {
     expect(getUnavailableMobileFeature(route)).toBeDefined();
@@ -26,7 +28,7 @@ describe('mobile release availability', () => {
     '/', '/(tabs)', '/search', '/(tabs)/search', '/(auth)/login',
     '/booking/123', '/booking-summary/123', '/checkout/123',
     '/booking-confirmation/123', '/choose-vehicle/123', '/choose-date-time/123',
-    '/pickup-dropoff/123', '/add-ons/123', '/availability-calendar/123',
+    '/pickup-dropoff/123', '/add-ons/123',
     '/job-progress/123', '/ready-pickup/123', '/post-service-review/123',
     '/bookings', '/booking-history', '/payment-methods', '/saved-cards',
     '/invoices', '/invoice/123', '/vendor/kyc', '/vendor/send-invoice/123',

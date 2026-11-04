@@ -3,7 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, KeyboardAvoidingView, Platform,
-  Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  Pressable, ScrollView, type ScrollViewInstance, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors } from '@/lib/store';
@@ -41,7 +41,7 @@ function pickCanned(text: string): string {
 export default function AiSupportScreen() {
   const c = useQarColors();
   const router = useRouter();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const [messages, setMessages] = useState<Message[]>([
     { id: 'sys0', role: 'assistant', text: 'Hi! I\'m QarWheel AI support. Ask me anything about your bookings, payments, or services.', ts: new Date() },
   ]);

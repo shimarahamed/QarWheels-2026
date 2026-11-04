@@ -3,7 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
   ActivityIndicator, Keyboard, KeyboardAvoidingView,
-  Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, type TextInputInstance, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors } from '@/lib/store';
@@ -47,7 +47,7 @@ function buildDemoEstimate(issue: string): Estimate {
 export default function RepairCostForecastScreen() {
   const c = useQarColors();
   const router = useRouter();
-  const descRef = useRef<TextInput>(null);
+  const descRef = useRef<TextInputInstance>(null);
   const [issue, setIssue] = useState('');
   const [vehicle, setVehicle] = useState('');
   const [loading, setLoading] = useState(false);

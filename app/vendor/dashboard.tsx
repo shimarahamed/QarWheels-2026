@@ -5,9 +5,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen, MotionSurface } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { getStatusColor, getStatusLabel } from '@/lib/vendor-data';
+import { bookingAmountLabel, getStatusColor, getStatusLabel } from '@/lib/vendor-data';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
 import { BranchSwitcher } from '@/components/vendor/BranchSwitcher';
+import { useVendorBranches } from '@/lib/vendorQueries';
 
 export default function VendorDashboard() {
   const c = useQarColors();
@@ -15,6 +16,7 @@ export default function VendorDashboard() {
   const vendorTabBottom = useVendorTabBottom();
   const profile = useQarWheelStore((s) => s.vendorProfile);
   const bookings = useQarWheelStore((s) => s.vendorBookings);
+  const { activeBranch } = useVendorBranches();
 
 
   // Profile publishing is an explicit action on the settings screen, not a
@@ -26,8 +28,8 @@ export default function VendorDashboard() {
   const inProgress = bookings.filter((b) => b.status === 'InProgress').length;
   const readyPickup = bookings.filter((b) => b.status === 'ReadyForPickup').length;
   const todayRevenue = bookings
-    .filter((b) => b.date === 'Today' && b.status !== 'Cancelled')
-    .reduce((sum, b) => sum + b.totalAmount, 0);
+    .filter((b) => b.date === 'Today' && !['Cancelled', 'Declined', 'NoShow'].includes(b.status))
+    .reduce((sum, b) => sum + (Number.isFinite(b.totalAmount) ? b.totalAmount : 0), 0);
 
   // `route` makes a metric tappable — Pending is the entry point to the new
   // requests inbox (the tab bar's 5 slots are full, so this is the way in).
@@ -38,7 +40,7 @@ export default function VendorDashboard() {
     color: string;
     route?: string;
   }[] = [
-    { label: "Today's Booked Value", value: `QAR ${todayRevenue}`, icon: 'cash-outline', color: c.success },
+    { label: "Today's Quoted Value", value: todayRevenue > 0 ? `QAR ${todayRevenue}` : 'No quotes yet', icon: 'cash-outline', color: c.success },
     { label: 'Pending', value: String(pending), icon: 'time-outline', color: c.warning, route: '/vendor/requests' },
     { label: 'In Progress', value: String(inProgress), icon: 'construct-outline', color: c.primary },
     { label: 'Ready Pickup', value: String(readyPickup), icon: 'checkmark-circle-outline', color: c.ai },
@@ -52,7 +54,7 @@ export default function VendorDashboard() {
             <Text style={[s.vendorBadgeText, { color: c.primary }]}>VENDOR</Text>
           </View>
           <View style={{ gap: 4, flexShrink: 1 }}>
-            <Text style={[s.navTitle, { color: c.text }]}>{profile.businessName}</Text>
+            <Text style={[s.navTitle, { color: c.text }]}>{activeBranch?.name || profile.businessName}</Text>
             <BranchSwitcher />
           </View>
         </View>
@@ -75,7 +77,7 @@ export default function VendorDashboard() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16, paddingTop: 100 }]}
+        contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16 }]}
         showsVerticalScrollIndicator={false}
       >
         <MotionScreen style={s.dashboardStack}>
@@ -184,7 +186,7 @@ export default function VendorDashboard() {
                           </View>
                         </View>
                         <View style={[s.bookingFooter, { borderTopColor: c.border }]}>
-                          <Text style={[s.bookingAmount, { color: c.text }]}>QAR {b.totalAmount}</Text>
+                          <Text style={[s.bookingAmount, { color: c.text }]}>{bookingAmountLabel(b.totalAmount)}</Text>
                           {b.staffName ? (
                             <Text style={[s.bookingStaff, { color: c.muted }]}>{b.staffName}</Text>
                           ) : null}
@@ -269,11 +271,6 @@ const s = StyleSheet.create({
   safe: { flex: 1 },
 
   navbar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
     flexDirection: 'row', 
     alignItems: 'center', 
     justifyContent: 'space-between',
@@ -288,16 +285,16 @@ const s = StyleSheet.create({
   vendorBadgeText: { fontSize: 12, fontWeight: '900', letterSpacing: 1 },
   navActions: { flexDirection: 'row', gap: 8 },
   navBtn: {
-    width: 38, height: 38, borderRadius: radius.md,
+    width: 44, height: 44, borderRadius: radius.md,
     borderWidth: 1, alignItems: 'center', justifyContent: 'center', ...shadow.xs,
   },
 
   content: { padding: spacing.page },
   dashboardStack: { gap: 18 },
 
-  metricsRow: { flexDirection: 'row', gap: 10 },
+  metricsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   metricCard: {
-    flex: 1, borderRadius: radius.lg, borderWidth: 1, padding: 12,
+    flexGrow: 1, flexBasis: '45%', minWidth: 130, borderRadius: 8, borderWidth: 1, padding: 12,
     alignItems: 'center', gap: 6, ...shadow.xs,
   },
   metricIcon: { width: 36, height: 36, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },

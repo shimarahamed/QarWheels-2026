@@ -1,5 +1,8 @@
-import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect } from 'react';
+import { useAuthContext } from '@/lib/AuthContext';
+import { useSignInNavigation } from '@/lib/auth-navigation';
+import { auth } from '@/lib/firebase';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
@@ -136,13 +139,16 @@ function PulsingDot({ delay }: { delay: number }) {
 
 export default function SplashScreenRoute() {
   const router = useRouter();
+  const { user, loading, claimsLoading } = useAuthContext();
+  const navigation = useSignInNavigation();
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
+    if (loading || claimsLoading || user || navigation === 'pending') return;
     const timer = setTimeout(() => {
-      router.replace('/(auth)/language' as never);
+      if (!auth.currentUser) router.replace('/(auth)/language' as never);
     }, 2800);
     return () => clearTimeout(timer);
-  }, [router]);
+  }, [router, user, loading, claimsLoading, navigation]));
 
   return (
     <View style={ss.container}>

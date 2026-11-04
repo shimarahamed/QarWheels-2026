@@ -1,11 +1,9 @@
 import * as React from 'react';
-import renderer from 'react-test-renderer';
+import { render, screen } from '@testing-library/react-native';
 
 import { MonoText } from '../StyledText';
 
-it(`renders correctly`, () => {
-  let tree;
-  React.act(() => { tree = renderer.create(<MonoText>Snapshot test!</MonoText>); });
-  expect(tree.toJSON()).toMatchObject({ type: 'Text', children: ['Snapshot test!'] });
-  React.act(() => { tree.unmount(); });
+it(`renders correctly`, async () => {
+  await render(<MonoText>Snapshot test!</MonoText>);
+  expect(screen.getByText('Snapshot test!')).toHaveStyle({ fontFamily: 'SpaceMono' });
 });

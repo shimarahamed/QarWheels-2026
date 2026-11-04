@@ -30,8 +30,8 @@ export type Garage = {
   // predate the branches migration.
   latitude?: number;
   longitude?: number;
-  availability: 'Now' | 'Today' | 'Tomorrow';
-  openNow: boolean;
+  availability: 'Now' | 'Today' | 'Tomorrow' | 'On request';
+  openNow: boolean | null;
   verified: boolean;
   pickupAvailable: boolean;
   warranty: string;

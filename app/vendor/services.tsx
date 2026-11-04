@@ -1,15 +1,16 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
-  Alert, Modal, Pressable, ScrollView, StyleSheet,
+  KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet,
   Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { useVendorTabBottom } from '@/components/VendorTabBar';
+import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
+import { BranchSwitcher } from '@/components/vendor/BranchSwitcher';
 import type { VendorService } from '@/lib/vendor-data';
 
 const SERVICE_CATEGORIES = ['All', 'Maintenance', 'Tyres', 'Brakes', 'AC', 'Diagnostics', 'Electrical', 'Labour'];
@@ -29,7 +30,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 function EditServiceModal({ visible, service, onSave, onClose, c }: {
   visible: boolean;
   service: Partial<VendorService> | null;
-  onSave: (data: Omit<VendorService, 'id'>) => void;
+  onSave: (data: Omit<VendorService, 'id'>) => void | Promise<void>;
   onClose: () => void;
   c: ReturnType<typeof useQarColors>;
 }) {
@@ -39,30 +40,41 @@ function EditServiceModal({ visible, service, onSave, onClose, c }: {
   const [price, setPrice] = useState(String(service?.basePrice ?? ''));
   const [duration, setDuration] = useState(String(service?.duration ?? ''));
   const [description, setDescription] = useState(service?.description ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const busy = useRef(false);
 
-  function handleSave() {
-    if (!name.trim()) { Alert.alert('Missing', 'Enter a service name.'); return; }
-    const priceNum = parseFloat(price);
-    const durNum = parseInt(duration, 10);
-    if (isNaN(priceNum) || priceNum < 0) { Alert.alert('Invalid', 'Enter a valid price.'); return; }
-    if (isNaN(durNum) || durNum <= 0) { Alert.alert('Invalid', 'Enter a valid duration in minutes.'); return; }
-    onSave({ name: name.trim(), category, basePrice: priceNum, duration: durNum, description: description.trim(), active: service?.active ?? true });
-    onClose();
+  async function handleSave() {
+    if (busy.current) return;
+    if (!name.trim()) { setError('Enter a service name.'); return; }
+    const priceNum = Number(price);
+    const durNum = Number(duration);
+    if (!price.trim() || !Number.isFinite(priceNum) || priceNum < 0) { setError('Enter a valid price.'); return; }
+    if (!Number.isSafeInteger(durNum) || durNum <= 0) { setError('Enter a whole number of minutes greater than zero.'); return; }
+    busy.current = true;
+    setSaving(true); setError('');
+    try {
+      await onSave({ name: name.trim(), category, basePrice: priceNum, duration: durNum, description: description.trim(), active: service?.active ?? true });
+      onClose();
+    } catch { setError('Service was not saved. Please try again.'); }
+    finally { busy.current = false; setSaving(false); }
   }
 
   const cats = SERVICE_CATEGORIES.filter((c) => c !== 'All');
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={mod.overlay} onPress={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { if (!saving) onClose(); }}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Pressable style={mod.overlay} onPress={() => { if (!saving) onClose(); }}>
         <Pressable style={[mod.sheet, { backgroundColor: c.surface }]} onPress={(e) => e.stopPropagation()}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: 36 }}>
           <View style={[mod.handle, { backgroundColor: c.border }]} />
           <Text style={[mod.title, { color: c.text }]}>{isNew ? 'Add service' : 'Edit service'}</Text>
 
           <Text style={[mod.label, { color: c.muted }]}>Service name</Text>
           <TextInput
             style={[mod.input, { backgroundColor: c.surfaceAlt, borderColor: c.border, color: c.text }]}
-            value={name} onChangeText={setName}
+            value={name} onChangeText={setName} accessibilityLabel="Service name" editable={!saving} maxLength={200}
             placeholder="e.g. Full AC Service" placeholderTextColor={c.muted}
           />
 
@@ -75,7 +87,8 @@ function EditServiceModal({ visible, service, onSave, onClose, c }: {
                 style={[mod.catChip,
                   { borderColor: category === cat ? c.primary : c.border,
                     backgroundColor: category === cat ? c.primaryLight : c.surfaceAlt }]}
-                onPress={() => setCategory(cat)}
+                accessibilityRole="radio" accessibilityLabel={cat} accessibilityState={{ checked: category === cat, disabled: saving }}
+                disabled={saving} onPress={() => setCategory(cat)}
               >
                 <Text style={[mod.catChipText, { color: category === cat ? c.primary : c.muted }]}>{cat}</Text>
               </Pressable>
@@ -87,7 +100,7 @@ function EditServiceModal({ visible, service, onSave, onClose, c }: {
               <Text style={[mod.label, { color: c.muted }]}>Price (QAR)</Text>
               <TextInput
                 style={[mod.input, { backgroundColor: c.surfaceAlt, borderColor: c.border, color: c.text }]}
-                value={price} onChangeText={setPrice}
+                value={price} onChangeText={setPrice} accessibilityLabel="Price in QAR" editable={!saving}
                 keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor={c.muted}
               />
             </View>
@@ -95,7 +108,7 @@ function EditServiceModal({ visible, service, onSave, onClose, c }: {
               <Text style={[mod.label, { color: c.muted }]}>Duration (min)</Text>
               <TextInput
                 style={[mod.input, { backgroundColor: c.surfaceAlt, borderColor: c.border, color: c.text }]}
-                value={duration} onChangeText={setDuration}
+                value={duration} onChangeText={setDuration} accessibilityLabel="Duration in minutes" editable={!saving}
                 keyboardType="number-pad" placeholder="45" placeholderTextColor={c.muted}
               />
             </View>
@@ -104,21 +117,24 @@ function EditServiceModal({ visible, service, onSave, onClose, c }: {
           <Text style={[mod.label, { color: c.muted, marginTop: 12 }]}>Description (optional)</Text>
           <TextInput
             style={[mod.input, { backgroundColor: c.surfaceAlt, borderColor: c.border, color: c.text, height: 64, textAlignVertical: 'top', paddingTop: 10 }]}
-            value={description} onChangeText={setDescription}
+            value={description} onChangeText={setDescription} accessibilityLabel="Service description" editable={!saving} maxLength={1000}
             placeholder="Short description shown to customers…" placeholderTextColor={c.muted}
             multiline numberOfLines={2}
           />
 
           <View style={mod.actions}>
-            <Pressable style={[mod.cancelBtn, { borderColor: c.border }]} onPress={onClose}>
+            <Pressable accessibilityRole="button" disabled={saving} style={[mod.cancelBtn, { borderColor: c.border }]} onPress={onClose}>
               <Text style={[mod.cancelText, { color: c.muted }]}>Cancel</Text>
             </Pressable>
-            <Pressable style={[mod.saveBtn, { backgroundColor: c.primary }]} onPress={handleSave}>
-              <Text style={mod.saveBtnText}>{isNew ? 'Add service' : 'Save changes'}</Text>
+            <Pressable accessibilityRole="button" accessibilityState={{ disabled: saving, busy: saving }} disabled={saving} style={[mod.saveBtn, { backgroundColor: c.primary }]} onPress={() => void handleSave()}>
+              <Text style={mod.saveBtnText}>{saving ? 'Saving...' : isNew ? 'Add service' : 'Save changes'}</Text>
             </Pressable>
           </View>
+          {!!error && <Text accessibilityRole="alert" style={{ color: c.danger }}>{error}</Text>}
+          </ScrollView>
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -160,8 +176,10 @@ export default function ServicesScreen() {
 
       <View style={[s.navbar, { backgroundColor: c.background, borderBottomColor: c.border }]}>
         <Text style={[s.navTitle, { color: c.text }]}>Services</Text>
+        <BranchSwitcher />
         <Pressable
           style={[s.addBtn, { backgroundColor: c.primary }]}
+          accessibilityRole="button" accessibilityLabel="Add service"
           onPress={() => { setEditingService(null); setShowModal(true); }}
         >
           <Ionicons name="add" size={18} color="#fff" />
@@ -169,7 +187,7 @@ export default function ServicesScreen() {
       </View>
 
       {/* Category filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[s.catBar, { paddingTop: 60 }]} contentContainerStyle={s.catBarContent}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catBar} contentContainerStyle={s.catBarContent}>
         {SERVICE_CATEGORIES.map((cat) => {
           const active = activeCategory === cat;
           return (
@@ -192,7 +210,7 @@ export default function ServicesScreen() {
             {[
               { label: 'Total Services', value: String(services.length), color: c.text },
               { label: 'Active', value: String(activeCount), color: c.success },
-              { label: 'Revenue Potential', value: `QAR ${totalRevenuePotential}`, color: c.primary },
+              { label: 'Active list prices', value: `QAR ${totalRevenuePotential}`, color: c.primary },
             ].map((stat) => (
               <View key={stat.label} style={[s.summaryCard, { backgroundColor: c.surface, borderColor: c.border }]}>
                 <Text style={[s.summaryValue, { color: stat.color }]}>{stat.value}</Text>
@@ -248,6 +266,7 @@ export default function ServicesScreen() {
                 <View style={[s.cardFooter, { borderTopColor: c.border }]}>
                   <Pressable
                     style={[s.footerBtn, { borderColor: c.border }]}
+                    accessibilityRole="button" accessibilityLabel={`Edit ${svc.name}`}
                     onPress={() => handleEdit(svc)}
                   >
                     <Ionicons name="pencil-outline" size={13} color={c.textSecondary} />
@@ -259,6 +278,7 @@ export default function ServicesScreen() {
                       backgroundColor: svc.active ? 'transparent' : c.primaryLight,
                     }]}
                     onPress={() => toggleService(svc.id)}
+                    accessibilityRole="switch" accessibilityLabel={`Availability of ${svc.name}`} accessibilityState={{ checked: svc.active }}
                   >
                     <Ionicons
                       name={svc.active ? 'pause-circle-outline' : 'play-circle-outline'}
@@ -281,13 +301,15 @@ export default function ServicesScreen() {
         </MotionScreen>
       </ScrollView>
 
-      <EditServiceModal
+      {showModal && <EditServiceModal
+        key={editingService?.id ?? 'new'}
         visible={showModal}
         service={editingService}
         onSave={handleSaveService}
         onClose={() => { setShowModal(false); setEditingService(null); }}
         c={c}
-      />
+      />}
+      <VendorTabBar />
     </SafeAreaView>
   );
 }
@@ -297,11 +319,7 @@ export default function ServicesScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
+    flexWrap: 'wrap', gap: 8,
     flexDirection: 'row', 
     alignItems: 'center', 
     justifyContent: 'space-between',
@@ -311,7 +329,7 @@ const s = StyleSheet.create({
     ...shadow.sm,
   },
   navTitle: { ...typography.h3 },
-  addBtn: { width: 38, height: 38, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  addBtn: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
 
   catBar: { flexGrow: 0 },
   catBarContent: { paddingHorizontal: spacing.page, paddingVertical: 12, gap: 12 },
@@ -320,8 +338,8 @@ const s = StyleSheet.create({
 
   content: { padding: spacing.page, gap: spacing.gap },
 
-  summaryRow: { flexDirection: 'row', gap: 10 },
-  summaryCard: { flex: 1, borderRadius: radius.lg, borderWidth: 1, padding: 12, alignItems: 'center', gap: 4, ...shadow.xs },
+  summaryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  summaryCard: { flexGrow: 1, flexBasis: 100, borderRadius: 8, borderWidth: 1, padding: 12, alignItems: 'center', gap: 4, ...shadow.xs },
   summaryValue: { ...typography.h4 },
   summaryLabel: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
 
@@ -342,8 +360,8 @@ const s = StyleSheet.create({
   activeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.full },
   activeBadgeText: { fontSize: 12, fontWeight: '800' },
 
-  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth },
-  footerBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.full, borderWidth: 1 },
+  cardFooter: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth },
+  footerBtn: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.full, borderWidth: 1 },
   footerBtnText: { fontSize: 12, fontWeight: '700' },
   priceTag: { flexDirection: 'row', alignItems: 'center', gap: 4, marginStart: 'auto', paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full, borderWidth: 1 },
   priceTagText: { fontSize: 12, fontWeight: '600' },
@@ -351,7 +369,7 @@ const s = StyleSheet.create({
 
 const mod = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 },
+  sheet: { borderTopLeftRadius: 8, borderTopRightRadius: 8, maxHeight: '90%' },
   handle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   title: { fontSize: 17, fontWeight: '900', marginBottom: 14 },
   label: { fontSize: 12, fontWeight: '700', marginBottom: 5 },

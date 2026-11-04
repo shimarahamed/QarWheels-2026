@@ -7,6 +7,7 @@ import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { useBranches } from '@/lib/firestoreOps';
 import { tap } from '@/lib/haptics';
+import { garageDistanceLabel } from '@/lib/marketplace-display';
 
 export default function FavoritesScreen() {
   const c = useQarColors();
@@ -78,12 +79,12 @@ export default function FavoritesScreen() {
                     </View>
                     <View style={[s.chip, { backgroundColor: c.surfaceAlt }]}>
                       <Ionicons name="location-outline" size={11} color={c.muted} />
-                      <Text style={[s.chipText, { color: c.textSecondary }]}>{garage.distanceKm.toFixed(1)} km</Text>
+                      <Text style={[s.chipText, { color: c.textSecondary }]}>{garageDistanceLabel(garage.distanceKm)}</Text>
                     </View>
                     <View style={[s.chip, { backgroundColor: garage.openNow ? c.successBg : c.surfaceAlt }]}>
                       <View style={[s.dot, { backgroundColor: garage.openNow ? c.success : c.muted }]} />
                       <Text style={[s.chipText, { color: garage.openNow ? c.success : c.muted }]}>
-                        {garage.openNow ? 'Open' : 'Closed'}
+                        {garage.openNow === null ? 'Hours unavailable' : garage.openNow ? 'Open' : 'Closed'}
                       </Text>
                     </View>
                     <View style={[s.chip, { backgroundColor: c.primaryLight }]}>

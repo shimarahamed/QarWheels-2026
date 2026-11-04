@@ -22,6 +22,7 @@ describe('mobile booking write contract', () => {
       statusHistory: [{ status: 'Pending', byUid: 'customer', byRole: 'customer' }],
       createdAt: expect.anything(), updatedAt: expect.anything(),
     });
+    expect(payload).not.toHaveProperty('cost');
   });
 
   it('does not send a booking with missing business scope', async () => {

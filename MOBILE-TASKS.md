@@ -1,9 +1,13 @@
 # Mobile Workstreams
 
+Latest results: see [Mobile UI and Flow Status](MOBILE-UIUX-STATUS.md) for the
+2026-11-02 continuation, integrated agent work, verification and open limitations.
+The assignments and counts below describe the earlier 2026-11-01 pass.
+
 Scope: mobile app only. Existing improvements must be preserved. No changes to
 the web app, backend, Desktop copy, credentials, or dependency versions in this pass.
 
-## Current Assignments
+## Earlier Assignments
 
 | Owner | Workstream | Owned files | Status |
 | --- | --- | --- | --- |

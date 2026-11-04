@@ -11,6 +11,8 @@ export const unavailableMobileFeatures = [
   { path: '/contact-us', endpoints: ['/api/support/contact'] },
   { path: '/apply-coupon', endpoints: ['/api/coupons/validate'] },
   { path: '/live-tracking', endpoints: ['/api/tracking/:id'] },
+  { path: '/availability-calendar', endpoints: ['/api/availability/:garageId'] },
+  { path: '/fuel-log', endpoints: ['/api/vehicles/:id/fuel-log'] },
   { path: '/renew-policy', endpoints: ['/api/insurance/renew'] },
   { path: '/share-passport', endpoints: ['/api/vehicles/:id/passport'] },
   // This is the standalone card-charge screen, NOT BookingComposer's

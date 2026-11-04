@@ -22,7 +22,9 @@ import { useTranslation } from '@/lib/i18n';
 import { promptRestartForRTL } from '@/lib/i18n/restart';
 import { useQarWheelStore } from '@/lib/store';
 import AnimatedPressable from '@/components/AnimatedPressable';
+import { RemoteImage } from '@/components/RemoteImage';
 import { MotionScreen } from '@/lib/motion';
+import { garageDistanceLabel } from '@/lib/marketplace-display';
 import {
   BOOKING_WORKFLOW,
   getBookingStatusDescription,
@@ -184,7 +186,7 @@ export function GarageDetailScreen() {
     <Page
       title={garage.name}
       rightAction={
-        <Pressable onPress={() => { void tap(); toggleFav(garage.id); }} hitSlop={8}>
+        <Pressable onPress={() => { void tap(); toggleFav(garage.id); }} hitSlop={8} accessibilityRole="button" accessibilityLabel={isFav ? `Remove ${garage.name} from saved` : `Save ${garage.name}`} accessibilityState={{ selected: isFav }}>
           <Icon
             name={isFav ? 'heart' : 'heart-outline'}
             size={20}
@@ -195,51 +197,51 @@ export function GarageDetailScreen() {
     >
       {/* Hero image */}
       <View style={ds.heroWrap}>
-        <Image source={{ uri: garage.imageUrl }} style={ds.heroImage} resizeMode="cover" />
-        <View style={ds.heroOverlay} />
+        <RemoteImage uri={garage.imageUrl} style={ds.heroImage} fallbackIcon="business-outline" accessibilityLabel={`${garage.name} workshop`} />
         {/* Status overlay */}
         <View style={ds.heroStatusRow}>
           <View style={ds.openBadge}>
             <View style={[ds.openDot, !garage.openNow && { backgroundColor: c.warning }]} />
-            <Text style={ds.openText}>{garage.openNow ? 'Open now' : `Next ${garage.availability}`}</Text>
+            <Text style={ds.openText}>{garage.openNow === null ? 'Hours unavailable' : garage.openNow ? 'Open now' : 'Closed now'}</Text>
           </View>
-          <View style={ds.heroRatingBadge}>
-            <Icon name="star" size={12} color={c.gold} />
-            <Text style={ds.heroRatingText}>{garage.rating}</Text>
+          {garage.verified ? <View style={ds.heroVerified}><Icon name="shield-checkmark" size={14} color="#fff" /><Text style={ds.heroVerifiedText}>Verified partner</Text></View> : <View />}
+        </View>
+        <View style={ds.heroIdentity}>
+          <Text style={ds.heroName}>{garage.name}</Text>
+          <View style={ds.heroMeta}>
+            {garage.rating > 0 ? <><Icon name="star" size={15} color="#F7C948" /><Text style={ds.heroMetaText}>{garage.rating} ({garage.reviews})</Text></> : null}
+            <Icon name="location-outline" size={15} color="#fff" />
+            <Text style={ds.heroMetaText}>{garage.area} · {garageDistanceLabel(garage.distanceKm)}</Text>
           </View>
         </View>
       </View>
 
-      {/* Summary card */}
-      <View style={[ds.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <View style={ds.garageSummary}>
         <Text style={[ds.eyebrow, { color: c.primary }]}>{garage.type}</Text>
-        <Text style={[ds.cardTitle, { color: c.text }]}>{garage.name}</Text>
 
         <View style={ds.factChips}>
           <View style={[ds.factChip, { backgroundColor: c.surfaceAlt }]}>
             <Icon name="location" size={13} color={c.muted} />
-            <Text style={[ds.factChipText, { color: c.textSecondary }]}>{garage.distanceKm.toFixed(1)} km · {garage.area}</Text>
+            <Text style={[ds.factChipText, { color: c.textSecondary }]}>{garageDistanceLabel(garage.distanceKm)} · {garage.area}</Text>
           </View>
           <View style={[ds.factChip, { backgroundColor: c.surfaceAlt }]}>
             <Icon name="time-outline" size={13} color={c.muted} />
-            <Text style={[ds.factChipText, { color: c.textSecondary }]}>{garage.responseTime} response</Text>
+            <Text style={[ds.factChipText, { color: c.textSecondary }]}>{garage.responseTime === 'Response time unavailable' ? garage.responseTime : `${garage.responseTime} response`}</Text>
           </View>
           <View style={[ds.factChip, { backgroundColor: c.surfaceAlt }]}>
             <Icon name="pricetag-outline" size={13} color={c.primary} />
             <Text style={[ds.factChipText, { color: c.primary, fontWeight: '700' }]}>
-              From {garage.startingPrice}
+              {garage.startingPriceValue > 0 ? `From ${garage.startingPrice}` : garage.startingPrice}
             </Text>
           </View>
           <View style={[ds.factChip, { backgroundColor: c.surfaceAlt }]}>
             <Icon name="calendar-outline" size={13} color={c.success} />
             <Text style={[ds.factChipText, { color: c.success, fontWeight: '800' }]}>
-              {garage.availability === 'Now' ? 'Instant booking' : `${garage.availability} slots`}
+              Time confirmed after request
             </Text>
           </View>
         </View>
 
-        <InfoRow icon="star" label="Rating" value={`${garage.rating} · ${garage.reviews} reviews`} valueColor={c.gold} />
-        <InfoRow icon="chatbubble-ellipses-outline" label="Reviews" value={`${garage.reviews} verified`} />
         <InfoRow icon="car-outline" label="Category" value={garage.category} />
         <InfoRow icon="shield-checkmark-outline" label="Warranty" value={garage.warranty} valueColor={c.success} />
         <InfoRow icon="navigate-outline" label="Pickup" value={garage.pickupAvailable ? 'Pickup and drop-off available' : 'Drop-off booking'} />
@@ -253,50 +255,36 @@ export function GarageDetailScreen() {
         </View>
       </View>
 
-      <View style={[ds.discoveryMetrics, { backgroundColor: c.surface, borderColor: c.border }]}>
-        {[
-          { label: 'Distance', value: `${garage.distanceKm.toFixed(1)} km`, icon: 'navigate-outline' as IoniconsName, color: c.primary },
-          { label: 'From', value: garage.startingPrice, icon: 'pricetag-outline' as IoniconsName, color: c.primary },
-          { label: 'Rating', value: `${garage.rating}/5`, icon: 'star-outline' as IoniconsName, color: c.gold },
-        ].map((metric) => (
-          <View key={metric.label} style={ds.discoveryMetric}>
-            <Icon name={metric.icon} size={18} color={metric.color} />
-            <Text style={[ds.discoveryMetricValue, { color: c.text }]}>{metric.value}</Text>
-            <Text style={[ds.discoveryMetricLabel, { color: c.muted }]}>{metric.label}</Text>
-          </View>
-        ))}
-      </View>
-
       {/* Quick actions */}
       <View style={[ds.garageActionCard, { backgroundColor: c.surface, borderColor: c.border }]}>
         <View style={ds.garageActionHeader}>
           <View style={{ flex: 1, gap: 3 }}>
-            <Text style={[ds.sectionTitle, { color: c.text }]}>Book with confidence</Text>
-            <Text style={[ds.garageActionMeta, { color: c.muted }]}>{garage.responseTime} average response · {garage.warranty}</Text>
+            <Text style={[ds.sectionTitle, { color: c.text }]}>Request a service</Text>
+            <Text style={[ds.garageActionMeta, { color: c.muted }]}>{garage.responseTime === 'Response time unavailable' ? garage.responseTime : `${garage.responseTime} average response`}{garage.warranty ? ` · ${garage.warranty}` : ''}</Text>
           </View>
           <View style={ds.garageActionPrice}>
-            <Text style={[ds.garageActionPriceLabel, { color: c.muted }]}>From</Text>
+            <Text style={[ds.garageActionPriceLabel, { color: c.muted }]}>{garage.startingPriceValue > 0 ? 'Listed from' : 'Price'}</Text>
             <Text style={[ds.garageActionPriceValue, { color: c.primary }]}>{garage.startingPrice}</Text>
           </View>
         </View>
 
-        <AnimatedPressable style={[ds.garagePrimaryAction, { backgroundColor: c.primary }]} onPress={handleBook} scaleValue={0.98}>
+        <AnimatedPressable style={[ds.garagePrimaryAction, { backgroundColor: c.primary }]} onPress={handleBook} scaleValue={0.98} accessibilityRole="button" accessibilityLabel={`Choose service and preferred time at ${garage.name}`}>
           <View style={ds.garagePrimaryIcon}>
             <Icon name="calendar" size={18} color={c.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={ds.garagePrimaryTitle}>Book service</Text>
-            <Text style={ds.garagePrimarySub}>{garage.availability === 'Now' ? 'Instant slot available' : `${garage.availability} availability`}</Text>
+            <Text style={ds.garagePrimaryTitle}>Choose service and time</Text>
+            <Text style={ds.garagePrimarySub}>The garage confirms your request</Text>
           </View>
           <Icon name="arrow-forward" size={18} color="#fff" />
         </AnimatedPressable>
 
         <View style={ds.garageContactGrid}>
-          <Pressable style={[ds.garageContactButton, { borderColor: c.primaryMid, backgroundColor: c.primaryLight }]} onPress={() => router.push(route(`/chat/${garage.id}`))}>
+          <Pressable style={[ds.garageContactButton, { borderColor: c.primaryMid, backgroundColor: c.primaryLight }]} onPress={() => router.push(route(`/chat/${garage.id}`))} accessibilityRole="button" accessibilityLabel={`Message ${garage.name}`}>
             <Icon name="chatbubble-ellipses-outline" size={17} color={c.primary} />
             <Text style={[ds.garageContactText, { color: c.primary }]}>Message</Text>
           </Pressable>
-          <Pressable style={[ds.garageContactButton, { borderColor: c.primaryMid, backgroundColor: c.primaryLight }]} onPress={() => router.push('/map')}>
+          <Pressable style={[ds.garageContactButton, { borderColor: c.primaryMid, backgroundColor: c.primaryLight }]} onPress={() => router.push('/map')} accessibilityRole="button" accessibilityLabel={`See ${garage.name} on map`}>
             <Icon name="navigate-outline" size={17} color={c.primary} />
             <Text style={[ds.garageContactText, { color: c.primary }]}>Directions</Text>
           </Pressable>
@@ -319,31 +307,33 @@ export function GarageDetailScreen() {
       </View>
 
       {/* Services preview */}
-      <View style={[ds.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <View style={ds.garageServices}>
         <View style={ds.sectionHeaderRow}>
           <Text style={[ds.sectionTitle, { color: c.text }]}>Bookable services</Text>
-          <Text style={[ds.sectionMeta, { color: c.muted }]}>{visibleServices.length} available</Text>
+          <Text style={[ds.sectionMeta, { color: c.muted }]}>{visibleServices.length} listed</Text>
         </View>
+        {visibleServices.length === 0 ? <Text style={[ds.cardMeta, { color: c.textSecondary }]}>No services listed yet. Message the garage to ask about your repair.</Text> : null}
         {visibleServices.map((svc, i, arr) => (
-          <Pressable key={svc.id} style={[ds.svcRow, i < arr.length - 1 && [ds.svcRowBorder, { borderBottomColor: c.border }]]} onPress={() => router.push(route(`/service/${svc.id}`))}>
-            <View style={ds.svcLeft}>
+          <View key={svc.id} style={[ds.svcRow, i < arr.length - 1 && [ds.svcRowBorder, { borderBottomColor: c.border }]]}>
+            <Pressable style={ds.svcLeft} onPress={() => router.push(route(`/service/${svc.id}`))}
+              accessibilityRole="button" accessibilityLabel={`View ${svc.title} details`}>
               <Icon name="checkmark-circle" size={16} color={c.success} />
               <View style={{ flex: 1 }}>
                 <Text style={[ds.svcName, { color: c.text }]}>{svc.title}</Text>
-                <Text style={[ds.svcMeta, { color: c.muted }]}>{svc.duration ?? '45 min'} · {svc.availability} · {svc.warranty ?? garage.warranty}</Text>
+                <Text style={[ds.svcMeta, { color: c.muted }]}>{[svc.duration, svc.availability, svc.warranty ?? garage.warranty].filter(Boolean).join(' · ')}</Text>
               </View>
-            </View>
+            </Pressable>
             <View style={ds.svcPriceWrap}>
               <Text style={[ds.svcPrice, { color: c.primary }]}>{svc.price}</Text>
-              <Pressable style={[ds.svcBookPill, { backgroundColor: c.primary }]} onPress={() => router.push(route(`/checkout/${svc.id}`))}>
+              <Pressable style={[ds.svcBookPill, { backgroundColor: c.primary }]} onPress={() => router.push(route(`/checkout/${svc.id}`))}
+                accessibilityRole="button" accessibilityLabel={`Book ${svc.title}`}>
                 <Text style={ds.svcBookText}>Book</Text>
               </Pressable>
             </View>
-          </Pressable>
+          </View>
         ))}
       </View>
 
-      <PrimaryBtn label="Book this garage" onPress={handleBook} icon="calendar" />
     </Page>
   );
 }
@@ -1216,10 +1206,16 @@ const ds = StyleSheet.create({
   navTitle: { ...typography.h4, color: colors.text, flex: 1, textAlign: 'center' },
 
   // Hero image
-  heroWrap:     { borderRadius: radius.xl, overflow: 'hidden', height: 220, ...shadow.md },
+  heroWrap:     { borderRadius: radius.xs, overflow: 'hidden', height: 268, justifyContent: 'flex-end', backgroundColor: colors.surfaceAlt },
   heroImage:    { ...StyleSheet.absoluteFill },
   heroOverlay:  { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.32)' },
   heroStatusRow: { position: 'absolute', top: 12, left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between' },
+  heroVerified: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(8,10,13,0.84)', borderRadius: radius.xs, paddingHorizontal: 10, paddingVertical: 7 },
+  heroVerifiedText: { color: '#fff', ...typography.caption, fontWeight: '800' },
+  heroIdentity: { padding: 16, gap: 7, backgroundColor: 'rgba(8,10,13,0.88)' },
+  heroName: { color: '#fff', ...typography.h2 },
+  heroMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 5 },
+  heroMetaText: { color: '#fff', ...typography.caption, marginEnd: 8 },
   openBadge:    {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: radius.full,
@@ -1240,6 +1236,8 @@ const ds = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, padding: spacing.cardPad, gap: 10,
     ...shadow.sm,
   },
+  garageSummary: { gap: 8, paddingVertical: 8 },
+  garageServices: { gap: 8, paddingVertical: 8 },
   eyebrow:     { ...typography.overline, color: colors.primary },
   cardTitle:   { ...typography.h2, color: colors.text },
   cardMeta:    { ...typography.body, color: colors.muted, lineHeight: 21 },
@@ -1348,12 +1346,12 @@ const ds = StyleSheet.create({
   // Services list
   svcRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
   svcRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  svcLeft:      { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  svcLeft:      { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minHeight: 44 },
   svcName:      { ...typography.h4, color: colors.text },
   svcMeta:      { ...typography.caption, color: colors.muted, marginTop: 2 },
   svcPriceWrap: { alignItems: 'flex-end', gap: 5, marginStart: 8 },
   svcPrice:     { ...typography.h4, color: colors.primary },
-  svcBookPill:  { minWidth: 52, height: 28, borderRadius: radius.full, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  svcBookPill:  { minWidth: 52, minHeight: 44, borderRadius: radius.full, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
   svcBookText:  { color: '#fff', ...typography.caption, fontWeight: '900' },
 
   // Garage mini

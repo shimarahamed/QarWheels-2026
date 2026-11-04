@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { getStatusColor, getStatusLabel } from '@/lib/vendor-data';
+import { bookingAmountLabel, getStatusColor, getStatusLabel } from '@/lib/vendor-data';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
 
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -134,7 +134,7 @@ export default function VendorCalendar() {
                       <View style={[s.statusBadge, { backgroundColor: sc.bg }]}>
                         <Text style={[s.statusText, { color: sc.text }]}>{getStatusLabel(b.status)}</Text>
                       </View>
-                      <Text style={[s.amountText, { color: c.text }]}>QAR {b.totalAmount}</Text>
+                      <Text style={[s.amountText, { color: c.text }]}>{bookingAmountLabel(b.totalAmount)}</Text>
                     </View>
                   </Pressable>
                 );

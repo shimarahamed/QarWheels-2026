@@ -1,222 +1,183 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack } from 'expo-router';
-import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors } from '@/lib/store';
+import ErrorState from '@/components/ErrorState';
+import { BranchSwitcher } from '@/components/vendor/BranchSwitcher';
+import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
 import { MotionScreen } from '@/lib/motion';
-import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { vendorReviews, vendorProfile, type VendorReview } from '@/lib/vendor-data';
-import { useVendorTabBottom } from '@/components/VendorTabBar';
+import { useQarColors } from '@/lib/store';
+import { radius, spacing, typography } from '@/lib/theme';
+import { aggregateVendorReviews, INSIGHT_LIMITS, useVendorInsights } from '@/lib/vendor-insights';
+import type { InsightScope } from '@/lib/vendor-insights';
+import { saveVendorReviewReply } from '@/lib/vendor-review-reply';
+
+function ReviewReply({ scope, reviewId, initial, onSaved }: {
+  scope: InsightScope; reviewId: string; initial: string; onSaved: () => void;
+}) {
+  const c = useQarColors();
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const active = useRef(true);
+  const submitting = useRef(false);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
+  const save = async () => {
+    if (submitting.current || !text.trim()) return;
+    submitting.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      await saveVendorReviewReply(scope, reviewId, text);
+      if (active.current) { setEditing(false); onSaved(); }
+    } catch {
+      if (active.current) setError('Reply was not saved. Check your connection and try again.');
+    } finally {
+      submitting.current = false;
+      if (active.current) setBusy(false);
+    }
+  };
+  if (!editing) return <Pressable accessibilityRole="button" accessibilityLabel={initial ? 'Edit reply' : 'Reply'} onPress={() => { setText(initial); setEditing(true); }} style={s.replyButton}>
+    <Ionicons name="chatbubble-outline" size={18} color={c.primary} />
+    <Text style={{ color: c.primary }}>{initial ? 'Edit reply' : 'Reply'}</Text>
+  </Pressable>;
+  return <View style={{ gap: 8 }}>
+    <TextInput accessibilityLabel="Review reply" multiline maxLength={1000} editable={!busy}
+      value={text} onChangeText={setText} placeholder="Write a reply..." placeholderTextColor={c.textSecondary}
+      style={[s.replyInput, { color: c.text, borderColor: c.border }]} />
+    {!!error && <Text accessibilityRole="alert" style={{ color: c.text }}>{error}</Text>}
+    <View style={s.stars}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Save reply" accessibilityState={{ disabled: busy || !text.trim(), busy }}
+        disabled={busy || !text.trim()} onPress={() => void save()} style={s.replyButton}>
+        {busy ? <ActivityIndicator color={c.primary} /> : <Ionicons name="send-outline" size={18} color={c.primary} />}
+        <Text style={{ color: c.primary }}>{busy ? 'Saving...' : 'Save reply'}</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" disabled={busy} onPress={() => setEditing(false)} style={s.replyButton}>
+        <Text style={{ color: c.textSecondary }}>Cancel</Text>
+      </Pressable>
+    </View>
+  </View>;
+}
 
 export default function ReviewsScreen() {
   const c = useQarColors();
   const vendorTabBottom = useVendorTabBottom();
-  const [reviews, setReviews] = useState<VendorReview[]>(vendorReviews);
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
-  const [replyText, setReplyText] = useState('');
-
-  const avg = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
-  const dist = [5, 4, 3, 2, 1].map((star) => ({
-    star,
-    count: reviews.filter((r) => r.rating === star).length,
-  }));
-
-  function handleReply(reviewId: string) {
-    if (!replyText.trim()) return;
-    setReviews((prev) =>
-      prev.map((r) => (r.id === reviewId ? { ...r, reply: replyText.trim() } : r)),
-    );
-    setReplyText('');
-    setReplyingTo(null);
-    Alert.alert('Reply sent', 'Your reply has been posted.');
-  }
+  const insights = useVendorInsights('reviews');
+  const summary = insights.status === 'ready' && insights.scope ? aggregateVendorReviews(insights.records, insights.scope) : null;
+  const reviews = summary?.reviews ?? [];
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.background }]} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
-
-      <View style={[s.navbar, { backgroundColor: c.background, borderBottomColor: c.border }]}>
+      <View style={[s.navbar, { borderBottomColor: c.border }]}>
         <Text style={[s.navTitle, { color: c.text }]}>Reviews</Text>
-        <Text style={[s.navCount, { color: c.muted }]}>{reviews.length} reviews</Text>
+        <BranchSwitcher />
+        <Pressable accessibilityRole="button" accessibilityLabel="Refresh reviews" onPress={insights.retry}
+          disabled={insights.status === 'loading'} style={s.iconButton}>
+          <Ionicons name="refresh" size={22} color={c.primary} />
+        </Pressable>
       </View>
-
-      <ScrollView contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16, paddingTop: 70 }]} showsVerticalScrollIndicator={false}>
-        <MotionScreen>
-          {/* Rating overview */}
-          <View style={[s.overviewCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-            <View style={s.overviewLeft}>
-              <Text style={[s.avgRating, { color: c.text }]}>{avg.toFixed(1)}</Text>
-              <View style={s.starsRow}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Ionicons
-                    key={star}
-                    name={star <= Math.round(avg) ? 'star' : 'star-outline'}
-                    size={14}
-                    color="#D4AF37"
-                  />
-                ))}
-              </View>
-              <Text style={[s.reviewCount, { color: c.muted }]}>{vendorProfile.totalReviews} total</Text>
-            </View>
-            <View style={s.overviewRight}>
-              {dist.map(({ star, count }) => (
-                <View key={star} style={s.distRow}>
-                  <Text style={[s.distStar, { color: c.muted }]}>{star}★</Text>
-                  <View style={[s.distBar, { backgroundColor: c.surfaceAlt }]}>
-                    <View
-                      style={[
-                        s.distFill,
-                        {
-                          width: reviews.length > 0 ? `${(count / reviews.length) * 100}%` : '0%',
-                          backgroundColor: '#D4AF37',
-                        },
-                      ]}
-                    />
-                  </View>
-                  <Text style={[s.distCount, { color: c.muted }]}>{count}</Text>
+      <FlatList data={reviews} keyExtractor={(review) => review.id} initialNumToRender={10}
+        contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16 }]}
+        refreshControl={<RefreshControl refreshing={insights.status === 'loading'} onRefresh={insights.retry} tintColor={c.primary} />}
+        ListHeaderComponent={<MotionScreen style={s.header}>
+          {insights.status === 'loading' && <ActivityIndicator accessibilityLabel="Loading reviews" color={c.primary} />}
+          {insights.status === 'error' && <ErrorState onRetry={insights.retry} />}
+          {insights.status === 'blocked' && <Text style={[s.notice, { color: c.textSecondary }]}>{insights.message}</Text>}
+          {summary && <>
+            {insights.limited && <Text style={[s.notice, { color: c.textSecondary }]}>
+              More than {INSIGHT_LIMITS.reviews} reviews exist. Showing a limited set, not necessarily the latest. Ratings below cover only loaded reviews.
+            </Text>}
+            {summary.excludedRecords > 0 && <Text style={[s.notice, { color: c.textSecondary }]}>
+              {summary.excludedRecords} reviews with invalid ratings excluded from this list and summary.
+            </Text>}
+            {reviews.length > 0 ? <>
+              <View style={[s.overview, { borderColor: c.border }]}>
+                <View style={s.overviewLeft}>
+                  <Text accessibilityLabel={`Average rating ${summary.averageRating?.toFixed(1)} out of 5`} style={[s.average, { color: c.text }]}>
+                    {summary.averageRating?.toFixed(1)}
+                  </Text>
+                  <Text style={[s.caption, { color: c.textSecondary }]}>{reviews.length} {insights.limited ? 'loaded reviews' : 'reviews'}</Text>
                 </View>
-              ))}
-            </View>
-          </View>
-
-          {/* Reviews list */}
-          <View style={{ gap: 10 }}>
-            {reviews.map((review) => (
-              <View key={review.id} style={[s.reviewCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-                <View style={s.reviewTop}>
-                  <View style={[s.reviewerAvatar, { backgroundColor: c.primaryLight }]}>
-                    <Text style={[s.reviewerInitial, { color: c.primary }]}>{review.customerName[0]}</Text>
-                  </View>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={[s.reviewerName, { color: c.text }]}>{review.customerName}</Text>
-                    <Text style={[s.reviewService, { color: c.muted }]}>{review.service} · {review.date}</Text>
-                  </View>
-                  <View style={s.starsRow}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Ionicons
-                        key={star}
-                        name={star <= review.rating ? 'star' : 'star-outline'}
-                        size={12}
-                        color="#D4AF37"
-                      />
-                    ))}
-                  </View>
-                </View>
-
-                <Text style={[s.reviewComment, { color: c.text }]}>{review.comment}</Text>
-
-                {review.reply ? (
-                  <View style={[s.replyBox, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-                    <Text style={[s.replyLabel, { color: c.primary }]}>Your reply</Text>
-                    <Text style={[s.replyText, { color: c.textSecondary }]}>{review.reply}</Text>
-                  </View>
-                ) : (
-                  replyingTo === review.id ? (
-                    <View style={{ gap: 8 }}>
-                      <TextInput
-                        style={[s.replyInput, { backgroundColor: c.surfaceAlt, borderColor: c.border, color: c.text }]}
-                        value={replyText}
-                        onChangeText={setReplyText}
-                        placeholder="Write a reply..."
-                        placeholderTextColor={c.muted}
-                        multiline
-                        autoFocus
-                      />
-                      <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <Pressable
-                          style={[s.replySubmit, { backgroundColor: c.primary }]}
-                          onPress={() => handleReply(review.id)}
-                        >
-                          <Text style={s.replySubmitText}>Post Reply</Text>
-                        </Pressable>
-                        <Pressable
-                          style={[s.replyCancel, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
-                          onPress={() => { setReplyingTo(null); setReplyText(''); }}
-                        >
-                          <Text style={[s.replyCancelText, { color: c.muted }]}>Cancel</Text>
-                        </Pressable>
-                      </View>
+                <View style={s.distribution}>
+                  {summary.distribution.map(({ star, count }) => <View key={star} style={s.distributionRow}
+                    accessible accessibilityLabel={`${star} stars: ${count} reviews`}>
+                    <Text style={[s.caption, { color: c.textSecondary }]}>{star}</Text>
+                    <Ionicons name="star" size={12} color="#D4AF37" />
+                    <View style={[s.track, { backgroundColor: c.surfaceAlt }]}>
+                      <View style={[s.fill, { width: `${count / reviews.length * 100}%` }]} />
                     </View>
-                  ) : (
-                    <Pressable
-                      style={[s.replyBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
-                      onPress={() => setReplyingTo(review.id)}
-                    >
-                      <Ionicons name="chatbubble-outline" size={14} color={c.textSecondary} />
-                      <Text style={[s.replyBtnText, { color: c.textSecondary }]}>Reply to review</Text>
-                    </Pressable>
-                  )
-                )}
+                    <Text style={[s.distCount, { color: c.textSecondary }]}>{count}</Text>
+                  </View>)}
+                </View>
               </View>
-            ))}
+            </> : <View style={s.empty}>
+              <Ionicons name="star-outline" size={32} color={c.muted} />
+              <Text style={[s.sectionTitle, { color: c.text }]}>{summary.excludedRecords ? 'No usable reviews' : 'No reviews yet'}</Text>
+            </View>}
+          </>}
+        </MotionScreen>}
+        renderItem={({ item: review }) => <View style={[s.reviewCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <View style={s.reviewTop}>
+            <View style={[s.avatar, { backgroundColor: c.primaryLight }]}>
+              <Text style={[s.initial, { color: c.primary }]}>{review.customerName[0]}</Text>
+            </View>
+            <View style={s.reviewer}>
+              <Text style={[s.reviewerName, { color: c.text }]}>{review.customerName}</Text>
+              {review.service ? <Text style={[s.caption, { color: c.textSecondary }]}>{review.service}</Text> : null}
+              <Text style={[s.caption, { color: c.textSecondary }]}>
+                {review.date ? review.date.toLocaleDateString('en', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'Asia/Qatar' }) : 'Date unavailable'}
+              </Text>
+            </View>
           </View>
-        </MotionScreen>
-      </ScrollView>
+          <View style={s.stars} accessible accessibilityLabel={`${review.rating} out of 5 stars`}>
+            {[1, 2, 3, 4, 5].map((star) => <Ionicons key={star} name={star <= review.rating ? 'star' : 'star-outline'} size={15} color="#D4AF37" />)}
+          </View>
+          {review.comment ? <Text style={[s.comment, { color: c.text }]}>{review.comment}</Text> : null}
+          {review.vendorReply && <View style={[s.reply, { borderLeftColor: c.primary }]}>
+            <Text style={[s.replyLabel, { color: c.primary }]}>Your reply</Text>
+            <Text style={[s.comment, { color: c.textSecondary }]}>{review.vendorReply}</Text>
+          </View>}
+          {insights.scope && <ReviewReply key={JSON.stringify([insights.scope, review.id])}
+            scope={insights.scope} reviewId={review.id} initial={review.vendorReply ?? ''} onSaved={insights.retry} />}
+        </View>}
+      />
+      <VendorTabBar />
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   safe: { flex: 1 },
-  navbar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.page, 
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    ...shadow.sm,
-  },
-  navTitle: { ...typography.h3 },
-  navCount: { fontSize: 13, fontWeight: '600' },
-
-  content: { padding: spacing.page, gap: spacing.gap },
-
-  overviewCard: {
-    flexDirection: 'row', borderRadius: radius.xl, borderWidth: 1,
-    padding: 16, gap: 16, ...shadow.sm,
-  },
-  overviewLeft: { alignItems: 'center', gap: 4 },
-  avgRating: { ...typography.display },
-  starsRow: { flexDirection: 'row', gap: 2 },
-  reviewCount: { fontSize: 12, fontWeight: '600' },
-  overviewRight: { flex: 1, gap: 4 },
-  distRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  distStar: { fontSize: 12, fontWeight: '700', width: 20 },
-  distBar: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
-  distFill: { height: '100%', borderRadius: 3 },
-  distCount: { fontSize: 12, fontWeight: '700', width: 16, textAlign: 'right' },
-
-  reviewCard: { borderRadius: radius.xl, borderWidth: 1, padding: 14, gap: 10, ...shadow.xs },
+  navbar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingHorizontal: spacing.page, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  navTitle: { ...typography.h3, flexGrow: 1 },
+  iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  content: { padding: spacing.page },
+  header: { marginBottom: 16 },
+  notice: { fontSize: 14, lineHeight: 22 },
+  caption: { fontSize: 12, lineHeight: 18 },
+  sectionTitle: { ...typography.h4 },
+  empty: { alignItems: 'center', paddingVertical: 32, gap: 12 },
+  overview: { flexDirection: 'row', flexWrap: 'wrap', gap: 20, paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth },
+  overviewLeft: { gap: 4 },
+  average: { fontSize: 32, fontWeight: '800' },
+  distribution: { flex: 1, minWidth: 140, gap: 6 },
+  distributionRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  track: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
+  fill: { height: '100%', backgroundColor: '#D4AF37' },
+  distCount: { fontSize: 12, minWidth: 24, textAlign: 'right' },
+  reviewCard: { borderRadius: radius.sm, borderWidth: 1, padding: 14, gap: 10, marginBottom: 12 },
   reviewTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  reviewerAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  reviewerInitial: { fontSize: 14, fontWeight: '900' },
+  avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  initial: { fontSize: 14, fontWeight: '800' },
+  reviewer: { flex: 1, gap: 3 },
   reviewerName: { fontSize: 14, fontWeight: '700' },
-  reviewService: { fontSize: 12, fontWeight: '500' },
-  reviewComment: { fontSize: 13, lineHeight: 20, fontWeight: '400' },
-
-  replyBox: { borderRadius: radius.lg, borderWidth: 1, padding: 10, gap: 4 },
-  replyLabel: { fontSize: 12, fontWeight: '800' },
-  replyText: { fontSize: 13, fontWeight: '500', lineHeight: 18 },
-
-  replyInput: {
-    borderRadius: radius.lg, borderWidth: 1, padding: 10,
-    fontSize: 13, minHeight: 70, textAlignVertical: 'top',
-  },
-  replySubmit: { flex: 1, height: 38, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },
-  replySubmitText: { fontSize: 13, fontWeight: '800', color: '#fff' },
-  replyCancel: { flex: 1, height: 38, borderRadius: radius.lg, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  replyCancelText: { fontSize: 13, fontWeight: '700' },
-
-  replyBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.lg, borderWidth: 1, alignSelf: 'flex-start',
-  },
-  replyBtnText: { fontSize: 12, fontWeight: '700' },
+  stars: { flexDirection: 'row', gap: 3 },
+  comment: { fontSize: 14, lineHeight: 21 },
+  reply: { borderLeftWidth: 2, paddingLeft: 12, gap: 4 },
+  replyLabel: { fontSize: 12, fontWeight: '700' },
+  replyButton: { minHeight: 44, paddingHorizontal: 12, flexDirection: 'row', gap: 8, alignItems: 'center' },
+  replyInput: { minHeight: 88, borderWidth: 1, borderRadius: 6, padding: 12, fontSize: 14, textAlignVertical: 'top' },
 });

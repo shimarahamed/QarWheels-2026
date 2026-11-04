@@ -18,6 +18,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
   Text,
   TextInput,
@@ -168,7 +169,7 @@ export default function AiMechanicScreen() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [usingDemo, setUsingDemo] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   useEffect(() => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);

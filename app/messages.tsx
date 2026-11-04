@@ -52,7 +52,7 @@ export default function MessagesScreen() {
         initialNumToRender={10} maxToRenderPerBatch={10} windowSize={7}
         contentContainerStyle={s.content} showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-authLoading || loading ? (
+          authLoading || loading ? (
             <View style={s.loadingWrap}>
               <ActivityIndicator color={c.primary} />
             </View>
@@ -79,7 +79,7 @@ authLoading || loading ? (
               </Text>
             </View>
 
-          ) : null}
+          ) : undefined}
         renderItem={({ item: conv }) => (
               <Pressable
                 key={conv.id}

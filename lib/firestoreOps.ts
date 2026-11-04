@@ -5,6 +5,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -120,7 +121,7 @@ export async function createBooking(
     bookingDate: input.bookingDate ?? tomorrow.toISOString(),
     status: 'Pending',
     statusHistory: [{ status: 'Pending', at: new Date(), byUid: userId, byRole: 'customer' }],
-    cost: input.cost ?? 0,
+    ...(input.cost !== undefined ? { cost: input.cost } : {}),
     notes: input.notes ?? '',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -194,26 +195,45 @@ export async function deleteCar(userId: string, carId: string) {
  * (components/Marketplace.tsx) — one shared hook instead of two copies that
  * could drift.
  */
-export function useCars(userId: string | null | undefined): { cars: FirestoreCar[]; isLoading: boolean } {
-  const [cars, setCars] = useState<FirestoreCar[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export function useCars(userId: string | null | undefined) {
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState<{
+    userId: string | null; cars: FirestoreCar[]; isLoading: boolean; error: boolean;
+  }>({ userId: null, cars: [], isLoading: true, error: false });
 
   useEffect(() => {
-    if (!userId) { setCars([]); setIsLoading(false); return; }
-    setIsLoading(true);
+    if (!userId) {
+      setResult({ userId: null, cars: [], isLoading: false, error: false });
+      return;
+    }
+    let active = true;
+    setResult((previous) => ({ userId, cars: previous.userId === userId ? previous.cars : [], isLoading: true, error: false }));
+    const deadline = setTimeout(() => {
+      if (active) setResult((previous) => ({ ...previous, isLoading: false, error: true }));
+    }, 15_000);
     const q = query(collection(firestore, 'users', userId, 'cars'));
     const unsub = onSnapshot(
       q,
       (snap) => {
-        setCars(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<FirestoreCar, 'id'>) })));
-        setIsLoading(false);
+        if (!active) return;
+        clearTimeout(deadline);
+        setResult({ userId, cars: snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<FirestoreCar, 'id'>) })), isLoading: false, error: false });
       },
-      () => { setCars([]); setIsLoading(false); },
+      () => {
+        if (!active) return;
+        clearTimeout(deadline);
+        setResult((previous) => ({ ...previous, isLoading: false, error: true }));
+      },
     );
-    return unsub;
-  }, [userId]);
+    return () => { active = false; clearTimeout(deadline); unsub(); };
+  }, [userId, attempt]);
 
-  return { cars, isLoading };
+  return {
+    cars: result.userId === (userId ?? null) ? result.cars : [],
+    isLoading: result.userId !== (userId ?? null) || result.isLoading,
+    error: result.userId === (userId ?? null) && result.error,
+    refresh: () => setAttempt((value) => value + 1),
+  };
 }
 
 /**
@@ -328,29 +348,39 @@ function toIsoString(value: unknown): string {
  * them into the Zustand store in real time. Unmounts cleanly.
  */
 export function useFirestoreBookings(userId: string | null) {
+  const pageSize = 50;
   const mergeFirestoreBookings = useQarWheelStore((s) => s.mergeFirestoreBookings);
   const [attempt, setAttempt] = useState(0);
-  const [result, setResult] = useState<{ userId: string | null; bookings: Booking[]; loading: boolean; error: boolean }>({ userId: null, bookings: [], loading: true, error: false });
+  const [requestedPage, setRequestedPage] = useState({ userId: null as string | null, size: pageSize });
+  const requestedSize = requestedPage.userId === userId ? requestedPage.size : pageSize;
+  const [result, setResult] = useState<{ userId: string | null; bookings: Booking[]; loading: boolean; loadingMore: boolean; hasMore: boolean; error: boolean }>({
+    userId: null, bookings: [], loading: true, loadingMore: false, hasMore: false, error: false,
+  });
 
   useEffect(() => {
     if (!userId) {
-      setResult({ userId: null, bookings: [], loading: false, error: false });
+      setResult({ userId: null, bookings: [], loading: false, loadingMore: false, hasMore: false, error: false });
       return;
     }
     let active = true;
-    setResult((previous) => ({ userId, bookings: previous.userId === userId ? previous.bookings : [], loading: true, error: false }));
-    const timer = setTimeout(() => { if (active) setResult((previous) => ({ ...previous, loading: false, error: true })); }, 15_000);
+    setResult((previous) => {
+      const bookings = previous.userId === userId ? previous.bookings : [];
+      const loadingMore = bookings.length > 0 && requestedSize > pageSize && previous.hasMore;
+      return { ...previous, userId, bookings, loading: !loadingMore, loadingMore, error: false };
+    });
+    const timer = setTimeout(() => { if (active) setResult((previous) => ({ ...previous, loading: false, loadingMore: false, error: true })); }, 15_000);
 
     const q = query(
       collection(firestore, 'bookings'),
       where('userId', '==', userId),
       orderBy('createdAt', 'desc'),
+      limit(requestedSize + 1),
     );
 
     const unsub = onSnapshot(q, (snap) => {
       if (!active) return;
       clearTimeout(timer);
-      const firestoreBookings: Booking[] = snap.docs.map((d) => {
+      const firestoreBookings: Booking[] = snap.docs.slice(0, requestedSize).map((d) => {
         const data = d.data();
         return {
           id: d.id,
@@ -370,20 +400,27 @@ export function useFirestoreBookings(userId: string | null) {
         };
       });
       mergeFirestoreBookings(firestoreBookings);
-      setResult({ userId, bookings: firestoreBookings, loading: false, error: false });
+      setResult({ userId, bookings: firestoreBookings, loading: false, loadingMore: false, hasMore: snap.docs.length > requestedSize, error: false });
     }, () => {
       if (!active) return;
       clearTimeout(timer);
-      setResult((previous) => ({ ...previous, loading: false, error: true }));
+      setResult((previous) => ({ ...previous, loading: false, loadingMore: false, error: true }));
     });
 
     return () => { active = false; clearTimeout(timer); unsub(); };
-  }, [userId, mergeFirestoreBookings, attempt]);
+  }, [userId, mergeFirestoreBookings, attempt, requestedSize]);
   return {
     bookings: result.userId === userId ? result.bookings : [],
     loading: result.userId !== userId || result.loading,
+    loadingMore: result.userId === userId && result.loadingMore,
+    hasMore: result.userId === userId && result.hasMore,
     error: result.userId === userId && result.error,
-    refresh: () => setAttempt((value) => value + 1),
+    refresh: () => { setRequestedPage({ userId, size: pageSize }); setAttempt((value) => value + 1); },
+    loadMore: () => {
+      if (userId && result.userId === userId && result.hasMore && !result.loading && !result.loadingMore && !result.error) {
+        setRequestedPage({ userId, size: requestedSize + pageSize });
+      }
+    },
   };
 }
 
@@ -529,8 +566,10 @@ export function branchToGarage(
   deviceLocation: DeviceLocation | null,
 ): Garage {
   const data = d.data();
-  const startingPriceValue = Number(data.startingPriceValue ?? 100);
-  const responseTimeMins = Number(data.responseTimeMins ?? 15);
+  const rawPrice = Number(data.startingPriceValue);
+  const startingPriceValue = Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : 0;
+  const rawResponse = Number(data.responseTimeMins);
+  const responseTimeMins = Number.isFinite(rawResponse) && rawResponse > 0 ? rawResponse : 0;
   const latitude = typeof data.latitude === 'number' ? data.latitude : undefined;
   const longitude = typeof data.longitude === 'number' ? data.longitude : undefined;
   // 0 means "unknown", not "you're standing here" — only a real device fix
@@ -549,17 +588,18 @@ export function branchToGarage(
     // Branch has no separate `area` field — the address line is the closest
     // real value, and the UI uses `area` only as a sub-title under the name.
     area: String(data.address ?? ''),
-    city: String(data.city ?? 'Doha'),
+    city: String(data.city ?? ''),
     rating: Number(data.rating ?? 0),
     reviews: Number(data.reviewCount ?? 0),
-    responseTime: `${responseTimeMins} min`,
-    startingPrice: `QAR ${startingPriceValue}+`,
+    responseTime: responseTimeMins ? `${responseTimeMins} min` : 'Response time unavailable',
+    startingPrice: startingPriceValue ? `QAR ${startingPriceValue}+` : 'Price on request',
     startingPriceValue,
     distanceKm,
     latitude,
     longitude,
-    availability: 'Today',
-    openNow: !data.vacationMode,
+    availability: data.availability === 'Now' || data.availability === 'Today' || data.availability === 'Tomorrow'
+      ? data.availability : 'On request',
+    openNow: typeof data.openNow === 'boolean' ? data.openNow : null,
     // A branch is only listed once an admin has approved it, so anything the
     // marketplace can see is verified by definition.
     verified: true,
@@ -573,13 +613,15 @@ export function branchToGarage(
 /** Maps a `branch_services/{id}` document into the `PopularJob` UI shape. */
 function branchServiceToJob(serviceDoc: { id: string; data: () => Record<string, unknown> }, branchId: string): PopularJob {
   const data = serviceDoc.data();
-  const price = Number(data.price ?? 0);
+  const rawPrice = Number(data.price);
+  const price = Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : 0;
   return {
     id: `${branchId}_${serviceDoc.id}`,
     title: String(data.name ?? 'Service'),
-    price: `QAR ${price}`,
+    price: price ? `QAR ${price}` : 'Price on request',
     priceValue: price,
-    availability: 'Today',
+    availability: data.availability === 'Now' || data.availability === 'Today' || data.availability === 'Tomorrow'
+      ? data.availability : 'On request',
     categoryId: String(data.category ?? 'repair'),
     garageId: branchId,
     duration: data.duration ? `${data.duration} min` : undefined,

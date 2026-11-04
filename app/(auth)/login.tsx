@@ -13,6 +13,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  type TextInputInstance,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,6 +27,7 @@ import { signInWithApple } from '@/lib/appleSignIn';
 import { unlockWithBiometrics } from '@/lib/biometrics';
 import { emailSchema, firstError } from '@/lib/validation';
 import { spacing } from '@/lib/theme';
+import { beginSignInNavigation } from '@/lib/auth-navigation';
 
 type Role = 'owner' | 'partner';
 
@@ -73,9 +75,11 @@ export default function LoginScreen() {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState('');
-  const emailInput = useRef<TextInput>(null);
-  const passwordInput = useRef<TextInput>(null);
+  const emailInput = useRef<TextInputInstance>(null);
+  const passwordInput = useRef<TextInputInstance>(null);
   const submitting = useRef(false);
+  const finishNavigation = useRef<((routed: boolean) => void) | null>(null);
+  const navigationSucceeded = useRef(false);
   const busy = loading || googleSignIn.loading;
 
   async function handleOwnerSignIn(normalizedEmail: string) {
@@ -94,10 +98,7 @@ export default function LoginScreen() {
 
     if (!isVendorClaims(claims)) {
       await auth.signOut();
-      Alert.alert(
-        'Not a vendor account',
-        'This account is not registered as a garage/vendor user. Switch to Vehicle Owner instead, or register your garage first.',
-      );
+      setFormError('This account does not have vendor access. Switch to Vehicle Owner or ask your business administrator to check your invitation.');
       return;
     }
 
@@ -105,11 +106,14 @@ export default function LoginScreen() {
     const businessSnap = await getDoc(doc(firestore, 'businesses', claims.b));
     const kycStatus = businessSnap.exists() ? businessSnap.data()?.kyc?.status : 'Pending';
     router.replace((kycStatus === 'Verified' ? '/vendor/dashboard' : '/vendor/kyc') as never);
+    navigationSucceeded.current = true;
   }
 
   function beginSignIn() {
     if (submitting.current || busy) return false;
     submitting.current = true;
+    navigationSucceeded.current = false;
+    finishNavigation.current = beginSignInNavigation();
     setLoading(true);
     setFormError('');
     void tap();
@@ -117,6 +121,8 @@ export default function LoginScreen() {
   }
 
   function finishSignIn() {
+    finishNavigation.current?.(navigationSucceeded.current);
+    finishNavigation.current = null;
     submitting.current = false;
     setLoading(false);
   }
@@ -159,6 +165,7 @@ export default function LoginScreen() {
     if (!auth.currentUser) return;
     const result = await auth.currentUser.getIdTokenResult(true);
     router.replace(isVendorClaims(readQwClaims(result.claims)) ? '/vendor/dashboard' : '/(tabs)');
+    navigationSucceeded.current = true;
   }
 
   async function handleAppleSignIn() {
@@ -177,6 +184,7 @@ export default function LoginScreen() {
       Alert.alert('Google sign in unavailable', 'Google sign-in isn’t configured for this build yet.');
       return;
     }
+    if (!googleSignIn.ready) return;
     if (!beginSignIn()) return;
     try {
       const result = await googleSignIn.signIn();
@@ -205,7 +213,11 @@ export default function LoginScreen() {
         <View style={s.headerSide}>
           <Pressable
             style={s.backBtn}
-            onPress={() => { void tap(); router.back(); }}
+            onPress={() => {
+              if (submitting.current || busy) return;
+              void tap();
+              router.back();
+            }}
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel="Go back"
@@ -293,11 +305,14 @@ export default function LoginScreen() {
                   autoComplete="email"
                   accessibilityLabel={isOwner ? 'Email address' : 'Business email'}
                   editable={!busy}
+                  accessibilityState={{ disabled: busy }}
                   placeholder={isOwner ? 'you@example.com' : 'garage@example.com'}
                   placeholderTextColor={OUTLINE}
                   returnKeyType="next"
                   submitBehavior="submit"
-                  onSubmitEditing={() => passwordInput.current?.focus()}
+                  onSubmitEditing={() => {
+                    if (!submitting.current && !busy) passwordInput.current?.focus();
+                  }}
                 />
               </View>
             </View>
@@ -305,7 +320,18 @@ export default function LoginScreen() {
             <View style={s.field}>
               <View style={s.labelRow}>
                 <Text style={s.label}>Password</Text>
-                <Pressable accessibilityRole="button" accessibilityLabel="Forgot password" disabled={busy} accessibilityState={{ disabled: busy }} style={{ minHeight: 44, justifyContent: 'center' }} onPress={() => { void tap(); router.push('/(auth)/forgot-password' as never); }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Forgot password"
+                  disabled={busy}
+                  accessibilityState={{ disabled: busy }}
+                  style={{ minHeight: 44, justifyContent: 'center' }}
+                  onPress={() => {
+                    if (submitting.current || busy) return;
+                    void tap();
+                    router.push('/(auth)/forgot-password' as never);
+                  }}
+                >
                   <Text style={s.forgotText}>Forgot Password?</Text>
                 </Pressable>
               </View>
@@ -316,6 +342,7 @@ export default function LoginScreen() {
                   ref={passwordInput}
                   accessibilityLabel="Password"
                   editable={!busy}
+                  accessibilityState={{ disabled: busy }}
                   autoCapitalize="none"
                   autoCorrect={false}
                   value={password}
@@ -327,14 +354,24 @@ export default function LoginScreen() {
                   returnKeyType="done"
                   onSubmitEditing={handleSubmit}
                 />
-                <Pressable accessibilityRole="button" accessibilityLabel={showPw ? 'Hide password' : 'Show password'} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }} onPress={() => setShowPw((v) => !v)}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={showPw ? 'Hide password' : 'Show password'}
+                  disabled={busy}
+                  accessibilityState={{ disabled: busy }}
+                  style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+                  onPress={() => {
+                    if (submitting.current || busy) return;
+                    setShowPw((v) => !v);
+                  }}
+                >
                   <Ionicons name={showPw ? 'eye-off-outline' : 'eye-outline'} size={19} color={TEXT_FAINT} />
                 </Pressable>
               </View>
             </View>
 
             {/* Biometric row */}
-            {Platform.OS !== 'web' && <AnimatedPressable style={s.bioBtn} onPress={handleBiometric} scaleValue={0.985} accessibilityRole="button" accessibilityLabel="Face ID or biometric access" disabled={busy}>
+            {Platform.OS !== 'web' && <AnimatedPressable style={s.bioBtn} onPress={handleBiometric} scaleValue={0.985} accessibilityRole="button" accessibilityLabel="Face ID or biometric access" disabled={busy} accessibilityState={{ disabled: busy, busy }}>
               <View style={s.bioLeft}>
                 <View style={s.bioIcon}>
                   <Ionicons name="finger-print-outline" size={20} color={SCARLET} />
@@ -381,7 +418,7 @@ export default function LoginScreen() {
               style={s.socialBtn}
               onPress={() => void handleAppleSignIn()}
               disabled={busy}
-              accessibilityState={{ disabled: busy }}
+              accessibilityState={{ disabled: busy, busy }}
               accessibilityRole="button"
               accessibilityLabel="Sign in with Apple"
             >
@@ -391,8 +428,8 @@ export default function LoginScreen() {
             <Pressable
               style={[s.socialBtn, googleSignIn.loading && { opacity: 0.6 }]}
               onPress={handleGoogleSignIn}
-              disabled={busy || !googleSignIn.configured}
-              accessibilityState={{ disabled: busy || !googleSignIn.configured }}
+              disabled={busy || !googleSignIn.configured || !googleSignIn.ready}
+              accessibilityState={{ disabled: busy || !googleSignIn.configured || !googleSignIn.ready, busy }}
               accessibilityRole="button"
               accessibilityLabel="Sign in with Google"
             >
@@ -417,7 +454,11 @@ export default function LoginScreen() {
               accessibilityState={{ disabled: busy }}
               style={{ minHeight: 44, justifyContent: 'center' }}
               hitSlop={8}
-              onPress={() => { void tap(); router.push((isOwner ? '/(auth)/register' : '/(auth)/role') as never); }}
+              onPress={() => {
+                if (submitting.current || busy) return;
+                void tap();
+                router.push((isOwner ? '/(auth)/register' : '/(auth)/role') as never);
+              }}
             >
               <Text style={s.createLink}>Create account</Text>
             </Pressable>

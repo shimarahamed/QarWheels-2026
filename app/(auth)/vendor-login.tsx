@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
 import { Stack, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -25,6 +25,7 @@ import { auth, firestore } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { readQwClaims, isVendorClaims } from '@/lib/roles';
+import { beginSignInNavigation } from '@/lib/auth-navigation';
 
 function mapVendorAuthError(e: unknown): string {
   const code = (e as { code?: string }).code;
@@ -52,24 +53,31 @@ export default function VendorLoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState('');
+  const submitting = useRef(false);
   const [focused, setFocused] = useState<'email' | 'password' | null>(null);
 
   const btnScale = useSharedValue(1);
   const btnStyle = useAnimatedStyle(() => ({ transform: [{ scale: btnScale.value }] }));
 
   async function handleSignIn() {
+    if (submitting.current) return;
     if (!email.trim()) {
-      Alert.alert('Business email required', 'Enter the email address registered to your garage.');
+      setFormError('Enter the email address registered to your garage.');
       return;
     }
-    if (!password.trim()) {
-      Alert.alert('Password required', 'Please enter your password.');
+    if (!password) {
+      setFormError('Please enter your password.');
       return;
     }
     setLoading(true);
+    submitting.current = true;
+    setFormError('');
+    const finishNavigation = beginSignInNavigation();
+    let routed = false;
     try {
       if (!firebaseConfigured) {
-        Alert.alert('Firebase not configured', 'Add Firebase env values to enable vendor sign in.');
+        setFormError('Vendor sign-in is not configured for this build.');
         return;
       }
       const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
@@ -80,10 +88,7 @@ export default function VendorLoginScreen() {
 
       if (!isVendorClaims(claims)) {
         await auth.signOut();
-        Alert.alert(
-          'Not a vendor account',
-          'This account is not registered as a garage/vendor user. Use the customer app instead, or register your garage first.',
-        );
+        setFormError('This account does not have vendor access. Use the customer app or ask your business administrator to check your invitation.');
         return;
       }
 
@@ -95,9 +100,12 @@ export default function VendorLoginScreen() {
       } else {
         router.replace('/vendor/kyc' as never);
       }
+      routed = true;
     } catch (error) {
-      Alert.alert('Vendor sign in failed', mapVendorAuthError(error));
+      setFormError(mapVendorAuthError(error));
     } finally {
+      finishNavigation(routed);
+      submitting.current = false;
       setLoading(false);
     }
   }
@@ -131,7 +139,7 @@ export default function VendorLoginScreen() {
         >
           <MotionScreen>
             {/* Back */}
-            <Pressable style={s.backBtn} onPress={() => router.back()} hitSlop={8}>
+            <Pressable style={s.backBtn} disabled={loading} onPress={() => router.back()} hitSlop={8}>
               <Ionicons name="chevron-back" size={20} color={c.text} />
               <Text style={[s.backText, { color: c.text }]}>Back</Text>
             </Pressable>
@@ -186,6 +194,7 @@ export default function VendorLoginScreen() {
                   <TextInput
                     style={[s.input, { color: c.text }]}
                     value={email}
+                    accessibilityLabel="Business email" editable={!loading}
                     onChangeText={setEmail}
                     placeholder="garage@example.com"
                     placeholderTextColor={c.muted}
@@ -202,7 +211,7 @@ export default function VendorLoginScreen() {
               <View style={s.fieldGroup}>
                 <View style={s.labelRow}>
                   <Text style={[s.fieldLabel, { color: c.textSecondary }]}>Password</Text>
-                  <Pressable hitSlop={8} onPress={handlePasswordReset}>
+                  <Pressable hitSlop={8} disabled={loading} onPress={handlePasswordReset}>
                     <Text style={[s.forgotText, { color: c.primary }]}>Forgot?</Text>
                   </Pressable>
                 </View>
@@ -216,6 +225,7 @@ export default function VendorLoginScreen() {
                   <TextInput
                     style={[s.input, { color: c.text }]}
                     value={password}
+                    accessibilityLabel="Password" editable={!loading}
                     onChangeText={setPassword}
                     placeholder="Password"
                     placeholderTextColor={c.muted}
@@ -223,7 +233,7 @@ export default function VendorLoginScreen() {
                     onFocus={() => setFocused('password')}
                     onBlur={() => setFocused(null)}
                   />
-                  <Pressable hitSlop={8} onPress={() => setShowPassword((v) => !v)}>
+                  <Pressable hitSlop={8} disabled={loading} onPress={() => setShowPassword((v) => !v)}>
                     <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={17} color={c.muted} />
                   </Pressable>
                 </View>
@@ -233,8 +243,10 @@ export default function VendorLoginScreen() {
               <View style={[s.divider, { backgroundColor: c.border }]} />
 
               {/* Sign in button */}
+              {!!formError && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: c.danger }}>{formError}</Text>}
               <Animated.View style={btnStyle}>
                 <Pressable
+                  accessibilityRole="button" accessibilityLabel="Sign in to dashboard" accessibilityState={{ disabled: loading, busy: loading }}
                   style={[s.signInBtn, { backgroundColor: loading ? c.primaryDark : c.primary }]}
                   onPress={handleSignIn}
                   disabled={loading}
@@ -280,6 +292,7 @@ export default function VendorLoginScreen() {
         <MotionSurface delay={90} style={[s.footer, { backgroundColor: c.background, borderTopColor: c.border }]}>
           <Pressable
             style={[s.customerBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
+            disabled={loading}
             onPress={() => router.push('/(auth)/onboarding-1' as never)}
           >
             <Ionicons name="person-outline" size={16} color={c.textSecondary} />

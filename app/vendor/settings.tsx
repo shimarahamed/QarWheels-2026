@@ -118,7 +118,7 @@ export default function VendorSettingsScreen() {
         <Text style={[s.navTitle, { color: c.text }]}>Settings</Text>
       </View>
 
-      <ScrollView contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16, paddingTop: 70 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16 }]} showsVerticalScrollIndicator={false}>
         <MotionScreen>
           {/* Business profile */}
           <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
@@ -315,11 +315,6 @@ export default function VendorSettingsScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
     paddingHorizontal: spacing.page, 
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,

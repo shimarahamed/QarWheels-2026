@@ -1,14 +1,15 @@
 import type { ReactElement } from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { onSnapshot } from 'firebase/firestore';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import BookingComposer from '@/components/BookingComposer';
 import { useQarWheelStore } from '@/lib/store';
-import { createBooking } from '@/lib/firestoreOps';
+import { createBooking, useBranches } from '@/lib/firestoreOps';
 
 let mockUser: { uid: string; displayName: string; email: string } | null = null;
+let mockRouteId = 'car-1';
 
 // The booking form is a disclosure list: every row shows the value that is
 // currently chosen and opens the picker in place. Two things must hold for
@@ -26,13 +27,13 @@ const metrics = {
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
 
-function renderScreen(ui: ReactElement) {
-  return render(<SafeAreaProvider initialMetrics={metrics}>{ui}</SafeAreaProvider>);
+async function renderScreen(ui: ReactElement) {
+  return await render(<SafeAreaProvider initialMetrics={metrics}>{ui}</SafeAreaProvider>);
 }
 
 jest.mock('expo-router', () => ({
   Stack: { Screen: () => null },
-  useLocalSearchParams: () => ({ id: 'car-1' }),
+  useLocalSearchParams: () => ({ id: mockRouteId }),
   useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn() }),
   useSegments: () => ['booking-summary'],
 }));
@@ -40,6 +41,8 @@ jest.mock('expo-router', () => ({
 jest.mock('@/lib/AuthContext', () => ({
   useAuthContext: () => ({ user: mockUser }),
 }));
+// Native telemetry starts an import-time interval unrelated to this form.
+jest.mock('@sentry/react-native', () => ({ addBreadcrumb: jest.fn() }));
 
 const garage = {
   id: 'g1',
@@ -63,89 +66,135 @@ const job = {
   garageId: 'g1',
 };
 
+const otherGarage = { ...garage, id: 'g2', businessId: 'biz_2', name: 'Lusail Auto Care' };
+const otherJob = { ...job, id: 'j2', garageId: 'g2', title: 'AC inspection', price: 'QAR 400' };
+const savedCars = [
+  { id: 'saved-car-1', year: 2023, make: 'Nissan', model: 'Patrol', licensePlate: 'QA-123', currentMileage: 20000 },
+  { id: 'saved-car-2', year: 2024, make: 'Toyota', model: 'Camry', licensePlate: 'QA-456', currentMileage: 10000 },
+];
+const carSnapshot = () => ({ docs: savedCars.map(({ id, ...data }) => ({ id, data: () => data })) });
+
 // The composer reads listed branches (`branches` + `branch_services`) via
 // useBranches; the fixtures above are already in the mapped Garage/PopularJob
 // shape that hook returns, so the mock stands in for the whole read path.
 jest.mock('@/lib/firestoreOps', () => ({
-  useBranches: () => ({ vendors: [garage], jobs: [job], loading: false }),
+  useBranches: jest.fn(),
   createBooking: jest.fn(() => Promise.resolve({ id: 'server_booking_1' })),
 }));
 
+beforeEach(() => {
+  mockUser = null;
+  mockRouteId = 'car-1';
+  jest.mocked(useBranches).mockReturnValue({
+    vendors: [garage] as never, jobs: [job] as never, loading: false, error: false, refresh: jest.fn(),
+  });
+  (onSnapshot as jest.Mock).mockReset().mockImplementation(() => jest.fn());
+  jest.mocked(collection).mockClear();
+});
+
 describe('BookingComposer', () => {
-  it('opens collapsed, showing each choice as a summary row', () => {
-    renderScreen(<BookingComposer />);
+  it('opens collapsed, showing each choice as a summary row', async () => {
+    await renderScreen(<BookingComposer />);
 
     // The vehicle row states its current value without the picker being open.
     expect(screen.getByText('Vehicle')).toBeTruthy();
-    expect(screen.getByText('When')).toBeTruthy();
+    expect(screen.getByText('Preferred time')).toBeTruthy();
     expect(screen.getByText('Payment')).toBeTruthy();
 
     // The garage list itself is not rendered until the row is opened.
     expect(screen.queryByLabelText(/Al Sadd Auto Care, 4.8 rating/)).toBeNull();
   });
 
-  it('expands a row in place when tapped, and collapses it again', () => {
-    renderScreen(<BookingComposer />);
+  it('expands a row in place when tapped, and collapses it again', async () => {
+    await renderScreen(<BookingComposer />);
 
-    const scheduleRow = screen.getByLabelText(/^When:/);
-    fireEvent.press(scheduleRow);
+    const scheduleRow = screen.getByLabelText(/^Preferred time:/);
+    await fireEvent.press(scheduleRow);
 
     // Time-of-day bands only exist once the schedule row is open.
     expect(screen.getByText('Morning')).toBeTruthy();
     expect(screen.getByText('Evening')).toBeTruthy();
 
-    fireEvent.press(screen.getByLabelText(/^When:/));
+    await fireEvent.press(screen.getByLabelText(/^Preferred time:/));
     expect(screen.queryByText('Morning')).toBeNull();
   });
 
-  it('keeps only one row open at a time, so the page cannot grow unbounded', () => {
-    renderScreen(<BookingComposer />);
+  it('keeps only one row open at a time, so the page cannot grow unbounded', async () => {
+    await renderScreen(<BookingComposer />);
 
-    fireEvent.press(screen.getByLabelText(/^When:/));
+    await fireEvent.press(screen.getByLabelText(/^Preferred time:/));
     expect(screen.getByText('Morning')).toBeTruthy();
 
-    fireEvent.press(screen.getByLabelText(/^Payment:/));
+    await fireEvent.press(screen.getByLabelText(/^Payment:/));
 
     // Opening payment closed the schedule panel.
     expect(screen.queryByText('Morning')).toBeNull();
     expect(screen.getByLabelText('Pay with Pay at garage')).toBeTruthy();
   });
 
-  it('shows the total and the primary action without any scrolling', () => {
-    renderScreen(<BookingComposer />);
+  it('shows the listed service price and the primary action without scrolling', async () => {
+    await renderScreen(<BookingComposer />);
 
     // Once in the breakdown, once in the sticky bar.
-    expect(screen.getAllByText('Estimated total')).toHaveLength(2);
-    // The button carries the estimate in its own label, so a screen-reader
+    expect(screen.getAllByText('Listed service price')).toHaveLength(2);
+    // The button carries the listed price in its own label, so a screen-reader
     // user hears the price on focus rather than having to hunt for it.
-    expect(screen.getByLabelText(/Review booking, estimated total QAR/)).toBeTruthy();
+    expect(screen.getByLabelText('Review booking request, QAR 240')).toBeTruthy();
   });
 
-  it('recalculates the total when an add-on is toggled', () => {
-    renderScreen(<BookingComposer />);
+  it('keeps an unquoted add-on out of the listed service price', async () => {
+    await renderScreen(<BookingComposer />);
 
-    // Oil change 240 + the health report add-on 45, which is on by default.
-    expect(screen.getByLabelText('Review booking, estimated total QAR 325')).toBeTruthy();
+    expect(screen.getByLabelText('Review booking request, QAR 240')).toBeTruthy();
 
-    fireEvent.press(screen.getByLabelText(/^Add-ons:/));
-    fireEvent.press(screen.getByLabelText('Exterior wash, QAR 35'));
+    await fireEvent.press(screen.getByLabelText(/^Add-ons:/));
+    await fireEvent.press(screen.getByLabelText('Exterior wash, Request'));
 
-    expect(screen.getByLabelText('Review booking, estimated total QAR 360')).toBeTruthy();
+    expect(screen.getByLabelText('Review booking request, QAR 240')).toBeTruthy();
+    expect(screen.getByLabelText(/^Add-ons: 1 requested/)).toBeTruthy();
   });
 
-  it('asks for confirmation instead of booking straight off the primary button', () => {
-    renderScreen(<BookingComposer />);
+  it('asks for confirmation instead of booking straight off the primary button', async () => {
+    mockUser = { uid: 'customer_1', displayName: 'Customer', email: 'customer@example.com' };
+    (onSnapshot as jest.Mock).mockImplementation((_query, next) => {
+      next(carSnapshot());
+      return jest.fn();
+    });
+    await renderScreen(<BookingComposer />);
 
-    fireEvent.press(screen.getByLabelText(/Review booking, estimated total/));
+    await fireEvent.press(screen.getByLabelText(/Review booking request/));
 
-    expect(screen.getByText('Confirm your booking')).toBeTruthy();
-    expect(screen.getByText('Check the details below. Nothing is booked until you confirm.')).toBeTruthy();
+    expect(screen.getByText('Review booking request')).toBeTruthy();
+    expect(screen.getByText('Check the details below. The garage will confirm your preferred time and final price.')).toBeTruthy();
+  });
+
+  it('does not substitute a demo car when the saved garage is empty', async () => {
+    mockUser = { uid: 'customer_1', displayName: 'Customer', email: 'customer@example.com' };
+    (onSnapshot as jest.Mock).mockImplementation((_query, next) => {
+      next({ docs: [] });
+      return jest.fn();
+    });
+    await renderScreen(<BookingComposer />);
+    expect(screen.getByLabelText(/Review booking request/)).toBeDisabled();
+    await fireEvent.press(screen.getByLabelText(/^Vehicle:/));
+    expect(screen.getByText('Add your first vehicle')).toBeTruthy();
+  });
+
+  it('shows quote required when the service has no listed price', async () => {
+    jest.mocked(useBranches).mockReturnValue({
+      vendors: [garage] as never,
+      jobs: [{ ...job, price: 'Price on request' }] as never,
+      loading: false, error: false, refresh: jest.fn(),
+    });
+    await renderScreen(<BookingComposer />);
+    expect(screen.getByLabelText('Review booking request, Quote required')).toBeTruthy();
+    expect(screen.queryByText('QAR 120')).toBeNull();
   });
 });
 
 // ─── Payment settlement ──────────────────────────────────────────────────────
 // Until a real payment provider is wired, only pay-at-garage is offered and
-// a local invoice must never be marked paid without verified settlement.
+// an unconfirmed request must not create an invoice at all.
 
 describe('BookingComposer payment settlement', () => {
   beforeEach(() => {
@@ -169,23 +218,24 @@ describe('BookingComposer payment settlement', () => {
   afterEach(() => { mockUser = null; });
 
   async function confirmBooking() {
-    renderScreen(<BookingComposer />);
-    fireEvent.press(screen.getByLabelText(/Review booking, estimated total/));
-    fireEvent.press(screen.getByLabelText(/Confirm and send booking request/));
+    await renderScreen(<BookingComposer />);
+    await fireEvent.press(screen.getByLabelText(/Review booking request/));
+    await fireEvent.press(screen.getByLabelText(/Send booking request/));
     await waitFor(() => expect(createBooking).toHaveBeenCalled());
   }
 
-  it('creates the local record only after a remote booking and leaves it unpaid', async () => {
+  it('creates a local record only after the remote request, without an invoice', async () => {
     await confirmBooking();
-    await waitFor(() => expect(useQarWheelStore.getState().invoices).toHaveLength(1));
+    await waitFor(() => expect(useQarWheelStore.getState().bookings).toHaveLength(1));
     const state = useQarWheelStore.getState();
     expect(state.bookings[0].id).toBe('server_booking_1');
-    expect(state.invoices[0]).toMatchObject({ status: 'Unpaid', method: 'Pay at garage' });
+    expect(state.invoices).toHaveLength(0);
+    expect(createBooking).toHaveBeenCalledWith('customer_1', expect.not.objectContaining({ cost: expect.any(Number) }));
   });
 
-  it('does not offer unimplemented card or wallet payments', () => {
-    renderScreen(<BookingComposer />);
-    fireEvent.press(screen.getByLabelText(/^Payment:/));
+  it('does not offer unimplemented card or wallet payments', async () => {
+    await renderScreen(<BookingComposer />);
+    await fireEvent.press(screen.getByLabelText(/^Payment:/));
     expect(screen.queryByLabelText(/Pay with Card/)).toBeNull();
     expect(screen.queryByLabelText(/Pay with QarWheel wallet/)).toBeNull();
   });
@@ -198,5 +248,105 @@ describe('BookingComposer payment settlement', () => {
     expect(useQarWheelStore.getState().bookings).toHaveLength(0);
     expect(useQarWheelStore.getState().invoices).toHaveLength(0);
     alert.mockRestore();
+  });
+
+  it('limits service choices and the submitted payload to the newly selected garage', async () => {
+    const extraJob = { ...otherJob, id: 'j3', title: 'AC recharge', price: 'QAR 500' };
+    jest.mocked(useBranches).mockReturnValue({
+      vendors: [garage, otherGarage] as never, jobs: [job, otherJob, extraJob] as never,
+      loading: false, error: false, refresh: jest.fn(),
+    });
+    await renderScreen(<BookingComposer />);
+
+    await fireEvent.press(screen.getByLabelText(/^Service:/));
+    expect(screen.getAllByRole('radio')).toHaveLength(1);
+    expect(screen.getByRole('radio', { name: `${job.title}, ${job.price}` })).toBeSelected();
+    expect(screen.queryByRole('radio', { name: `${otherJob.title}, ${otherJob.price}` })).toBeNull();
+
+    await fireEvent.press(screen.getByLabelText(/^Garage:/));
+    await fireEvent.press(screen.getByRole('radio', { name: otherGarage.name }));
+    await fireEvent.press(screen.getByLabelText(/^Service:/));
+    expect(screen.getAllByRole('radio')).toHaveLength(2);
+    expect(screen.queryByRole('radio', { name: `${job.title}, ${job.price}` })).toBeNull();
+    expect(screen.getByRole('radio', { name: `${otherJob.title}, ${otherJob.price}` })).toBeSelected();
+    await fireEvent.press(screen.getByRole('radio', { name: `${extraJob.title}, ${extraJob.price}` }));
+
+    await fireEvent.press(screen.getByLabelText('Review booking request, QAR 500'));
+    expect(screen.getByLabelText(`Garage: ${otherGarage.name}`)).toBeTruthy();
+    expect(screen.getByLabelText(`Service: ${extraJob.title}`)).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText(/Send booking request/));
+
+    await waitFor(() => expect(useQarWheelStore.getState().bookings).toHaveLength(1));
+    expect(createBooking).toHaveBeenCalledTimes(1);
+    expect(createBooking).toHaveBeenCalledWith('customer_1', expect.objectContaining({
+      vendorId: 'g2', vendorName: otherGarage.name, branchId: 'g2', businessId: 'biz_2',
+      serviceName: extraJob.title, carId: 'car-1',
+    }));
+    expect(useQarWheelStore.getState().bookings[0]).toMatchObject({
+      garageId: 'g2', serviceId: 'j3', service: extraJob.title, totalAmount: 0,
+    });
+    expect(useQarWheelStore.getState().invoices).toHaveLength(0);
+  });
+
+  it.each(['g2', 'j2'])('scopes a %s deep link to its garage even when another garage has the first job', async (id) => {
+    mockRouteId = id;
+    jest.mocked(useBranches).mockReturnValue({
+      vendors: [garage, otherGarage] as never, jobs: [job, otherJob] as never,
+      loading: false, error: false, refresh: jest.fn(),
+    });
+    await renderScreen(<BookingComposer />);
+    expect(screen.queryByLabelText(/^Garage:/)).toBeNull();
+    await fireEvent.press(screen.getByLabelText(/^Service:/));
+    expect(screen.getAllByRole('radio')).toHaveLength(1);
+    expect(screen.getByRole('radio', { name: `${otherJob.title}, ${otherJob.price}` })).toBeSelected();
+    await fireEvent.press(screen.getByLabelText('Review booking request, QAR 400'));
+    await fireEvent.press(screen.getByLabelText(/Send booking request/));
+    await waitFor(() => expect(useQarWheelStore.getState().bookings).toHaveLength(1));
+    expect(createBooking).toHaveBeenCalledWith('customer_1', expect.objectContaining({
+      vendorId: 'g2', branchId: 'g2', businessId: 'biz_2', serviceName: otherJob.title,
+    }));
+  });
+
+  it('does not fall back to another garage service when the chosen garage has none', async () => {
+    jest.mocked(useBranches).mockReturnValue({
+      vendors: [garage, otherGarage] as never, jobs: [job] as never,
+      loading: false, error: false, refresh: jest.fn(),
+    });
+    await renderScreen(<BookingComposer />);
+    await fireEvent.press(screen.getByLabelText(/^Garage:/));
+    await fireEvent.press(screen.getByRole('radio', { name: otherGarage.name }));
+    await fireEvent.press(screen.getByLabelText(/^Service:/));
+    expect(screen.getByText('No services are available for this garage.')).toBeTruthy();
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    const review = screen.getByLabelText(/Review booking request/);
+    expect(review).toBeDisabled();
+    await fireEvent.press(review);
+    expect(screen.queryByText('Review booking request')).toBeNull();
+    expect(createBooking).not.toHaveBeenCalled();
+    expect(useQarWheelStore.getState().bookings).toHaveLength(0);
+  });
+
+  it('keeps one car listener while selecting vehicles and preserves the choice on later snapshots', async () => {
+    let next!: (snapshot: ReturnType<typeof carSnapshot>) => void;
+    const unsubscribe = jest.fn();
+    (onSnapshot as jest.Mock).mockImplementation((_query, callback) => {
+      next = callback;
+      return unsubscribe;
+    });
+    const { rerender, unmount } = await renderScreen(<BookingComposer />);
+    await act(() => next(carSnapshot()));
+    expect(onSnapshot).toHaveBeenCalledTimes(1);
+    expect(collection).toHaveBeenCalledWith(expect.anything(), 'users', 'customer_1', 'cars');
+
+    await fireEvent.press(screen.getByLabelText(/^Vehicle:/));
+    await fireEvent.press(screen.getByRole('radio', { name: '2024 Toyota Camry' }));
+    await act(() => next(carSnapshot()));
+    mockUser = { ...mockUser! };
+    await rerender(<SafeAreaProvider initialMetrics={metrics}><BookingComposer /></SafeAreaProvider>);
+    expect(screen.getByRole('radio', { name: '2024 Toyota Camry' })).toBeSelected();
+    expect(onSnapshot).toHaveBeenCalledTimes(1);
+    expect(unsubscribe).not.toHaveBeenCalled();
+    await unmount();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 });

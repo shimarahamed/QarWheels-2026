@@ -21,29 +21,29 @@ afterEach(() => {
   else process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = originalKey;
 });
 
-it('falls back to a selectable garage list on Android without a maps key', () => {
+it('falls back to a selectable garage list on Android without a maps key', async () => {
   jest.replaceProperty(Platform, 'OS', 'android');
   delete process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
   const select = jest.fn();
-  render(<GarageMap garages={[garage] as never} userLocation={null} onSelect={select} />);
+  await render(<GarageMap garages={[garage] as never} userLocation={null} onSelect={select} />);
   expect(screen.queryByTestId('native-map')).toBeNull();
-  fireEvent.press(screen.getByText('Actual garage - Doha'));
+  await fireEvent.press(screen.getByText('Actual garage - Doha'));
   expect(select).toHaveBeenCalledWith(garage);
 });
 
-it('renders native markers and selection on configured Android', () => {
+it('renders native markers and selection on configured Android', async () => {
   jest.replaceProperty(Platform, 'OS', 'android');
   process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = 'test-key';
   const select = jest.fn();
-  render(<GarageMap garages={[garage] as never} userLocation={null} onSelect={select} />);
+  await render(<GarageMap garages={[garage] as never} userLocation={null} onSelect={select} />);
   expect(screen.getByTestId('native-map')).toBeTruthy();
-  fireEvent.press(screen.getByTestId('garage-marker'));
+  await fireEvent.press(screen.getByTestId('garage-marker'));
   expect(select).toHaveBeenCalledWith(garage);
 });
 
-it('uses the native iOS map without requiring a Google key', () => {
+it('uses the native iOS map without requiring a Google key', async () => {
   jest.replaceProperty(Platform, 'OS', 'ios');
   delete process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-  render(<GarageMap garages={[]} userLocation={null} onSelect={jest.fn()} />);
+  await render(<GarageMap garages={[]} userLocation={null} onSelect={jest.fn()} />);
   expect(screen.getByTestId('native-map')).toBeTruthy();
 });

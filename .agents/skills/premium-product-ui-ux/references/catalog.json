@@ -1,0 +1,1125 @@
+{
+  "total_rules": 160,
+  "rules": [
+    {
+      "id": "UX-001",
+      "title": "Define the core job",
+      "section": "01-discovery-research",
+      "action": "Write the user's desired outcome as a job-to-be-done before proposing a page.",
+      "verify": "The brief names a concrete task and success condition, not a vague aesthetic."
+    },
+    {
+      "id": "UX-002",
+      "title": "Map primary segments",
+      "section": "01-discovery-research",
+      "action": "Separate first-time, returning, expert, and accessibility-dependent user needs when they materially differ.",
+      "verify": "Flows identify which segment each decision serves."
+    },
+    {
+      "id": "UX-003",
+      "title": "Locate the critical journey",
+      "section": "01-discovery-research",
+      "action": "Draw the shortest credible path from entry to task completion before polishing secondary pages.",
+      "verify": "The main journey is testable end-to-end."
+    },
+    {
+      "id": "UX-004",
+      "title": "List user questions",
+      "section": "01-discovery-research",
+      "action": "Capture what users need to know at each decision and surface that information before commitment.",
+      "verify": "A participant can act without searching for hidden conditions."
+    },
+    {
+      "id": "UX-005",
+      "title": "Distinguish evidence from guess",
+      "section": "01-discovery-research",
+      "action": "Mark observed problems, analytics findings, and design hypotheses separately.",
+      "verify": "Each recommendation has an evidence level or a test plan."
+    },
+    {
+      "id": "UX-006",
+      "title": "Interview for behavior",
+      "section": "01-discovery-research",
+      "action": "Ask about the last real attempt and observed workarounds rather than opinions about imagined features.",
+      "verify": "Notes contain concrete episodes and obstacles."
+    },
+    {
+      "id": "UX-007",
+      "title": "Study failure cases",
+      "section": "01-discovery-research",
+      "action": "Research abandonment, errors, slow networks, and help requests, not only successful happy paths.",
+      "verify": "Journey map includes at least three plausible failures."
+    },
+    {
+      "id": "UX-008",
+      "title": "Define decision metrics",
+      "section": "01-discovery-research",
+      "action": "Choose a leading task metric and a guardrail before changing the interface.",
+      "verify": "Measurement plan has denominator, baseline, and ownership."
+    },
+    {
+      "id": "UX-009",
+      "title": "Prioritize by impact",
+      "section": "01-discovery-research",
+      "action": "Rank issues by user harm, reach, frequency, and remediation effort rather than visual novelty.",
+      "verify": "Critical blockers precede stylistic changes."
+    },
+    {
+      "id": "UX-010",
+      "title": "Validate with target users",
+      "section": "01-discovery-research",
+      "action": "Test representative tasks with actual users when practical; do not equate internal preference with evidence.",
+      "verify": "Findings record observed behavior and unresolved questions."
+    },
+    {
+      "id": "UX-011",
+      "title": "Organize by user tasks",
+      "section": "02-information-architecture",
+      "action": "Group destinations around user goals, not database entities or team structure.",
+      "verify": "A person can predict where a task belongs."
+    },
+    {
+      "id": "UX-012",
+      "title": "Use familiar labels",
+      "section": "02-information-architecture",
+      "action": "Prefer language the audience recognizes over internal acronyms and clever category names.",
+      "verify": "Navigation labels are understood without tooltips."
+    },
+    {
+      "id": "UX-013",
+      "title": "Show current location",
+      "section": "02-information-architecture",
+      "action": "Expose active item, page title, and hierarchy where applicable.",
+      "verify": "Users can answer where they are and how to return."
+    },
+    {
+      "id": "UX-014",
+      "title": "Limit top-level choices",
+      "section": "02-information-architecture",
+      "action": "Keep primary destinations to a manageable set; group related secondary areas instead of a flat mega-menu.",
+      "verify": "Main navigation has no indistinguishable duplicates."
+    },
+    {
+      "id": "UX-015",
+      "title": "Preserve back behavior",
+      "section": "02-information-architecture",
+      "action": "Ensure back navigation restores meaningful context, selection, and scroll when appropriate.",
+      "verify": "Going back does not unexpectedly discard progress."
+    },
+    {
+      "id": "UX-016",
+      "title": "Provide robust search",
+      "section": "02-information-architecture",
+      "action": "Offer search when content density warrants it, with tolerance for common terms and useful results.",
+      "verify": "Queries produce understandable matching and zero-result states."
+    },
+    {
+      "id": "UX-017",
+      "title": "Offer clear filters",
+      "section": "02-information-architecture",
+      "action": "Distinguish filtering from sorting, show active constraints, and make reset easy.",
+      "verify": "Users can see and remove applied filters."
+    },
+    {
+      "id": "UX-018",
+      "title": "Use breadcrumbs selectively",
+      "section": "02-information-architecture",
+      "action": "Provide hierarchical breadcrumbs for deep information spaces, not as a substitute for clear navigation.",
+      "verify": "Each crumb maps to a meaningful ancestor."
+    },
+    {
+      "id": "UX-019",
+      "title": "Design empty destinations",
+      "section": "02-information-architecture",
+      "action": "Explain why a page has no content and offer the next valid action.",
+      "verify": "The empty state never strands users."
+    },
+    {
+      "id": "UX-020",
+      "title": "Prevent dead-end pages",
+      "section": "02-information-architecture",
+      "action": "Provide recovery routes from missing records, access denial, and invalid URLs.",
+      "verify": "Users can navigate onward without browser refresh."
+    },
+    {
+      "id": "UX-021",
+      "title": "Start with content hierarchy",
+      "section": "03-responsive-layout",
+      "action": "Prioritize reading and actions before choosing grids or breakpoints.",
+      "verify": "Small screens retain the essential task."
+    },
+    {
+      "id": "UX-022",
+      "title": "Use fluid containers",
+      "section": "03-responsive-layout",
+      "action": "Combine max-width boundaries with fluid widths rather than fixed desktop-only canvases.",
+      "verify": "Content fits narrow and wide screens."
+    },
+    {
+      "id": "UX-023",
+      "title": "Choose content breakpoints",
+      "section": "03-responsive-layout",
+      "action": "Adapt when components stop working, not solely at standard device widths.",
+      "verify": "Intermediate widths have no awkward clipping."
+    },
+    {
+      "id": "UX-024",
+      "title": "Protect readable line length",
+      "section": "03-responsive-layout",
+      "action": "Constrain long text measures and use suitable line height for scanning.",
+      "verify": "Paragraphs stay comfortable on wide screens."
+    },
+    {
+      "id": "UX-025",
+      "title": "Make spacing systematic",
+      "section": "03-responsive-layout",
+      "action": "Establish spacing tokens and use them consistently for related and unrelated content groups.",
+      "verify": "Like relationships have like spacing."
+    },
+    {
+      "id": "UX-026",
+      "title": "Respect safe areas",
+      "section": "03-responsive-layout",
+      "action": "Avoid covering essential controls with notches, system bars, browser chrome, or bottom gestures.",
+      "verify": "Edge devices retain tappable controls."
+    },
+    {
+      "id": "UX-027",
+      "title": "Handle long strings",
+      "section": "03-responsive-layout",
+      "action": "Plan for long names, numbers, translations, and unbroken identifiers without truncating critical meaning.",
+      "verify": "Layout survives worst-case text fixtures."
+    },
+    {
+      "id": "UX-028",
+      "title": "Use grid and flex intentionally",
+      "section": "03-responsive-layout",
+      "action": "Choose layout primitives matching content semantics; avoid absolute positioning for ordinary document flow.",
+      "verify": "Resizing preserves order and reachability."
+    },
+    {
+      "id": "UX-029",
+      "title": "Avoid horizontal overflow",
+      "section": "03-responsive-layout",
+      "action": "Prevent page-level sideways scrolling except for deliberate and accessible data views.",
+      "verify": "A 320 CSS-pixel viewport remains navigable."
+    },
+    {
+      "id": "UX-030",
+      "title": "Test zoom and reflow",
+      "section": "03-responsive-layout",
+      "action": "Check 200% zoom and narrow-screen reflow without losing task-critical content.",
+      "verify": "Controls and information remain available under magnification."
+    },
+    {
+      "id": "UX-031",
+      "title": "Use a type scale",
+      "section": "04-type-content",
+      "action": "Define a small hierarchy of body, supporting, section, and headline styles using tokens.",
+      "verify": "Heading levels and visual sizes are consistent."
+    },
+    {
+      "id": "UX-032",
+      "title": "Write outcome-led headings",
+      "section": "04-type-content",
+      "action": "State the user task or result before branding or decorative language.",
+      "verify": "First-screen heading identifies the page purpose."
+    },
+    {
+      "id": "UX-033",
+      "title": "Prefer plain language",
+      "section": "04-type-content",
+      "action": "Replace jargon and ambiguous verbs with words the audience understands.",
+      "verify": "Labels are clear without a glossary."
+    },
+    {
+      "id": "UX-034",
+      "title": "Make button labels specific",
+      "section": "04-type-content",
+      "action": "Name the action and likely result, such as Save changes, instead of generic Continue when avoidable.",
+      "verify": "Users can predict the next step."
+    },
+    {
+      "id": "UX-035",
+      "title": "Keep helper text persistent",
+      "section": "04-type-content",
+      "action": "Place important formatting rules near the input rather than only in placeholders.",
+      "verify": "Guidance remains visible after typing."
+    },
+    {
+      "id": "UX-036",
+      "title": "Surface restrictions early",
+      "section": "04-type-content",
+      "action": "State prices, limits, eligibility, and prerequisites before users invest effort.",
+      "verify": "No material surprise appears at submission."
+    },
+    {
+      "id": "UX-037",
+      "title": "Write humane errors",
+      "section": "04-type-content",
+      "action": "Explain the specific issue and correction without blame, jargon, or humor at the user's expense.",
+      "verify": "The error suggests a clear recovery."
+    },
+    {
+      "id": "UX-038",
+      "title": "Use meaningful truncation",
+      "section": "04-type-content",
+      "action": "Truncate only secondary text and preserve identifying information through expansion or full-label access.",
+      "verify": "Users can distinguish similar items."
+    },
+    {
+      "id": "UX-039",
+      "title": "Format values locally",
+      "section": "04-type-content",
+      "action": "Use locale-aware dates, money, units, and separators; include units and time zones where material.",
+      "verify": "Values are unambiguous to the target audience."
+    },
+    {
+      "id": "UX-040",
+      "title": "Make skimming effective",
+      "section": "04-type-content",
+      "action": "Use descriptive section labels, parallel lists, and front-loaded facts.",
+      "verify": "A scanning reader finds the key answer quickly."
+    },
+    {
+      "id": "UX-041",
+      "title": "Establish one focal point",
+      "section": "05-visual-design",
+      "action": "Make the primary action and information dominant through scale, contrast, or placement.",
+      "verify": "First glance indicates what matters."
+    },
+    {
+      "id": "UX-042",
+      "title": "Use contrast with purpose",
+      "section": "05-visual-design",
+      "action": "Make contrast express hierarchy, action availability, and important status, not just decoration.",
+      "verify": "Essential elements remain discernible."
+    },
+    {
+      "id": "UX-043",
+      "title": "Reserve accent colors",
+      "section": "05-visual-design",
+      "action": "Apply brand accents to the most meaningful interaction and status surfaces.",
+      "verify": "Every element does not compete for attention."
+    },
+    {
+      "id": "UX-044",
+      "title": "Use semantic status tokens",
+      "section": "05-visual-design",
+      "action": "Separate success, warning, danger, info, and neutral states from raw palette values.",
+      "verify": "Status changes remain coherent across themes."
+    },
+    {
+      "id": "UX-045",
+      "title": "Avoid color-only meaning",
+      "section": "05-visual-design",
+      "action": "Pair colored indicators with labels, patterns, icons, or programmatic meaning.",
+      "verify": "Meaning survives grayscale and assistive use."
+    },
+    {
+      "id": "UX-046",
+      "title": "Build light and dark themes",
+      "section": "05-visual-design",
+      "action": "Test contrast and elevation independently in each theme instead of inverting colors mechanically.",
+      "verify": "Neither theme hides boundaries or text."
+    },
+    {
+      "id": "UX-047",
+      "title": "Use elevation sparingly",
+      "section": "05-visual-design",
+      "action": "Apply shadows, borders, and layering to show interaction and containment.",
+      "verify": "Surface hierarchy remains readable without deep shadows."
+    },
+    {
+      "id": "UX-048",
+      "title": "Align optical details",
+      "section": "05-visual-design",
+      "action": "Fine-tune icon and label centering, baseline, and stroke weight while preserving semantic alignment.",
+      "verify": "Repeated rows and controls look visually coherent."
+    },
+    {
+      "id": "UX-049",
+      "title": "Maintain icon semantics",
+      "section": "05-visual-design",
+      "action": "Use familiar icons with labels for ambiguous actions; keep an icon family consistent.",
+      "verify": "Icons do not require guessing."
+    },
+    {
+      "id": "UX-050",
+      "title": "Favor brand restraint",
+      "section": "05-visual-design",
+      "action": "Apply gradients, blur, and glow only when they enhance identity without hiding controls.",
+      "verify": "Reduced effects retain a professional interface."
+    },
+    {
+      "id": "UX-051",
+      "title": "Create semantic tokens",
+      "section": "06-design-systems",
+      "action": "Define roles for text, surfaces, borders, focus, and feedback instead of scattering raw color values.",
+      "verify": "Theme updates require few central edits."
+    },
+    {
+      "id": "UX-052",
+      "title": "Tokenize spacing and type",
+      "section": "06-design-systems",
+      "action": "Centralize spacing, typography, radius, and elevation choices.",
+      "verify": "Components share predictable values."
+    },
+    {
+      "id": "UX-053",
+      "title": "Reuse native controls",
+      "section": "06-design-systems",
+      "action": "Prefer the existing design library and platform primitives before making custom components.",
+      "verify": "New UI matches established interaction patterns."
+    },
+    {
+      "id": "UX-054",
+      "title": "Define variant intent",
+      "section": "06-design-systems",
+      "action": "Give components clear size, importance, and destructive variants rather than arbitrary style combinations.",
+      "verify": "Each variant has a valid use case."
+    },
+    {
+      "id": "UX-055",
+      "title": "Specify complete states",
+      "section": "06-design-systems",
+      "action": "Design default, hover, focus, active, loading, disabled, success, error, and empty states where relevant.",
+      "verify": "State matrix covers key components."
+    },
+    {
+      "id": "UX-056",
+      "title": "Separate behavior from styling",
+      "section": "06-design-systems",
+      "action": "Preserve keyboard semantics, validation, and state machines while allowing visual variants.",
+      "verify": "Styling changes do not regress interaction behavior."
+    },
+    {
+      "id": "UX-057",
+      "title": "Name components by role",
+      "section": "06-design-systems",
+      "action": "Use names such as PrimaryButton or StatusBadge rather than colors or page coordinates.",
+      "verify": "Components remain meaningful after redesign."
+    },
+    {
+      "id": "UX-058",
+      "title": "Document composition rules",
+      "section": "06-design-systems",
+      "action": "Define which components can nest, which can stretch, and where complex patterns belong.",
+      "verify": "Engineers avoid ad hoc compositions."
+    },
+    {
+      "id": "UX-059",
+      "title": "Support design token evolution",
+      "section": "06-design-systems",
+      "action": "Introduce aliases or migrations for renamed tokens rather than breaking unrelated screens.",
+      "verify": "Existing consumers stay functional."
+    },
+    {
+      "id": "UX-060",
+      "title": "Track reusable patterns",
+      "section": "06-design-systems",
+      "action": "Promote repeated page patterns into shared components only after stable use cases emerge.",
+      "verify": "Abstraction reduces duplication without erasing differences."
+    },
+    {
+      "id": "UX-061",
+      "title": "Ask only essential fields",
+      "section": "07-forms-workflows",
+      "action": "Remove or defer nonessential inputs and explain why sensitive details are required.",
+      "verify": "Every required field maps to a genuine task need."
+    },
+    {
+      "id": "UX-062",
+      "title": "Use correct input types",
+      "section": "07-forms-workflows",
+      "action": "Match email, phone, date, numeric, and autocomplete semantics to the expected value.",
+      "verify": "Mobile keyboards and autofill are appropriate."
+    },
+    {
+      "id": "UX-063",
+      "title": "Always label inputs",
+      "section": "07-forms-workflows",
+      "action": "Pair each control with a persistent accessible label and helpful instructions.",
+      "verify": "Placeholder text is not the only label."
+    },
+    {
+      "id": "UX-064",
+      "title": "Group related fields",
+      "section": "07-forms-workflows",
+      "action": "Use logical sections and fieldsets to clarify dependencies and reduce perceived effort.",
+      "verify": "Users can scan each section's purpose."
+    },
+    {
+      "id": "UX-065",
+      "title": "Validate at useful moments",
+      "section": "07-forms-workflows",
+      "action": "Validate after sufficient user intent rather than flashing errors during partial entry.",
+      "verify": "Incomplete typing does not create noise."
+    },
+    {
+      "id": "UX-066",
+      "title": "Preserve entered values",
+      "section": "07-forms-workflows",
+      "action": "Keep valid data and user edits after errors, reloads where appropriate, and recoverable submission failures.",
+      "verify": "Retry never forces unnecessary re-entry."
+    },
+    {
+      "id": "UX-067",
+      "title": "Link errors to fields",
+      "section": "07-forms-workflows",
+      "action": "Show specific inline messages and, for long forms, an actionable summary that targets invalid controls.",
+      "verify": "Users reach every error by keyboard."
+    },
+    {
+      "id": "UX-068",
+      "title": "Show process progress",
+      "section": "07-forms-workflows",
+      "action": "Expose steps, saved state, and exit/resume affordances for lengthy workflows.",
+      "verify": "Users know remaining effort and can return safely."
+    },
+    {
+      "id": "UX-069",
+      "title": "Guard destructive submission",
+      "section": "07-forms-workflows",
+      "action": "Use confirmation or undo based on reversibility and impact, without duplicating needless prompts.",
+      "verify": "Accidental irreversible actions have protection."
+    },
+    {
+      "id": "UX-070",
+      "title": "Handle double submission",
+      "section": "07-forms-workflows",
+      "action": "Disable or idempotently handle repeated requests and reconcile server feedback with button state.",
+      "verify": "Duplicate taps do not create duplicate operations."
+    },
+    {
+      "id": "UX-071",
+      "title": "Give immediate acknowledgement",
+      "section": "08-motion-feedback",
+      "action": "Show pressed, busy, or changed state promptly for relevant interactions.",
+      "verify": "Users never wonder whether a tap registered."
+    },
+    {
+      "id": "UX-072",
+      "title": "Use button compression selectively",
+      "section": "08-motion-feedback",
+      "action": "Start with scale 0.95 on touch-down and damped spring to 1 on release; adjust to existing design language.",
+      "verify": "Press feels tactile without layout movement."
+    },
+    {
+      "id": "UX-073",
+      "title": "Add physical refresh resistance",
+      "section": "08-motion-feedback",
+      "action": "For pull-to-refresh, test initial list displacement near 35% of finger travel and cap overscroll; signal threshold.",
+      "verify": "List does not travel one-to-one or trigger accidentally."
+    },
+    {
+      "id": "UX-074",
+      "title": "Roll changed digits responsibly",
+      "section": "08-motion-feedback",
+      "action": "Stagger meaningful digit changes around 100 ms while keeping a readable formatted final number available.",
+      "verify": "Changes do not misrepresent financial values."
+    },
+    {
+      "id": "UX-075",
+      "title": "Make reorder pickup explicit",
+      "section": "08-motion-feedback",
+      "action": "Start with a 1.05 lifted scale and approximately 200 ms sibling shifts; provide non-drag alternatives.",
+      "verify": "Destination and order remain clear."
+    },
+    {
+      "id": "UX-076",
+      "title": "Animate card expansion spatially",
+      "section": "08-motion-feedback",
+      "action": "Try 350 ms ease-out while managing focus, scroll, interruption, and reduced-motion equivalents.",
+      "verify": "Expanded content is immediately operable."
+    },
+    {
+      "id": "UX-077",
+      "title": "Sequence success confirmation",
+      "section": "08-motion-feedback",
+      "action": "Use circle then checkmark within approximately 470 ms only after confirmed success.",
+      "verify": "Visual and accessible status agree."
+    },
+    {
+      "id": "UX-078",
+      "title": "Use shared motion tokens",
+      "section": "08-motion-feedback",
+      "action": "Standardize quick, normal, and expressive durations and corresponding easings.",
+      "verify": "Components do not mix arbitrary physics."
+    },
+    {
+      "id": "UX-079",
+      "title": "Honor reduced motion",
+      "section": "08-motion-feedback",
+      "action": "Replace nonessential movement with opacity or instant state transitions while retaining informative feedback.",
+      "verify": "Prefers-reduced-motion users finish the same task."
+    },
+    {
+      "id": "UX-080",
+      "title": "Prevent animation races",
+      "section": "08-motion-feedback",
+      "action": "Cancel or reconcile transitions on rapid re-click, navigation, errors, unmounts, and incoming state updates.",
+      "verify": "State remains truthful under interruption."
+    },
+    {
+      "id": "UX-081",
+      "title": "Build semantic structure",
+      "section": "09-accessibility",
+      "action": "Use real headings, landmarks, lists, buttons, links, and form controls before adding ARIA.",
+      "verify": "Accessibility tree reflects visible structure."
+    },
+    {
+      "id": "UX-082",
+      "title": "Support keyboard completely",
+      "section": "09-accessibility",
+      "action": "Make all functions reachable and operable without a pointer, with logical focus progression.",
+      "verify": "End-to-end keyboard task is possible."
+    },
+    {
+      "id": "UX-083",
+      "title": "Make focus visible",
+      "section": "09-accessibility",
+      "action": "Show a high-contrast visible focus indicator and never hide it without a robust replacement.",
+      "verify": "Tab navigation is easy to track."
+    },
+    {
+      "id": "UX-084",
+      "title": "Manage modal focus",
+      "section": "09-accessibility",
+      "action": "Focus the active dialog, contain focus appropriately, support Escape when safe, and restore focus on close.",
+      "verify": "Screen-reader and keyboard users do not lose position."
+    },
+    {
+      "id": "UX-085",
+      "title": "Meet text contrast",
+      "section": "09-accessibility",
+      "action": "Target WCAG 2.2 AA: at least 4.5:1 for ordinary text and 3:1 for qualifying large text.",
+      "verify": "Automated and manual contrast checks pass."
+    },
+    {
+      "id": "UX-086",
+      "title": "Provide usable target sizes",
+      "section": "09-accessibility",
+      "action": "Meet WCAG 2.2 AA target-size minimum or its documented exceptions; aim larger for touch comfort.",
+      "verify": "Dense toolbars remain usable without precise pointing."
+    },
+    {
+      "id": "UX-087",
+      "title": "Avoid dragging-only actions",
+      "section": "09-accessibility",
+      "action": "Provide a simple-pointer and keyboard-operated way to achieve any reorder or drag function unless truly essential.",
+      "verify": "A user can complete the action without dragging."
+    },
+    {
+      "id": "UX-088",
+      "title": "Announce dynamic outcomes",
+      "section": "09-accessibility",
+      "action": "Use scoped, appropriate live updates for confirmations, errors, and async status without announcement spam.",
+      "verify": "Assistive users learn the important outcome."
+    },
+    {
+      "id": "UX-089",
+      "title": "Provide media alternatives",
+      "section": "09-accessibility",
+      "action": "Add captions to meaningful audio, transcripts where appropriate, and relevant alt text for informative images.",
+      "verify": "Content remains understandable without its primary sensory channel."
+    },
+    {
+      "id": "UX-090",
+      "title": "Validate with assistive tech",
+      "section": "09-accessibility",
+      "action": "Check zoom, screen reader, keyboard, contrast, reduced motion, and forced colors as relevant.",
+      "verify": "At least one manual assistive-tech path is reported, or explicitly untested."
+    },
+    {
+      "id": "UX-091",
+      "title": "Prioritize thumb reach",
+      "section": "10-mobile-touch",
+      "action": "Keep frequent primary controls reasonably reachable and avoid edge conflicts with system gestures.",
+      "verify": "One-handed core tasks remain comfortable."
+    },
+    {
+      "id": "UX-092",
+      "title": "Use visible affordances",
+      "section": "10-mobile-touch",
+      "action": "Make interactive surfaces look actionable rather than depending on hidden swipe knowledge.",
+      "verify": "First-time users discover the primary operation."
+    },
+    {
+      "id": "UX-093",
+      "title": "Pair gestures with controls",
+      "section": "10-mobile-touch",
+      "action": "Offer visible buttons or menus for swipe, long-press, and drag operations.",
+      "verify": "Every important action has a discoverable alternative."
+    },
+    {
+      "id": "UX-094",
+      "title": "Handle virtual keyboard",
+      "section": "10-mobile-touch",
+      "action": "Keep focused inputs, validation messages, and submit actions visible above the software keyboard.",
+      "verify": "Forms remain usable while typing."
+    },
+    {
+      "id": "UX-095",
+      "title": "Prevent accidental taps",
+      "section": "10-mobile-touch",
+      "action": "Space adjacent destructive and routine actions and avoid tiny low-separation targets.",
+      "verify": "Typical touch errors are recoverable."
+    },
+    {
+      "id": "UX-096",
+      "title": "Respect platform conventions",
+      "section": "10-mobile-touch",
+      "action": "Follow native back, navigation bars, sheets, and system UI patterns when they fit the app.",
+      "verify": "The interface behaves as users expect on each platform."
+    },
+    {
+      "id": "UX-097",
+      "title": "Use progressive disclosure",
+      "section": "10-mobile-touch",
+      "action": "Collapse supporting detail while retaining key information and accessible paths on narrow screens.",
+      "verify": "Main task never depends on desktop-only content."
+    },
+    {
+      "id": "UX-098",
+      "title": "Design offline transitions",
+      "section": "10-mobile-touch",
+      "action": "Explain loss of connectivity and distinguish locally queued work from server-saved work.",
+      "verify": "Users know if action is really completed."
+    },
+    {
+      "id": "UX-099",
+      "title": "Manage orientation changes",
+      "section": "10-mobile-touch",
+      "action": "Reflow rather than resetting forms, search context, scroll, or selection.",
+      "verify": "Device rotation does not destroy progress."
+    },
+    {
+      "id": "UX-100",
+      "title": "Test real-device feel",
+      "section": "10-mobile-touch",
+      "action": "Check scroll, touch latency, haptics when supported, gesture competition, and on-screen keyboard on devices.",
+      "verify": "Performance is not judged solely by desktop emulation."
+    },
+    {
+      "id": "UX-101",
+      "title": "Lead with decisions",
+      "section": "11-data-dashboards",
+      "action": "Show the question and decision each metric supports before choosing a chart style.",
+      "verify": "Every dashboard tile has a reason to exist."
+    },
+    {
+      "id": "UX-102",
+      "title": "Name metrics precisely",
+      "section": "11-data-dashboards",
+      "action": "Define units, periods, comparison basis, and calculation assumptions near key KPIs.",
+      "verify": "Users can interpret a number without guessing."
+    },
+    {
+      "id": "UX-103",
+      "title": "Preserve accurate scales",
+      "section": "11-data-dashboards",
+      "action": "Use appropriate axes and avoid misleading truncation, especially for bars and comparisons.",
+      "verify": "Values cannot be visually overstated."
+    },
+    {
+      "id": "UX-104",
+      "title": "Provide context for deltas",
+      "section": "11-data-dashboards",
+      "action": "Show baseline, percentage versus absolute change, and the comparison period.",
+      "verify": "A positive or negative change has interpretable meaning."
+    },
+    {
+      "id": "UX-105",
+      "title": "Use suitable chart forms",
+      "section": "11-data-dashboards",
+      "action": "Pick bars for discrete comparison, lines for trends, and tables for exact lookup rather than novel ornament.",
+      "verify": "Intended insight is easy to extract."
+    },
+    {
+      "id": "UX-106",
+      "title": "Represent missing data",
+      "section": "11-data-dashboards",
+      "action": "Distinguish zero, not available, pending, suppressed, and not applicable.",
+      "verify": "The viewer cannot confuse absent data with actual zero."
+    },
+    {
+      "id": "UX-107",
+      "title": "Offer data table alternatives",
+      "section": "11-data-dashboards",
+      "action": "Provide textual or tabular access to chart content for keyboard, screen reader, and precision use.",
+      "verify": "No key insight depends only on graphics."
+    },
+    {
+      "id": "UX-108",
+      "title": "Make filters transparent",
+      "section": "11-data-dashboards",
+      "action": "Display applied time range, segments, data freshness, and any inherited filters.",
+      "verify": "Export and visible values use the same scope."
+    },
+    {
+      "id": "UX-109",
+      "title": "Design dense tables deliberately",
+      "section": "11-data-dashboards",
+      "action": "Keep headers clear, preserve sorting meaning, and make row actions discoverable on small screens.",
+      "verify": "Users can compare values and act without losing row context."
+    },
+    {
+      "id": "UX-110",
+      "title": "Use restrained numeric motion",
+      "section": "11-data-dashboards",
+      "action": "Animate values only when meaningfully updated and avoid decorative rolling for volatile live financial figures.",
+      "verify": "Motion cannot imply false precision or completion."
+    },
+    {
+      "id": "UX-111",
+      "title": "Demonstrate value early",
+      "section": "12-onboarding-conversion",
+      "action": "Help users perform the first meaningful task before requesting optional setup.",
+      "verify": "Time to first value is measurable."
+    },
+    {
+      "id": "UX-112",
+      "title": "Ask permission in context",
+      "section": "12-onboarding-conversion",
+      "action": "Request notifications, location, contacts, or camera access only when the user understands the benefit.",
+      "verify": "Permissions are not demanded on first launch without explanation."
+    },
+    {
+      "id": "UX-113",
+      "title": "Allow exploration where safe",
+      "section": "12-onboarding-conversion",
+      "action": "Offer guest, preview, or sample content when account creation is not technically essential.",
+      "verify": "Prospects can understand the product before committing."
+    },
+    {
+      "id": "UX-114",
+      "title": "Make pricing transparent",
+      "section": "12-onboarding-conversion",
+      "action": "State recurring charges, trials, renewal conditions, and cancellation paths before purchase.",
+      "verify": "No material fees are hidden behind the final step."
+    },
+    {
+      "id": "UX-115",
+      "title": "Minimize checkout friction",
+      "section": "12-onboarding-conversion",
+      "action": "Prefer straightforward fields and guest checkout where supported; do not force unnecessary account creation.",
+      "verify": "Purchase can complete with minimal interruptions."
+    },
+    {
+      "id": "UX-116",
+      "title": "Provide a clear primary CTA",
+      "section": "12-onboarding-conversion",
+      "action": "Give one obvious primary next step per decision surface while retaining honest alternatives.",
+      "verify": "Users know what clicking will do."
+    },
+    {
+      "id": "UX-117",
+      "title": "Avoid deceptive urgency",
+      "section": "12-onboarding-conversion",
+      "action": "Do not fabricate countdowns, inventory scarcity, or social proof.",
+      "verify": "Every urgency claim has verifiable underlying data."
+    },
+    {
+      "id": "UX-118",
+      "title": "Show onboarding progress",
+      "section": "12-onboarding-conversion",
+      "action": "Use clear checkpoints, skip options for optional tasks, and realistic completion expectations.",
+      "verify": "Users can recover or return later."
+    },
+    {
+      "id": "UX-119",
+      "title": "Confirm next steps",
+      "section": "12-onboarding-conversion",
+      "action": "After signup or payment, show status, receipt or reference, and what happens next.",
+      "verify": "Users do not need to guess if the action succeeded."
+    },
+    {
+      "id": "UX-120",
+      "title": "Measure ethical outcomes",
+      "section": "12-onboarding-conversion",
+      "action": "Track completion, comprehension, and satisfaction with conversion, not clicks alone.",
+      "verify": "Improvement does not rely on dark patterns."
+    },
+    {
+      "id": "UX-121",
+      "title": "Optimize real interaction speed",
+      "section": "13-performance-reliability",
+      "action": "Measure responsiveness and long tasks on target devices before adding effects.",
+      "verify": "Delayed interactions are addressed at source."
+    },
+    {
+      "id": "UX-122",
+      "title": "Protect core content loading",
+      "section": "13-performance-reliability",
+      "action": "Prioritize visible primary content, compress assets, and avoid unnecessarily blocking render.",
+      "verify": "Essential task appears promptly on slow connections."
+    },
+    {
+      "id": "UX-123",
+      "title": "Reserve layout space",
+      "section": "13-performance-reliability",
+      "action": "Specify media dimensions and stable placeholders to reduce content jumps.",
+      "verify": "Loading does not displace the user's target unexpectedly."
+    },
+    {
+      "id": "UX-124",
+      "title": "Use honest loading states",
+      "section": "13-performance-reliability",
+      "action": "Distinguish skeleton, spinner, queued, saving, and completed states based on actual lifecycle.",
+      "verify": "UI never claims server success prematurely."
+    },
+    {
+      "id": "UX-125",
+      "title": "Design meaningful retry",
+      "section": "13-performance-reliability",
+      "action": "Offer retry with preserved context and explain when an operation may have already succeeded.",
+      "verify": "Retrying cannot easily duplicate side effects."
+    },
+    {
+      "id": "UX-126",
+      "title": "Support stale data labels",
+      "section": "13-performance-reliability",
+      "action": "Show freshness or sync state when cached content may differ from current truth.",
+      "verify": "Users can distinguish cache from current data."
+    },
+    {
+      "id": "UX-127",
+      "title": "Avoid expensive animations",
+      "section": "13-performance-reliability",
+      "action": "Prefer compositor-friendly transforms and opacity, and minimize forced layout during gestures.",
+      "verify": "Low-end device interaction remains smooth."
+    },
+    {
+      "id": "UX-128",
+      "title": "Handle no-JS or partial-failure",
+      "section": "13-performance-reliability",
+      "action": "Where appropriate, provide functional fallback, progressive enhancement, or a clear recovery path.",
+      "verify": "Critical task is not silently blank after an error."
+    },
+    {
+      "id": "UX-129",
+      "title": "Use lightweight assets",
+      "section": "13-performance-reliability",
+      "action": "Load responsive media, subset payloads, and defer offscreen extras without harming accessibility.",
+      "verify": "Payload matches user context."
+    },
+    {
+      "id": "UX-130",
+      "title": "Measure Core Web Vitals appropriately",
+      "section": "13-performance-reliability",
+      "action": "For web, watch field LCP, INP, and CLS with context rather than treating lab scores as business results.",
+      "verify": "Regression checks include field or realistic lab evidence."
+    },
+    {
+      "id": "UX-131",
+      "title": "State data use plainly",
+      "section": "14-trust-privacy-safety",
+      "action": "Explain why personal information is needed at the point of collection.",
+      "verify": "Users can make an informed choice."
+    },
+    {
+      "id": "UX-132",
+      "title": "Default to least privilege",
+      "section": "14-trust-privacy-safety",
+      "action": "Request only necessary permissions and avoid unnecessary sharing by default.",
+      "verify": "Sensitive capabilities are restricted."
+    },
+    {
+      "id": "UX-133",
+      "title": "Make consequences explicit",
+      "section": "14-trust-privacy-safety",
+      "action": "Explain irreversible actions, audience visibility, and external effects before final confirmation.",
+      "verify": "The user understands who or what is affected."
+    },
+    {
+      "id": "UX-134",
+      "title": "Avoid dark patterns",
+      "section": "14-trust-privacy-safety",
+      "action": "Do not use disguised ads, hidden opt-outs, forced continuity, or shame-based copy.",
+      "verify": "Rejecting an optional offer remains straightforward."
+    },
+    {
+      "id": "UX-135",
+      "title": "Show authentic proof",
+      "section": "14-trust-privacy-safety",
+      "action": "Use real reviews, verified security claims, and authentic testimonials only.",
+      "verify": "Trust badges are backed by evidence."
+    },
+    {
+      "id": "UX-136",
+      "title": "Protect sensitive content",
+      "section": "14-trust-privacy-safety",
+      "action": "Mask or omit secrets in UI, logs, screenshots, examples, and clipboard affordances.",
+      "verify": "Test fixtures contain no real credentials."
+    },
+    {
+      "id": "UX-137",
+      "title": "Confirm destructive scope",
+      "section": "14-trust-privacy-safety",
+      "action": "Name affected records and permanence; favor undo when safe.",
+      "verify": "Users cannot easily delete the wrong item unnoticed."
+    },
+    {
+      "id": "UX-138",
+      "title": "Distinguish authority levels",
+      "section": "14-trust-privacy-safety",
+      "action": "Make read-only, admin-only, external, and destructive features clear in UI.",
+      "verify": "Unauthorized actions do not appear as false promises."
+    },
+    {
+      "id": "UX-139",
+      "title": "Avoid misleading defaults",
+      "section": "14-trust-privacy-safety",
+      "action": "Never preselect paid extras, consent, or risky actions without an appropriate user choice.",
+      "verify": "Default choices do not exploit inattention."
+    },
+    {
+      "id": "UX-140",
+      "title": "Design trustworthy AI states",
+      "section": "14-trust-privacy-safety",
+      "action": "Distinguish generated suggestions from verified facts, expose uncertainty and human override where needed.",
+      "verify": "Users know what is automated and can correct it."
+    },
+    {
+      "id": "UX-141",
+      "title": "Externalize UI strings",
+      "section": "15-internationalization",
+      "action": "Keep user-facing copy out of code and use translation keys with context.",
+      "verify": "Text can be translated without code changes."
+    },
+    {
+      "id": "UX-142",
+      "title": "Use logical CSS properties",
+      "section": "15-internationalization",
+      "action": "Prefer inline-start, inline-end, and writing-direction-aware layout over hard-coded left/right for directional UI.",
+      "verify": "RTL layouts do not require duplicate stylesheets."
+    },
+    {
+      "id": "UX-143",
+      "title": "Mirror directional affordances",
+      "section": "15-internationalization",
+      "action": "Adapt navigation arrows, step sequence, and directional motion where semantics require it; do not mirror brand marks.",
+      "verify": "Back and forward remain intuitive in RTL."
+    },
+    {
+      "id": "UX-144",
+      "title": "Support mixed-script text",
+      "section": "15-internationalization",
+      "action": "Handle Arabic-English mixed labels, phone numbers, codes, and identifiers with controlled bidi isolation.",
+      "verify": "Number and product-name ordering stays correct."
+    },
+    {
+      "id": "UX-145",
+      "title": "Avoid fixed text dimensions",
+      "section": "15-internationalization",
+      "action": "Expect expansion and different glyph metrics across languages.",
+      "verify": "Long translations do not clip controls."
+    },
+    {
+      "id": "UX-146",
+      "title": "Localize data formats",
+      "section": "15-internationalization",
+      "action": "Apply locale rules for numbers, money, dates, calendar systems if relevant, and pluralization.",
+      "verify": "Screen examples display correct regional conventions."
+    },
+    {
+      "id": "UX-147",
+      "title": "Choose language deliberately",
+      "section": "15-internationalization",
+      "action": "Detect preference cautiously, allow explicit switching, and preserve language choice.",
+      "verify": "Users can override automatic language detection."
+    },
+    {
+      "id": "UX-148",
+      "title": "Respect regional address forms",
+      "section": "15-internationalization",
+      "action": "Adapt state/province, postal code, and phone structure instead of hard-coded US assumptions.",
+      "verify": "Users can submit valid local information."
+    },
+    {
+      "id": "UX-149",
+      "title": "Test fonts and diacritics",
+      "section": "15-internationalization",
+      "action": "Verify script coverage, line height, truncation, and glyph rendering in multilingual themes.",
+      "verify": "Arabic diacritics and long names are legible."
+    },
+    {
+      "id": "UX-150",
+      "title": "Keep translations contextual",
+      "section": "15-internationalization",
+      "action": "Review verbs, error messages, and cultural metaphors for local meaning, not word-for-word equivalence.",
+      "verify": "Native-language reviewers understand the intended action."
+    },
+    {
+      "id": "UX-151",
+      "title": "Create scenario coverage",
+      "section": "16-qa-measurement",
+      "action": "Test the happy path plus empty, error, pending, disabled, interrupted, and permission-denied states.",
+      "verify": "Each crucial flow has a documented scenario matrix."
+    },
+    {
+      "id": "UX-152",
+      "title": "Test representative viewports",
+      "section": "16-qa-measurement",
+      "action": "Review narrow phone, large phone, tablet, and desktop dimensions relevant to the product.",
+      "verify": "Breakpoint transitions show no visual regressions."
+    },
+    {
+      "id": "UX-153",
+      "title": "Use realistic fixture data",
+      "section": "16-qa-measurement",
+      "action": "Include long names, high totals, zero records, large lists, and slow responses.",
+      "verify": "Layout and behavior survive edge-case content."
+    },
+    {
+      "id": "UX-154",
+      "title": "Check keyboard workflows",
+      "section": "16-qa-measurement",
+      "action": "Complete the primary journey with Tab, Shift+Tab, Enter, Space, and Escape where appropriate.",
+      "verify": "No keyboard trap or invisible focus remains."
+    },
+    {
+      "id": "UX-155",
+      "title": "Run automated accessibility scans",
+      "section": "16-qa-measurement",
+      "action": "Use existing lint and accessibility test tools as a first pass, then do manual checks.",
+      "verify": "No unsupported claim of full accessibility compliance is made."
+    },
+    {
+      "id": "UX-156",
+      "title": "Test real performance",
+      "section": "16-qa-measurement",
+      "action": "Use a throttled network and constrained CPU/device for critical flows.",
+      "verify": "Interaction feedback remains responsive under stress."
+    },
+    {
+      "id": "UX-157",
+      "title": "Compare before and after",
+      "section": "16-qa-measurement",
+      "action": "Capture stable screenshots or behavioral recordings of changed areas when tools permit.",
+      "verify": "Review shows meaningful difference without unintended drift."
+    },
+    {
+      "id": "UX-158",
+      "title": "Document design decisions",
+      "section": "16-qa-measurement",
+      "action": "Record chosen patterns, alternatives, tradeoffs, and exceptions concisely.",
+      "verify": "Future engineers can understand why decisions were made."
+    },
+    {
+      "id": "UX-159",
+      "title": "Measure experiments responsibly",
+      "section": "16-qa-measurement",
+      "action": "Define hypothesis, population, primary metric, guardrails, and stopping rules before A/B testing.",
+      "verify": "Results are not interpreted from vanity metrics."
+    },
+    {
+      "id": "UX-160",
+      "title": "Report honest completion",
+      "section": "16-qa-measurement",
+      "action": "Distinguish shipped changes, recommendations, executed tests, blocked tests, and remaining risks.",
+      "verify": "Stakeholders know exactly what was verified."
+    }
+  ]
+}

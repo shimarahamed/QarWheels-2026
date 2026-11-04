@@ -3,7 +3,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
   ActivityIndicator, Keyboard, KeyboardAvoidingView,
-  Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, type TextInputInstance, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors } from '@/lib/store';
@@ -33,7 +33,7 @@ export default function ApplyCouponScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CouponResult | null>(null);

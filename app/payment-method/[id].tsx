@@ -3,7 +3,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
   Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable,
-  ScrollView, StyleSheet, Text, TextInput, View,
+  ScrollView, StyleSheet, Text, TextInput, type TextInputInstance, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors, useQarWheelStore } from '@/lib/store';
@@ -148,9 +148,9 @@ export default function PaymentMethodScreen() {
   const [saveCard, setSaveCard] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  const expiryRef = useRef<TextInput>(null);
-  const cvcRef = useRef<TextInput>(null);
-  const nameRef = useRef<TextInput>(null);
+  const expiryRef = useRef<TextInputInstance>(null);
+  const cvcRef = useRef<TextInputInstance>(null);
+  const nameRef = useRef<TextInputInstance>(null);
 
   const brand = detectCardBrand(cardNumber);
   const brandIcon = brand === 'visa' ? 'card' : brand === 'mastercard' ? 'card-outline' : 'card';

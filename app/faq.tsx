@@ -29,7 +29,7 @@ const FAQ_DATA: FaqCategory[] = [
     items: [
       { q: 'When am I charged?', a: 'Payment is collected when the service is marked complete by the garage. For prepaid bookings, the hold is placed at booking time and captured at completion.' },
       { q: 'How do refunds work?', a: 'Refunds for cancelled bookings within policy are processed within 3–5 business days to your original payment method.' },
-      { q: 'Can I pay at the garage?', a: 'Yes, many garages accept cash or card on-site. Select "Pay at garage" during checkout. Note: some express-lane slots are prepaid only.' },
+      { q: 'Can I pay at the garage?', a: 'Select "Pay at garage" during checkout. Confirm accepted payment methods and the final price directly with the garage.' },
       { q: 'Are coupons stackable?', a: 'Only one coupon can be applied per booking. Coupons cannot be combined with promotional prices already showing on a service.' },
     ],
   },
@@ -45,8 +45,8 @@ const FAQ_DATA: FaqCategory[] = [
     label: 'Account & Security', icon: 'shield-checkmark-outline',
     items: [
       { q: 'How do I change my password?', a: 'Go to Profile → Settings → Change password. You\'ll receive a reset link by email.' },
-      { q: 'Is my payment data safe?', a: 'QarWheel uses Tap Payments for tokenisation. We never store raw card numbers on our servers.' },
-      { q: 'How do I delete my account?', a: 'Contact support via the Help Center. Account deletion removes your data within 30 days, subject to legal retention requirements.' },
+      { q: 'Can I pay in the app?', a: 'Online card payments are not available yet. Confirm the price with the garage and pay using its supported methods. Do not enter card details into a message.' },
+      { q: 'How do I delete my account?', a: 'Open Account, then Notifications & privacy, and choose Delete my account. You can review what will be removed before confirming.' },
     ],
   },
 ];
