@@ -14,7 +14,7 @@ const chartConfig = {
 
 
 export function PeakHoursChart({ timeRange }: { timeRange: string }) {
-    const [data, setData] = useState<any[]>([]);
+    const [data, setData] = useState<typeof mockAnalyticsData.peakHours>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {

@@ -25,7 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAdmin } from '@/components/admin/admin-provider';
 import { AuditDiff } from '@/components/admin/audit-diff';
 import {
-  ROLE_LABELS, branchStatusBadge, businessStatusBadge, formatDate, formatDateTime, kycBadge,
+  ROLE_LABELS, businessStatusBadge, formatDate, formatDateTime, kycBadge,
 } from '@/components/admin/admin-format';
 import { isBusinessWideRole } from '@/lib/auth/permissions';
 import type {

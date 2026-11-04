@@ -73,7 +73,7 @@ export default function AdminBookingsPage() {
   const bookingsQuery = useMemoFirebase(() => query(collection(firestore, "bookings")), [firestore]);
   const usersQuery = useMemoFirebase(() => query(collection(firestore, "users")), [firestore]);
   const { data: bookings, isLoading: loadingBookings } = useCollection<WithId<Booking>>(bookingsQuery);
-  const { data: users, isLoading: loadingUsers } = useCollection<WithId<UserProfile>>(usersQuery);
+  const { data: users } = useCollection<WithId<UserProfile>>(usersQuery);
 
   const usersMap = useMemo(() => {
     const map: Record<string, WithId<UserProfile>> = {};

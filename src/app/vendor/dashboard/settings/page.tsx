@@ -163,7 +163,7 @@ export default function VendorSettingsPage() {
                 <Card className="rounded-2xl border bg-card shadow-sm">
                     <CardHeader>
                         <CardTitle>Business Profile</CardTitle>
-                        <CardDescription>This information will be displayed publicly on your garage's page.</CardDescription>
+                        <CardDescription>This information will be displayed publicly on your garage&apos;s page.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">

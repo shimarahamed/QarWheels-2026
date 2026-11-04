@@ -164,17 +164,22 @@ export function EditBookingForm({
             render={({ field }) => (
               <Select
                 onValueChange={(val) => {
-                  field.onChange(val);
-                  const member = activeStaff.find((s) => s.id === val);
+                  // Radix Select.Item forbids value="" (reserved to mean
+                  // "clear and show the placeholder"), so the unassign
+                  // option uses this sentinel and is translated back to the
+                  // form's own '' representation here.
+                  const resolved = val === 'unassigned' ? '' : val;
+                  field.onChange(resolved);
+                  const member = activeStaff.find((s) => s.id === resolved);
                   setValue('assignedStaffName', member?.displayName || '');
                 }}
-                value={field.value}
+                value={field.value || 'unassigned'}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Unassigned" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Unassigned</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
                   {activeStaff.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.displayName} — {s.role}

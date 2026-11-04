@@ -45,6 +45,18 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${fontBody.variable} ${fontHeadline.variable}`} suppressHydrationWarning>
       <head>
+        {/* Material Symbols isn't in next/font/google's icon-font list, so
+            it's loaded the way Google's own embed docs recommend — a
+            preconnect + stylesheet link in <head> — rather than the CSS
+            @import in globals.css this replaces, which left the icon
+            ligature text (e.g. "search") showing instead of the glyph. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* eslint-disable-next-line @next/next/no-page-custom-font, @next/next/google-font-display -- Material Symbols is an icon font loaded globally, with block preventing ligature text flashes. */}
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
+        />
         {/* Inline script prevents theme flash before React hydrates */}
         <script
           key="theme-init"

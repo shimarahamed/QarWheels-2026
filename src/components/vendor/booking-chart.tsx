@@ -14,7 +14,7 @@ const chartConfig = {
 
 
 export function BookingChart({ timeRange }: { timeRange: string }) {
-    const [data, setData] = useState<any[]>([]);
+    const [data, setData] = useState<typeof mockAnalyticsData.bookings>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {

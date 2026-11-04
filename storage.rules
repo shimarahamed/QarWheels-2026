@@ -6,13 +6,10 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    // roles_admin is the durable source of truth for master_admin — see the
-    // matching comment in firestore.rules. The doc-existence fallback here
-    // is required for the same staleness-window reason, not a legacy path.
+    // The current admin record, not a possibly stale ID-token claim, grants access.
     function isAdmin() {
       return isSignedIn()
-        && (('qw' in request.auth.token && request.auth.token.qw.r == 'master_admin')
-            || firestore.exists(/databases/(default)/documents/roles_admin/$(request.auth.uid)));
+        && firestore.exists(/databases/(default)/documents/roles_admin/$(request.auth.uid));
     }
 
     function isOwner(uid) {
@@ -35,16 +32,21 @@ service firebase.storage {
       return isSignedIn() && 'qw' in request.auth.token && request.auth.token.qw.b == businessId;
     }
 
+    function canManageKyc(businessId) {
+      return isBusinessMember(businessId)
+        && request.auth.token.qw.r in ['business_owner', 'vendor_admin'];
+    }
+
     // ─── KYC documents ────────────────────────────────────────────────────────
     // Uploaded by mobile/app/vendor/kyc.tsx to kyc/{businessId}/doc_*.{ext}.
     // Only a member of that business (during submission) and admins (during
     // review) may read or write — no public access, since these are
     // compliance documents.
     match /kyc/{businessId}/{fileName} {
-      allow read: if isBusinessMember(businessId) || isAdmin();
+      allow read: if canManageKyc(businessId) || isAdmin();
       // Business members upload their own docs (bounded size/type); admins
       // never need to write here — review is read-only.
-      allow write: if isBusinessMember(businessId)
+      allow write: if canManageKyc(businessId)
         && (request.resource.size < 20 * 1024 * 1024)
         && (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/pdf');
     }

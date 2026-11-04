@@ -3,6 +3,7 @@ import { ok, Errors } from '@/lib/api-response';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { requireAction } from '@/lib/auth/require-role';
 import { ensureConnectAccount, sendPayout } from '@/lib/payments';
+import { claimPayoutTransactions } from '@/lib/payout-claims';
 import { writeAuditLog } from '@/lib/audit';
 import { isRateLimited, API_LIMITS, getRateLimitKey } from '@/lib/rate-limit';
 import { trackApiError, trackRateLimit } from '@/lib/observability';
@@ -43,14 +44,22 @@ export async function POST(request: NextRequest) {
       return Errors.badRequest('Your business must complete KYC verification before requesting a payout');
     }
 
-    const settledSnap = await db.collection('transactions')
+    const settledQuery = db.collection('transactions')
       .where('businessId', '==', businessId)
       .where('status', '==', 'Settled')
-      .get();
-
-    const available = settledSnap.docs
-      .map((d) => ({ id: d.id, ...(d.data() as Transaction) }))
-      .filter((t) => !t.payoutId);
+      .limit(200);
+    const available: (Transaction & { id: string })[] = [];
+    let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+    while (available.length < 200) {
+      const page = await (cursor ? settledQuery.startAfter(cursor) : settledQuery).get();
+      for (const document of page.docs) {
+        const transaction = document.data() as Transaction;
+        if (!transaction.payoutId) available.push({ ...transaction, id: document.id });
+        if (available.length === 200) break;
+      }
+      if (page.empty || page.size < 200) break;
+      cursor = page.docs[page.docs.length - 1];
+    }
 
     if (available.length === 0) {
       return Errors.badRequest('There are no settled transactions available to pay out');
@@ -91,14 +100,7 @@ export async function POST(request: NextRequest) {
       updatedAt: now,
     };
 
-    // Claim the transactions and create the payout together, so a
-    // concurrent second request can't pay the same transactions twice.
-    const batch = db.batch();
-    batch.set(payoutRef, payout);
-    for (const t of available) {
-      batch.update(db.collection('transactions').doc(t.id), { payoutId: payoutRef.id });
-    }
-    await batch.commit();
+    await claimPayoutTransactions(db, payoutRef, payout);
 
     const transfer = await sendPayout({
       businessId,
@@ -136,6 +138,9 @@ export async function POST(request: NextRequest) {
       paymentsLive: transfer.live,
     });
   } catch (error) {
+    if (error instanceof Error && error.message === 'PAYOUT_ALREADY_CLAIMED') {
+      return Errors.badRequest('These transactions were claimed by another payout. Please refresh and retry.');
+    }
     trackApiError('/api/vendor/payouts/request', error);
     return Errors.serverError();
   }

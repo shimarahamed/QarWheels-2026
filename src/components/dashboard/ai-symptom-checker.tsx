@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import {
   Sparkles,
   Send,
@@ -193,16 +194,16 @@ export function AISymptomChecker({ car }: Props) {
 
             <div className="grid gap-2 sm:grid-cols-2">
               <Button asChild className="w-full rounded-xl bg-primary shadow-lg shadow-primary/20">
-                <a href="/dashboard/garages">
+                <Link href="/dashboard/garages">
                   <Wrench className="mr-2 h-4 w-4" />
                   Book Recommended Service
-                </a>
+                </Link>
               </Button>
               <Button asChild variant="outline" className="w-full rounded-xl">
-                <a href="/dashboard/ai-mechanic">
+                <Link href="/dashboard/ai-mechanic">
                   <Sparkles className="mr-2 h-4 w-4" />
                   Ask a Follow-up
-                </a>
+                </Link>
               </Button>
             </div>
           </div>

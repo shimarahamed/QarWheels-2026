@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useFirebase, useDoc, useCollection, useMemoFirebase, safeAddDoc } from '@/firebase';
+import { useFirebase, useDoc, useCollection, useMemoFirebase, safeSetDoc } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
 import type { Branch, Service, Review, Promotion, Booking, WithId } from '@/lib/types';
 import { Star, MapPin, Phone, Globe, Wrench, MessageSquare, Loader2, ArrowLeft, AlertTriangle, Percent, Tag, Send, Heart, LogIn } from 'lucide-react';
@@ -120,7 +120,7 @@ function WriteReviewCard({ garageId, businessId }: { garageId: string; businessI
     if (!user || !completedBookings || rating < 1 || comment.trim().length < 10) return;
     setIsSubmitting(true);
     try {
-      await safeAddDoc(collection(firestore, 'reviews'), {
+      await safeSetDoc(doc(firestore, 'reviews', completedBookings[0].id), {
         businessId,
         branchId: garageId,
         bookingId: completedBookings[0].id,
@@ -130,7 +130,7 @@ function WriteReviewCard({ garageId, businessId }: { garageId: string; businessI
         comment: comment.trim(),
         service: completedBookings[0].serviceName,
         date: new Date().toISOString(),
-      });
+      }, { merge: false });
       toast({ title: 'Review submitted', description: 'Thanks for sharing your feedback!' });
       setSubmitted(true);
     } catch (e) {
@@ -184,8 +184,8 @@ export default function PublicGarageDetailsPage() {
     const promotionsRef = useMemoFirebase(() => garageId ? query(collection(firestore, 'branch_promotions'), where('branchIds', 'array-contains', garageId)) : null, [firestore, garageId]);
 
     const { data: garage, isLoading: isLoadingGarage, error: garageError } = useDoc<WithId<Branch>>(garageRef);
-    const { data: services, isLoading: isLoadingServices, error: servicesError } = useCollection<WithId<Service>>(servicesRef);
-    const { data: reviews, isLoading: isLoadingReviews, error: reviewsError } = useCollection<WithId<Review>>(reviewsRef);
+    const { data: services, isLoading: isLoadingServices } = useCollection<WithId<Service>>(servicesRef);
+    const { data: reviews } = useCollection<WithId<Review>>(reviewsRef);
     const { data: allPromotions } = useCollection<WithId<Promotion>>(promotionsRef);
 
     const now = new Date();

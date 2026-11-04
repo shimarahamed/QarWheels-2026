@@ -126,6 +126,7 @@ export default function VendorInventoryPage() {
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<WithId<InventoryItem> | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [search, setSearch] = useState("");
     const { toast } = useToast();
 
     // Must filter on both businessId and branchId — firestore.rules'
@@ -147,6 +148,15 @@ export default function VendorInventoryPage() {
 
     const lowStockCount = (inventory ?? []).filter((item) => item.stock < 10).length;
     const stockValue = (inventory ?? []).reduce((sum, item) => sum + (item.price ?? 0) * (item.stock ?? 0), 0);
+    const lowestStockItem = (inventory ?? [])
+      .filter((item) => item.stock < 10)
+      .sort((a, b) => a.stock - b.stock)[0];
+
+    const visibleInventory = (inventory ?? []).filter((item) => {
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      return item.name.toLowerCase().includes(q) || item.sku.toLowerCase().includes(q) || item.supplier.toLowerCase().includes(q);
+    });
 
     const handleRowClick = (item: WithId<InventoryItem>) => {
         setSelectedItem(item);
@@ -213,15 +223,27 @@ export default function VendorInventoryPage() {
           }
         />
 
-        {lowStockCount > 0 && (
-          <div className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
-            <span className="icon-pill h-8 w-8 shrink-0 bg-destructive/10 text-destructive">
-              <MaterialIcon name="warning" className="text-base" filled />
-            </span>
-            <p className="text-sm">
-              <span className="font-bold text-destructive">{lowStockCount} item{lowStockCount === 1 ? '' : 's'}</span>{' '}
-              <span className="text-muted-foreground">running low on stock (fewer than 10 units).</span>
-            </p>
+        {lowStockCount > 0 && lowestStockItem && (
+          <div className="flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <span className="icon-pill h-9 w-9 shrink-0 bg-destructive/10 text-destructive">
+                <MaterialIcon name="priority_high" className="text-base" filled />
+              </span>
+              <div>
+                <p className="text-sm">
+                  <span className="font-bold text-destructive">{lowStockCount} item{lowStockCount === 1 ? '' : 's'}</span>{' '}
+                  <span className="text-muted-foreground">running low on stock (fewer than 10 units).</span>
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Lowest: <span className="font-semibold text-foreground">{lowestStockItem.name}</span> — only{' '}
+                  <span className="kpi-number font-bold text-destructive">{lowestStockItem.stock}</span> left · SKU {lowestStockItem.sku}
+                </p>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" className="shrink-0 gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10" onClick={() => handleRowClick(lowestStockItem)}>
+              <MaterialIcon name="edit" className="text-sm" />
+              Restock now
+            </Button>
           </div>
         )}
 
@@ -246,9 +268,20 @@ export default function VendorInventoryPage() {
           />
         </StatCardGrid>
         <Card className="overflow-hidden rounded-xl border bg-card shadow-sm">
-            <CardHeader>
-                <CardTitle className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">Stock Ledger</CardTitle>
-                <CardDescription>A list of all parts and supplies in your inventory.</CardDescription>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">Stock Ledger</CardTitle>
+                  <CardDescription>A list of all parts and supplies in your inventory.</CardDescription>
+                </div>
+                <div className="relative w-full sm:w-64">
+                  <MaterialIcon name="search" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-base text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Filter by name, SKU, or supplier…"
+                    className="pl-9"
+                  />
+                </div>
             </CardHeader>
           <CardContent>
             <Table>
@@ -275,7 +308,7 @@ export default function VendorInventoryPage() {
                         <TableCell className="text-right"><Skeleton className="h-8 w-8"/></TableCell>
                     </TableRow>
                 ))}
-                {!isLoading && inventory && inventory.map((item) => (
+                {!isLoading && inventory && visibleInventory.map((item) => (
                   <TableRow key={item.id} onClick={() => handleRowClick(item)} className="cursor-pointer">
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell className="hidden sm:table-cell font-mono text-xs">{item.sku}</TableCell>
@@ -311,7 +344,7 @@ export default function VendorInventoryPage() {
                 ))}
               </TableBody>
             </Table>
-            {!isLoading && (!inventory || inventory.length === 0) && (
+            {!isLoading && inventory && inventory.length === 0 && (
               <EmptyState
                 icon={<MaterialIcon name="inventory_2" className="text-3xl" />}
                 title="Your inventory is empty"
@@ -324,7 +357,19 @@ export default function VendorInventoryPage() {
                 }
               />
             )}
+            {!isLoading && inventory && inventory.length > 0 && visibleInventory.length === 0 && (
+              <EmptyState
+                icon={<MaterialIcon name="search" className="text-3xl" />}
+                title="No items match your search"
+                description="Try a different name, SKU, or supplier."
+              />
+            )}
           </CardContent>
+          {!isLoading && inventory && inventory.length > 0 && (
+            <div className="flex items-center justify-between border-t px-6 py-3 text-xs text-muted-foreground">
+              <span>Showing {visibleInventory.length} of {inventory.length} items</span>
+            </div>
+          )}
         </Card>
         
         <Dialog open={isFormOpen} onOpenChange={(open) => {if(!open) setSelectedItem(null); setIsFormOpen(open)}}>

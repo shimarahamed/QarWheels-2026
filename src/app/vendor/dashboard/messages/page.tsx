@@ -16,7 +16,7 @@ export default function VendorMessagesPage() {
   // Conversations are addressed to the BRANCH, not to an individual staff
   // member — anyone with access to the branch sees the same inbox.
   const participantId = activeBranch?.id ?? null;
-  const { data: conversations, isLoading } = useConversations(participantId);
+  const { data: conversations, isLoading } = useConversations(participantId, 'vendor');
   const [active, setActive] = useState<WithId<Conversation> | null>(null);
 
   const activeConversation = active

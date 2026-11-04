@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useUser } from '@/firebase';
-import type { Membership, MembershipRole, MembershipStatus, WithId } from '@/lib/types';
+import type { Membership, WithId } from '@/lib/types';
 
 export type StaffRosterEntry = WithId<
   Pick<Membership, 'userId' | 'displayName' | 'role' | 'status' | 'branchIds'>

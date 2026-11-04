@@ -1,6 +1,7 @@
 'use client';
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -16,6 +17,7 @@ import { MaterialIcon } from "@/components/ui/material-icon";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { PageHeader } from "@/components/ui/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/hooks/use-toast";
@@ -31,6 +33,86 @@ import {
   EditBookingForm,
   type EditBookingValues,
 } from "@/components/vendor/bookings/edit-booking-form";
+
+function toBookingDate(value: Booking['bookingDate']) {
+    return value instanceof Timestamp ? value.toDate() : new Date(value);
+}
+
+/**
+ * Groups today's/upcoming in-flight bookings by technician so the shape of
+ * the day is visible at a glance — the mockups asked for a bay-schedule
+ * Gantt, but bookings have no real bay/slot field, so this groups by
+ * `assignedStaffName` instead (the one real "who's working on what, when"
+ * axis this data actually has). Unassigned jobs get their own lane.
+ */
+function BookingTimelineView({ bookings, isLoading }: { bookings: WithId<Booking>[] | null | undefined; isLoading: boolean }) {
+    if (isLoading) {
+        return (
+            <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-48 rounded-xl" />)}
+            </div>
+        );
+    }
+
+    const inFlight = (bookings ?? [])
+        .filter((b) => !['Completed', 'Cancelled', 'Declined', 'NoShow'].includes(b.status))
+        .sort((a, b) => toBookingDate(a.bookingDate).getTime() - toBookingDate(b.bookingDate).getTime());
+
+    if (inFlight.length === 0) {
+        return (
+            <div className="p-2 sm:p-4">
+                <EmptyState
+                    icon={<MaterialIcon name="view_timeline" className="text-3xl" />}
+                    title="Nothing on the schedule"
+                    description="Jobs land here once they're confirmed and in progress."
+                />
+            </div>
+        );
+    }
+
+    const lanes = new Map<string, WithId<Booking>[]>();
+    for (const booking of inFlight) {
+        const key = booking.assignedStaffName || 'Unassigned';
+        if (!lanes.has(key)) lanes.set(key, []);
+        lanes.get(key)!.push(booking);
+    }
+    // Unassigned last — technicians with real names lead the board.
+    const sortedLanes = [...lanes.entries()].sort(([a], [b]) => {
+        if (a === 'Unassigned') return 1;
+        if (b === 'Unassigned') return -1;
+        return a.localeCompare(b);
+    });
+
+    return (
+        <div className="grid gap-3 p-2 sm:p-4 sm:grid-cols-2 lg:grid-cols-3">
+            {sortedLanes.map(([name, jobs]) => (
+                <div key={name} className="flex flex-col gap-2 rounded-xl border bg-background/60 p-3">
+                    <div className="flex items-center gap-2 border-b pb-2">
+                        <span className="icon-pill h-7 w-7 shrink-0 bg-primary/10 text-primary">
+                            <MaterialIcon name={name === 'Unassigned' ? 'person_off' : 'engineering'} className="text-sm" />
+                        </span>
+                        <p className="truncate text-sm font-bold">{name}</p>
+                        <span className="kpi-number ml-auto shrink-0 text-xs text-muted-foreground">{jobs.length}</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        {jobs.map((job) => (
+                            <div key={job.id} className="rounded-lg border border-border/60 bg-card px-2.5 py-2">
+                                <div className="flex items-center justify-between gap-2">
+                                    <p className="truncate text-xs font-semibold">{job.serviceName}</p>
+                                    <StatusBadge status={job.status} className="shrink-0 px-1.5 py-0.5 text-[9px]" />
+                                </div>
+                                <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+                                    <MaterialIcon name="schedule" className="text-xs" />
+                                    {format(toBookingDate(job.bookingDate), 'MMM d, h:mm a')}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
 
 function BookingsTable({ bookings, onEditClick, onDeleteClick, isLoading }: { bookings: WithId<Booking>[] | null | undefined, onEditClick: (booking: WithId<Booking>) => void, onDeleteClick: (booking: WithId<Booking>) => void, isLoading: boolean }) {
     if (isLoading) {
@@ -146,6 +228,7 @@ export default function VendorBookingsPage() {
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [selectedBooking, setSelectedBooking] = useState<WithId<Booking> | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [view, setView] = useState<'table' | 'timeline'>('table');
 
     const handleEditClick = (booking: WithId<Booking>) => {
         setSelectedBooking(booking);
@@ -256,6 +339,28 @@ export default function VendorBookingsPage() {
         icon={<MaterialIcon name="auto_awesome" className="text-sm" />}
         title="Bookings, ready for the workshop floor."
         description="Track incoming jobs, close completed work, update costs, and keep your service pipeline tidy."
+        action={
+          <div className="flex items-center gap-0.5 rounded-lg bg-muted p-1">
+            <Button
+              size="sm"
+              variant={view === 'table' ? 'default' : 'ghost'}
+              className="h-7 gap-1.5 px-2.5 text-xs"
+              onClick={() => setView('table')}
+            >
+              <MaterialIcon name="table_rows" className="text-sm" />
+              Table
+            </Button>
+            <Button
+              size="sm"
+              variant={view === 'timeline' ? 'default' : 'ghost'}
+              className="h-7 gap-1.5 px-2.5 text-xs"
+              onClick={() => setView('timeline')}
+            >
+              <MaterialIcon name="view_timeline" className="text-sm" />
+              Timeline
+            </Button>
+          </div>
+        }
       />
 
       <StatCardGrid>
@@ -284,6 +389,13 @@ export default function VendorBookingsPage() {
         />
       </StatCardGrid>
 
+      {view === 'timeline' ? (
+        <Card className="overflow-hidden rounded-xl border bg-card shadow-sm">
+          <CardContent className="p-0">
+            <BookingTimelineView bookings={bookings} isLoading={isLoading} />
+          </CardContent>
+        </Card>
+      ) : (
       <Card className="overflow-hidden rounded-xl border bg-card shadow-sm">
           <CardContent className="p-0">
           <Tabs defaultValue="pending">
@@ -321,6 +433,7 @@ export default function VendorBookingsPage() {
           </Tabs>
           </CardContent>
       </Card>
+      )}
 
       <Dialog open={isFormOpen} onOpenChange={(open) => { if(!open) setSelectedBooking(null); setIsFormOpen(open);}}>
           <DialogContent className="sm:max-w-lg">

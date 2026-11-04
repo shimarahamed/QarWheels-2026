@@ -56,7 +56,7 @@ type UseCollectionOptions = {
  * The Firestore CollectionReference or Query. Waits if null/undefined.
  * @returns {UseCollectionResult<T>} Object with data, isLoading, error.
  */
-export function useCollection<T = any>(
+export function useCollection<T = DocumentData>(
     memoizedTargetRefOrQuery: CollectionReference<DocumentData> | Query<DocumentData> | null | undefined,
     options: UseCollectionOptions = {},
 ): UseCollectionResult<T> {
@@ -118,7 +118,6 @@ export function useCollection<T = any>(
     );
 
     return () => unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memoizedTargetRefOrQuery, options.suppressPermissionError]); // Re-run if the target query/reference changes.
   
   return { data, isLoading, error };

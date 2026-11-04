@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo, useEffect } from "react";
-import { collection, doc, getDocs, query, serverTimestamp } from "firebase/firestore";
-import { format, parseISO, isAfter, isBefore } from "date-fns";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { collection, doc, getDocs, query } from "firebase/firestore";
+import { format, parseISO } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import * as z from "zod";
@@ -13,7 +13,6 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -99,7 +98,7 @@ export default function AdminPromotionsPage() {
 
   // Promotions are a single flat collection now, so one read replaces the old
   // per-vendor subcollection fan-out; branch names come from the branches list.
-  async function fetchPromos() {
+  const fetchPromos = useCallback(async () => {
     setLoading(true);
     const branchNames = new Map((vendors || []).map((v) => [v.id, v.name]));
     try {
@@ -121,9 +120,9 @@ export default function AdminPromotionsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [vendors, firestore, usedCodes]);
 
-  useEffect(() => { fetchPromos(); }, [vendors, firestore, usedCodes]);
+  useEffect(() => { void fetchPromos(); }, [fetchPromos]);
 
   const enriched = useMemo(() => promos.map(p => ({ ...p, computedStatus: computeStatus(p) })), [promos]);
 

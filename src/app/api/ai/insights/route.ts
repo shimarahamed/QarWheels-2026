@@ -4,11 +4,12 @@ import { ok, Errors } from '@/lib/api-response';
 import { isRateLimited, AI_LIMITS, getRateLimitKey } from '@/lib/rate-limit';
 import { trackApiError, trackRateLimit } from '@/lib/observability';
 import { getVendorBusinessInsights } from '@/ai/flows/vendor-business-insights';
-import { getVerifiedUserFromRequest } from '@/lib/firebase-auth';
+import { requireSection } from '@/lib/auth/require-role';
 
 export async function POST(request: NextRequest) {
-  const user = await getVerifiedUserFromRequest(request);
-  if (!user) return Errors.unauthorized();
+  const access = await requireSection(request, 'analytics');
+  if (!access.ok) return access.reason === 'unauthenticated' ? Errors.unauthorized() : Errors.forbidden();
+  const { user } = access.auth;
 
   const rateLimitKey = await getRateLimitKey('ai:insights', user.uid);
   if (await isRateLimited(rateLimitKey, AI_LIMITS.insights)) {

@@ -1,0 +1,51 @@
+/* Arrow-free navigation; preserve the visual weight of text-only actions. */
+.button{justify-content:center;gap:0}
+.text-link{justify-content:center;gap:0;padding:12px 20px;border:1px solid #d6d9df;border-radius:100px;background:#fff;color:#171717;min-height:46px}
+.text-link:hover{background:#eceef2;color:#171717}
+.hero-aside .text-link{padding:12px 20px;border:1px solid #d6d9df}
+.feature-reverse .text-link,.final .text-link{background:transparent;border:1px solid #ffffff70;color:#fff}
+.feature-reverse .text-link:hover,.final .text-link:hover{background:#ffffff15;color:#fff}
+html:not([data-theme=light]) .text-link{background:#282c34;color:#f1f2f4;border:1px solid #515763}
+html:not([data-theme=light]) .text-link:hover{background:#363c46;color:#fff}
+html:not([data-theme=light]) .final .text-link{background:transparent;border-color:#ffffff70;color:#fff}
+html:not([data-theme=light]) .final .text-link:hover{background:#ffffff15}
+.hero-app-link>span:last-child{margin-inline-start:0;font-size:14px}
+.chapter-nav a>span:first-child{margin-inline-start:0;color:var(--accent-text,#c70600);font-size:11px}
+.theme-toggle{min-width:48px;min-height:44px;padding:8px 10px;border-radius:22px;border:1px solid var(--line);background:transparent;color:inherit;font-size:12px}
+.app-information{padding-block:85px}.information-intro{max-width:920px}.information-intro h2{font-size:clamp(36px,4.5vw,64px);margin-bottom:26px}.information-intro>p:last-child{max-width:630px}
+.information-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:30px;margin-top:48px}.service-information,.download-information{padding:36px;border-radius:30px;background:#fff;border:1px solid var(--line)}
+.information-grid h3{font-size:30px;margin-bottom:20px}.service-information>p{font-size:15px}.service-information ul{list-style:none;padding:0;margin:26px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:18px}.service-information li{display:flex;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:14px;font-size:14px}.service-information li span{font-size:10px;color:var(--accent-text,#c70600)}
+.download-information>img{padding:8px;background:#fff;border-radius:18px;margin-bottom:25px;object-fit:contain}.store-options{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:24px 0}.store-option{padding:18px;border:1px solid var(--line);border-radius:20px;display:flex;flex-direction:column;gap:8px;text-align:start;background:#f5f5f5}.store-option span{font-size:11px}.store-option strong{font-size:21px;font-weight:550;letter-spacing:-.03em;text-align:start}.store-option small{font-size:11px;color:var(--gray);line-height:1.5}.store-note{font-size:12px;line-height:1.6}
+.faq-layout{display:grid;grid-template-columns:1fr 1.3fr;gap:60px;margin-top:80px}.faq-layout h2{font-size:clamp(32px,3vw,44px);max-width:350px}.faq-layout details{border-bottom:1px solid var(--line);padding:22px 0}.faq-layout summary{font-size:18px;font-weight:500;cursor:pointer;list-style:none;line-height:1.5}.faq-layout summary::-webkit-details-marker{display:none}.faq-layout details[open] summary{color:var(--accent-text,#c70600)}.faq-layout details p{font-size:15px;margin-top:18px}.faq-layout summary:focus-visible{outline:3px solid var(--red);outline-offset:8px}
+/* Dark is the default; the light expression remains selectable and persistent. */
+html:not([data-theme=light]){color-scheme:dark;--page:#101114;--surface:#202228;--gray:#bec1c8;--line:#383b43;--ink:#f1f2f4;--accent-text:#ff766c;color:#f1f2f4;background:var(--page)}
+html[data-theme=light]{color-scheme:light}
+html:not([data-theme=light]) .header-inner,html:not([data-theme=light]) .scrolled .header-inner{background:#1d2025ed;border-color:#494c54;box-shadow:inset 0 1px 0 #ffffff12,0 8px 25px #0002}
+html:not([data-theme=light]) .logo{background:#fff;padding:7px 10px;border-radius:15px}html:not([data-theme=light]) .logo img{mix-blend-mode:normal}
+html:not([data-theme=light]) .hero .eyebrow{background:#23262d;border-color:#3d414a;color:#d3d6dc}
+html:not([data-theme=light]) .hero h1 em,html:not([data-theme=light]) .one h2>span,html:not([data-theme=light]) .number{color:var(--accent-text)}
+html:not([data-theme=light]) .chapter-nav{background:#1c1f25;border-color:#343840;box-shadow:inset 0 1px 0 #ffffff0a}
+html:not([data-theme=light]) .feature{background:#1b1e24;border-color:#343840;box-shadow:none}
+html:not([data-theme=light]) .feature-reverse{background:#15171c}
+html:not([data-theme=light]) .feature-copy .fineprint,html:not([data-theme=light]) .inner-hero>.eyebrow,html:not([data-theme=light]) .hero-partner>span{color:#adb3bd}
+html:not([data-theme=light]) .tracking,html:not([data-theme=light]) .how{background:#242830;border-color:#454a54}
+html:not([data-theme=light]) .repair,html:not([data-theme=light]) .steps article{background:#191c22;border-color:#414650;box-shadow:inset 0 1px 0 #ffffff0b}
+html:not([data-theme=light]) .repair button,html:not([data-theme=light]) .repair .stage-detail{color:#bfc4ce}
+html:not([data-theme=light]) .repair li.passed button{color:#fff}
+html:not([data-theme=light]) .passport-record{background:#252932;border-color:#454b57}
+html:not([data-theme=light]) .passport-record>div,html:not([data-theme=light]) .passport-name{border-color:#464c57}
+html:not([data-theme=light]) .record-note,html:not([data-theme=light]) .stage-n{color:#b1b7c1}
+html:not([data-theme=light]) .button-dark{background:#f2f3f5;color:#15171a}
+html:not([data-theme=light]) .button-white{color:#15171a}
+html:not([data-theme=light]) .footer-top>div:not(:first-child)>a,html:not([data-theme=light]) .footer-bottom,html:not([data-theme=light]) .footer-brand>span{color:#bec3cc}
+html:not([data-theme=light]) .download-dialog{background:#22252bf5;color:#fff;border-color:#4a4f5a}
+html:not([data-theme=light]) .dialog-close,html:not([data-theme=light]) .menu-toggle{color:#fff}
+html:not([data-theme=light]) .garage-principles article,html:not([data-theme=light]) .contact-options>div,html:not([data-theme=light]) .service-information,html:not([data-theme=light]) .download-information{background:#1c1f25;border-color:#383d47}
+html:not([data-theme=light]) .contact-message,html:not([data-theme=light]) .store-option{background:#272b33;border-color:#414752}
+html:not([data-theme=light]) .mobile-download{background:#23262de8;border-color:#4a4f5a;box-shadow:inset 0 1px 0 #ffffff20,0 8px 35px #0004}
+/* Product illustrations deliberately retain their light UI in both website themes. */
+.app-screen{--ink:#111;--gray:#606060;color:#111;color-scheme:light}
+html:not([data-theme=light]) .skip{background:#fff;color:#111}
+@media(max-width:1100px){.nav-download{display:none}.header-inner{gap:16px}.nav-actions{gap:12px}}
+@media(max-width:850px){html:not([data-theme=light]) .nav{background:#202329;border-color:#454b55}.faq-layout{grid-template-columns:1fr;gap:22px}.information-grid{grid-template-columns:1fr}}
+@media(max-width:650px){.header-inner{padding-inline:14px;gap:7px}.nav-actions{gap:6px}.theme-toggle{font-size:11px;padding-inline:7px;min-width:42px}.logo{width:120px}.language{padding-inline:6px}.menu-toggle{gap:5px}.app-information{padding-block:55px}.information-grid{gap:18px;margin-top:30px}.service-information,.download-information{padding:25px;border-radius:26px}.service-information li{font-size:12px}.information-grid h3{font-size:27px}.store-option{padding:14px}.store-option strong{font-size:19px}.faq-layout{margin-top:50px}.faq-layout summary{font-size:17px}}

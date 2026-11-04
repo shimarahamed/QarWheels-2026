@@ -4,34 +4,52 @@ import { useCallback } from 'react';
 import {
   collection,
   doc,
+  increment,
   limit,
   orderBy,
   query,
   serverTimestamp,
+  writeBatch,
   where,
-  type Firestore,
 } from 'firebase/firestore';
 import { useCollection, useFirebase, useMemoFirebase, safeAddDoc, safeUpdateDoc } from '@/firebase';
 import type { Conversation, Message, WithId } from '@/lib/types';
 
 /**
- * Conversations for one participant. `participantId` is the customer's uid
- * on the customer side, or a branchId on the vendor side — `participants`
- * holds both, so one array-contains query serves both inboxes.
+ * Conversations for one participant.
+ *
+ * The customer and vendor sides need different filters because the
+ * Firestore rules' `list` check can only be proven against fields the
+ * query itself filters on:
+ *  - Customer side: `participants` holds [customerUid, branchId], and the
+ *    rule's `isConversationParticipant` checks
+ *    `participants.hasAny([request.auth.uid])` — an array-contains query on
+ *    `participants` binds directly to that.
+ *  - Vendor side: the rule instead checks `isMessenger(businessId, branchId)`
+ *    for a vendor participant, which reads `branchId` as a plain field, not
+ *    through `participants`. An array-contains query on `participants`
+ *    doesn't let Firestore relate the filtered value to `convo.branchId`,
+ *    so that query is rejected as unprovable — filtering on the `branchId`
+ *    field directly is what the rule can actually verify.
  */
-export function useConversations(participantId: string | null) {
+export function useConversations(
+  participantId: string | null,
+  as: 'customer' | 'vendor' = 'customer',
+) {
   const { firestore } = useFirebase();
   const conversationsQuery = useMemoFirebase(
     () =>
       participantId
         ? query(
             collection(firestore, 'conversations'),
-            where('participants', 'array-contains', participantId),
+            as === 'vendor'
+              ? where('branchId', '==', participantId)
+              : where('participants', 'array-contains', participantId),
             orderBy('lastMessageAt', 'desc'),
             limit(50),
           )
         : null,
-    [firestore, participantId],
+    [firestore, participantId, as],
   );
   return useCollection<WithId<Conversation>>(conversationsQuery);
 }
@@ -51,24 +69,6 @@ export function useMessages(conversationId: string | null) {
     [firestore, conversationId],
   );
   return useCollection<WithId<Message>>(messagesQuery);
-}
-
-async function bumpConversation(
-  firestore: Firestore,
-  conversationId: string,
-  body: string,
-  senderId: string,
-  recipientId: string,
-  currentUnread: number,
-) {
-  await safeUpdateDoc(doc(firestore, 'conversations', conversationId), {
-    lastMessage: body.slice(0, 140),
-    lastMessageAt: serverTimestamp(),
-    lastMessageBy: senderId,
-    // Only the recipient's counter moves; the sender has obviously read it.
-    [`unread.${recipientId}`]: currentUnread + 1,
-    updatedAt: serverTimestamp(),
-  });
 }
 
 export function useChatActions() {
@@ -94,7 +94,8 @@ export function useChatActions() {
           ? conversation.branchId
           : conversation.userId;
 
-      await safeAddDoc(collection(firestore, 'messages'), {
+      const batch = writeBatch(firestore);
+      batch.set(doc(collection(firestore, 'messages')), {
         conversationId: conversation.id,
         senderId,
         senderName,
@@ -103,14 +104,14 @@ export function useChatActions() {
         createdAt: serverTimestamp(),
       });
 
-      await bumpConversation(
-        firestore,
-        conversation.id,
-        trimmed,
-        senderId,
-        recipientId,
-        conversation.unread?.[recipientId] ?? 0,
-      );
+      batch.update(doc(firestore, 'conversations', conversation.id), {
+        lastMessage: trimmed.slice(0, 140),
+        lastMessageAt: serverTimestamp(),
+        lastMessageBy: senderId,
+        [`unread.${recipientId}`]: increment(1),
+        updatedAt: serverTimestamp(),
+      });
+      await batch.commit();
     },
     [firestore],
   );

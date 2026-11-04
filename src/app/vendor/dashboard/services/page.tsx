@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2 } from "lucide-react";
 import { MaterialIcon } from "@/components/ui/material-icon";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -122,6 +123,7 @@ export default function VendorServicesPage() {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<WithId<Service> | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [search, setSearch] = useState("");
   const { toast } = useToast();
 
   const servicesQuery = useMemoFirebase(
@@ -188,6 +190,12 @@ export default function VendorServicesPage() {
   const avgPrice = totalServices > 0 ? (services!.reduce((sum, s) => sum + Number(s.price || 0), 0) / totalServices) : 0;
   const avgDuration = totalServices > 0 ? Math.round(services!.reduce((sum, s) => sum + Number(s.duration || 0), 0) / totalServices) : 0;
 
+  const visibleServices = (services ?? []).filter((s) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return s.name.toLowerCase().includes(q) || (s.category ?? '').toLowerCase().includes(q);
+  });
+
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-4">
       <PageHeader
@@ -224,15 +232,27 @@ export default function VendorServicesPage() {
       </StatCardGrid>
 
       <Card className="overflow-hidden rounded-xl border bg-card shadow-sm">
-          <CardHeader>
-              <CardTitle className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">Rate Table</CardTitle>
-              <CardDescription>A list of services provided by {business.displayName}.</CardDescription>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">Rate Table</CardTitle>
+                <CardDescription>A list of services provided by {business.displayName}.</CardDescription>
+              </div>
+              <div className="relative w-full sm:w-64">
+                <MaterialIcon name="search" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-base text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Filter by name or category…"
+                  className="pl-9"
+                />
+              </div>
           </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Service Name</TableHead>
+                <TableHead className="hidden lg:table-cell">Category</TableHead>
                 <TableHead className="hidden sm:table-cell">Duration (mins)</TableHead>
                 <TableHead className="hidden md:table-cell text-right">Price (QAR)</TableHead>
                 <TableHead className="text-right">
@@ -244,14 +264,22 @@ export default function VendorServicesPage() {
               {isLoading && [...Array(3)].map((_, i) => (
                 <TableRow key={i}>
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                    <TableCell className="hidden lg:table-cell"><Skeleton className="h-5 w-16" /></TableCell>
                     <TableCell className="hidden sm:table-cell"><Skeleton className="h-5 w-20" /></TableCell>
                     <TableCell className="hidden md:table-cell text-right"><Skeleton className="h-5 w-16" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-8 w-8" /></TableCell>
                 </TableRow>
               ))}
-              {!isLoading && services && services.map((service) => (
+              {!isLoading && services && visibleServices.map((service) => (
                 <TableRow key={service.id} onClick={() => handleRowClick(service)} className="cursor-pointer">
                   <TableCell className="font-medium">{service.name}</TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    {service.category ? (
+                      <Badge variant="outline" className="text-[11px]">{service.category}</Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                   <TableCell className="hidden sm:table-cell kpi-number">{service.duration}</TableCell>
                   <TableCell className="hidden md:table-cell text-right kpi-number">{Number(service.price).toFixed(2)}</TableCell>
                   <TableCell className="text-right">
@@ -278,7 +306,7 @@ export default function VendorServicesPage() {
               ))}
             </TableBody>
           </Table>
-           {!isLoading && (!services || services.length === 0) && (
+           {!isLoading && services && services.length === 0 && (
               <EmptyState
                 icon={<MaterialIcon name="build" className="text-3xl" />}
                 title="No services yet"
@@ -291,7 +319,19 @@ export default function VendorServicesPage() {
                 }
               />
             )}
+            {!isLoading && services && services.length > 0 && visibleServices.length === 0 && (
+              <EmptyState
+                icon={<MaterialIcon name="search" className="text-3xl" />}
+                title="No services match your search"
+                description="Try a different name or category."
+              />
+            )}
         </CardContent>
+        {!isLoading && services && services.length > 0 && (
+          <div className="flex items-center justify-between border-t px-6 py-3 text-xs text-muted-foreground">
+            <span>Showing {visibleServices.length} of {services.length} services</span>
+          </div>
+        )}
       </Card>
 
         <Dialog open={isFormOpen} onOpenChange={(open) => {if(!open) setSelectedService(null); setIsFormOpen(open)}}>

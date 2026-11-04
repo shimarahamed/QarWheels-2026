@@ -51,7 +51,7 @@ function CreateVendorForm({ onCreated }: { onCreated: () => void }) {
       <Card className="max-w-lg w-full mx-4">
         <CardHeader>
           <CardTitle>Create Your Garage Profile</CardTitle>
-          <CardDescription>You need a vendor profile to access the dashboard. Let's get you set up.</CardDescription>
+          <CardDescription>You need a vendor profile to access the dashboard. Let&apos;s get you set up.</CardDescription>
         </CardHeader>
         <CardContent>
           <VendorBusinessForm
@@ -75,7 +75,7 @@ function FullScreenLoader() {
 
 export function VendorProvider({ children }: { children: ReactNode }) {
   const { firestore } = useFirebase();
-  const { user, isUserLoading, claims, refreshClaims } = useUser();
+  const { user, isUserLoading, claims } = useUser();
   const [activeBranchId, setActiveBranchIdState] = useState<string | null>(null);
   const [justRegistered, setJustRegistered] = useState(false);
 

@@ -3,7 +3,7 @@
 import { Timestamp } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import type { BranchStatus, BusinessStatus, KycStatus, MembershipRole } from '@/lib/types';
+import type { BranchStatus, BusinessStatus, KycStatus } from '@/lib/types';
 
 /**
  * Firestore dates reach the client as Timestamp, ISO string or Date depending

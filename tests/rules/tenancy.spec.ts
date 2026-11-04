@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { asCustomer, asUserWithClaims, getTestEnv, seedWithoutRules, teardownTestEnv } from './setup';
 
 const BIZ_A = 'biz_aab_auto';
@@ -65,7 +65,7 @@ describe('Phase 1 tenancy isolation', () => {
   });
 
   it('staff of branch A1 cannot read branch A2 inventory (same business, different branch)', async () => {
-    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'vendor_staff', b: BIZ_A, br: [BRANCH_A1] });
     const otherBranchItem = doc(ctx.firestore(), 'branch_inventory', 'inv_a2_item1');
     // Seed an A2 item to attempt reading
     await seedWithoutRules(async (seedCtx) => {
@@ -77,14 +77,20 @@ describe('Phase 1 tenancy isolation', () => {
     await assertFails(getDoc(otherBranchItem));
   });
 
-  it('staff of branch A1 CAN read their own branch inventory', async () => {
-    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+  it('staff of branch A1 cannot read their own branch inventory', async () => {
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'vendor_staff', b: BIZ_A, br: [BRANCH_A1] });
+    const item = doc(ctx.firestore(), 'branch_inventory', 'inv_a1_item1');
+    await assertFails(getDoc(item));
+  });
+
+  it('inventory staff CAN read their own branch inventory', async () => {
+    const ctx = await asUserWithClaims('uid_inventory_a1', { r: 'vendor_inventory', b: BIZ_A, br: [BRANCH_A1] });
     const item = doc(ctx.firestore(), 'branch_inventory', 'inv_a1_item1');
     await assertSucceeds(getDoc(item));
   });
 
   it('staff of business A cannot read business B at all', async () => {
-    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'vendor_staff', b: BIZ_A, br: [BRANCH_A1] });
     const bizB = doc(ctx.firestore(), 'businesses', BIZ_B);
     await assertFails(getDoc(bizB));
   });
@@ -103,7 +109,7 @@ describe('Phase 1 tenancy isolation', () => {
     await assertSucceeds(getDoc(branchA2));
   });
 
-  it('branch_staff of A1 cannot accept a booking on branch A2', async () => {
+  it('vendor_staff of A1 cannot accept a booking on branch A2', async () => {
     await seedWithoutRules(async (seedCtx) => {
       await setDoc(doc(seedCtx.firestore(), 'bookings', 'bkg_a2_pending'), {
         userId: 'uid_customer_2', customerName: 'Cust Two', customerEmail: 'c2@example.com',
@@ -113,13 +119,13 @@ describe('Phase 1 tenancy isolation', () => {
         createdAt: new Date(), updatedAt: new Date(),
       });
     });
-    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'vendor_staff', b: BIZ_A, br: [BRANCH_A1] });
     const bookingRef = doc(ctx.firestore(), 'bookings', 'bkg_a2_pending');
     await assertFails(updateDoc(bookingRef, {
       status: 'Confirmed',
       statusHistory: [
         { status: 'Pending', at: new Date(), byUid: 'uid_customer_2', byRole: 'customer' },
-        { status: 'Confirmed', at: new Date(), byUid: 'uid_staff_a1', byRole: 'branch_staff' },
+        { status: 'Confirmed', at: new Date(), byUid: 'uid_staff_a1', byRole: 'vendor_staff' },
       ],
     }));
   });
@@ -130,11 +136,20 @@ describe('Phase 1 tenancy isolation', () => {
     await assertSucceeds(getDoc(doc(ctx.firestore(), 'branch_inventory', 'inv_a1_item1')));
   });
 
+  it('a revoked admin loses access even with an old admin claim', async () => {
+    const ctx = await asUserWithClaims('uid_revoked_admin', { r: 'master_admin', lvl: 'super' });
+    await assertSucceeds(getDoc(doc(ctx.firestore(), 'businesses', BIZ_B)));
+    await seedWithoutRules(async (seedCtx) => {
+      await deleteDoc(doc(seedCtx.firestore(), 'roles_admin', 'uid_revoked_admin'));
+    });
+    await assertFails(getDoc(doc(ctx.firestore(), 'businesses', BIZ_B)));
+  });
+
   it('a membership document cannot be written directly by any client', async () => {
     const ctx = await asUserWithClaims('uid_owner_a', { r: 'business_owner', b: BIZ_A, br: [] });
     const membershipRef = doc(ctx.firestore(), 'memberships', 'uid_new_staff_biz_aab_auto');
     await assertFails(setDoc(membershipRef, {
-      userId: 'uid_new_staff', businessId: BIZ_A, role: 'branch_staff',
+      userId: 'uid_new_staff', businessId: BIZ_A, role: 'vendor_staff',
       branchIds: [BRANCH_A1], status: 'Active', email: 'x@aab.qa', displayName: 'X',
       invitedBy: 'uid_owner_a', invitedAt: new Date(), createdAt: new Date(), updatedAt: new Date(),
     }));
@@ -142,28 +157,28 @@ describe('Phase 1 tenancy isolation', () => {
 
   // ── branch_inventory validation (hardened: type/range checks, not just presence) ──
   it('branch staff cannot create an inventory item with a negative price', async () => {
-    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'vendor_staff', b: BIZ_A, br: [BRANCH_A1] });
     await assertFails(setDoc(doc(ctx.firestore(), 'branch_inventory', 'inv_bad_price'), {
       businessId: BIZ_A, branchId: BRANCH_A1, name: 'Widget', sku: 'W-1', stock: 5, price: -10,
     }));
   });
 
   it('branch staff cannot create an inventory item with a non-numeric stock', async () => {
-    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'vendor_staff', b: BIZ_A, br: [BRANCH_A1] });
     await assertFails(setDoc(doc(ctx.firestore(), 'branch_inventory', 'inv_bad_stock'), {
       businessId: BIZ_A, branchId: BRANCH_A1, name: 'Widget', sku: 'W-1', stock: 'lots', price: 10,
     }));
   });
 
-  it('branch staff CAN create a valid inventory item for their own branch', async () => {
-    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+  it('inventory staff CAN create a valid inventory item for their own branch', async () => {
+    const ctx = await asUserWithClaims('uid_inventory_a1', { r: 'vendor_inventory', b: BIZ_A, br: [BRANCH_A1] });
     await assertSucceeds(setDoc(doc(ctx.firestore(), 'branch_inventory', 'inv_good'), {
       businessId: BIZ_A, branchId: BRANCH_A1, name: 'Widget', sku: 'W-1', stock: 5, price: 10,
     }));
   });
 
   it('branch staff cannot update an inventory item to change its businessId (tenant reassignment)', async () => {
-    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'vendor_staff', b: BIZ_A, br: [BRANCH_A1] });
     const item = doc(ctx.firestore(), 'branch_inventory', 'inv_a1_item1');
     await assertFails(updateDoc(item, { businessId: BIZ_B }));
   });

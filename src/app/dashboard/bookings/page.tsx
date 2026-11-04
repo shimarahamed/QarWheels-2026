@@ -180,7 +180,7 @@ export default function BookingsPage() {
     [firestore, user]
   );
   const { data: bookingsData, isLoading: isLoadingBookings } = useCollection<WithId<Booking>>(bookingsQuery);
-  const bookings = bookingsData || [];
+  const bookings = useMemo(() => bookingsData ?? [], [bookingsData]);
 
   const sortedBookings = useMemo(() => {
     return [...bookings]

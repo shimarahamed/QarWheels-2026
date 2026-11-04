@@ -113,7 +113,7 @@ function JoinForm() {
           <span className="rounded-full bg-emerald-500/10 p-3 text-emerald-600">
             <CheckCircle2 className="h-8 w-8" />
           </span>
-          <h2 className="text-xl font-bold">You're in!</h2>
+          <h2 className="text-xl font-bold">You&apos;re in!</h2>
           <p className="text-sm text-muted-foreground">Taking you to your dashboard…</p>
         </CardContent>
       </Card>

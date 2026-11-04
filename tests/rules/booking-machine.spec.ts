@@ -9,7 +9,7 @@ const BRANCH_A1 = 'brn_aab_industrial';
 function historyOf(...statuses: string[]) {
   return statuses.map((status, i) => ({
     status, at: new Date(), byUid: i === 0 ? 'uid_customer_1' : 'uid_staff_a1',
-    byRole: i === 0 ? 'customer' : 'branch_staff',
+    byRole: i === 0 ? 'customer' : 'vendor_staff',
   }));
 }
 
@@ -61,7 +61,7 @@ describe('Phase 1 booking state machine', () => {
 
   it('branch staff CAN accept (Pending -> Confirmed)', async () => {
     await seedBooking('bkg_1', 'Pending');
-    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'vendor_staff', b: BIZ_A, br: [BRANCH_A1] });
     const ref = doc(ctx.firestore(), 'bookings', 'bkg_1');
     await assertSucceeds(updateDoc(ref, {
       status: 'Confirmed',
@@ -72,7 +72,7 @@ describe('Phase 1 booking state machine', () => {
 
   it('branch staff CANNOT skip Pending straight to Completed', async () => {
     await seedBooking('bkg_2', 'Pending');
-    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'vendor_staff', b: BIZ_A, br: [BRANCH_A1] });
     const ref = doc(ctx.firestore(), 'bookings', 'bkg_2');
     await assertFails(updateDoc(ref, {
       status: 'Completed',
@@ -83,7 +83,7 @@ describe('Phase 1 booking state machine', () => {
 
   it('branch staff CANNOT move a Completed booking back to InProgress', async () => {
     await seedBooking('bkg_3', 'Completed');
-    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'vendor_staff', b: BIZ_A, br: [BRANCH_A1] });
     const ref = doc(ctx.firestore(), 'bookings', 'bkg_3');
     await assertFails(updateDoc(ref, {
       status: 'InProgress',
@@ -94,7 +94,7 @@ describe('Phase 1 booking state machine', () => {
 
   it('staff setting Cancelled from Completed is rejected (terminal state)', async () => {
     await seedBooking('bkg_4', 'Completed');
-    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'vendor_staff', b: BIZ_A, br: [BRANCH_A1] });
     const ref = doc(ctx.firestore(), 'bookings', 'bkg_4');
     await assertFails(updateDoc(ref, {
       status: 'Cancelled',
@@ -105,7 +105,7 @@ describe('Phase 1 booking state machine', () => {
 
   it('statusHistory must grow by exactly one entry per staff transition', async () => {
     await seedBooking('bkg_5', 'Pending');
-    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'vendor_staff', b: BIZ_A, br: [BRANCH_A1] });
     const ref = doc(ctx.firestore(), 'bookings', 'bkg_5');
     // Jumps by 2 history entries in one write — rejected even though the
     // status transition itself (Pending -> Confirmed) is legal.
@@ -122,7 +122,21 @@ describe('Phase 1 booking state machine', () => {
     const ref = doc(ctx.firestore(), 'bookings', 'bkg_6');
     await assertSucceeds(updateDoc(ref, {
       status: 'Cancelled',
+      statusHistory: [...historyOf('Pending'), {
+        status: 'Cancelled', at: new Date(), byUid: 'uid_customer_1', byRole: 'customer',
+      }],
       updatedAt: new Date(),
+    }));
+  });
+
+  it('customer cannot alter price while cancelling', async () => {
+    await seedBooking('bkg_price', 'Pending');
+    const ctx = await asCustomer('uid_customer_1');
+    await assertFails(updateDoc(doc(ctx.firestore(), 'bookings', 'bkg_price'), {
+      status: 'Cancelled', cost: 0,
+      statusHistory: [...historyOf('Pending'), {
+        status: 'Cancelled', at: new Date(), byUid: 'uid_customer_1', byRole: 'customer',
+      }],
     }));
   });
 
@@ -143,6 +157,42 @@ describe('Phase 1 booking state machine', () => {
     await assertFails(updateDoc(ref, {
       status: 'Confirmed',
       updatedAt: new Date(),
+    }));
+  });
+
+  it('customer can review exactly one of their completed bookings', async () => {
+    await seedBooking('bkg_completed', 'Completed');
+    const ctx = await asCustomer('uid_customer_1');
+    const ref = doc(ctx.firestore(), 'reviews', 'bkg_completed');
+    await assertSucceeds(setDoc(ref, {
+      bookingId: 'bkg_completed', userId: 'uid_customer_1',
+      businessId: BIZ_A, branchId: BRANCH_A1, rating: 5,
+      comment: 'Good service and clear communication.',
+    }));
+    await assertFails(setDoc(ref, {
+      bookingId: 'bkg_completed', userId: 'uid_customer_1',
+      businessId: BIZ_A, branchId: BRANCH_A1, rating: 1,
+      comment: 'Trying to overwrite the original review.',
+    }));
+  });
+
+  it('rejects reviews for pending, unrelated, or mismatched bookings', async () => {
+    await seedBooking('bkg_pending', 'Pending');
+    await seedBooking('bkg_completed', 'Completed');
+    const owner = await asCustomer('uid_customer_1');
+    const stranger = await asCustomer('uid_other');
+    const payload = {
+      userId: 'uid_customer_1', businessId: BIZ_A, branchId: BRANCH_A1,
+      rating: 4, comment: 'A sufficiently detailed review.',
+    };
+    await assertFails(setDoc(doc(owner.firestore(), 'reviews', 'bkg_pending'), {
+      ...payload, bookingId: 'bkg_pending',
+    }));
+    await assertFails(setDoc(doc(stranger.firestore(), 'reviews', 'bkg_completed'), {
+      ...payload, userId: 'uid_other', bookingId: 'bkg_completed',
+    }));
+    await assertFails(setDoc(doc(owner.firestore(), 'reviews', 'bkg_completed'), {
+      ...payload, branchId: 'other_branch', bookingId: 'bkg_completed',
     }));
   });
 });

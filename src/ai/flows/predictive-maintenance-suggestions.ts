@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'genkit';
 import { ai, sanitizeInput, withRetry } from '../genkit';
 import { QATAR_CLIMATE } from '../config';
 
@@ -51,10 +51,10 @@ const predictMaintenanceFlow = ai.defineFlow(
   async (input) => {
     const safeInput = {
       ...input,
-      serviceHistory: sanitizeInput(input.serviceHistory, 8000),
+      serviceHistory: JSON.stringify({ untrustedServiceHistory: sanitizeInput(input.serviceHistory, 8000) }),
     };
 
-    const { output } = await withRetry(() => prompt(safeInput));
+    const { output } = await withRetry((abortSignal) => prompt(safeInput, { abortSignal }));
     if (!output) throw new Error('AI model failed to produce maintenance predictions');
     return output;
   }

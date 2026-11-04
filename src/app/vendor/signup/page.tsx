@@ -61,11 +61,11 @@ export default function VendorSignupPage() {
       const credential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       await updateProfile(credential.user, { displayName: values.ownerName });
       setAccountCreated(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: 'destructive',
         title: 'Could not create account',
-        description: error?.message || 'Please try a different email.',
+        description: error instanceof Error ? error.message : 'Please try a different email.',
       });
     } finally {
       setIsSubmitting(false);

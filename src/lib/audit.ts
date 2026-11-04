@@ -19,7 +19,6 @@ export async function writeAuditLog(entry: Omit<AuditLogEntry, 'createdAt'>): Pr
       createdAt: new Date().toISOString(),
     });
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.warn('[audit] failed to write audit log entry', entry.action, error);
   }
 }

@@ -1,5 +1,5 @@
 "use client"
-import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts"
+import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
 import { useState, useEffect } from 'react';
 import { mockAnalyticsData } from "@/lib/vendor-data"
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,7 +18,7 @@ const chartConfig = {
 
 
 export function RetentionChart({ timeRange }: { timeRange: string }) {
-    const [data, setData] = useState<any[]>([]);
+    const [data, setData] = useState<typeof mockAnalyticsData.retention>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {

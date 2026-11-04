@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { collection, doc, query, serverTimestamp } from "firebase/firestore";
 import { format } from "date-fns";
 import { Timestamp } from "firebase/firestore";
-import { Edit, Mail, Search, Trash2, Users, Car, CalendarCheck, Loader2, PlusCircle, Eye } from "lucide-react";
+import { Edit, Mail, Search, Trash2, Users, Car, CalendarCheck, Loader2, Eye } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { PageHeader } from "@/components/ui/page-header";
-import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
+import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useCollection, useFirebase, useMemoFirebase, safeUpdateDoc } from "@/firebase";

@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { getVerifiedUserFromRequest, type VerifiedFirebaseUser } from '@/lib/firebase-auth';
 import { claimsCoverBranch, readQwClaims, type QwClaims, type QwRole } from './qw-claims';
 import { canAccess, canPerform, type VendorAction, type VendorSection } from './permissions';
+import { getAdminFirestore } from '@/lib/firebase-admin';
 
 export type AuthorizedRequest = {
   user: VerifiedFirebaseUser;
@@ -18,9 +19,15 @@ async function authenticate(request: NextRequest): Promise<
 > {
   const user = await getVerifiedUserFromRequest(request);
   if (!user) return null;
-  const claims = readQwClaims(user.claims);
-  const role: QwRole = claims?.r ?? 'customer';
-  return { user, claims, role };
+  let claims = readQwClaims(user.claims);
+  if (claims?.r === 'master_admin') {
+    const admin = await getAdminFirestore().collection('roles_admin').doc(user.uid).get();
+    const level = admin.get('level');
+    claims = admin.exists && ['super', 'ops', 'support'].includes(level)
+      ? { r: 'master_admin', lvl: level as 'super' | 'ops' | 'support' }
+      : null;
+  }
+  return { user, claims, role: claims?.r ?? 'customer' };
 }
 
 /** Requires the caller to be authenticated and hold one of the given roles. */
@@ -83,6 +90,10 @@ export async function requireBranchAccess(request: NextRequest, branchId: string
   if (!auth) return { ok: false, reason: 'unauthenticated' };
   if (auth.role === 'master_admin') return { ok: true, auth };
   if (!auth.claims || !claimsCoverBranch(auth.claims, branchId)) {
+    return { ok: false, reason: 'forbidden' };
+  }
+  const branch = await getAdminFirestore().collection('branches').doc(branchId).get();
+  if (!branch.exists || auth.claims.r === 'master_admin' || branch.get('businessId') !== auth.claims.b) {
     return { ok: false, reason: 'forbidden' };
   }
   return { ok: true, auth };

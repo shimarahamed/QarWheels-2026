@@ -39,13 +39,13 @@ describe('Phase 3 chat: conversations and messages', () => {
   });
 
   it('branch staff at the conversation’s branch CAN read it', async () => {
-    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A1] });
+    const ctx = await asUserWithClaims('uid_staff_a1', { r: 'vendor_staff', b: BIZ_A, br: [BRANCH_A1] });
     await assertSucceeds(getDoc(doc(ctx.firestore(), 'conversations', 'conv_1')));
     await assertSucceeds(getDoc(doc(ctx.firestore(), 'messages', 'msg_1')));
   });
 
   it('staff at a DIFFERENT branch of the same business cannot read the conversation', async () => {
-    const ctx = await asUserWithClaims('uid_staff_a2', { r: 'branch_staff', b: BIZ_A, br: [BRANCH_A2] });
+    const ctx = await asUserWithClaims('uid_staff_a2', { r: 'vendor_staff', b: BIZ_A, br: [BRANCH_A2] });
     await assertFails(getDoc(doc(ctx.firestore(), 'conversations', 'conv_1')));
     await assertFails(getDoc(doc(ctx.firestore(), 'messages', 'msg_1')));
   });

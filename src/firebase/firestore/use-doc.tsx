@@ -42,7 +42,7 @@ type UseDocOptions = {
  * The Firestore DocumentReference. Waits if null/undefined.
  * @returns {UseDocResult<T>} Object with data, isLoading, error.
  */
-export function useDoc<T = any>(
+export function useDoc<T = DocumentData>(
   memoizedDocRef: DocumentReference<DocumentData> | null | undefined,
   options: UseDocOptions = {},
 ): UseDocResult<T> {

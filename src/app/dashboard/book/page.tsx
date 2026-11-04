@@ -1,6 +1,7 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useMemo, useState, Suspense } from 'react';
 import { useFirebase, useCollection, useDoc, useMemoFirebase, safeAddDoc } from '@/firebase';
 import { collection, doc, query, serverTimestamp, where, Timestamp } from 'firebase/firestore';
@@ -195,7 +196,7 @@ function BookingWizard() {
               description="Bookings are created from a garage service list so the request includes the garage, service, and price context."
               action={
                 <Button asChild>
-                  <a href="/dashboard/garages">Browse Garages</a>
+                  <Link href="/dashboard/garages">Browse Garages</Link>
                 </Button>
               }
             />
@@ -322,7 +323,7 @@ function BookingWizard() {
               description="Bookings need to be attached to a vehicle so the garage knows what they are servicing."
               action={
                 <Button asChild>
-                  <a href="/dashboard/my-cars/add">Add Your First Car</a>
+                  <Link href="/dashboard/my-cars/add">Add Your First Car</Link>
                 </Button>
               }
             />

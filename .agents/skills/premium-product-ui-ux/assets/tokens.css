@@ -1,0 +1,45 @@
+/* Optional illustration: merge with an existing project's tokens; do not replace design system wholesale. */
+:root {
+  --ui-surface: #ffffff;
+  --ui-surface-raised: #f6f8fb;
+  --ui-text: #15223a;
+  --ui-text-muted: #3f526d;
+  --ui-border: #afbad0;
+  --ui-accent: #2458db;
+  --ui-accent-text: #ffffff;
+  --ui-focus: #123da9;
+  --ui-danger: #a51f2b;
+  --ui-radius-control: .625rem;
+  --ui-radius-card: 1rem;
+  --ui-space-1: .25rem;
+  --ui-space-2: .5rem;
+  --ui-space-3: .75rem;
+  --ui-space-4: 1rem;
+  --ui-space-6: 1.5rem;
+  --ui-space-8: 2rem;
+  --ui-duration-fast: 120ms;
+  --ui-duration-standard: 220ms;
+  --ui-duration-expressive: 350ms;
+  --ui-ease-out: cubic-bezier(.2,.8,.2,1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ui-surface: #111827;
+    --ui-surface-raised: #1c2940;
+    --ui-text: #f5f7fc;
+    --ui-text-muted: #c2cce0;
+    --ui-border: #64748b;
+    --ui-accent: #9cbaff;
+    --ui-accent-text: #091831;
+    --ui-focus: #d6e3ff;
+    --ui-danger: #ff98a0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ui-duration-fast: 0ms;
+    --ui-duration-standard: 0ms;
+    --ui-duration-expressive: 0ms;
+  }
+}
+/* Verify actual text and control contrast in both themes; illustrative values are not a certification. */

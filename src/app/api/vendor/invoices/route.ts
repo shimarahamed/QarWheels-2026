@@ -7,6 +7,7 @@ import { claimsCoverBranch } from '@/lib/auth/qw-claims';
 import { isBusinessWideRole } from '@/lib/auth/permissions';
 import { isRateLimited, API_LIMITS, getRateLimitKey } from '@/lib/rate-limit';
 import { trackApiError, trackRateLimit } from '@/lib/observability';
+import { createInvoiceOnce } from '@/lib/invoice-creation';
 import type { Booking, Invoice, InvoiceLineItem, WithId } from '@/lib/types';
 
 // Upper bounds are defence-in-depth, not the primary control — the primary
@@ -80,27 +81,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** INV-YYYY-NNNN, sequential within the calendar year per business. */
-async function nextInvoiceNumber(
-  db: FirebaseFirestore.Firestore,
-  businessId: string,
-): Promise<string> {
-  const year = new Date().getFullYear();
-  const snap = await db.collection('invoices')
-    .where('businessId', '==', businessId)
-    .orderBy('createdAt', 'desc')
-    .limit(1)
-    .get();
-
-  let next = 1;
-  const latest = snap.docs[0]?.data() as Invoice | undefined;
-  if (latest?.invoiceNumber?.startsWith(`INV-${year}-`)) {
-    const parsed = Number.parseInt(latest.invoiceNumber.split('-')[2] ?? '0', 10);
-    if (Number.isFinite(parsed)) next = parsed + 1;
-  }
-  return `INV-${year}-${String(next).padStart(4, '0')}`;
-}
-
 export async function POST(request: NextRequest) {
   let body: unknown;
   try {
@@ -139,11 +119,6 @@ export async function POST(request: NextRequest) {
       return Errors.rateLimited();
     }
 
-    const existing = await db.collection('invoices').where('bookingId', '==', bookingId).limit(1).get();
-    if (!existing.empty) {
-      return Errors.badRequest('An invoice already exists for this booking');
-    }
-
     const subtotalMinorUnits = lineItems.reduce(
       (sum: number, item: InvoiceLineItem) => sum + item.quantity * item.unitPriceMinorUnits,
       0,
@@ -170,13 +145,10 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date().toISOString();
-    const invoiceNumber = await nextInvoiceNumber(db, booking.businessId);
-
-    const invoice: Invoice = {
+    const invoice: Omit<Invoice, 'invoiceNumber'> = {
       businessId: booking.businessId,
       branchId: booking.branchId,
       bookingId,
-      invoiceNumber,
       userId: booking.userId,
       customerName: booking.customerName,
       customerEmail: booking.customerEmail,
@@ -192,9 +164,12 @@ export async function POST(request: NextRequest) {
       updatedAt: now,
     };
 
-    const ref = await db.collection('invoices').add(invoice);
-    return ok({ invoiceId: ref.id, invoiceNumber, totalMinorUnits: invoice.totalMinorUnits });
+    const created = await createInvoiceOnce(db, invoice);
+    return ok({ ...created, totalMinorUnits: invoice.totalMinorUnits });
   } catch (error) {
+    if (error instanceof Error && error.message === 'INVOICE_ALREADY_EXISTS') {
+      return Errors.badRequest('An invoice already exists for this booking');
+    }
     trackApiError('/api/vendor/invoices POST', error);
     return Errors.serverError();
   }

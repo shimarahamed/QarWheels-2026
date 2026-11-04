@@ -16,7 +16,10 @@ import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { useVendor } from "@/components/vendor/vendor-provider";
+import { useStaffRoster } from "@/hooks/use-staff-roster";
 import type { Booking, WithId } from "@/lib/types";
+
+const IN_FLIGHT_STATUSES: Booking["status"][] = ["Confirmed", "VehicleReceived", "InProgress", "ReadyForPickup"];
 
 const OverviewChart = dynamic(() => import("@/components/vendor/overview-chart").then(m => m.OverviewChart), { ssr: false, loading: () => <Skeleton className="h-[300px] w-full" /> });
 
@@ -54,6 +57,15 @@ export default function VendorDashboard() {
     [firestore, business, activeBranch, canSeeAllBranches]
   );
   const { data: bookings, isLoading } = useCollection<WithId<Booking>>(bookingsQuery);
+
+  // Technician load summary — real data reused from the technician board's
+  // own logic (a technician is just a membership with jobs assigned to it,
+  // there's no separate entity), condensed to a glance here rather than
+  // duplicating the full board on the overview page.
+  const { data: roster } = useStaffRoster(business.id);
+  const technicians = (roster ?? []).filter((s) => s.status === 'Active' && (s.role === 'vendor_staff' || s.role === 'vendor_manager'));
+  const inFlightBookings = (bookings ?? []).filter((b) => IN_FLIGHT_STATUSES.includes(b.status));
+  const busyTechnicianCount = technicians.filter((tech) => inFlightBookings.some((b) => b.assignedStaffId === tech.id)).length;
 
   const upcomingBookings = bookings
     ?.filter((b) => b.status === "Confirmed" && toDate(b.bookingDate) >= new Date())
@@ -229,6 +241,26 @@ export default function VendorDashboard() {
         </Card>
 
         <div className="flex flex-col gap-4">
+          {technicians.length > 0 && (
+            <Card className="border border-border/60 bg-card shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">Technician load</CardTitle>
+                <Link href="/vendor/dashboard/technicians" className="text-xs font-semibold text-primary hover:underline">
+                  View board
+                </Link>
+              </CardHeader>
+              <CardContent className="flex items-center justify-between">
+                <div>
+                  <p className="kpi-number text-2xl">{busyTechnicianCount} <span className="text-sm font-normal text-muted-foreground">/ {technicians.length} busy</span></p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Technicians with a job in flight right now.</p>
+                </div>
+                <span className="icon-pill h-10 w-10 shrink-0 bg-primary/10 text-primary">
+                  <MaterialIcon name="engineering" className="text-lg" />
+                </span>
+              </CardContent>
+            </Card>
+          )}
+
           {bookings && <AIBusinessInsights business={business} bookings={bookings} />}
 
           <OnboardingChecklist

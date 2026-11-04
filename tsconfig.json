@@ -41,6 +41,5 @@
     "out",
     "mobile",
     "mobile/**"
-  ],
-  "extends": "expo/tsconfig.base"
+  ]
 }

@@ -16,7 +16,6 @@ export async function sendEmail(message: EmailMessage): Promise<{ delivered: boo
   const apiKey = process.env.EMAIL_PROVIDER_API_KEY;
 
   if (!apiKey) {
-    // eslint-disable-next-line no-console
     console.warn(
       `[email] EMAIL_PROVIDER_API_KEY not set — not sending "${message.subject}" to ${message.to}. ` +
         'The action that triggered this (e.g. a staff invite) still succeeded and its link/token is valid; ' +

@@ -49,9 +49,14 @@ describe('Phase 0 fixes still hold under the Phase 1 rules rewrite', () => {
   });
 
   it('a signed-in customer CAN create a review for their own booking', async () => {
+    await seedWithoutRules(async (seedCtx) => {
+      await setDoc(doc(seedCtx.firestore(), 'bookings', 'bkg_1'), {
+        userId: 'uid_customer_1', businessId: 'biz_a', branchId: 'brn_a1', status: 'Completed',
+      });
+    });
     const ctx = await asCustomer('uid_customer_1');
-    const ref = collection(ctx.firestore(), 'reviews');
-    await assertSucceeds(addDoc(ref, {
+    const ref = doc(ctx.firestore(), 'reviews', 'bkg_1');
+    await assertSucceeds(setDoc(ref, {
       userId: 'uid_customer_1', businessId: 'biz_a', branchId: 'brn_a1', bookingId: 'bkg_1',
       rating: 5, comment: 'Great service, very professional and quick.',
     }));

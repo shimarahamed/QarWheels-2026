@@ -8,7 +8,8 @@ import {
   CollectionReference,
   DocumentReference,
   SetOptions,
-  doc,
+  type DocumentData,
+  type UpdateData,
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import {FirestorePermissionError} from '@/firebase/errors';
@@ -20,8 +21,8 @@ import { toast } from '@/hooks/use-toast';
  * Firestore error (offline, unavailable, cancelled, etc.) is a transient
  * failure and should just toast — it must never crash the app.
  */
-function reportWriteError(error: any, build: () => FirestorePermissionError) {
-  if (error?.code === 'permission-denied') {
+function reportWriteError(error: unknown, build: () => FirestorePermissionError) {
+  if (error && typeof error === 'object' && 'code' in error && error.code === 'permission-denied') {
     errorEmitter.emit('permission-error', build());
     return;
   }
@@ -36,7 +37,7 @@ function reportWriteError(error: any, build: () => FirestorePermissionError) {
  * Initiates a setDoc operation, automatically handling permission errors.
  * Returns a promise that resolves on success.
  */
-export function safeSetDoc(docRef: DocumentReference, data: any, options: SetOptions): Promise<void> {
+export function safeSetDoc(docRef: DocumentReference, data: DocumentData, options: SetOptions): Promise<void> {
   const promise = setDoc(docRef, data, options);
   const isMerge = 'merge' in options ? Boolean(options.merge) : false;
   promise.catch(error => {
@@ -55,7 +56,7 @@ export function safeSetDoc(docRef: DocumentReference, data: any, options: SetOpt
  * Initiates an addDoc operation, automatically handling permission errors.
  * Returns a promise that resolves with the new DocumentReference on success.
  */
-export function safeAddDoc(colRef: CollectionReference, data: any): Promise<DocumentReference> {
+export function safeAddDoc(colRef: CollectionReference, data: DocumentData): Promise<DocumentReference> {
   const promise = addDoc(colRef, data);
   promise.catch(error => {
       reportWriteError(error, () => new FirestorePermissionError({
@@ -73,7 +74,7 @@ export function safeAddDoc(colRef: CollectionReference, data: any): Promise<Docu
  * Initiates an updateDoc operation, automatically handling permission errors.
  * Returns a promise that resolves on success.
  */
-export function safeUpdateDoc(docRef: DocumentReference, data: any): Promise<void> {
+export function safeUpdateDoc(docRef: DocumentReference, data: UpdateData<DocumentData>): Promise<void> {
   const promise = updateDoc(docRef, data);
   promise.catch(error => {
       reportWriteError(error, () => new FirestorePermissionError({

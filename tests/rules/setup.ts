@@ -5,8 +5,9 @@ import {
 } from '@firebase/rules-unit-testing';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { doc, setDoc } from 'firebase/firestore';
 
-const PROJECT_ID = 'qarwheel-rules-test';
+const PROJECT_ID = 'demo-no-project';
 
 let env: RulesTestEnvironment | undefined;
 
@@ -31,7 +32,8 @@ export async function teardownTestEnv() {
 }
 
 type QwClaims = {
-  r: 'business_owner' | 'business_admin' | 'branch_manager' | 'branch_staff' | 'master_admin';
+  r: 'business_owner' | 'vendor_admin' | 'vendor_manager' | 'vendor_staff'
+    | 'vendor_cashier' | 'vendor_inventory' | 'master_admin';
   b?: string;
   br?: string[];
   lvl?: string;
@@ -46,6 +48,11 @@ export async function asCustomer(uid: string): Promise<RulesTestContext> {
 /** An authenticated context carrying business/branch/admin claims. */
 export async function asUserWithClaims(uid: string, qw: QwClaims): Promise<RulesTestContext> {
   const testEnv = await getTestEnv();
+  if (qw.r === 'master_admin') {
+    await seedWithoutRules(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'roles_admin', uid), { level: qw.lvl ?? 'ops' });
+    });
+  }
   return testEnv.authenticatedContext(uid, { qw });
 }
 

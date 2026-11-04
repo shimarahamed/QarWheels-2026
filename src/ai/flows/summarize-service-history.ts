@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'genkit';
 import { ai, sanitizeInput, withRetry } from '../genkit';
 
 const InputSchema = z.object({
@@ -49,12 +49,12 @@ const summarizeServiceHistoryFlow = ai.defineFlow(
   async (input) => {
     const safeInput = {
       ...input,
-      serviceHistory: sanitizeInput(input.serviceHistory, 8000),
+      serviceHistory: JSON.stringify({ untrustedServiceHistory: sanitizeInput(input.serviceHistory, 8000) }),
       make: sanitizeInput(input.make, 50),
       model: sanitizeInput(input.model, 50),
     };
 
-    const { output } = await withRetry(() => prompt(safeInput));
+    const { output } = await withRetry((abortSignal) => prompt(safeInput, { abortSignal }));
     if (!output) throw new Error('AI model failed to produce a summary');
     return output;
   }

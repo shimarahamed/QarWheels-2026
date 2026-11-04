@@ -1,6 +1,7 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,15 +16,18 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Info, Loader2, UserRound } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import type { UserProfile } from '@/lib/types';
+import { useFirebase, useDoc, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, doc, query, serverTimestamp, setDoc, Timestamp, where } from 'firebase/firestore';
+import type { Booking, Car, UserProfile, WithId } from '@/lib/types';
 import { LoadingPanel } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
+import { StatCard, StatCardGrid } from '@/components/ui/stat-card';
+import { MaterialIcon } from '@/components/ui/material-icon';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import {
   AlertDialog,
@@ -36,16 +40,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useRouter } from 'next/navigation';
-import { ShieldAlert } from 'lucide-react';
-
-const profileSchema = z.object({
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-  email: z.string().email('Invalid email address'),
-  phoneNumber: z.string().optional(),
-  country: z.string().optional(),
-  area: z.string().optional(),
-});
+import { format } from 'date-fns';
 
 const preferencesSchema = z.object({
   bookingConfirmations: z.boolean(),
@@ -62,12 +57,66 @@ const passwordSchema = z.object({
     path: ["confirmPassword"]
 });
 
+function toJsDate(value: unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Timestamp) return value.toDate();
+  if (value instanceof Date) return value;
+  if (typeof value === 'string') {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
+/** A grouped, chevron-terminated row inside a "settings section" card — the
+ * mockup's list-item pattern, wired to real routes/actions instead of "#". */
+function SettingsRow({
+  icon,
+  iconAccent = 'text-primary',
+  title,
+  description,
+  href,
+  onClick,
+  trailing,
+}: {
+  icon: string;
+  iconAccent?: string;
+  title: string;
+  description: string;
+  href?: string;
+  onClick?: () => void;
+  trailing?: React.ReactNode;
+}) {
+  const content = (
+    <>
+      <div className="flex min-w-0 items-center gap-3">
+        <span className={`icon-pill h-10 w-10 shrink-0 bg-muted ${iconAccent}`}>
+          <MaterialIcon name={icon} className="text-[20px]" />
+        </span>
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate text-sm font-bold">{title}</span>
+          <span className="truncate text-xs text-muted-foreground">{description}</span>
+        </div>
+      </div>
+      {trailing ?? <MaterialIcon name="chevron_right" className="shrink-0 text-lg text-muted-foreground" />}
+    </>
+  );
+  const className = 'flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/50';
+  if (href) {
+    return <Link href={href} className={className}>{content}</Link>;
+  }
+  return (
+    <button type="button" onClick={onClick} className={className}>
+      {content}
+    </button>
+  );
+}
+
 export default function ProfilePage() {
   const { firestore, user, auth } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
-  const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [isPreferencesSaving, setIsPreferencesSaving] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -79,17 +128,19 @@ export default function ProfilePage() {
   );
   const { data: userProfile, isLoading: isLoadingProfile } = useDoc<UserProfile>(userProfileRef);
 
-  const profileForm = useForm<z.infer<typeof profileSchema>>({
-    resolver: zodResolver(profileSchema),
-    defaultValues: {
-      firstName: '',
-      lastName: '',
-      email: '',
-      phoneNumber: '',
-      country: '',
-      area: '',
-    },
-  });
+  // Real telemetry-shaped stats: the vehicle fleet and its bookings, not
+  // fabricated CAN-bus/passport data.
+  const carsQuery = useMemoFirebase(
+    () => (user ? collection(firestore, 'users', user.uid, 'cars') : null),
+    [firestore, user]
+  );
+  const { data: cars, isLoading: isLoadingCars } = useCollection<WithId<Car>>(carsQuery);
+
+  const bookingsQuery = useMemoFirebase(
+    () => (user ? query(collection(firestore, 'bookings'), where('userId', '==', user.uid)) : null),
+    [firestore, user]
+  );
+  const { data: bookings, isLoading: isLoadingBookings } = useCollection<WithId<Booking>>(bookingsQuery);
 
   const passwordForm = useForm<z.infer<typeof passwordSchema>>({
     resolver: zodResolver(passwordSchema),
@@ -110,59 +161,13 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (userProfile) {
-      profileForm.reset({
-        firstName: userProfile.firstName,
-        lastName: userProfile.lastName,
-        email: userProfile.email,
-        phoneNumber: userProfile.phoneNumber || '',
-        country: userProfile.country || '',
-        area: userProfile.area || '',
-      });
       preferencesForm.reset({
         bookingConfirmations: userProfile.notificationPreferences?.bookingConfirmations ?? true,
         serviceReminders: userProfile.notificationPreferences?.serviceReminders ?? true,
         promotionalOffers: userProfile.notificationPreferences?.promotionalOffers ?? false,
       });
-    } else if (user) {
-        profileForm.reset({
-            email: user.email || '',
-        })
     }
-  }, [userProfile, user, profileForm, preferencesForm]);
-
-  const onProfileSubmit = async (data: z.infer<typeof profileSchema>) => {
-    if (!userProfileRef) return;
-    setIsProfileSaving(true);
-
-    // email is disabled in the form (never actually editable) and
-    // firestore.rules whitelist-blocks changing it on an existing profile —
-    // omit it from the update path entirely. It's still included on first
-    // creation, where the create rule (not the update whitelist) applies
-    // and email is a required field.
-    const { email, ...editableData } = data;
-    const updatedData = {
-        ...editableData,
-        ...(!userProfile ? { email } : {}),
-        updatedAt: serverTimestamp(),
-        ...(!userProfile ? { createdAt: serverTimestamp() } : {}),
-    };
-
-    try {
-      await setDoc(userProfileRef, updatedData, { merge: true });
-      toast({
-        title: 'Profile Updated',
-        description: 'Your profile information has been saved.',
-      });
-    } catch {
-      toast({
-        variant: 'destructive',
-        title: 'Update Failed',
-        description: 'Could not save your profile. Please try again.',
-      });
-    } finally {
-      setIsProfileSaving(false);
-    }
-  };
+  }, [userProfile, preferencesForm]);
 
   const onPreferencesSubmit = async (data: z.infer<typeof preferencesSchema>) => {
     if (!userProfileRef || !user) return;
@@ -212,9 +217,10 @@ export default function ProfilePage() {
             description: 'Your password has been changed successfully.',
         });
         passwordForm.reset();
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Password update error:", error);
-        const isWrongPassword = error?.code === 'auth/invalid-credential' || error?.code === 'auth/wrong-password';
+        const code = error && typeof error === 'object' && 'code' in error ? error.code : null;
+        const isWrongPassword = code === 'auth/invalid-credential' || code === 'auth/wrong-password';
         toast({
             variant: "destructive",
             title: 'Update Failed',
@@ -258,6 +264,14 @@ export default function ProfilePage() {
   const userEmail = userProfile?.email || user?.email;
   const avatarFallback = userProfile ? `${userProfile.firstName?.[0]}${userProfile.lastName?.[0]}` : 'U';
 
+  const memberSince = toJsDate(userProfile?.createdAt) ?? toJsDate(user?.metadata?.creationTime ?? null);
+  const totalMileage = (cars ?? []).reduce((sum, car) => sum + (car.currentMileage || 0), 0);
+  const upcomingCount = (bookings ?? []).filter((b) => {
+    const d = toJsDate(b.bookingDate);
+    return b.status === 'Confirmed' && !!d && d.getTime() >= Date.now();
+  }).length;
+  const isLoadingStats = isLoadingCars || isLoadingBookings;
+
   if (isLoadingProfile) {
       return (
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
@@ -277,29 +291,87 @@ export default function ProfilePage() {
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 sm:gap-6">
       <PageHeader
         eyebrow="Account"
-        icon={<UserRound className="h-3.5 w-3.5" />}
+        icon={<MaterialIcon name="person" className="text-sm" />}
         title="My Profile"
-        description="Manage your account settings and preferences."
+        description="Manage your account, your vehicles at a glance, and how QarWheel reaches you."
+        action={
+          <Button asChild variant="outline">
+            <Link href="/dashboard/profile/edit">
+              <MaterialIcon name="edit" className="mr-2 text-lg" />
+              Edit Profile
+            </Link>
+          </Button>
+        }
       />
+
+      {/* Hero identity card, mirroring the vendor cockpit's driver card but
+          with only fields that exist: verification status, area, and the
+          same avatar/name/email already shown below. */}
+      <Card className="relative overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <div className="card-accent-top from-primary via-[var(--qw-gold)] to-transparent opacity-100" />
+        <CardContent className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
+          <Avatar className="h-20 w-20 shrink-0 border-2 border-primary">
+            <AvatarImage src={user?.photoURL || `https://api.dicebear.com/8.x/initials/svg?seed=${fullName}`} alt={fullName} />
+            <AvatarFallback>{avatarFallback}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <div className="mb-1.5 flex flex-wrap items-center gap-2">
+              {user?.emailVerified && (
+                <Badge className="gap-1 bg-primary/10 text-primary hover:bg-primary/10">
+                  <MaterialIcon name="verified" className="text-sm" />
+                  Verified account
+                </Badge>
+              )}
+              {userProfile?.area && (
+                <Badge variant="outline" className="bg-muted/50">{userProfile.area}{userProfile.country ? `, ${userProfile.country}` : ''}</Badge>
+              )}
+            </div>
+            <h2 className="truncate text-2xl font-bold tracking-tight">{fullName}</h2>
+            <p className="mt-0.5 truncate text-sm text-muted-foreground">{userEmail}</p>
+          </div>
+          {memberSince && (
+            <div className="shrink-0 rounded-xl border bg-muted/40 px-4 py-2.5 text-right">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Member since</p>
+              <p className="kpi-number text-sm">{format(memberSince, 'MMM yyyy')}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Real fleet telemetry — no fabricated CAN-bus data, just the actual
+          vehicles and bookings backing this account. */}
+      <StatCardGrid>
+        <StatCard
+          label="Vehicles"
+          value={isLoadingStats ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : cars?.length ?? 0}
+          icon={<MaterialIcon name="directions_car" className="text-lg" />}
+          hint="In your garage"
+        />
+        <StatCard
+          label="Fleet mileage"
+          value={isLoadingStats ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : `${totalMileage.toLocaleString()} km`}
+          icon={<MaterialIcon name="speed" className="text-lg" />}
+          accent="bg-[var(--qw-gold)]/10 text-[var(--qw-gold)]"
+          hint="Across all cars"
+        />
+        <StatCard
+          label="Upcoming"
+          value={isLoadingStats ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : upcomingCount}
+          icon={<MaterialIcon name="event_upcoming" className="text-lg" />}
+          accent="bg-amber-500/10 text-amber-600"
+          hint="Confirmed bookings"
+        />
+        <StatCard
+          label="Total bookings"
+          value={isLoadingStats ? <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /> : bookings?.length ?? 0}
+          icon={<MaterialIcon name="receipt_long" className="text-lg" />}
+          accent="bg-emerald-500/10 text-emerald-600"
+          hint="All-time"
+        />
+      </StatCardGrid>
 
       <div className="grid gap-5 sm:gap-6 md:grid-cols-3">
         <div className="md:col-span-1 space-y-5 sm:space-y-6">
-            <Card className="rounded-2xl border bg-card shadow-sm">
-                <CardHeader className="items-center text-center">
-                    <div className="relative w-24 h-24">
-                        <Avatar className="w-24 h-24 border-2 border-primary">
-                            <AvatarImage src={user?.photoURL || `https://api.dicebear.com/8.x/initials/svg?seed=${fullName}`} alt={fullName} />
-                            <AvatarFallback>{avatarFallback}</AvatarFallback>
-                        </Avatar>
-                        <Button size="icon" className="absolute bottom-0 right-0 rounded-full h-8 w-8">
-                            <Camera className="h-4 w-4"/>
-                            <span className="sr-only">Change Photo</span>
-                        </Button>
-                    </div>
-                    <CardTitle className="pt-4">{fullName}</CardTitle>
-                    <CardDescription>{userEmail}</CardDescription>
-                </CardHeader>
-            </Card>
              <Card className="rounded-2xl border bg-card shadow-sm">
                 <CardHeader>
                     <CardTitle>Change Password</CardTitle>
@@ -329,10 +401,33 @@ export default function ProfilePage() {
                 </CardContent>
             </Card>
 
+            {/* Security & connected identity slots — same grouped-row
+                language as the mockup. 2FA and SSO aren't built yet, so
+                they're visibly "Coming soon" rather than fabricated as live. */}
+            <div className="space-y-2">
+              <p className="px-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Security</p>
+              <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+                <div className="divide-y">
+                  <SettingsRow
+                    icon="fingerprint"
+                    title="Two-Factor Authentication"
+                    description="Add an extra layer of login protection"
+                    trailing={<Badge variant="outline" className="text-[10px]">Coming soon</Badge>}
+                  />
+                  <SettingsRow
+                    icon="link"
+                    title="Connected Sign-in Methods"
+                    description="Google, Apple, and other sign-in options"
+                    trailing={<Badge variant="outline" className="text-[10px]">Coming soon</Badge>}
+                  />
+                </div>
+              </Card>
+            </div>
+
             <Card className="rounded-2xl border border-destructive/30 bg-card shadow-sm">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-destructive">
-                        <ShieldAlert className="h-4 w-4" />
+                        <MaterialIcon name="warning" className="text-lg" />
                         Danger Zone
                     </CardTitle>
                     <CardDescription>Permanently delete your account and personal data.</CardDescription>
@@ -356,54 +451,46 @@ export default function ProfilePage() {
         </div>
 
         <div className="md:col-span-2 space-y-5 sm:space-y-6">
-             <Card className="rounded-2xl border bg-card shadow-sm">
-                <CardHeader>
-                    <CardTitle>Personal Information</CardTitle>
-                    <CardDescription>Update your personal details here.</CardDescription>
+             <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+                <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+                    <div>
+                      <CardTitle>Personal Information</CardTitle>
+                      <CardDescription>Your details as saved on your account.</CardDescription>
+                    </div>
+                    <Button asChild variant="ghost" size="sm">
+                      <Link href="/dashboard/profile/edit">
+                        <MaterialIcon name="edit" className="mr-1.5 text-base" />
+                        Edit
+                      </Link>
+                    </Button>
                 </CardHeader>
-                <CardContent>
-                     <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="firstName">First Name</Label>
-                                <Input id="firstName" {...profileForm.register("firstName")} />
-                                {profileForm.formState.errors.firstName && <p className="text-sm text-destructive">{profileForm.formState.errors.firstName.message}</p>}
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="lastName">Last Name</Label>
-                                <Input id="lastName" {...profileForm.register("lastName")} />
-                                {profileForm.formState.errors.lastName && <p className="text-sm text-destructive">{profileForm.formState.errors.lastName.message}</p>}
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Email Address</Label>
-                                <Input id="email" type="email" {...profileForm.register("email")} disabled />
-                                {profileForm.formState.errors.email && <p className="text-sm text-destructive">{profileForm.formState.errors.email.message}</p>}
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="phoneNumber">Phone Number</Label>
-                                <Input id="phoneNumber" {...profileForm.register("phoneNumber")} />
-                                {profileForm.formState.errors.phoneNumber && <p className="text-sm text-destructive">{profileForm.formState.errors.phoneNumber.message}</p>}
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="country">Country</Label>
-                                <Input id="country" {...profileForm.register("country")} />
-                                {profileForm.formState.errors.country && <p className="text-sm text-destructive">{profileForm.formState.errors.country.message}</p>}
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="area">Preferred Area</Label>
-                                <Input id="area" {...profileForm.register("area")} />
-                                {profileForm.formState.errors.area && <p className="text-sm text-destructive">{profileForm.formState.errors.area.message}</p>}
-                            </div>
-                        </div>
-                        <Button type="submit" disabled={isProfileSaving}>
-                            {isProfileSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save Changes
-                        </Button>
-                    </form>
+                <CardContent className="p-0">
+                  <div className="divide-y border-t">
+                    <SettingsRow
+                      icon="badge"
+                      title="Full Name"
+                      description={fullName}
+                      href="/dashboard/profile/edit"
+                    />
+                    <SettingsRow
+                      icon="alternate_email"
+                      title="Email Address"
+                      description={userEmail || 'Not set'}
+                      href="/dashboard/profile/edit"
+                    />
+                    <SettingsRow
+                      icon="call"
+                      title="Phone Number"
+                      description={userProfile?.phoneNumber || 'Not set'}
+                      href="/dashboard/profile/edit"
+                    />
+                    <SettingsRow
+                      icon="location_on"
+                      title="Location"
+                      description={[userProfile?.area, userProfile?.country].filter(Boolean).join(', ') || 'Not set'}
+                      href="/dashboard/profile/edit"
+                    />
+                  </div>
                 </CardContent>
             </Card>
             <Card className="rounded-2xl border bg-card shadow-sm">
@@ -413,7 +500,7 @@ export default function ProfilePage() {
                 </CardHeader>
                 <CardContent>
                    <Alert className="mb-6">
-                     <Info className="h-4 w-4" />
+                     <MaterialIcon name="info" className="text-lg" />
                      <AlertTitle>Preferences saved — delivery coming soon</AlertTitle>
                      <AlertDescription>
                        Your choices are stored and will take effect once email and push delivery are wired up. No notifications are currently being sent.

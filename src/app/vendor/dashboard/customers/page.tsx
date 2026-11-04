@@ -35,7 +35,7 @@ import {
   import { Skeleton } from "@/components/ui/skeleton";
 
 
-function CustomerRow({ userId, bookings, isLoadingBookings }: { userId: string; bookings: WithId<Booking>[] | null; isLoadingBookings: boolean }) {
+function CustomerRow({ bookings, isLoadingBookings }: { userId: string; bookings: WithId<Booking>[] | null; isLoadingBookings: boolean }) {
     const firstBooking = bookings?.[0];
 
     const firstVisit = useMemo(() => {

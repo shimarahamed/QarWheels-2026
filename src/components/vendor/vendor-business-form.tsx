@@ -105,11 +105,11 @@ export function VendorBusinessForm({ defaultEmail, submitLabel = 'Create Vendor 
         description: 'Your garage profile is pending admin approval.',
       });
       await onRegistered();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: 'destructive',
         title: 'Vendor registration failed',
-        description: error?.message || 'Could not create the vendor account.',
+        description: error instanceof Error ? error.message : 'Could not create the vendor account.',
       });
     } finally {
       setIsSubmitting(false);

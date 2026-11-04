@@ -4,10 +4,8 @@ import { useState } from "react";
 import {
     Card,
     CardContent,
-    CardDescription,
     CardFooter,
     CardHeader,
-    CardTitle,
   } from "@/components/ui/card";
   import { Button } from "@/components/ui/button";
   import { Star, MessageSquare, Loader2, Send } from "lucide-react";
@@ -194,4 +192,3 @@ function StarRating({ rating, className }: { rating: number, className?: string 
       </div>
     );
   }
-  

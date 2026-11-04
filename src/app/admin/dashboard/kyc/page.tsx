@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import {
   ArrowRight, CheckCircle2, FileText, Loader2, ShieldCheck, XCircle,
 } from 'lucide-react';

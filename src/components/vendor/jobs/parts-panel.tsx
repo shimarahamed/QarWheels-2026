@@ -26,7 +26,7 @@ export function PartsPanel({
     if (existing) {
       onChange(partsUsed.map((p) => (p.inventoryItemId === item.id ? { ...p, qty: p.qty + 1 } : p)));
     } else {
-      onChange([...partsUsed, { inventoryItemId: item.id, name: item.name, qty: 1, unitPrice: item.price }]);
+      onChange([...partsUsed, { inventoryItemId: item.id, name: item.name, qty: 1, unitPrice: item.price ?? 0 }]);
     }
   }
 
@@ -62,7 +62,7 @@ export function PartsPanel({
               <div className="min-w-0">
                 <p className="truncate font-medium">{item.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  QAR {item.price.toFixed(2)} · {item.stock} in stock
+                  QAR {(item.price ?? 0).toFixed(2)} · {item.stock ?? 0} in stock
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">

@@ -220,7 +220,6 @@ function NavItem({
 export default function LandingPage() {
   const heroImg   = img('hero-image');
   const carImg    = img('car-placeholder-2');
-  const garageImg = img('garage-interior');
 
   // `user` gates the vendor-facing entry points below (nav link, header
   // button, CTA section, footer links) — a customer who is already signed in
@@ -315,7 +314,7 @@ export default function LandingPage() {
             {/* Greeting */}
             <div className="mb-4">
               <p className="text-xl font-bold text-foreground">Good morning 👋</p>
-              <p className="text-sm text-muted-foreground">What's your next move?&nbsp;&nbsp;
+              <p className="text-sm text-muted-foreground">What&apos;s your next move?&nbsp;&nbsp;
                 <span className="text-[11px] text-muted-foreground/60">ما هي خطوتك القادمة؟</span>
               </p>
             </div>
@@ -891,7 +890,7 @@ export default function LandingPage() {
             <ThemeToggle />
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Qatar's car service marketplace — discover, compare, and book trusted garages.
+            Qatar&apos;s car service marketplace — discover, compare, and book trusted garages.
           </p>
           <p className="text-[11px] text-muted-foreground/60">فارويلز — سيارتك، رعايتنا.</p>
 

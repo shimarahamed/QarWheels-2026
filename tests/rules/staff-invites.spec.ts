@@ -18,7 +18,7 @@ describe('Phase 2 staff invite / membership isolation', () => {
       });
       await setDoc(doc(ctx.firestore(), 'staff_invites', 'inv_1'), {
         businessId: BIZ_A, branchIds: [BRANCH_A1], email: 'newstaff@aab.qa',
-        role: 'branch_staff', tokenHash: 'deadbeef', status: 'Pending',
+        role: 'vendor_staff', tokenHash: 'deadbeef', status: 'Pending',
         expiresAt: new Date(Date.now() + 86400000).toISOString(),
         createdBy: 'uid_owner_a', createdAt: new Date(),
       });
@@ -37,7 +37,7 @@ describe('Phase 2 staff invite / membership isolation', () => {
   it('no client can create a staff_invites document directly (must go through /api/vendor/staff/invite)', async () => {
     const ctx = await asUserWithClaims('uid_owner_a', { r: 'business_owner', b: BIZ_A, br: [] });
     await assertFails(setDoc(doc(ctx.firestore(), 'staff_invites', 'inv_fake'), {
-      businessId: BIZ_A, branchIds: [BRANCH_A1], email: 'x@aab.qa', role: 'branch_staff',
+      businessId: BIZ_A, branchIds: [BRANCH_A1], email: 'x@aab.qa', role: 'vendor_staff',
       tokenHash: 'x', status: 'Pending', expiresAt: new Date().toISOString(),
       createdBy: 'uid_owner_a', createdAt: new Date(),
     }));
@@ -65,7 +65,7 @@ describe('Phase 2 staff invite / membership isolation', () => {
     await assertFails(deleteDoc(doc(ctx.firestore(), 'memberships', 'uid_owner_a_biz_aab_auto')));
   });
 
-  it('a business_admin from a DIFFERENT business cannot read business A staff_invites or memberships', async () => {
+  it('a vendor_admin from a DIFFERENT business cannot read business A staff_invites or memberships', async () => {
     const ctx = await asUserWithClaims('uid_owner_b', { r: 'business_owner', b: 'biz_other', br: [] });
     await assertFails(getDoc(doc(ctx.firestore(), 'memberships', 'uid_owner_a_biz_aab_auto')));
     await assertFails(getDoc(doc(ctx.firestore(), 'staff_invites', 'inv_1')));

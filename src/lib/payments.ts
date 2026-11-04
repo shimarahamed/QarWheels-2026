@@ -36,7 +36,6 @@ function isConfigured(): boolean {
 }
 
 function warnStub(action: string): void {
-  // eslint-disable-next-line no-console
   console.warn(
     `[payments] STRIPE_SECRET_KEY not set — "${action}" ran against the stub. ` +
       'The ledger/payout records are real; no money moved.',
@@ -67,6 +66,9 @@ export async function sendPayout(params: {
   currency: string;
   payoutId: string;
 }): Promise<TransferResult> {
+  if (!Number.isSafeInteger(params.amountMinorUnits) || params.amountMinorUnits <= 0) {
+    throw new Error('Payout amount must be a positive integer in minor units');
+  }
   if (!isConfigured()) {
     warnStub('sendPayout');
     // Deliberately reports Processing rather than Paid: nothing actually

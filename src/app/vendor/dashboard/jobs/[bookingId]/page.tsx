@@ -4,18 +4,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { doc, Timestamp, arrayUnion, serverTimestamp, collection, query, where } from 'firebase/firestore';
-import {
-  ArrowLeft,
-  Car,
-  Clock3,
-  Loader2,
-  Mail,
-  Package,
-  Phone,
-  Receipt,
-  UserCog,
-  Wrench,
-} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { MaterialIcon } from '@/components/ui/material-icon';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -109,10 +99,14 @@ export default function JobCardPage() {
 
   async function handleAssignStaff(staffId: string) {
     if (!booking) return;
-    const member = (staff ?? []).find((s) => s.id === staffId);
+    // Radix Select.Item forbids value="" (it's reserved to mean "clear and
+    // show the placeholder"), so the unassign option uses this sentinel
+    // instead and it's translated back to null here.
+    const resolvedId = staffId === 'unassigned' ? null : staffId;
+    const member = (staff ?? []).find((s) => s.id === resolvedId);
     try {
       await saveField({
-        assignedStaffId: staffId || null,
+        assignedStaffId: resolvedId,
         assignedStaffName: member?.displayName ?? null,
       });
     } catch {
@@ -172,11 +166,12 @@ export default function JobCardPage() {
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
       <div>
         <Button variant="ghost" size="sm" className="mb-3 -ml-2 gap-1.5 text-muted-foreground" onClick={() => router.push('/vendor/dashboard/bookings')}>
-          <ArrowLeft className="h-4 w-4" />
+          <MaterialIcon name="arrow_back" className="text-base" />
           Back to bookings
         </Button>
 
-        <Card className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <Card className="relative overflow-hidden rounded-xl border bg-card shadow-sm">
+          <div className="card-accent-top from-primary via-[var(--qw-gold)] to-transparent" />
           <CardContent className="space-y-5 p-5 sm:p-6">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
               <div className="min-w-0">
@@ -186,7 +181,7 @@ export default function JobCardPage() {
                 </div>
                 <h1 className="text-2xl font-bold tracking-tight">{booking.serviceName}</h1>
                 <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Car className="h-3.5 w-3.5" />
+                  <MaterialIcon name="directions_car" className="text-sm" />
                   {booking.carDescription ?? 'Vehicle details unavailable'}
                 </p>
               </div>
@@ -223,7 +218,7 @@ export default function JobCardPage() {
 
             <div className="grid gap-3 border-t pt-4 sm:grid-cols-3">
               <div className="flex items-center gap-2.5">
-                <span className="icon-pill h-9 w-9 bg-primary/10 text-primary"><Mail className="h-4 w-4" /></span>
+                <span className="icon-pill h-9 w-9 bg-primary/10 text-primary"><MaterialIcon name="mail" className="text-base" /></span>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold">{booking.customerName}</p>
                   <p className="truncate text-xs text-muted-foreground">{booking.customerEmail}</p>
@@ -231,7 +226,7 @@ export default function JobCardPage() {
               </div>
               {booking.customerPhone && (
                 <div className="flex items-center gap-2.5">
-                  <span className="icon-pill h-9 w-9 bg-sky-500/10 text-sky-600"><Phone className="h-4 w-4" /></span>
+                  <span className="icon-pill h-9 w-9 bg-sky-500/10 text-sky-600"><MaterialIcon name="call" className="text-base" /></span>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold">Contact</p>
                     <p className="truncate text-xs text-muted-foreground">{booking.customerPhone}</p>
@@ -239,16 +234,16 @@ export default function JobCardPage() {
                 </div>
               )}
               <div className="flex items-center gap-2.5">
-                <span className="icon-pill h-9 w-9 bg-violet-500/10 text-violet-600"><UserCog className="h-4 w-4" /></span>
+                <span className="icon-pill h-9 w-9 bg-violet-500/10 text-violet-600"><MaterialIcon name="engineering" className="text-base" /></span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">Assigned to</p>
                   {activeStaff.length > 0 ? (
-                    <Select value={booking.assignedStaffId ?? ''} onValueChange={handleAssignStaff}>
+                    <Select value={booking.assignedStaffId || 'unassigned'} onValueChange={handleAssignStaff}>
                       <SelectTrigger className="mt-0.5 h-7 border-0 bg-transparent p-0 text-xs text-muted-foreground shadow-none focus:ring-0">
                         <SelectValue placeholder="Unassigned" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
                         {activeStaff.map((s) => (
                           <SelectItem key={s.id} value={s.id}>{s.displayName}</SelectItem>
                         ))}
@@ -265,14 +260,14 @@ export default function JobCardPage() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
-        <Card className="rounded-2xl border bg-card shadow-sm">
+        <Card className="rounded-xl border bg-card shadow-sm">
           <CardContent className="p-0">
             <Tabs defaultValue="parts">
               <div className="border-b p-4">
                 <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="parts" className="gap-1.5"><Package className="h-3.5 w-3.5" /> Parts</TabsTrigger>
-                  <TabsTrigger value="labor" className="gap-1.5"><Clock3 className="h-3.5 w-3.5" /> Labor</TabsTrigger>
-                  <TabsTrigger value="notes" className="gap-1.5"><Wrench className="h-3.5 w-3.5" /> Notes</TabsTrigger>
+                  <TabsTrigger value="parts" className="gap-1.5"><MaterialIcon name="inventory_2" className="text-sm" /> Parts</TabsTrigger>
+                  <TabsTrigger value="labor" className="gap-1.5"><MaterialIcon name="schedule" className="text-sm" /> Labor</TabsTrigger>
+                  <TabsTrigger value="notes" className="gap-1.5"><MaterialIcon name="edit_note" className="text-sm" /> Notes</TabsTrigger>
                 </TabsList>
               </div>
               <TabsContent value="parts" className="p-4">
@@ -302,14 +297,14 @@ export default function JobCardPage() {
         </Card>
 
         <div className="flex flex-col gap-4">
-          <Card className="rounded-2xl border bg-card shadow-sm">
+          <Card className="rounded-xl border bg-card shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base font-bold">Job total</CardTitle>
+              <CardTitle className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">Job total</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Parts</span>
-                <span className="font-semibold tabular-nums">QAR {partsTotal.toFixed(2)}</span>
+                <span className="kpi-number font-semibold">QAR {partsTotal.toFixed(2)}</span>
               </div>
               <div className="space-y-1.5 border-t pt-3">
                 <Label htmlFor="cost" className="text-xs text-muted-foreground">Final cost (QAR)</Label>
@@ -317,17 +312,17 @@ export default function JobCardPage() {
                   <div className="flex gap-2">
                     <Input id="cost" inputMode="decimal" value={cost} onChange={(e) => setCostDraft(e.target.value)} />
                     <Button size="icon" className="shrink-0" disabled={isSavingCost} onClick={handleSaveCost}>
-                      {isSavingCost ? <Loader2 className="h-4 w-4 animate-spin" /> : <Receipt className="h-4 w-4" />}
+                      {isSavingCost ? <Loader2 className="h-4 w-4 animate-spin" /> : <MaterialIcon name="receipt_long" className="text-base" />}
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-lg font-bold tabular-nums">QAR {(booking.cost ?? 0).toFixed(2)}</p>
+                  <p className="kpi-number text-lg">QAR {(booking.cost ?? 0).toFixed(2)}</p>
                 )}
               </div>
               {booking.status === 'Completed' && (
                 <Button asChild variant="outline" className="w-full gap-1.5">
                   <a href={`/vendor/dashboard/invoices?bookingId=${booking.id}`}>
-                    <Receipt className="h-4 w-4" />
+                    <MaterialIcon name="receipt_long" className="text-base" />
                     Create invoice from this job
                   </a>
                 </Button>
@@ -335,7 +330,7 @@ export default function JobCardPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border bg-card shadow-sm">
+          <Card className="rounded-xl border bg-card shadow-sm">
             <CardContent className="p-5">
               <StatusHistoryTimeline history={booking.statusHistory ?? []} />
             </CardContent>

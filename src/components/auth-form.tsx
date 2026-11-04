@@ -106,12 +106,12 @@ export function AuthForm({ type, userType, onResult }: AuthFormProps) {
             onResult();
         }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error(`${type} failed:`, error);
         toast({
             variant: 'destructive',
             title: `${type === 'login' ? 'Login' : 'Signup'} Failed`,
-            description: error.message || 'An unexpected error occurred.',
+            description: error instanceof Error ? error.message : 'An unexpected error occurred.',
         });
     } finally {
         setIsSubmitting(false);

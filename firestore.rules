@@ -23,27 +23,12 @@ service cloud.firestore {
     }
 
     function isMasterAdmin() {
-      return role() == 'master_admin';
-    }
-
-    // roles_admin is the durable source of truth for master_admin — writes
-    // land there first (src/app/api/admin/admins/**), and syncClaimsForUser
-    // mints the `qw.lvl` claim from it synchronously in the same request.
-    // This doc-existence check is NOT a legacy/transitional path being
-    // phased out; it's the required fallback for the staleness window
-    // between that write and the admin's next ID-token refresh (up to ~1hr
-    // on an already-issued token) — without it, a freshly granted or
-    // freshly revoked admin would have stale access for that whole window.
-    // It does cost one extra document read per evaluation versus the claim
-    // alone; that's the accepted tradeoff for correctness during the
-    // staleness window, not an oversight.
-    function isAdminDocFallback() {
       return isSignedIn()
         && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
     function isAdmin() {
-      return isMasterAdmin() || isAdminDocFallback();
+      return isMasterAdmin();
     }
 
     function isOwner(uid) {
@@ -162,7 +147,7 @@ service cloud.firestore {
         return request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['firstName', 'lastName', 'phoneNumber', 'displayName', 'phone',
                     'country', 'area', 'notificationPreferences', 'favorites',
-                    'pushTokens', 'pushPlatform', 'updatedAt']);
+                    'pushTokens', 'pushPlatform', 'defaultCarId', 'updatedAt']);
       }
 
       allow update: if isAdmin()
@@ -176,6 +161,10 @@ service cloud.firestore {
         && (!('country' in request.resource.data) || (request.resource.data.country is string && request.resource.data.country.size() <= 50))
         && (!('area' in request.resource.data) || (request.resource.data.area is string && request.resource.data.area.size() <= 100))
         && (!('favorites' in request.resource.data) || (request.resource.data.favorites is list && request.resource.data.favorites.size() <= 200))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['defaultCarId'])
+          || !('defaultCarId' in request.resource.data)
+          || (request.resource.data.defaultCarId is string
+            && exists(/databases/$(database)/documents/users/$(userId)/cars/$(request.resource.data.defaultCarId))))
         && (!('pushTokens' in request.resource.data) || (request.resource.data.pushTokens is list && request.resource.data.pushTokens.size() <= 20)));
 
       allow delete: if isAdmin();
@@ -386,11 +375,20 @@ service cloud.firestore {
     match /reviews/{reviewId} {
       allow read: if true;
 
-      // Any signed-in user can create a review — booking-gate enforced at
-      // the application layer (ReviewService checks completed booking exists)
+      function matchesCompletedBooking() {
+        let booking = get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data;
+        return booking.userId == request.auth.uid
+          && booking.status == 'Completed'
+          && booking.businessId == request.resource.data.businessId
+          && booking.branchId == request.resource.data.branchId;
+      }
+
       allow create: if isSignedIn()
         && hasAllRequired(['userId', 'businessId', 'branchId', 'bookingId', 'rating', 'comment'])
         && request.resource.data.userId == request.auth.uid
+        && request.resource.data.bookingId is string
+        && reviewId == request.resource.data.bookingId
+        && matchesCompletedBooking()
         && request.resource.data.rating is int
         && request.resource.data.rating >= 1
         && request.resource.data.rating <= 5
@@ -435,7 +433,10 @@ service cloud.firestore {
         (isOwner(resource.data.userId)
           && request.resource.data.status == 'Cancelled'
           && !(resource.data.status in ['Completed', 'Cancelled', 'Declined', 'NoShow'])
-          && notChanging(['userId', 'customerName', 'customerEmail', 'customerPhone', 'businessId', 'branchId', 'carId', 'carDescription', 'serviceName', 'bookingDate', 'createdAt']))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'statusHistory', 'updatedAt'])
+          && request.resource.data.statusHistory.size() == resource.data.statusHistory.size() + 1
+          && request.resource.data.statusHistory[resource.data.statusHistory.size()].status == 'Cancelled'
+          && request.resource.data.statusHistory[resource.data.statusHistory.size()].byUid == request.auth.uid)
         // Booking-facing staff can only make a legal forward transition;
         // identity fields are immutable, statusHistory must grow by exactly
         // one entry. Pricing the job (setting/changing cost) is further

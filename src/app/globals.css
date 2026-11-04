@@ -1,5 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
+/* Outfit and DM Sans are loaded via next/font/google in layout.tsx
+   (fontHeadline/fontBody); Space Grotesk still needs a plain fetch since
+   nothing else here wires it up. Material Symbols Outlined is loaded via a
+   <link> in layout.tsx's <head>, not a CSS @import — a raw @import left the
+   icon ligature text (e.g. "search") permanently visible instead of
+   swapping to the glyph once the font loaded. */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 
 /* Shared design tokens — generated from packages/tokens by
    `npm run tokens:build`. Defines both the raw --qw-* tokens and the

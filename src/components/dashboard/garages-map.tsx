@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
 import type { Branch, WithId } from '@/lib/types';
+import type { Map, LayerGroup } from 'leaflet';
 import { Card } from '@/components/ui/card';
 
 const DOHA: [number, number] = [25.2854, 51.531];
@@ -10,8 +11,8 @@ const DOHA: [number, number] = [25.2854, 51.531];
 export function GaragesMap({ vendors }: { vendors: WithId<Branch>[] | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
   // Store the Leaflet map and markers layer across renders
-  const mapRef = useRef<any>(null);
-  const layerRef = useRef<any>(null);
+  const mapRef = useRef<Map | null>(null);
+  const layerRef = useRef<LayerGroup | null>(null);
 
   // ── Init map once on mount ──────────────────────────────────────────────
   useEffect(() => {
@@ -50,7 +51,7 @@ export function GaragesMap({ vendors }: { vendors: WithId<Branch>[] | null }) {
   useEffect(() => {
     if (!mapRef.current || !layerRef.current) return;
     import('leaflet').then((L) => {
-      renderMarkers(L, mapRef.current, layerRef.current, vendors);
+      if (mapRef.current && layerRef.current) renderMarkers(L, mapRef.current, layerRef.current, vendors);
     });
   }, [vendors]);
 
@@ -61,7 +62,7 @@ export function GaragesMap({ vendors }: { vendors: WithId<Branch>[] | null }) {
   );
 }
 
-function renderMarkers(L: any, map: any, layer: any, vendors: WithId<Branch>[] | null) {
+function renderMarkers(L: typeof import('leaflet'), map: Map, layer: LayerGroup, vendors: WithId<Branch>[] | null) {
   layer.clearLayers();
 
   const icon = L.icon({

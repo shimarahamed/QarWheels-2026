@@ -3,12 +3,12 @@ import { googleAI } from '@genkit-ai/google-genai';
 
 export const ai = genkit({
   plugins: [googleAI({ apiKey: process.env.GEMINI_API_KEY })],
-  model: 'googleai/gemini-1.5-flash',
+  model: googleAI.model(process.env.GEMINI_MODEL ?? 'gemini-2.5-flash', { maxOutputTokens: 1500 }),
 });
 
 /**
  * Strips control characters and enforces length limits on user-supplied text
- * before it is interpolated into any AI prompt. Prevents prompt injection.
+ * before it is interpolated into any AI prompt. This is not a prompt-injection defense.
  */
 export function sanitizeInput(input: string, maxLength = 1000): string {
   return input
@@ -20,32 +20,32 @@ export function sanitizeInput(input: string, maxLength = 1000): string {
 
 /**
  * Wraps an AI flow call with up to `attempts` retries using exponential backoff.
- * Only retries on transient errors (rate-limits, server errors, timeouts).
+ * Only retries on transient provider errors. The prior call must settle before
+ * another starts; a Promise.race timeout would leave model work running.
  */
 export async function withRetry<T>(
-  fn: () => Promise<T>,
+  fn: (signal: AbortSignal) => Promise<T>,
   attempts = 3,
   baseDelayMs = 1000,
 ): Promise<T> {
   let lastError: unknown;
   for (let i = 0; i < attempts; i++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30_000);
     try {
-      return await Promise.race<T>([
-        fn(),
-        new Promise<T>((_, reject) =>
-          setTimeout(() => reject(new Error('AI_TIMEOUT')), 30_000)
-        ),
-      ]);
+      return await fn(controller.signal);
     } catch (error) {
+      if (controller.signal.aborted) throw new Error('AI_TIMEOUT', { cause: error });
       lastError = error;
       const msg = error instanceof Error ? error.message : '';
       const isTransient =
         msg.includes('429') ||
         msg.includes('503') ||
-        msg.includes('500') ||
-        msg.includes('AI_TIMEOUT');
+        msg.includes('500');
       if (!isTransient || i === attempts - 1) throw error;
       await new Promise(r => setTimeout(r, baseDelayMs * Math.pow(2, i)));
+    } finally {
+      clearTimeout(timer);
     }
   }
   throw lastError;

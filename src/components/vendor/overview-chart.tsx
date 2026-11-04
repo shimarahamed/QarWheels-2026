@@ -20,7 +20,7 @@ const mockRevenue = [
 ]
 
 export function OverviewChart({ timeRange }: { timeRange?: string }) {
-    const [data, setData] = useState<any[]>([]);
+    const [data, setData] = useState<typeof mockRevenue>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
