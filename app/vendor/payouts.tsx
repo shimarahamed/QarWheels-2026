@@ -52,14 +52,17 @@ export default function PayoutsScreen() {
   );
 
   const available = data?.available;
-  const netAvailable = available?.netMinorUnits ?? 0;
+  const paymentsLive = data?.paymentsLive === true;
+  const netAvailable = paymentsLive ? available?.netMinorUnits ?? 0 : 0;
   const payouts = data?.payouts ?? [];
   const transactions = data?.transactions ?? [];
 
   // Lifetime totals come from payout history; the "pending" figure is the
   // balance currently available to withdraw.
-  const totalEarned = payouts.reduce((s, p) => s + p.netMinorUnits, 0);
-  const totalFees = payouts.reduce((s, p) => s + p.platformFeeMinorUnits, 0);
+  const totalEarned = payouts.filter((p) => p.status === 'Paid' && p.providerTransferId)
+    .reduce((s, p) => s + p.netMinorUnits, 0);
+  const totalFees = payouts.filter((p) => p.status === 'Paid' && p.providerTransferId)
+    .reduce((s, p) => s + p.platformFeeMinorUnits, 0);
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.background }]} edges={['top']}>
@@ -68,8 +71,11 @@ export default function PayoutsScreen() {
       <View style={[s.navbar, { backgroundColor: c.background, borderBottomColor: c.border }]}>
         <Text style={[s.navTitle, { color: c.text }]}>Payouts</Text>
         <Pressable
-          style={[s.requestBtn, { backgroundColor: c.primary }]}
+          style={[s.requestBtn, { backgroundColor: c.primary, opacity: paymentsLive ? 1 : 0.5 }]}
           onPress={() => router.push('/vendor/request-payout' as never)}
+          disabled={!paymentsLive}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !paymentsLive }}
         >
           <Ionicons name="cash-outline" size={16} color="#fff" />
           <Text style={s.requestBtnText}>Request</Text>
@@ -103,7 +109,7 @@ export default function PayoutsScreen() {
               )}
 
               {/* Summary */}
-              <View style={s.metricsRow}>
+              {paymentsLive && <View style={s.metricsRow}>
                 {[
                   { label: 'Total Paid Out', value: formatMinorUnits(totalEarned), color: c.success },
                   { label: 'Platform Fees', value: formatMinorUnits(totalFees), color: c.warning },
@@ -114,21 +120,21 @@ export default function PayoutsScreen() {
                     <Text style={[s.metricLabel, { color: c.muted }]}>{m.label}</Text>
                   </View>
                 ))}
-              </View>
+              </View>}
 
               {/* Payments-not-live notice — honest that nothing moves yet. */}
-              {data && !data.paymentsLive && (
+              {!paymentsLive && (
                 <View style={[s.noteCard, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                   <Ionicons name="information-circle-outline" size={16} color={c.muted} />
                   <Text style={[s.noteText, { color: c.muted }]}>
-                    Payment processing is not switched on yet. Payout requests are recorded in full, but no funds move to
-                    your bank account until it goes live. Your balance stays intact.
+                    Pay-at-garage payments go directly to your business. QarWheel does not collect those funds or offer
+                    payouts in this release. Earlier payout records below are not proof of a bank transfer.
                   </Text>
                 </View>
               )}
 
               {/* Available balance breakdown */}
-              {available && available.transactionCount > 0 && (
+              {paymentsLive && available && available.transactionCount > 0 && (
                 <MotionSurface delay={20}>
                   <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
                     <Text style={[s.sectionTitle, { color: c.text }]}>Awaiting Payout</Text>
@@ -161,11 +167,11 @@ export default function PayoutsScreen() {
               {/* Payout history */}
               <MotionSurface delay={30}>
                 <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
-                  <Text style={[s.sectionTitle, { color: c.text }]}>Payout History</Text>
+                  <Text style={[s.sectionTitle, { color: c.text }]}>{paymentsLive ? 'Payout History' : 'Previous payout records'}</Text>
 
                   {payouts.length === 0 && (
                     <Text style={[s.emptyText, { color: c.muted }]}>
-                      No payouts requested yet. Completed bookings settle into your available balance.
+                      No payout records. Pay-at-garage payments stay with the garage.
                     </Text>
                   )}
 
@@ -185,7 +191,7 @@ export default function PayoutsScreen() {
                           </View>
                           <View style={{ alignItems: 'flex-end', gap: 6 }}>
                             <View style={[s.statusBadge, { backgroundColor: sc.bg }]}>
-                              <Text style={[s.statusText, { color: sc.text }]}>{payout.status}</Text>
+                              <Text style={[s.statusText, { color: sc.text }]}>{paymentsLive ? payout.status : 'Unverified record'}</Text>
                             </View>
                             <Text style={[s.payoutNet, { color: c.text }]}>{formatMinorUnits(payout.netMinorUnits)}</Text>
                           </View>
@@ -194,7 +200,7 @@ export default function PayoutsScreen() {
                         {payout.status === 'Failed' && payout.failureReason && (
                           <Text style={[s.paidAt, { color: c.danger }]}>{payout.failureReason}</Text>
                         )}
-                        {payout.paidAt && (
+                        {paymentsLive && payout.providerTransferId && payout.paidAt && (
                           <Text style={[s.paidAt, { color: c.muted }]}>Paid: {formatBillingDate(payout.paidAt)}</Text>
                         )}
                       </View>
@@ -204,7 +210,7 @@ export default function PayoutsScreen() {
               </MotionSurface>
 
               {/* Request payout CTA */}
-              <Pressable
+              {paymentsLive && <Pressable
                 style={[s.ctaBtn, { backgroundColor: netAvailable > 0 ? c.primary : c.surfaceAlt }]}
                 onPress={() => router.push('/vendor/request-payout' as never)}
                 disabled={netAvailable <= 0}
@@ -213,7 +219,7 @@ export default function PayoutsScreen() {
                 <Text style={[s.ctaBtnText, { color: netAvailable > 0 ? '#fff' : c.muted }]}>
                   {netAvailable > 0 ? `Request Payout — ${formatMinorUnits(netAvailable)}` : 'No balance available'}
                 </Text>
-              </Pressable>
+              </Pressable>}
             </>
           )}
         </MotionScreen>

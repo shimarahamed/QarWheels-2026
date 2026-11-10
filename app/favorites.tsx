@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useRouter } from 'expo-router';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
@@ -8,6 +8,7 @@ import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { useBranches } from '@/lib/firestoreOps';
 import { tap } from '@/lib/haptics';
 import { garageDistanceLabel } from '@/lib/marketplace-display';
+import { RemoteImage } from '@/components/RemoteImage';
 
 export default function FavoritesScreen() {
   const c = useQarColors();
@@ -57,7 +58,7 @@ export default function FavoritesScreen() {
                 style={[s.card, { backgroundColor: c.surface, borderColor: c.border }]}
                 onPress={() => router.push(`/garage/${garage.id}` as never)}
               >
-                <Image source={{ uri: garage.imageUrl }} style={s.thumb} resizeMode="cover" />
+                <RemoteImage uri={garage.imageUrl} style={s.thumb} fallbackIcon="business-outline" accessibilityLabel={`${garage.name} workshop`} />
                 <View style={s.cardBody}>
                   <View style={s.cardTop}>
                     <View style={{ flex: 1 }}>

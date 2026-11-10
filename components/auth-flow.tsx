@@ -136,6 +136,9 @@ export function PrimaryButton({
       style={[styles.primaryButton, disabled && styles.disabled]}
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: Boolean(disabled) }}
       scaleValue={0.96}
     >
       <Text style={styles.primaryText}>{label}</Text>
@@ -148,13 +151,15 @@ export function SecondaryButton({
   label,
   onPress,
   icon,
+  disabled,
 }: {
   label: string;
   onPress: () => void;
   icon?: IconName;
+  disabled?: boolean;
 }) {
   return (
-    <AnimatedPressable style={styles.secondaryButton} onPress={onPress} scaleValue={0.96}>
+    <AnimatedPressable style={[styles.secondaryButton, disabled && styles.disabled]} onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: Boolean(disabled) }} scaleValue={0.96}>
       {icon ? <Ionicons name={icon} size={18} color={colors.primary} /> : null}
       <Text style={styles.secondaryText}>{label}</Text>
     </AnimatedPressable>

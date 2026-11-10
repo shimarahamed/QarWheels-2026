@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen, MotionSurface } from '@/lib/motion';
@@ -9,6 +9,7 @@ import { bookingAmountLabel, getStatusColor, getStatusLabel } from '@/lib/vendor
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
 import { BranchSwitcher } from '@/components/vendor/BranchSwitcher';
 import { useVendorBranches } from '@/lib/vendorQueries';
+import { useVendorFeedStatus } from '@/lib/vendor-feed-status';
 
 export default function VendorDashboard() {
   const c = useQarColors();
@@ -17,19 +18,18 @@ export default function VendorDashboard() {
   const profile = useQarWheelStore((s) => s.vendorProfile);
   const bookings = useQarWheelStore((s) => s.vendorBookings);
   const { activeBranch } = useVendorBranches();
+  const feed = useVendorFeedStatus();
 
 
   // Profile publishing is an explicit action on the settings screen, not a
   // side effect of viewing the dashboard — this used to overwrite real
   // Firestore data with hardcoded placeholder values on every mount.
 
-  const todayBookings = bookings.filter((b) => b.date === 'Today');
+  const todayBookings = bookings.filter((b) => b.date === 'Today' && !['Cancelled', 'Declined', 'NoShow'].includes(b.status));
   const pending = bookings.filter((b) => b.status === 'Pending').length;
   const inProgress = bookings.filter((b) => b.status === 'InProgress').length;
   const readyPickup = bookings.filter((b) => b.status === 'ReadyForPickup').length;
-  const todayRevenue = bookings
-    .filter((b) => b.date === 'Today' && !['Cancelled', 'Declined', 'NoShow'].includes(b.status))
-    .reduce((sum, b) => sum + (Number.isFinite(b.totalAmount) ? b.totalAmount : 0), 0);
+  const countsUnavailable = feed.loading || feed.error;
 
   // `route` makes a metric tappable — Pending is the entry point to the new
   // requests inbox (the tab bar's 5 slots are full, so this is the way in).
@@ -40,10 +40,10 @@ export default function VendorDashboard() {
     color: string;
     route?: string;
   }[] = [
-    { label: "Today's Quoted Value", value: todayRevenue > 0 ? `QAR ${todayRevenue}` : 'No quotes yet', icon: 'cash-outline', color: c.success },
-    { label: 'Pending', value: String(pending), icon: 'time-outline', color: c.warning, route: '/vendor/requests' },
-    { label: 'In Progress', value: String(inProgress), icon: 'construct-outline', color: c.primary },
-    { label: 'Ready Pickup', value: String(readyPickup), icon: 'checkmark-circle-outline', color: c.ai },
+    { label: 'Today', value: countsUnavailable ? '--' : String(todayBookings.length), icon: 'calendar-outline', color: c.success, route: '/vendor/bookings' },
+    { label: 'Pending', value: countsUnavailable ? '--' : String(pending), icon: 'time-outline', color: c.warning, route: '/vendor/requests' },
+    { label: 'In Progress', value: countsUnavailable ? '--' : String(inProgress), icon: 'construct-outline', color: c.primary },
+    { label: 'Ready Pickup', value: countsUnavailable ? '--' : String(readyPickup), icon: 'checkmark-circle-outline', color: c.ai },
   ];
 
   return (
@@ -111,7 +111,7 @@ export default function VendorDashboard() {
                   style={[s.metricCard, { backgroundColor: c.surface, borderColor: c.border }]}
                   onPress={() => router.push(m.route as never)}
                   accessible accessibilityRole="button"
-                  accessibilityLabel={`${m.label}: ${m.value}. Open new requests`}
+                  accessibilityLabel={`${m.label}: ${countsUnavailable ? feed.error ? 'unavailable' : 'loading' : m.value}. ${m.route === '/vendor/requests' ? 'Open new requests' : 'Open bookings'}`}
                 >
                   {inner}
                 </Pressable>
@@ -150,18 +150,22 @@ export default function VendorDashboard() {
             <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
               <View style={s.sectionHeader}>
                 <Text style={[s.sectionTitle, { color: c.text }]}>Today's Bookings</Text>
-                <Pressable onPress={() => router.push('/vendor/bookings' as never)}>
+                <Pressable onPress={() => router.push('/vendor/bookings' as never)} accessibilityRole="button" accessibilityLabel="View all bookings" style={s.sectionLinkTarget}>
                   <Text style={[s.sectionLink, { color: c.primary }]}>See all</Text>
                 </Pressable>
               </View>
-              {todayBookings.length === 0 ? (
+              {feed.loading && todayBookings.length === 0 ? (
+                <ActivityIndicator color={c.primary} accessibilityLabel="Loading today's bookings" />
+              ) : feed.error && todayBookings.length === 0 ? (
+                <Text style={[s.emptyText, { color: c.muted }]}>Bookings could not be loaded. Retry above.</Text>
+              ) : todayBookings.length === 0 ? (
                 <View style={s.emptyState}>
                   <Ionicons name="calendar-outline" size={32} color={c.muted} />
                   <Text style={[s.emptyText, { color: c.muted }]}>No bookings today</Text>
                 </View>
               ) : (
                 <View style={s.bookingList}>
-                  {todayBookings.map((b) => {
+                  {todayBookings.slice(0, 5).map((b) => {
                     const sc = getStatusColor(b.status);
                     return (
                       <Pressable
@@ -205,61 +209,6 @@ export default function VendorDashboard() {
             </View>
           </MotionSurface>
 
-          {/* Live feed */}
-          <MotionSurface delay={60}>
-            <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
-              <Text style={[s.sectionTitle, { color: c.text }]}>Recent Activity</Text>
-              <View style={{ gap: 12 }}>
-                {[
-                  { icon: 'checkmark-circle' as const, text: 'Laila Hassan paid invoice — QAR 221.50', time: '2 min ago', color: '#22C55E' },
-                  { icon: 'calendar' as const, text: 'New booking: Omar Khalifa · AC check at 2 PM', time: '18 min ago', color: '#3B82F6' },
-                  { icon: 'star' as const, text: 'Mohammed Al-Kuwari left a 5★ review', time: '1h ago', color: '#D4AF37' },
-                  { icon: 'chatbubble' as const, text: 'Ahmed Al-Rashid sent a message', time: '2h ago', color: c.primary },
-                ].map((item) => (
-                  <View key={item.text} style={s.feedRow}>
-                    <View style={[s.feedIcon, { backgroundColor: `${item.color}20` }]}>
-                      <Ionicons name={item.icon} size={16} color={item.color} />
-                    </View>
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text style={[s.feedText, { color: c.text }]}>{item.text}</Text>
-                      <Text style={[s.feedTime, { color: c.muted }]}>{item.time}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </MotionSurface>
-
-          {/* This week */}
-          <MotionSurface delay={80}>
-            <Pressable
-              style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}
-              onPress={() => router.push('/vendor/analytics' as never)}
-            >
-              <View style={s.sectionHeader}>
-                <Text style={[s.sectionTitle, { color: c.text }]}>This Week</Text>
-                <Ionicons name="chevron-forward" size={16} color={c.muted} />
-              </View>
-              <View style={s.perfRow}>
-                {[
-                  { label: 'Revenue', value: 'QAR 1,640', up: true },
-                  { label: 'Bookings', value: '11', up: true },
-                  { label: 'Avg Order', value: 'QAR 149', up: false },
-                  { label: 'Rating', value: `${profile.rating}★`, up: true },
-                ].map((p) => (
-                  <View key={p.label} style={[s.perfCard, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-                    <Text style={[s.perfValue, { color: c.text }]}>{p.value}</Text>
-                    <Text style={[s.perfLabel, { color: c.muted }]}>{p.label}</Text>
-                    <Ionicons
-                      name={p.up ? 'trending-up' : 'trending-down'}
-                      size={12}
-                      color={p.up ? c.success : c.warning}
-                    />
-                  </View>
-                ))}
-              </View>
-            </Pressable>
-          </MotionSurface>
         </MotionScreen>
       </ScrollView>
       <VendorTabBar />
@@ -305,6 +254,7 @@ const s = StyleSheet.create({
   section: { borderRadius: radius.xl, borderWidth: 1, padding: 18, gap: 16, ...shadow.sm },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { ...typography.h4 },
+  sectionLinkTarget: { minHeight: 44, justifyContent: 'center' },
   sectionLink: { fontSize: 13, fontWeight: '700' },
 
   quickRow: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
@@ -340,16 +290,4 @@ const s = StyleSheet.create({
   },
   bookingActionText: { fontSize: 12, fontWeight: '800' },
 
-  feedRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  feedIcon: { width: 32, height: 32, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
-  feedText: { fontSize: 13, fontWeight: '500', lineHeight: 18 },
-  feedTime: { fontSize: 12, fontWeight: '600' },
-
-  perfRow: { flexDirection: 'row', gap: 8 },
-  perfCard: {
-    flex: 1, borderRadius: radius.lg, borderWidth: 1,
-    padding: 10, alignItems: 'center', gap: 3,
-  },
-  perfValue: { ...typography.h4 },
-  perfLabel: { fontSize: 12, fontWeight: '600' },
 });

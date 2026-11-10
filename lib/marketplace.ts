@@ -41,6 +41,7 @@ export type Garage = {
 
 export type PopularJob = {
   id: string;
+  sourceServiceId?: string;
   title: string;
   price: string;
   availability: string;

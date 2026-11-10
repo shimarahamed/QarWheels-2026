@@ -901,19 +901,16 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
 
     if (section === 'subscriptions') {
       return (
-        <SectionCard title="Subscriptions" subtitle="Care plans for regular service, inspections, and priority support." icon="repeat-outline" c={c}>
-          <PlanCard title="QarWheel Care" price="QAR 49 / month" meta="Priority slots, annual inspection reminder, 2 free pickup credits." active c={c} />
-          <PlanCard title="Family garage plan" price="QAR 89 / month" meta="Up to 4 vehicles, shared wallet, consolidated invoices." c={c} />
+        <SectionCard title="Subscriptions unavailable" subtitle="Care plans are not offered in this release." icon="repeat-outline" c={c}>
+          <Text style={[styles.rowMeta, { color: c.textSecondary }]}>There is no subscription charge or active plan on your account.</Text>
         </SectionCard>
       );
     }
 
     if (section === 'coupons') {
       return (
-        <SectionCard title="Coupons and rewards" subtitle="Apply offers at checkout or save them for later." icon="pricetag-outline" c={c}>
-          <CouponRow code="QARCARE20" meta="20% off AC service - expires Jun 30" c={c} />
-          <CouponRow code="PICKUPFREE" meta="Free pickup on bookings above QAR 250" c={c} />
-          <CouponRow code="LOYALTY80" meta="QAR 80 loyalty credit after 3 completed services" c={c} />
+        <SectionCard title="Coupons unavailable" subtitle="Discount codes are not offered in this release." icon="pricetag-outline" c={c}>
+          <Text style={[styles.rowMeta, { color: c.textSecondary }]}>Confirm the final service price with the garage before paying there.</Text>
         </SectionCard>
       );
     }
@@ -1529,30 +1526,6 @@ function EmptyState({ title, body, icon, c }: { title: string; body: string; ico
   );
 }
 
-function PlanCard({ title, price, meta, active, c }: { title: string; price: string; meta: string; active?: boolean; c: ReturnType<typeof useQarColors> }) {
-  return (
-    <View style={[styles.planCard, { backgroundColor: active ? c.primaryLight : c.surfaceAlt, borderColor: active ? c.primaryMid : c.border }]}>
-      <View style={{ flex: 1, gap: 3 }}>
-        <Text style={[styles.rowTitle, { color: c.text }]}>{title}</Text>
-        <Text style={[styles.planPrice, { color: c.primary }]}>{price}</Text>
-        <Text style={[styles.rowMeta, { color: c.textSecondary }]}>{meta}</Text>
-      </View>
-      <Ionicons name={active ? 'checkmark-circle' : 'add-circle-outline'} size={22} color={active ? c.success : c.primary} />
-    </View>
-  );
-}
-
-function CouponRow({ code, meta, c }: { code: string; meta: string; c: ReturnType<typeof useQarColors> }) {
-  return (
-    <View style={[styles.couponRow, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-      <View style={[styles.couponCode, { backgroundColor: c.primaryLight }]}>
-        <Text style={[styles.couponCodeText, { color: c.primary }]}>{code}</Text>
-      </View>
-      <Text style={[styles.rowMeta, { color: c.textSecondary, flex: 1 }]}>{meta}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   navbar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: spacing.page, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   navButton: { width: 42, height: 42, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center', ...shadow.xs },
@@ -1664,9 +1637,4 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { ...typography.h3 },
   emptyBody: { ...typography.bodySm, textAlign: 'center' },
-  planCard: { flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: radius.xl, borderWidth: 1, padding: 16, minHeight: 92 },
-  planPrice: { ...typography.h4 },
-  couponRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: radius.lg, borderWidth: 1, padding: 12 },
-  couponCode: { borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 8 },
-  couponCodeText: { ...typography.caption, fontWeight: '900' },
 });

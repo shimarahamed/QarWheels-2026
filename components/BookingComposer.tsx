@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import * as Crypto from 'expo-crypto';
 import ErrorState from '@/components/ErrorState';
-import { Stack, useLocalSearchParams, useRouter, useSegments } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -65,7 +66,6 @@ const slotBands = [
   { id: 'afternoon', label: 'Afternoon', icon: 'partly-sunny-outline' as IconName, slots: ['01:00 PM', '03:30 PM'] },
   { id: 'evening', label: 'Evening', icon: 'moon-outline' as IconName, slots: ['05:00 PM', '07:00 PM'] },
 ];
-const timeSlots = slotBands.flatMap((band) => band.slots);
 
 // Payment is modelled as an id with a separate label. Branching on the
 // display string is how "QarWheel wallet" silently stopped matching a
@@ -80,19 +80,6 @@ const paymentMethods: { id: PaymentMethodId; label: string; icon: IconName }[] =
 function paymentLabel(id: PaymentMethodId) {
   return paymentMethods.find((method) => method.id === id)?.label ?? id;
 }
-const bookingSteps = ['Vehicle', 'Service', 'Schedule', 'Review'];
-
-// Maps each route that renders this composer onto its position in the flow,
-// so the step indicator reflects real progress instead of a fixed value.
-const stepBySegment: Record<string, number> = {
-  'choose-vehicle': 0,
-  'choose-date-time': 1,
-  'add-ons': 1,
-  'pickup-dropoff': 2,
-  'booking-summary': 3,
-  checkout: 3,
-};
-
 function route(path: string) {
   return path as never;
 }
@@ -103,16 +90,26 @@ function currency(amount: number) {
 
 function nextDays() {
   return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date();
-    date.setDate(date.getDate() + index);
+    const nowInQatar = new Date(Date.now() + 3 * 60 * 60 * 1000);
+    const date = new Date(Date.UTC(nowInQatar.getUTCFullYear(), nowInQatar.getUTCMonth(), nowInQatar.getUTCDate() + index));
     return {
       id: date.toISOString().slice(0, 10),
-      label: index === 0 ? 'Today' : index === 1 ? 'Tomorrow' : date.toLocaleDateString('en-QA', { weekday: 'short' }),
-      day: date.toLocaleDateString('en-QA', { day: '2-digit' }),
-      month: date.toLocaleDateString('en-QA', { month: 'short' }),
-      iso: date.toISOString(),
+      label: index === 0 ? 'Today' : index === 1 ? 'Tomorrow' : date.toLocaleDateString('en-QA', { weekday: 'short', timeZone: 'UTC' }),
+      day: date.toLocaleDateString('en-QA', { day: '2-digit', timeZone: 'UTC' }),
+      month: date.toLocaleDateString('en-QA', { month: 'short', timeZone: 'UTC' }),
     };
   });
+}
+
+function preferredTimeUtc(dayId: string, slot: string) {
+  const [time, period] = slot.split(' ');
+  const [rawHour, minute] = time.split(':').map(Number);
+  const hour = (rawHour % 12) + (period === 'PM' ? 12 : 0);
+  return new Date(`${dayId}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00+03:00`);
+}
+
+function isFutureSlot(dayId: string, slot: string) {
+  return preferredTimeUtc(dayId, slot).getTime() > Date.now() + 60 * 60 * 1000;
 }
 
 function priceFromLabel(value: string) {
@@ -133,21 +130,12 @@ function paymentIcon(id: PaymentMethodId): IconName {
 }
 
 /** Which section of the form is currently open. Only one at a time. */
-type PanelId = 'vehicle' | 'garage' | 'service' | 'schedule' | 'logistics' | 'extras' | 'payment' | null;
+type PanelId = 'vehicle' | 'garage' | 'service' | 'schedule' | 'logistics' | 'extras' | 'notes' | null;
 
 export default function BookingComposer() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const segments = useSegments();
+  const { id, issue } = useLocalSearchParams<{ id: string; issue?: string }>();
   const insets = useSafeAreaInsets();
-  // Which step of the flow this route represents (defaults to the last).
-  const activeStep = useMemo(() => {
-    for (const segment of segments) {
-      const match = stepBySegment[segment as string];
-      if (match !== undefined) return match;
-    }
-    return bookingSteps.length - 1;
-  }, [segments]);
   const c = useQarColors();
   const { user } = useAuthContext();
   const userId = user?.uid;
@@ -162,9 +150,8 @@ export default function BookingComposer() {
   const days = useMemo(() => nextDays(), []);
   const { vendors: liveGarages, jobs: liveJobs, loading: vendorsLoading, error: vendorsError, refresh: refreshVendors } = useBranches({ includeServices: true });
 
-  // The form opens collapsed: every choice already has a sensible default, so
-  // the first thing the user sees is a short recap they can confirm, not eight
-  // stacked pickers they have to scroll past.
+  // Choices start collapsed so the user can scan the request; service and
+  // preferred time remain explicitly unselected until the customer chooses.
   const [openPanel, setOpenPanel] = useState<PanelId>(null);
 
   function togglePanel(panel: Exclude<PanelId, null>) {
@@ -178,34 +165,36 @@ export default function BookingComposer() {
   // True when id resolved to a specific garage or job — hides the full pickers
   const [fromContext, setFromContext] = useState(false);
 
-  // Once vendors load, seed initial selection based on route param
+  // Only a garage or service deep link selects a workshop. A vehicle entry
+  // point must not silently send the request to the first listed workshop.
   useEffect(() => {
-    if (vendorsLoading || liveGarages.length === 0) return;
+    if (vendorsLoading || liveGarages.length === 0 || !id) return;
     if (!selectedGarageId) {
-      const garageFromId = id ? liveGarages.find((g) => g.id === id) : undefined;
-      const jobFromId = id ? liveJobs.find((j) => j.id === id) : undefined;
+      const garageFromId = liveGarages.find((g) => g.id === id);
+      const jobFromId = liveJobs.find((j) => j.id === id);
       const garageFromJob = jobFromId ? liveGarages.find((g) => g.id === jobFromId.garageId) : undefined;
-      setSelectedGarageId((garageFromId ?? garageFromJob ?? liveGarages[0]).id);
-      if (garageFromId || jobFromId) setFromContext(true);
+      const matchedGarage = garageFromId ?? garageFromJob;
+      if (matchedGarage) {
+        setSelectedGarageId(matchedGarage.id);
+        setFromContext(true);
+      }
     }
-    if (!selectedServiceId) {
-      const jobFromId = id ? liveJobs.find((j) => j.id === id) : undefined;
-      setSelectedServiceId((jobFromId ?? liveJobs[0])?.id ?? '');
-    }
+    const jobFromId = id ? liveJobs.find((j) => j.id === id) : undefined;
+    if (jobFromId && !selectedServiceId) setSelectedServiceId(jobFromId.id);
   }, [id, liveGarages, liveJobs, vendorsLoading, selectedGarageId, selectedServiceId]);
-  const [selectedDayId, setSelectedDayId] = useState(days[1]?.id ?? days[0].id);
-  const [selectedTime, setSelectedTime] = useState(timeSlots[1]);
+  const [selectedDayId, setSelectedDayId] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [pickupEnabled, setPickupEnabled] = useState(id === 'emergency');
-  const [dropoffEnabled, setDropoffEnabled] = useState(true);
+  const [dropoffEnabled, setDropoffEnabled] = useState(false);
   // Prefill from the user's default saved address rather than a placeholder
   // that looked like real data.
   const [address, setAddress] = useState(() => {
     const preferred = savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0];
     return preferred ? [preferred.line, preferred.area].filter(Boolean).join(', ') : '';
   });
-  const [notes, setNotes] = useState('');
-  const [payment, setPayment] = useState<PaymentMethodId>('garage');
+  const [notes, setNotes] = useState(typeof issue === 'string' ? issue : '');
+  const payment: PaymentMethodId = 'garage';
 
   useEffect(() => {
     setFirestoreCars([]);
@@ -253,23 +242,27 @@ export default function BookingComposer() {
         source: 'firestore',
       }));
 
-  const selectedGarage = liveGarages.find((g) => g.id === selectedGarageId) ?? liveGarages[0];
+  const selectedGarage = liveGarages.find((g) => g.id === selectedGarageId);
   const garageJobs = liveJobs.filter((job) => job.garageId === selectedGarage?.id);
-  const selectedService = garageJobs.find((job) => job.id === selectedServiceId) ?? garageJobs[0];
+  const selectedService = garageJobs.find((job) => job.id === selectedServiceId);
   const selectedCar = selectableCars.find((car) => car.id === selectedCarId) ?? selectableCars[0];
-  const selectedDay = days.find((day) => day.id === selectedDayId) ?? days[0];
+  const selectedDay = days.find((day) => day.id === selectedDayId);
   const chosenAddOns = addOns.filter((item) => selectedAddOns.includes(item.id));
   const servicePrice = selectedService ? priceFromLabel(selectedService.price) : null;
   const listedPrice = servicePrice ?? 0;
-  const priceLabel = servicePrice === null ? 'Quote required' : currency(servicePrice);
-  const canSubmit = Boolean(!vendorsLoading && !vendorsError && !loadingCars && !carsError && selectedCar && selectedGarage && selectedService && selectedDay && selectedTime);
+  const priceLabel = !selectedService ? 'Select service' : servicePrice === null ? 'Quote required' : currency(servicePrice);
+  const canSubmit = Boolean(!vendorsLoading && !vendorsError && !loadingCars && !carsError && selectedCar && selectedGarage && selectedService && selectedDay && selectedTime && isFutureSlot(selectedDayId, selectedTime) && (!pickupEnabled || address.trim()));
+  const primaryLabel = vendorsLoading || loadingCars ? 'Loading details'
+    : vendorsError || carsError ? 'Retry loading'
+      : !selectedGarage ? 'Choose garage'
+        : !selectedService ? 'Choose service'
+        : !selectedDay || !selectedTime || !isFutureSlot(selectedDayId, selectedTime) ? 'Choose preferred time'
+          : !selectedCar ? 'Choose vehicle'
+            : pickupEnabled && !address.trim() ? 'Add pickup address' : 'Review request';
   const submissionInFlight = useRef(false);
+  const requestIdentity = useRef<{ signature: string; key: string } | null>(null);
 
-  // ── Live total ──
-  // The price is the one number the user is tracking while they toggle
-  // options, and it lives in a bar pinned to the bottom of the screen. A short
-  // pulse on change is what connects "I turned on drop-off" to "the number
-  // moved" without the user having to hunt for it.
+  // Pulse only when the selected service changes the listed price.
   const totalPulse = useSharedValue(1);
   const previousTotal = useRef(listedPrice);
   useEffect(() => {
@@ -291,9 +284,8 @@ export default function BookingComposer() {
   }
 
   /**
-   * Opens the review sheet. Nothing is written until the user confirms there —
-   * a booking commits money and a garage slot, so it needs a deliberate second
-   * step rather than firing straight off the primary button.
+   * Opens the review sheet. Nothing is written until the user confirms there;
+   * the request does not reserve a slot or collect payment.
    */
   function handleReview() {
     if (!canSubmit || submitting) return;
@@ -305,8 +297,20 @@ export default function BookingComposer() {
     setReviewing(true);
   }
 
+  function handlePrimary() {
+    if (submitting || vendorsLoading || loadingCars) return;
+    if (vendorsError) { void refreshVendors(); return; }
+    if (carsError) { setCarsRetry((value) => value + 1); return; }
+    if (!selectedGarage) { setOpenPanel('garage'); return; }
+    if (!selectedService) { setOpenPanel('service'); return; }
+    if (!selectedDay || !selectedTime || !isFutureSlot(selectedDayId, selectedTime)) { setOpenPanel('schedule'); return; }
+    if (!selectedCar) { setOpenPanel('vehicle'); return; }
+    if (pickupEnabled && !address.trim()) { setOpenPanel('logistics'); return; }
+    handleReview();
+  }
+
   async function handleSubmit() {
-    if (!canSubmit || submitting || submissionInFlight.current) return;
+    if (!canSubmit || submitting || submissionInFlight.current || !selectedDay || !selectedTime || !isFutureSlot(selectedDayId, selectedTime)) return;
     if (!selectedCar) {
       Alert.alert('Vehicle required', 'Choose a vehicle before confirming the booking.');
       return;
@@ -315,11 +319,7 @@ export default function BookingComposer() {
     submissionInFlight.current = true;
     setReviewing(false);
     setSubmitting(true);
-    const bookingDate = new Date(selectedDay.iso);
-    const [time, period] = selectedTime.split(' ');
-    const [rawHour, rawMinute] = time.split(':').map(Number);
-    const hour = period === 'PM' && rawHour !== 12 ? rawHour + 12 : rawHour;
-    bookingDate.setHours(hour, rawMinute, 0, 0);
+    const bookingDate = preferredTimeUtc(selectedDay.id, selectedTime);
 
     const bookingDetails = {
       garage: selectedGarage?.name ?? '',
@@ -344,28 +344,29 @@ export default function BookingComposer() {
     };
 
     try {
-      if (!user || selectedCar.source !== 'firestore' || !selectedGarage?.businessId) {
+      if (!user || selectedCar.source !== 'firestore' || !selectedGarage || !selectedService) {
         throw new Error('Sign in, save your vehicle, and choose an available garage before booking.');
       }
-      const remote = await createFirestoreBooking(user.uid, {
-          customerName: user.displayName ?? 'QarWheel Customer',
-          customerEmail: user.email ?? '',
-          vendorId: selectedGarage.id,
-          vendorName: selectedGarage.name,
-          businessId: selectedGarage.businessId,
-          branchId: selectedGarage.id,
-          carId: selectedCar.id,
-          carName: selectedCar.name,
-          serviceName: selectedService?.title ?? '',
-          bookingDate: bookingDate.toISOString(),
-          notes: [
-            notes.trim(),
-            pickupEnabled ? `Pickup: ${address}` : '',
-            dropoffEnabled ? 'Drop-off after service requested' : '',
-            selectedAddOns.length ? `Add-ons: ${selectedAddOns.join(', ')}` : '',
-            `Payment: ${paymentLabel(payment)}`,
-          ].filter(Boolean).join('\n'),
-      });
+      const request = {
+        branchId: selectedGarage.id,
+        carId: selectedCar.id,
+        serviceId: selectedService.sourceServiceId ?? selectedService.id,
+        bookingDate: bookingDate.toISOString(),
+        timeSlot: selectedTime,
+        notes: [
+          notes.trim(),
+          pickupEnabled ? `Pickup: ${address}` : '',
+          dropoffEnabled ? 'Drop-off after service requested' : '',
+          selectedAddOns.length ? `Add-ons: ${selectedAddOns.join(', ')}` : '',
+          `Payment: ${paymentLabel(payment)}`,
+        ].filter(Boolean).join('\n'),
+      };
+      if (request.notes.length > 500) throw new Error('Shorten the notes or requested extras before sending.');
+      const signature = JSON.stringify(request);
+      if (requestIdentity.current?.signature !== signature) {
+        requestIdentity.current = { signature, key: Crypto.randomUUID() };
+      }
+      const remote = await createFirestoreBooking(user.uid, { ...request, idempotencyKey: requestIdentity.current.key });
       const localBooking = createLocalBooking({ ...bookingDetails, id: remote.id });
 
       void success();
@@ -394,9 +395,7 @@ export default function BookingComposer() {
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* ── Header ──
-          Title and progress live together so the rail reads as a property of
-          the flow, not a decorative band floating below the chrome. */}
+      {/* Booking context and navigation. */}
       <View style={[styles.header, { backgroundColor: c.background, borderBottomColor: c.border }]}>
         <View style={styles.headerRow}>
           <AnimatedPressable
@@ -409,9 +408,7 @@ export default function BookingComposer() {
           </AnimatedPressable>
           <View style={styles.headerTitleBlock}>
             <Text style={[styles.headerTitle, { color: c.text }]}>Book a service</Text>
-            <Text style={[styles.headerStep, { color: c.textSecondary }]} numberOfLines={1}>
-              Step {activeStep + 1} of {bookingSteps.length} · {bookingSteps[activeStep]}
-            </Text>
+            <Text style={[styles.headerStep, { color: c.textSecondary }]}>Request a preferred time</Text>
           </View>
           <AnimatedPressable
             style={[styles.navButton, { backgroundColor: c.surface, borderColor: c.border }]}
@@ -422,7 +419,6 @@ export default function BookingComposer() {
             <Ionicons name="add" size={20} color={c.primary} />
           </AnimatedPressable>
         </View>
-        <ProgressRail step={activeStep} total={bookingSteps.length} c={c} />
       </View>
 
       <ScrollView
@@ -432,48 +428,27 @@ export default function BookingComposer() {
         keyboardShouldPersistTaps="handled"
       >
         {vendorsError && <ErrorState compact onRetry={() => void refreshVendors()} />}
-        {/* ── Hero ──
-            One tinted card carrying what is being booked and where. Everything
-            below it is a choice; this is the context. */}
+        {/* The selected workshop stays visible above the request fields. */}
         <MotionSurface style={[styles.hero, { backgroundColor: c.surface, borderColor: c.border }]}>
           <View style={styles.heroPhoto}>
             <RemoteImage uri={selectedGarage?.imageUrl} style={styles.heroPhotoImage} fallbackIcon="business-outline" accessibilityLabel={selectedGarage ? `${selectedGarage.name} workshop` : 'Selected garage'} />
             <View style={styles.heroPhotoCaption}>
-              <Text style={styles.heroPhotoLabel}>SELECTED GARAGE</Text>
+              <Text style={styles.heroPhotoLabel}>WORKSHOP</Text>
               <Text style={styles.heroPhotoName} numberOfLines={2}>{selectedGarage?.name ?? 'Choose a garage'}</Text>
               {selectedGarage?.verified ? <View style={styles.heroVerified}><Ionicons name="shield-checkmark" size={14} color="#fff" /><Text style={styles.heroVerifiedText}>Verified partner</Text></View> : null}
             </View>
           </View>
-          <View style={styles.heroTop}>
-            <View style={[styles.heroIcon, { backgroundColor: c.primary }]}>
-              <Ionicons name={serviceIcon(selectedService?.id ?? '')} size={24} color="#fff" />
-            </View>
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text style={[styles.eyebrow, { color: c.primary }]}>Service booking</Text>
-              <Text style={[styles.heroTitle, { color: c.text }]} numberOfLines={2}>
-                {selectedService?.title ?? 'Select a service'}
-              </Text>
-            </View>
+          <View style={styles.heroContext}>
+            <Ionicons name="location-outline" size={15} color={c.textSecondary} />
+            <Text style={[styles.heroContextText, { color: c.textSecondary }]} numberOfLines={1}>
+              {selectedGarage ? `${selectedGarage.area} · ${garageDistanceLabel(selectedGarage.distanceKm)}` : 'Choose a garage'}
+            </Text>
           </View>
-
-          {selectedGarage ? (
-            <View style={styles.heroFacts}>
-              <HeroFact icon="navigate-outline" value={garageDistanceLabel(selectedGarage.distanceKm)} label="Distance" c={c} />
-              <HeroFact icon="flash-outline" value={selectedGarage.responseTime} label="Response" c={c} />
-              <HeroFact
-                icon={selectedGarage.openNow ? 'checkmark-circle-outline' : 'time-outline'}
-                value={selectedGarage.openNow === null ? 'Unknown' : selectedGarage.openNow ? 'Open' : 'Closed'}
-                label="Right now"
-                c={c}
-                tone={selectedGarage.openNow === null ? c.muted : selectedGarage.openNow ? c.success : c.warning}
-              />
-            </View>
-          ) : null}
         </MotionSurface>
 
         <View style={styles.formHeading}>
           <Text style={[styles.formHeadingTitle, { color: c.text }]}>Your request</Text>
-          <Text style={[styles.formHeadingNote, { color: c.textSecondary }]}>Select a preferred time. The garage will confirm availability and final price.</Text>
+          <Text style={[styles.formHeadingNote, { color: c.textSecondary }]}>Choose a service and preferred time. The garage confirms both before any payment.</Text>
         </View>
 
         {/* ── The form ──
@@ -545,7 +520,7 @@ export default function BookingComposer() {
               id="service"
               icon="construct-outline"
               title="Service"
-              value={selectedService ? `${selectedService.title} · ${selectedService.price}` : 'Select the job'}
+              value={selectedService ? `${selectedService.title} · ${selectedService.price}` : 'Choose a service'}
               open={openPanel === 'service'}
               onToggle={togglePanel}
               c={c}
@@ -554,7 +529,8 @@ export default function BookingComposer() {
                 <ActivityIndicator color={c.primary} style={{ marginVertical: 8 }} />
               ) : (
                 <View style={styles.serviceGrid}>
-                  {garageJobs.length === 0 && <Text style={{ color: c.textSecondary }}>No services are available for this garage.</Text>}
+                  {!selectedGarage ? <Text style={{ color: c.textSecondary }}>Choose a garage to see its services.</Text> : null}
+                  {selectedGarage && garageJobs.length === 0 ? <Text style={{ color: c.textSecondary }}>No services are available for this garage.</Text> : null}
                   {garageJobs.map((job) => {
                     const selected = selectedService?.id === job.id;
                     return (
@@ -564,21 +540,19 @@ export default function BookingComposer() {
                           styles.serviceCard,
                           { backgroundColor: selected ? c.primaryLight : c.surfaceAlt, borderColor: selected ? c.primary : c.border },
                         ]}
-                        onPress={() => { void tap(); setSelectedServiceId(job.id); }}
+                        onPress={() => { void tap(); setSelectedServiceId(job.id); setOpenPanel('schedule'); }}
                         accessibilityRole="radio"
                         accessibilityState={{ selected }}
                         accessibilityLabel={`${job.title}, ${job.price}`}
                       >
-                        <View style={styles.serviceTop}>
-                          <Ionicons name={selected ? 'checkmark-circle' : serviceIcon(job.id)} size={20} color={selected ? c.primary : c.textSecondary} />
-                          <Text style={[styles.servicePrice, { color: selected ? c.primary : c.text }]}>{job.price}</Text>
-                        </View>
-                        <View style={{ gap: 3 }}>
+                        <Ionicons name={selected ? 'checkmark-circle' : serviceIcon(job.id)} size={20} color={selected ? c.primary : c.textSecondary} />
+                        <View style={{ flex: 1, gap: 3 }}>
                           <Text style={[styles.serviceTitle, { color: c.text }]}>{job.title}</Text>
                           <Text style={[styles.serviceMeta, { color: c.textSecondary }]}>
                             {[job.duration, job.warranty].filter(Boolean).join(' · ') || 'Details confirmed by garage'}
                           </Text>
                         </View>
+                        <Text style={[styles.servicePrice, { color: selected ? c.primary : c.text }]}>{job.price}</Text>
                       </AnimatedPressable>
                     );
                   })}
@@ -590,7 +564,7 @@ export default function BookingComposer() {
             id="schedule"
             icon="calendar-outline"
             title="Preferred time"
-            value={`${selectedDay.label}, ${selectedTime}`}
+            value={selectedDay && selectedTime ? `${selectedDay.label}, ${selectedTime}` : 'Choose a day and time'}
             open={openPanel === 'schedule'}
             onToggle={togglePanel}
             c={c}
@@ -602,7 +576,7 @@ export default function BookingComposer() {
                   <AnimatedPressable
                     key={day.id}
                     style={[styles.dayCard, { backgroundColor: selected ? c.primary : c.surfaceAlt, borderColor: selected ? c.primary : c.border }]}
-                    onPress={() => { void tap(); setSelectedDayId(day.id); }}
+                    onPress={() => { void tap(); setSelectedDayId(day.id); if (selectedTime && !isFutureSlot(day.id, selectedTime)) setSelectedTime(''); }}
                     accessibilityRole="radio"
                     accessibilityState={{ selected }}
                     accessibilityLabel={`${day.label} ${day.day} ${day.month}`}
@@ -615,6 +589,8 @@ export default function BookingComposer() {
               })}
             </ScrollView>
 
+            <Text style={[styles.scheduleHint, { color: c.textSecondary }]}>Times are preferences, not confirmed availability. Select a day first.</Text>
+
             {slotBands.map((band) => (
               <View key={band.id} style={styles.band}>
                 <View style={styles.bandHeader}>
@@ -624,13 +600,15 @@ export default function BookingComposer() {
                 <View style={styles.timeGrid}>
                   {band.slots.map((slot) => {
                     const selected = selectedTime === slot;
+                    const unavailable = !selectedDayId || !isFutureSlot(selectedDayId, slot);
                     return (
                       <AnimatedPressable
                         key={slot}
-                        style={[styles.timeChip, { backgroundColor: selected ? c.primary : c.surfaceAlt, borderColor: selected ? c.primary : c.border }]}
-                        onPress={() => { void tap(); setSelectedTime(slot); }}
+                        style={[styles.timeChip, { backgroundColor: selected ? c.primary : c.surfaceAlt, borderColor: selected ? c.primary : c.border, opacity: unavailable ? 0.45 : 1 }]}
+                        onPress={() => { void tap(); setSelectedTime(slot); if (selectedDayId) setOpenPanel(null); }}
+                        disabled={unavailable}
                         accessibilityRole="radio"
-                        accessibilityState={{ selected }}
+                        accessibilityState={{ selected, disabled: unavailable }}
                         accessibilityLabel={`${band.label} preferred time ${slot}`}
                       >
                         <Text style={[styles.timeText, { color: selected ? '#fff' : c.text }]}>{slot}</Text>
@@ -718,38 +696,18 @@ export default function BookingComposer() {
           </Panel>
 
           <Panel
-            id="payment"
-            icon="card-outline"
-            title="Payment"
-            value={paymentLabel(payment)}
-            open={openPanel === 'payment'}
+            id="notes"
+            icon="chatbox-outline"
+            title="Notes for garage"
+            value={notes.trim() ? 'Added' : 'Optional'}
+            open={openPanel === 'notes'}
             onToggle={togglePanel}
-            last
             c={c}
           >
-            <View style={styles.paymentRow}>
-              {paymentMethods.map((method) => {
-                const selected = payment === method.id;
-                return (
-                  <AnimatedPressable
-                    key={method.id}
-                    style={[styles.paymentChip, { backgroundColor: selected ? c.primaryLight : c.surfaceAlt, borderColor: selected ? c.primary : c.border }]}
-                    onPress={() => { void tap(); setPayment(method.id); }}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected }}
-                    accessibilityLabel={`Pay with ${method.label}`}
-                  >
-                    <Ionicons name={method.icon} size={15} color={selected ? c.primary : c.textSecondary} />
-                    <Text style={[styles.paymentText, { color: selected ? c.primary : c.text }]}>{method.label}</Text>
-                    {/* Surface the shortfall on the chip, so the user is not
-                        told about it only after tapping Review. */}
-                  </AnimatedPressable>
-                );
-              })}
-            </View>
             <TextInput
               value={notes}
               onChangeText={setNotes}
+              maxLength={300}
               placeholder="Describe symptoms, noises, preferred parts, or garage instructions."
               placeholderTextColor={c.muted}
               accessibilityLabel="Notes for the garage"
@@ -767,14 +725,12 @@ export default function BookingComposer() {
             one line tall. */}
         <MotionSurface delay={40} style={[styles.ledger, { backgroundColor: c.surface, borderColor: c.border }]}>
           <Text style={[styles.ledgerTitle, { color: c.muted }]}>Price information</Text>
-          {servicePrice !== null ? <PriceRow label={selectedService?.title ?? 'Service'} value={servicePrice} c={c} /> : null}
-          <View style={[styles.totalLine, { backgroundColor: c.border }]} />
           <View style={styles.priceRow}>
             <Text style={[styles.totalLabel, { color: c.text }]}>Listed service price</Text>
             <Text style={[styles.totalValue, { color: c.primary }]} numberOfLines={2}>{priceLabel}</Text>
           </View>
           <Text style={[styles.ledgerNote, { color: c.muted }]}>
-            The garage must confirm the time, any requested extras or transport, and the final price. You are not charged now.
+            Pay at the garage after the time, extras, transport, and final price are confirmed. No charge is made now.
           </Text>
         </MotionSurface>
       </ScrollView>
@@ -800,13 +756,13 @@ export default function BookingComposer() {
           </Animated.Text>
         </View>
         <AnimatedPressable
-          style={[styles.confirmButton, { backgroundColor: canSubmit ? c.primary : c.muted, opacity: submitting ? 0.75 : 1 }]}
-          onPress={handleReview}
-          disabled={!canSubmit || submitting}
+          style={[styles.confirmButton, { backgroundColor: vendorsLoading || loadingCars ? c.muted : c.primary, opacity: submitting ? 0.75 : 1 }]}
+          onPress={handlePrimary}
+          disabled={vendorsLoading || loadingCars || submitting}
           scaleValue={0.97}
-          accessibilityLabel={`Review booking request, ${priceLabel}`}
+          accessibilityLabel={`${primaryLabel}, ${priceLabel}`}
         >
-          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>Review</Text>}
+          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>{primaryLabel}</Text>}
           {!submitting ? <Ionicons name="arrow-forward" size={18} color="#fff" /> : null}
         </AnimatedPressable>
       </View>
@@ -840,7 +796,7 @@ export default function BookingComposer() {
               <ReviewRow icon="car-sport-outline" label="Vehicle" value={selectedCar?.name ?? '—'} c={c} />
               <ReviewRow icon="construct-outline" label="Service" value={selectedService?.title ?? '—'} c={c} />
               <ReviewRow icon="business-outline" label="Garage" value={selectedGarage?.name ?? '—'} c={c} />
-              <ReviewRow icon="calendar-outline" label="Preferred time" value={`${selectedDay.label}, ${selectedTime}`} c={c} />
+              <ReviewRow icon="calendar-outline" label="Preferred time" value={`${selectedDay?.label ?? ''}, ${selectedTime}`} c={c} />
               {chosenAddOns.length > 0 && (
                 <ReviewRow
                   icon="add-circle-outline"
@@ -862,8 +818,6 @@ export default function BookingComposer() {
 
               {/* This is a listed price, never a confirmed invoice. */}
               <View style={[styles.reviewTotal, { backgroundColor: c.surfaceAlt, borderColor: c.primaryMid }]}>
-                {servicePrice !== null ? <PriceRow label={selectedService?.title ?? 'Service'} value={servicePrice} c={c} /> : null}
-                <View style={[styles.totalLine, { backgroundColor: c.border }]} />
                 <View style={styles.priceRow}>
                   <Text style={[styles.totalLabel, { color: c.text }]}>Listed service price</Text>
                   <Text style={[styles.reviewTotalValue, { color: c.primary }]} numberOfLines={2}>{priceLabel}</Text>
@@ -909,35 +863,6 @@ export default function BookingComposer() {
  * A single filled track rather than four numbered dots. Numbered dots read as
  * decoration at this size; a track that fills reads as "how far through am I".
  */
-function ProgressRail({ step, total, c }: { step: number; total: number; c: ReturnType<typeof useQarColors> }) {
-  const progress = (step + 1) / total;
-  return (
-    <View
-      style={[styles.rail, { backgroundColor: c.surfaceAlt }]}
-      accessibilityRole="progressbar"
-      accessibilityValue={{ min: 1, max: total, now: step + 1 }}
-    >
-      <View style={[styles.railFill, { backgroundColor: c.primary, width: `${progress * 100}%` }]} />
-    </View>
-  );
-}
-
-function HeroFact({ icon, value, label, c, tone }: {
-  icon: IconName;
-  value: string;
-  label: string;
-  c: ReturnType<typeof useQarColors>;
-  tone?: string;
-}) {
-  return (
-    <View style={styles.heroFact}>
-      <Ionicons name={icon} size={14} color={tone ?? c.textSecondary} />
-      <Text style={[styles.heroFactValue, { color: tone ?? c.text }]} numberOfLines={1}>{value}</Text>
-      <Text style={[styles.heroFactLabel, { color: c.muted }]} numberOfLines={1}>{label}</Text>
-    </View>
-  );
-}
-
 /**
  * A disclosure row: shows the chosen value, expands to the picker in place.
  * Collapsed, it is a summary line the user can read; expanded, it is the
@@ -952,7 +877,6 @@ function Panel({
   onToggle,
   children,
   c,
-  last,
 }: {
   id: Exclude<PanelId, null>;
   icon: IconName;
@@ -962,7 +886,6 @@ function Panel({
   onToggle: (id: Exclude<PanelId, null>) => void;
   children: React.ReactNode;
   c: ReturnType<typeof useQarColors>;
-  last?: boolean;
 }) {
   return (
     <Animated.View
@@ -1088,31 +1011,6 @@ function ToggleRow({ title, description, value, onValueChange, c }: {
   );
 }
 
-function PriceRow({ label, value, c, sub }: {
-  label: string;
-  value: number;
-  c: ReturnType<typeof useQarColors>;
-  /** A component of a line above it, indented and lighter. */
-  sub?: boolean;
-}) {
-  return (
-    <View style={styles.priceRow}>
-      <Text
-        style={[
-          sub ? styles.priceLabelSub : styles.priceLabel,
-          { color: sub ? c.muted : c.textSecondary },
-        ]}
-        numberOfLines={1}
-      >
-        {sub ? `+ ${label}` : label}
-      </Text>
-      <Text style={[sub ? styles.priceValueSub : styles.priceValue, { color: sub ? c.textSecondary : c.text }]}>
-        {currency(value)}
-      </Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   // ── Header ────────────────────────────────────────────────────────────────
   header: {
@@ -1135,8 +1033,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...shadow.xs,
   },
-  rail: { height: 4, borderRadius: 2, overflow: 'hidden' },
-  railFill: { height: '100%', borderRadius: 2 },
 
   content: { padding: spacing.page, gap: 14 },
 
@@ -1144,28 +1040,18 @@ const styles = StyleSheet.create({
   hero: {
     borderRadius: radius.xs,
     borderWidth: 1,
-    gap: 14,
+    gap: 0,
     overflow: 'hidden',
   },
-  heroPhoto: { height: 150, justifyContent: 'flex-end', backgroundColor: '#11161D' },
+  heroPhoto: { height: 124, justifyContent: 'flex-end', backgroundColor: '#11161D' },
   heroPhotoImage: { ...StyleSheet.absoluteFill },
   heroPhotoCaption: { padding: 12, gap: 3, backgroundColor: 'rgba(8,10,13,0.88)' },
   heroPhotoLabel: { color: '#F7C948', ...typography.overline },
   heroPhotoName: { color: '#fff', ...typography.h3 },
   heroVerified: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   heroVerifiedText: { color: '#fff', ...typography.caption },
-  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 16 },
-  heroIcon: { width: 44, height: 44, borderRadius: radius.xs, alignItems: 'center', justifyContent: 'center' },
-  eyebrow: { ...typography.overline },
-  heroTitle: { fontSize: 22, lineHeight: 27, fontWeight: '900', letterSpacing: -0.4 },
-  heroGarage: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
-  heroGarageName: { flex: 1, ...typography.caption, fontWeight: '800' },
-  ratingPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full },
-  ratingText: { fontSize: 12, fontWeight: '900' },
-  heroFacts: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 16 },
-  heroFact: { flex: 1, alignItems: 'center', gap: 3, minWidth: 0 },
-  heroFactValue: { ...typography.caption, fontWeight: '900' },
-  heroFactLabel: { ...typography.caption, fontSize: 12 },
+  heroContext: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 14 },
+  heroContextText: { ...typography.bodySm, flex: 1 },
 
   // ── Disclosure panels ─────────────────────────────────────────────────────
   formHeading: { gap: 4, marginTop: 8 },
@@ -1195,14 +1081,14 @@ const styles = StyleSheet.create({
   emptyAction: { minHeight: 50, borderRadius: radius.lg, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12 },
   emptyActionText: { ...typography.h4 },
 
-  serviceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  serviceCard: { flexBasis: '47%', flexGrow: 1, minHeight: 128, borderRadius: radius.xs, borderWidth: 1, padding: 13, justifyContent: 'space-between' },
-  serviceTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  serviceGrid: { gap: 8 },
+  serviceCard: { minHeight: 68, borderRadius: radius.xs, borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
   servicePrice: { ...typography.caption, fontWeight: '900' },
   serviceTitle: { fontSize: 13, lineHeight: 17, fontWeight: '900' },
   serviceMeta: { fontSize: 12, lineHeight: 15, fontWeight: '600' },
 
   dayRow: { gap: 10, paddingVertical: 2, paddingEnd: spacing.page },
+  scheduleHint: { ...typography.caption },
   dayCard: { width: 72, minHeight: 88, borderRadius: radius.xs, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
   dayLabel: { ...typography.caption },
   dayNumber: { fontSize: 24, lineHeight: 28, fontWeight: '900', fontVariant: ['tabular-nums'] },
@@ -1227,20 +1113,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   addressChipText: { ...typography.caption, fontWeight: '800' },
-  paymentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  paymentChip: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 10 },
-  paymentText: { ...typography.caption, fontWeight: '900' },
 
   // ── Ledger ────────────────────────────────────────────────────────────────
   ledger: { borderRadius: radius.xl, borderWidth: 1, padding: 18, gap: 10, ...shadow.xs },
   ledgerTitle: { ...typography.label },
   ledgerNote: { ...typography.caption, marginTop: 2 },
   priceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  priceLabel: { flex: 1, ...typography.bodySm, fontWeight: '600' },
-  priceLabelSub: { flex: 1, ...typography.caption, paddingStart: 10 },
-  priceValue: { ...typography.h4, fontVariant: ['tabular-nums'] },
-  priceValueSub: { ...typography.caption, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  totalLine: { height: StyleSheet.hairlineWidth, marginVertical: 2 },
   totalLabel: { ...typography.h4, flex: 1 },
   totalValue: { ...typography.h2, flexShrink: 1, textAlign: 'right', fontVariant: ['tabular-nums'] },
 

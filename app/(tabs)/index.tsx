@@ -1,3 +1,3 @@
-import { HomeScreen } from '@/components/Marketplace';
+import CustomerHome from '@/components/CustomerHome';
 
-export default HomeScreen;
+export default CustomerHome;

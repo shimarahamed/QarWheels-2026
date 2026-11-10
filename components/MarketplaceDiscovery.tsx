@@ -7,10 +7,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import { RemoteImage } from '@/components/RemoteImage';
+import ErrorState from '@/components/ErrorState';
 import RecordNotFound from '@/components/RecordNotFound';
 import { MotionScreen, MotionSurface } from '@/lib/motion';
 import {
@@ -29,7 +30,7 @@ type SortKey = 'Best match' | 'Nearest' | 'Top rated' | 'Lowest price' | 'Fastes
 type FilterKey = 'Open now' | 'Instant booking' | 'Pickup' | 'Warranty' | 'Today';
 
 const sortOptions: SortKey[] = ['Best match', 'Nearest', 'Top rated', 'Lowest price', 'Fastest'];
-const filterOptions: FilterKey[] = ['Open now', 'Instant booking', 'Pickup', 'Warranty', 'Today'];
+const filterOptions: FilterKey[] = ['Open now', 'Pickup', 'Warranty'];
 const quickTerms = ['AC service', 'Oil change', 'Battery', 'Brakes', 'Diagnostics', 'Pickup'];
 
 function route(path: string) {
@@ -99,12 +100,13 @@ function filterServices(list: PopularJob[], activeFilters: FilterKey[], garagesB
   });
 }
 
-function sortServices(list: PopularJob[], sort: SortKey) {
+function sortServices(list: PopularJob[], sort: SortKey, garagesById: Map<string, Garage>) {
   const copy = [...list];
-  if (sort === 'Nearest') return copy.sort((a, b) => (a.distanceKm ?? 99) - (b.distanceKm ?? 99));
-  if (sort === 'Top rated') return copy.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-  if (sort === 'Lowest price') return copy.sort((a, b) => a.priceValue - b.priceValue);
-  if (sort === 'Fastest') return copy.sort((a, b) => Number.parseInt(a.duration ?? '60', 10) - Number.parseInt(b.duration ?? '60', 10));
+  const garageFor = (service: PopularJob) => service.garageId ? garagesById.get(service.garageId) : undefined;
+  if (sort === 'Nearest') return copy.sort((a, b) => knownFirst(a.distanceKm ?? garageFor(a)?.distanceKm ?? 0) - knownFirst(b.distanceKm ?? garageFor(b)?.distanceKm ?? 0));
+  if (sort === 'Top rated') return copy.sort((a, b) => (b.rating ?? garageFor(b)?.rating ?? 0) - (a.rating ?? garageFor(a)?.rating ?? 0));
+  if (sort === 'Lowest price') return copy.sort((a, b) => knownFirst(a.priceValue) - knownFirst(b.priceValue));
+  if (sort === 'Fastest') return copy.sort((a, b) => knownFirst(Number.parseInt(a.duration ?? '', 10)) - knownFirst(Number.parseInt(b.duration ?? '', 10)));
   return copy.sort((a, b) => (a.availability === 'Today' ? -1 : 1) - (b.availability === 'Today' ? -1 : 1));
 }
 
@@ -132,15 +134,7 @@ function Frame({ title, subtitle, children, root = false }: { title: string; sub
           <Text style={[s.navTitle, { color: c.text }]} numberOfLines={1}>{title}</Text>
           {subtitle ? <Text style={[s.navSub, { color: c.muted }]} numberOfLines={1}>{subtitle}</Text> : null}
         </View>
-        <AnimatedPressable
-          style={[s.navBtn, { backgroundColor: c.surface, borderColor: c.border }]}
-          onPress={() => router.push('/filters' as never)}
-          hitSlop={8}
-          accessibilityLabel="Filters"
-          accessibilityHint="Narrow the results by price, rating and distance"
-        >
-          <Icon name="funnel-outline" size={18} color={c.primary} />
-        </AnimatedPressable>
+        <View style={s.navBtnPlaceholder} />
       </View>
       <ScrollView style={{ backgroundColor: c.background }} contentContainerStyle={s.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <MotionScreen style={s.screenStack}>{children}</MotionScreen>
@@ -149,24 +143,26 @@ function Frame({ title, subtitle, children, root = false }: { title: string; sub
   );
 }
 
-function SearchInput({ value, onChangeText, onSubmit, onClear, autoFocus }: {
+function SearchInput({ value, onChangeText, onSubmit, onClear, autoFocus, catalog = false, placeholder = 'Search services, garages, areas...' }: {
   value: string;
   onChangeText: (v: string) => void;
   onSubmit?: () => void;
   onClear?: () => void;
   autoFocus?: boolean;
+  catalog?: boolean;
+  placeholder?: string;
 }) {
   const c = useQarColors();
   const hasValue = value.length > 0;
 
   return (
-    <View style={[s.search, { backgroundColor: c.surface, borderColor: hasValue ? c.primary : c.border }]}>
+    <View style={[s.search, catalog && s.catalogSearch, { backgroundColor: c.surface, borderColor: hasValue ? c.primary : c.border }]}>
       <Icon name="search-outline" size={18} color={hasValue ? c.primary : c.muted} />
       <TextInput
         style={[s.searchInput, { color: c.text }]}
         value={value}
         onChangeText={onChangeText}
-        placeholder="Search services, garages, areas…"
+        placeholder={placeholder}
         placeholderTextColor={c.muted}
         returnKeyType="search"
         onSubmitEditing={onSubmit}
@@ -185,9 +181,7 @@ function SearchInput({ value, onChangeText, onSubmit, onClear, autoFocus }: {
         >
           <Icon name="close-circle" size={17} color={c.muted} />
         </Pressable>
-      ) : (
-        <Icon name="sparkles-outline" size={16} color={c.ai} />
-      )}
+      ) : null}
     </View>
   );
 }
@@ -213,6 +207,9 @@ function Pill({ label, active, onPress, icon }: { label: string; active?: boolea
       style={[s.pill, { backgroundColor: active ? c.primary : c.surface, borderColor: active ? c.primary : c.border }]}
       onPress={() => { void tap(); onPress(); }}
       scaleValue={0.97}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: Boolean(active) }}
     >
       {icon ? <Icon name={icon} size={14} color={active ? '#fff' : c.textSecondary} /> : null}
       <Text style={[s.pillText, { color: active ? '#fff' : c.textSecondary }]}>{label}</Text>
@@ -309,9 +306,50 @@ function GarageCard({ garage, compare }: { garage: Garage; compare?: boolean }) 
           scaleValue={0.96}
           accessibilityLabel={`Book ${garage.name}`}
         >
-          <Text style={s.bookNowText}>Book now</Text>
+          <Text style={s.bookNowText}>Request</Text>
           <Icon name="arrow-forward" size={14} color="#fff" />
         </AnimatedPressable>
+      </View>
+    </View>
+  );
+}
+
+function FeaturedGarageCard({ garage }: { garage: Garage }) {
+  const router = useRouter();
+  const c = useQarColors();
+  const saved = useQarWheelStore((state) => state.favoriteGarageIds.includes(garage.id));
+  const toggleFavorite = useQarWheelStore((state) => state.toggleFavoriteGarage);
+
+  return (
+    <View style={[s.featuredCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <Pressable onPress={() => router.push(route(`/garage/${garage.id}`))} accessibilityRole="button" accessibilityLabel={`View ${garage.name}`}>
+        <View style={s.featuredPhoto}>
+          <RemoteImage uri={garage.imageUrl} style={s.featuredImage} fallbackIcon="business-outline" accessibilityLabel={`${garage.name} workshop`} />
+          {garage.verified ? <View style={s.featuredVerified}><Icon name="shield-checkmark" size={14} color="#fff" /><Text style={s.featuredVerifiedText}>Verified partner</Text></View> : null}
+          <View style={s.featuredIdentity}>
+            <Text style={s.featuredName}>{garage.name}</Text>
+            <Text style={s.featuredLocation}>{garage.area} · {garageDistanceLabel(garage.distanceKm)}</Text>
+          </View>
+        </View>
+      </Pressable>
+      <View style={s.featuredBody}>
+        <View style={s.featuredFacts}>
+          {garage.rating > 0 ? <View style={s.featuredFact}><Icon name="star" size={15} color={c.gold} /><Text style={[s.featuredFactText, { color: c.text }]}>{garage.rating} ({garage.reviews})</Text></View> : null}
+          <View style={s.featuredFact}><Icon name="time-outline" size={15} color={c.textSecondary} /><Text style={[s.featuredFactText, { color: c.textSecondary }]}>{garage.openNow === null ? 'Hours unavailable' : garage.openNow ? 'Open now' : 'Closed now'}</Text></View>
+        </View>
+        <View style={[s.featuredPriceRow, { backgroundColor: c.surfaceAlt }]}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[s.featuredPriceLabel, { color: c.muted }]}>LISTED PRICE</Text>
+            <Text style={[s.featuredPrice, { color: c.text }]} numberOfLines={2}>{garage.startingPriceValue > 0 ? `From ${garage.startingPrice}` : garage.startingPrice}</Text>
+          </View>
+          <Pressable style={s.featuredSave} onPress={() => toggleFavorite(garage.id)} accessibilityRole="button" accessibilityLabel={saved ? `Remove ${garage.name} from saved` : `Save ${garage.name}`} accessibilityState={{ selected: saved }}>
+            <Icon name={saved ? 'heart' : 'heart-outline'} size={21} color={saved ? c.danger : c.textSecondary} />
+          </Pressable>
+        </View>
+        <Pressable style={[s.featuredBook, { backgroundColor: c.primary }]} onPress={() => router.push(route(`/checkout/${garage.id}`))} accessibilityRole="button" accessibilityLabel={`Request a booking at ${garage.name}`}>
+          <Icon name="calendar-outline" size={18} color="#fff" />
+          <Text style={s.featuredBookText}>Request a booking</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -361,7 +399,7 @@ function ServiceCard({ service, garage }: { service: PopularJob; garage?: Garage
       </AnimatedPressable>
       <Pressable style={[s.bookButton, { backgroundColor: c.primary }]} onPress={() => router.push(route(`/checkout/${service.id}`))}
         accessibilityRole="button" accessibilityLabel={`Book ${service.title}`}>
-        <Text style={s.bookButtonText}>Book now</Text>
+        <Text style={s.bookButtonText}>Request</Text>
       </Pressable>
     </View>
   );
@@ -418,6 +456,9 @@ function DiscoveryResults({
   showGarages?: boolean;
 }) {
   const router = useRouter();
+  const c = useQarColors();
+  const [visibleServices, setVisibleServices] = useState(12);
+  const [visibleGarages, setVisibleGarages] = useState(12);
   const hasAny = (showServices && services.length > 0) || (showGarages && garageList.length > 0);
 
   if (!hasAny) return <EmptyState />;
@@ -427,15 +468,17 @@ function DiscoveryResults({
       {showServices ? (
         <>
           <Section title={`Services (${services.length})`} action="View all" onPress={() => router.push('/services' as never)} />
-          {services.map((service) => (
+          {services.slice(0, visibleServices).map((service) => (
             <ServiceCard key={service.id} service={service} garage={service.garageId ? garagesById.get(service.garageId) : undefined} />
           ))}
+          {services.length > visibleServices ? <Pressable style={s.moreButton} onPress={() => setVisibleServices((count) => count + 12)} accessibilityRole="button" accessibilityLabel="Show more services"><Text style={[s.moreText, { color: c.primary }]}>Show more services</Text></Pressable> : null}
         </>
       ) : null}
       {showGarages ? (
         <>
           <Section title={`Garages (${garageList.length})`} action="Map" onPress={() => router.push('/map' as never)} />
-          {garageList.map((garage) => <GarageCard key={garage.id} garage={garage} />)}
+          {garageList.slice(0, visibleGarages).map((garage) => <GarageCard key={garage.id} garage={garage} />)}
+          {garageList.length > visibleGarages ? <Pressable style={s.moreButton} onPress={() => setVisibleGarages((count) => count + 12)} accessibilityRole="button" accessibilityLabel="Show more garages"><Text style={[s.moreText, { color: c.primary }]}>Show more garages</Text></Pressable> : null}
         </>
       ) : null}
     </>
@@ -452,7 +495,7 @@ function useDiscovery(queryText = '', categoryId?: string) {
   const [sort, setSort] = useState<SortKey>('Best match');
   const [filters, setFilters] = useState<FilterKey[]>([]);
   const normalized = useDebounced(queryText.trim().toLowerCase());
-  const { vendors, jobs, loading } = useBranches({ includeServices: true });
+  const { vendors, jobs, loading, error, refresh } = useBranches({ includeServices: true });
 
   const garagesById = useMemo(() => new Map(vendors.map((g) => [g.id, g] as const)), [vendors]);
 
@@ -469,7 +512,7 @@ function useDiscovery(queryText = '', categoryId?: string) {
         return parseQueryMatch(`${job.title} ${job.availability} ${job.warranty} ${garage?.name ?? ''} ${garage?.area ?? ''}`, normalized);
       });
     }
-    return sortServices(filterServices(list, filters, garagesById), sort);
+    return sortServices(filterServices(list, filters, garagesById), sort, garagesById);
   }, [jobs, garagesById, categoryId, filters, normalized, sort]);
 
   const garageList = useMemo(() => {
@@ -488,13 +531,13 @@ function useDiscovery(queryText = '', categoryId?: string) {
     return sortGarages(filterGarages(list, filters), sort);
   }, [vendors, jobs, categoryId, filters, normalized, sort]);
 
-  return { sort, setSort, filters, toggleFilter, services, garageList, garagesById, loading };
+  return { sort, setSort, filters, toggleFilter, services, garageList, garagesById, loading, error, refresh };
 }
 
 /**
  * Search behaves as two distinct screens sharing one input:
  *
- *  • Idle (no query) — a browse surface: shortcuts, categories, popular terms.
+ *  • Idle (no query) — category chips, map entry, and live workshops.
  *  • Searching — results only, with sort/filter controls and a result count.
  *
  * Previously both states rendered at once, so tapping the home search bar
@@ -504,20 +547,30 @@ function useDiscovery(queryText = '', categoryId?: string) {
 export function SearchSuggestionsScreen() {
   const router = useRouter();
   const c = useQarColors();
-  const [term, setTerm] = useState('');
-  const discovery = useDiscovery(term);
+  const { term: initialTerm } = useLocalSearchParams<{ term?: string }>();
+  const [term, setTerm] = useState(typeof initialTerm === 'string' ? initialTerm : '');
+  useEffect(() => {
+    setTerm(typeof initialTerm === 'string' ? initialTerm : '');
+  }, [initialTerm]);
+  const [categoryId, setCategoryId] = useState<string | undefined>();
+  const [visibleGarages, setVisibleGarages] = useState(4);
+  const discovery = useDiscovery(term, categoryId);
 
   const searching = term.trim().length > 0;
   const resultCount = discovery.services.length + discovery.garageList.length;
+  const featured = discovery.garageList.find((garage) => garage.verified) ?? discovery.garageList[0];
+  const nearby = discovery.garageList.filter((garage) => garage.id !== featured?.id);
 
   return (
-    <Frame title="Search" subtitle="Find trusted services and garages" root>
+    <Frame title="Garages" subtitle="Find a workshop for your car" root>
       <SearchInput
         value={term}
         onChangeText={setTerm}
         onClear={() => setTerm('')}
-        autoFocus
       />
+
+      {discovery.error ? <ErrorState compact onRetry={() => void discovery.refresh()} /> : null}
+      {discovery.loading && discovery.garageList.length === 0 ? <ActivityIndicator color={c.primary} accessibilityLabel="Loading garages" /> : null}
 
       {searching ? (
         <>
@@ -527,7 +580,7 @@ export function SearchSuggestionsScreen() {
           <View style={s.resultHead}>
             <Text style={[s.resultCount, { color: c.textSecondary }]}>
               {resultCount === 0
-                ? 'No matches'
+                ? discovery.loading ? 'Searching workshops' : discovery.error ? 'Unable to load results' : 'No matches'
                 : `${resultCount} ${resultCount === 1 ? 'result' : 'results'} for "${term.trim()}"`}
             </Text>
             {resultCount > 0 && (
@@ -537,12 +590,12 @@ export function SearchSuggestionsScreen() {
             )}
           </View>
 
-          {resultCount === 0 ? (
+          {(discovery.loading || discovery.error) && resultCount === 0 ? null : resultCount === 0 ? (
             <View style={[s.empty, { backgroundColor: c.surface, borderColor: c.border }]}>
               <Icon name="search-outline" size={34} color={c.muted} />
               <Text style={[s.emptyTitle, { color: c.text }]}>Nothing matched "{term.trim()}"</Text>
               <Text style={[s.emptyBody, { color: c.textSecondary }]}>
-                Try a broader term, or browse the categories below.
+                Try a broader term or select a category above.
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.rail}>
                 {quickTerms.slice(0, 5).map((item) => (
@@ -557,56 +610,42 @@ export function SearchSuggestionsScreen() {
       ) : (
         <>
           {/* ── Browse state ── */}
-          <Section title="Jump to" />
-          <View style={s.quickGrid}>
-            {[
-              { icon: 'map-outline' as IconName, label: 'Map', body: 'Garages near you', href: '/map' },
-              { icon: 'git-compare-outline' as IconName, label: 'Compare', body: 'Side by side', href: '/compare' },
-              { icon: 'heart-outline' as IconName, label: 'Saved', body: 'Your shortlist', href: '/saved' },
-              { icon: 'pricetag-outline' as IconName, label: 'Offers', body: 'Live discounts', href: '/offers' },
-            ].map((item) => (
-              <AnimatedPressable
-                key={item.label}
-                style={[s.quickCard, { backgroundColor: c.surface, borderColor: c.border }]}
-                onPress={() => router.push(item.href as never)}
-                accessibilityLabel={item.label}
-                accessibilityHint={item.body}
-                scaleValue={0.97}
-              >
-                <View style={[s.quickIcon, { backgroundColor: c.primaryLight }]}>
-                  <Icon name={item.icon} size={19} color={c.primary} />
-                </View>
-                <View style={{ gap: 2 }}>
-                  <Text style={[s.quickTitle, { color: c.text }]}>{item.label}</Text>
-                  <Text style={[s.quickBody, { color: c.muted }]} numberOfLines={1}>{item.body}</Text>
-                </View>
-              </AnimatedPressable>
-            ))}
-          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.rail}>
+            <Pill label="All" active={!categoryId} onPress={() => setCategoryId(undefined)} />
+            {serviceCategories.map((category) => <Pill key={category.id} label={category.label} active={categoryId === category.id} onPress={() => setCategoryId(category.id)} />)}
+          </ScrollView>
 
-          <Section title="Browse by category" action="All services" onPress={() => router.push('/services' as never)} />
-          <View style={s.categoryGrid}>
-            {serviceCategories.slice(0, 6).map((category) => (
-              <AnimatedPressable
-                key={category.id}
-                style={[s.categoryTile, { backgroundColor: c.surface, borderColor: c.border }]}
-                onPress={() => router.push(route(`/category/${category.id}`))}
-                accessibilityLabel={category.label}
-                accessibilityHint={`${category.count} providers`}
-                scaleValue={0.97}
-              >
-                <Icon name={categoryIcon(category.id)} size={20} color={c.primary} />
-                <Text style={[s.categoryLabel, { color: c.text }]} numberOfLines={1}>{category.label}</Text>
-                <Text style={[s.categoryCount, { color: c.muted }]}>{category.count}</Text>
-              </AnimatedPressable>
-            ))}
-          </View>
+          <Pressable style={[s.mapStrip, { backgroundColor: c.surfaceAlt, borderColor: c.border }]} onPress={() => router.push('/map' as never)} accessibilityRole="button" accessibilityLabel="Explore garages on map">
+            <View style={[s.mapIcon, { backgroundColor: c.primaryLight }]}><Icon name="map-outline" size={22} color={c.primary} /></View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[s.mapTitle, { color: c.text }]}>Explore on map</Text>
+              <Text style={[s.mapMeta, { color: c.textSecondary }]}>{discovery.loading ? 'Loading workshops' : `${discovery.garageList.length} ${discovery.garageList.length === 1 ? 'workshop' : 'workshops'} in this view`}</Text>
+            </View>
+            <Icon name="arrow-forward" size={18} color={c.primary} />
+          </Pressable>
 
-          <Section title="Popular searches" />
-          <View style={s.termWrap}>
-            {quickTerms.map((item) => (
-              <Pill key={item} label={item} onPress={() => setTerm(item)} />
-            ))}
+          {!discovery.loading && !discovery.error && !featured ? <EmptyState /> : null}
+          {featured ? <>
+            <Section title="Featured workshop" />
+            <FeaturedGarageCard garage={featured} />
+            {nearby.length > 0 ? <>
+              <Section title="More workshops" />
+              {nearby.slice(0, visibleGarages).map((garage) => <GarageCard key={garage.id} garage={garage} />)}
+              {nearby.length > visibleGarages ? <Pressable style={s.moreButton} onPress={() => setVisibleGarages((count) => count + 10)} accessibilityRole="button"><Text style={[s.moreText, { color: c.primary }]}>Show more workshops</Text></Pressable> : null}
+            </> : null}
+          </> : null}
+
+          <View style={s.browseLinks}>
+            <Pressable onPress={() => router.push('/saved' as never)} accessibilityRole="button" accessibilityLabel="Saved garages" style={s.browseLink}>
+              <Icon name="heart-outline" size={17} color={c.textSecondary} />
+              <Text style={[s.browseLinkText, { color: c.textSecondary }]}>Saved</Text>
+              <Icon name="chevron-forward" size={15} color={c.muted} />
+            </Pressable>
+            <Pressable onPress={() => router.push('/compare' as never)} accessibilityRole="button" accessibilityLabel="Compare garages" style={s.browseLink}>
+              <Icon name="git-compare-outline" size={17} color={c.textSecondary} />
+              <Text style={[s.browseLinkText, { color: c.textSecondary }]}>Compare</Text>
+              <Icon name="chevron-forward" size={15} color={c.muted} />
+            </Pressable>
           </View>
         </>
       )}
@@ -614,54 +653,255 @@ export function SearchSuggestionsScreen() {
   );
 }
 
-export function ServiceListingsScreen() {
+function CatalogServiceRow({ service, garage }: { service: PopularJob; garage?: Garage }) {
+  const router = useRouter();
   const c = useQarColors();
+  return (
+    <View style={[s.catalogCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <Pressable style={s.catalogDetails} accessibilityRole="button" accessibilityLabel={`View ${service.title} details`} onPress={() => router.push(route(`/service/${service.id}`))}>
+        <RemoteImage uri={garage?.imageUrl} style={s.catalogThumb} fallbackIcon={categoryIcon(service.categoryId)} accessibilityLabel={garage ? `${garage.name} workshop` : service.title} />
+        <View style={s.catalogCopy}>
+          <Text style={[s.catalogName, { color: c.text }]} numberOfLines={2}>{service.title}</Text>
+          <Text style={[s.catalogMeta, { color: c.textSecondary }]} numberOfLines={2}>{garage ? [garage.name, garage.area].filter(Boolean).join(' - ') : 'Workshop details unavailable'}</Text>
+          <View style={s.catalogFacts}>
+            {service.duration ? <Fact icon="time-outline" text={service.duration} color={c.muted} /> : null}
+            {garage && garage.reviews > 0 && garage.rating > 0 ? <Fact icon="star" text={`${garage.rating.toFixed(1)} (${garage.reviews})`} color={c.gold} /> : null}
+            {garage && garage.distanceKm > 0 ? <Fact icon="navigate-outline" text={garageDistanceLabel(garage.distanceKm)} color={c.muted} /> : null}
+          </View>
+        </View>
+        <Icon name="chevron-forward" size={18} color={c.muted} />
+      </Pressable>
+      <View style={s.catalogTags}>
+        {[service.availability, service.warranty, garage?.pickupAvailable ? 'Pickup' : undefined].filter(Boolean).map((label) => (
+          <View key={label} style={[s.catalogTag, { backgroundColor: c.surfaceAlt }]}>
+            <Text style={[s.catalogTagText, { color: label === 'Today' ? c.success : c.textSecondary }]}>{label}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={[s.catalogFooter, { borderTopColor: c.border }]}>
+        <View style={s.catalogPriceBlock}>
+          <Text style={[s.catalogEyebrow, { color: c.textSecondary }]}>{service.priceValue > 0 ? 'LISTED PRICE' : 'QUOTE REQUIRED'}</Text>
+          <Text style={[s.catalogPrice, { color: c.text }]}>{service.price}</Text>
+        </View>
+        <Pressable style={[s.catalogRequest, { backgroundColor: c.primary }]} accessibilityRole="button" accessibilityLabel={`Book ${service.title}`} onPress={() => router.push(route(`/checkout/${service.id}`))}>
+          <Icon name="calendar-outline" size={17} color="#fff" />
+          <Text style={s.catalogRequestText}>Request</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function CatalogWorkshopRow({ garage }: { garage: Garage }) {
+  const router = useRouter();
+  const c = useQarColors();
+  const saved = useQarWheelStore((state) => state.favoriteGarageIds.includes(garage.id));
+  const toggleFavorite = useQarWheelStore((state) => state.toggleFavoriteGarage);
+  return (
+    <View style={[s.catalogCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <View style={s.catalogWorkshopTop}>
+        <Pressable style={s.catalogDetails} accessibilityRole="button" accessibilityLabel={`View ${garage.name}`} onPress={() => router.push(route(`/garage/${garage.id}`))}>
+          <RemoteImage uri={garage.imageUrl} style={s.catalogThumb} fallbackIcon="business-outline" accessibilityLabel={`${garage.name} workshop`} />
+          <View style={s.catalogCopy}>
+            <Text style={[s.catalogName, { color: c.text }]} numberOfLines={2}>{garage.name}</Text>
+            <Text style={[s.catalogMeta, { color: c.textSecondary }]} numberOfLines={1}>{[garage.area, garage.city].filter(Boolean).join(', ') || 'Location not listed'}</Text>
+            <View style={s.catalogFacts}>
+              {garage.reviews > 0 && garage.rating > 0 ? <Fact icon="star" text={`${garage.rating.toFixed(1)} (${garage.reviews})`} color={c.gold} /> : null}
+              {garage.distanceKm > 0 ? <Fact icon="navigate-outline" text={garageDistanceLabel(garage.distanceKm)} color={c.muted} /> : null}
+            </View>
+          </View>
+        </Pressable>
+        <Pressable style={s.catalogSave} accessibilityRole="button" accessibilityLabel={saved ? `Remove ${garage.name} from saved` : `Save ${garage.name}`} accessibilityState={{ selected: saved }} onPress={() => toggleFavorite(garage.id)}>
+          <Icon name={saved ? 'heart' : 'heart-outline'} size={20} color={saved ? c.danger : c.textSecondary} />
+        </Pressable>
+      </View>
+      <View style={[s.catalogFooter, { borderTopColor: c.border }]}>
+        <View style={s.catalogPriceBlock}>
+          <Text style={[s.catalogEyebrow, { color: c.textSecondary }]}>{garage.openNow === null ? 'HOURS UNAVAILABLE' : garage.openNow ? 'OPEN NOW' : 'CLOSED NOW'}</Text>
+          <Text style={[s.catalogPrice, { color: c.text }]}>{garage.startingPrice}</Text>
+        </View>
+        <Pressable style={[s.catalogRequest, { backgroundColor: c.primary }]} accessibilityRole="button" accessibilityLabel={`Book ${garage.name}`} onPress={() => router.push(route(`/checkout/${garage.id}`))}>
+          <Icon name="calendar-outline" size={17} color="#fff" />
+          <Text style={s.catalogRequestText}>Request</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+export function ServiceListingsScreen() {
+  const router = useRouter();
+  const c = useQarColors();
+  const darkMode = useQarWheelStore((state) => state.themeMode === 'dark');
+  const actionTextColor = darkMode ? '#FFB4AB' : c.primaryDark;
   const [term, setTerm] = useState('');
   const [categoryId, setCategoryId] = useState<string | undefined>();
+  const [sortOpen, setSortOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [visibleServices, setVisibleServices] = useState(8);
+  const [visibleGarages, setVisibleGarages] = useState(5);
   const discovery = useDiscovery(term, categoryId);
+  const hasSelection = Boolean(term.trim() || categoryId || discovery.filters.length);
+  const serviceCountLabel = discovery.loading && !discovery.services.length
+    ? 'Loading services'
+    : discovery.error && !discovery.services.length
+      ? 'Services unavailable'
+      : `${discovery.services.length} ${discovery.services.length === 1 ? 'service' : 'services'}`;
+  const noServices = !discovery.loading && !discovery.error && discovery.services.length === 0;
+  const noWorkshops = !discovery.loading && !discovery.error && discovery.garageList.length === 0;
+  const clearSelection = () => {
+    setTerm('');
+    setCategoryId(undefined);
+    discovery.filters.forEach(discovery.toggleFilter);
+  };
+
+  useEffect(() => {
+    setVisibleServices(8);
+    setVisibleGarages(5);
+  }, [term, categoryId, discovery.sort, discovery.filters]);
 
   return (
-    <Frame title="Services" subtitle="Compare price, distance, rating, and availability">
-      <View style={[s.hero, { backgroundColor: c.surface, borderColor: c.border }]}>
-        <View style={[s.heroIcon, { backgroundColor: c.primaryLight }]}>
-          <Icon name="construct-outline" size={24} color={c.primary} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['top', 'bottom']}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={[s.catalogHeader, { borderBottomColor: c.border }]}>
+        <Pressable
+          style={[s.catalogHeaderButton, { backgroundColor: c.surface }]}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)' as never)}
+        >
+          <Icon name="chevron-back" size={22} color={c.text} />
+        </Pressable>
+        <View style={s.catalogHeaderTitle} accessibilityRole="header">
+          <Image source={require('../assets/images/adaptive-icon.png')} style={s.catalogBrandMark} accessibilityLabel="QarWheel" />
+          <View>
+            <Text style={[s.catalogBrand, { color: c.text }]}>QarWheel</Text>
+            <Text style={[s.catalogHeaderSub, { color: actionTextColor }]}>SERVICES</Text>
+          </View>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[s.heroTitle, { color: c.text }]}>Book with clear context</Text>
-          <Text style={[s.heroBody, { color: c.textSecondary }]}>Filter by open garages, pickup, warranty, price, distance, and available time.</Text>
-        </View>
+        <Pressable
+          style={[s.catalogHeaderButton, { backgroundColor: c.surface }]}
+          accessibilityRole="button"
+          accessibilityLabel="View workshops on map"
+          onPress={() => router.push('/map' as never)}
+        >
+          <Icon name="map-outline" size={20} color={c.text} />
+        </Pressable>
       </View>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={s.catalogContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <MotionScreen style={s.catalogStack}>
+          <SearchInput value={term} onChangeText={setTerm} onClear={() => setTerm('')} catalog placeholder="Search services or workshops" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.catalogRail}>
+            <Pill label="All" active={!categoryId} onPress={() => setCategoryId(undefined)} />
+            {serviceCategories.map((category) => (
+              <Pill key={category.id} label={category.label} active={categoryId === category.id}
+                icon={categoryIcon(category.id)} onPress={() => setCategoryId(category.id)} />
+            ))}
+          </ScrollView>
+          <View style={s.catalogToolbar}>
+            <Text style={[s.catalogCount, { color: c.textSecondary }]}>{serviceCountLabel}</Text>
+            <Pressable
+              style={[s.catalogTool, { borderColor: c.border, backgroundColor: c.surface }]}
+              accessibilityRole="button"
+              accessibilityLabel={`Sort: ${discovery.sort}`}
+              accessibilityState={{ expanded: sortOpen }}
+              onPress={() => { setSortOpen(!sortOpen); setFiltersOpen(false); }}
+            >
+              <Icon name="swap-vertical-outline" size={16} color={c.textSecondary} />
+              <Text style={[s.catalogToolText, { color: c.text }]} numberOfLines={1}>{discovery.sort}</Text>
+              <Icon name="chevron-down" size={14} color={c.muted} />
+            </Pressable>
+            <Pressable
+              style={[s.catalogFilterButton, { borderColor: discovery.filters.length ? c.primary : c.border, backgroundColor: c.surface }]}
+              accessibilityRole="button"
+              accessibilityLabel={discovery.filters.length ? `Filters, ${discovery.filters.length} active` : 'Filters'}
+              accessibilityState={{ expanded: filtersOpen }}
+              onPress={() => { setFiltersOpen(!filtersOpen); setSortOpen(false); }}
+            >
+              <Icon name="options-outline" size={20} color={discovery.filters.length ? c.primary : c.text} />
+            </Pressable>
+          </View>
+          {sortOpen ? (
+            <View style={[s.catalogMenu, { backgroundColor: c.surface, borderColor: c.border }]}>
+              {sortOptions.map((option) => (
+                <Pressable key={option} style={s.catalogMenuItem} accessibilityRole="button"
+                  accessibilityState={{ selected: discovery.sort === option }}
+                  onPress={() => { discovery.setSort(option); setSortOpen(false); }}>
+                  <Text style={[s.catalogMenuText, { color: c.text }]}>{option}</Text>
+                  {discovery.sort === option ? <Icon name="checkmark" size={18} color={c.primary} /> : null}
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+          {filtersOpen ? (
+            <View style={[s.catalogMenu, { backgroundColor: c.surface, borderColor: c.border }]}>
+              {filterOptions.map((option) => (
+                <Pressable key={option} style={s.catalogMenuItem} accessibilityRole="checkbox"
+                  accessibilityLabel={option} accessibilityState={{ checked: discovery.filters.includes(option) }}
+                  onPress={() => discovery.toggleFilter(option)}>
+                  <Text style={[s.catalogMenuText, { color: c.text }]}>{option}</Text>
+                  <Icon name={discovery.filters.includes(option) ? 'checkbox' : 'square-outline'} size={20}
+                    color={discovery.filters.includes(option) ? c.primary : c.muted} />
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
 
-      <SearchInput value={term} onChangeText={setTerm} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.rail}>
-        <Pill label="All" active={!categoryId} onPress={() => setCategoryId(undefined)} />
-        {serviceCategories.map((category) => (
-          <Pill key={category.id} label={category.label} active={categoryId === category.id} onPress={() => setCategoryId(category.id)} />
-        ))}
+          <Section title="Available services" />
+          {discovery.error ? <ErrorState compact onRetry={() => void discovery.refresh()} /> : null}
+          {discovery.loading && discovery.services.length === 0 ? <ActivityIndicator accessibilityLabel="Loading services" color={c.primary} style={s.catalogLoading} /> : null}
+          {noServices ? (
+            <View style={[s.catalogEmpty, { borderColor: c.border }]}>
+              <Icon name="construct-outline" size={28} color={c.muted} />
+              <Text style={[s.emptyTitle, { color: c.text }]}>{hasSelection ? 'No matching services' : 'No services listed yet'}</Text>
+              <Text style={[s.emptyBody, { color: c.textSecondary }]}>
+                {hasSelection ? 'Try another term or clear the selected filters.' : 'Workshops have not published services here yet.'}
+              </Text>
+              {hasSelection ? (
+                <Pressable style={s.catalogClear} accessibilityRole="button" accessibilityLabel="Clear search and filters" onPress={clearSelection}>
+                  <Text style={[s.sectionAction, { color: actionTextColor }]}>Clear search and filters</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
+          {discovery.services.slice(0, visibleServices).map((service) => (
+            <CatalogServiceRow key={service.id} service={service}
+              garage={service.garageId ? discovery.garagesById.get(service.garageId) : undefined} />
+          ))}
+          {discovery.services.length > visibleServices ? (
+            <Pressable style={s.moreButton} accessibilityRole="button" accessibilityLabel="Show more services" onPress={() => setVisibleServices((count) => count + 8)}>
+              <Text style={[s.moreText, { color: actionTextColor }]}>Show more services</Text>
+            </Pressable>
+          ) : null}
+
+          <View style={s.sectionHead}>
+            <Text style={[s.sectionTitle, { color: c.text }]}>Workshops</Text>
+            <Pressable style={s.catalogMapLink} accessibilityRole="button" accessibilityLabel="View workshops on map" onPress={() => router.push('/map' as never)}>
+              <Text style={[s.sectionAction, { color: actionTextColor }]}>View map</Text>
+            </Pressable>
+          </View>
+          {noWorkshops ? <Text style={[s.catalogNoWorkshops, { color: c.textSecondary }]}>No workshops match this view.</Text> : null}
+          {discovery.garageList.slice(0, visibleGarages).map((garage) => (
+            <CatalogWorkshopRow key={garage.id} garage={garage} />
+          ))}
+          {discovery.garageList.length > visibleGarages ? (
+            <Pressable style={s.moreButton} accessibilityRole="button" accessibilityLabel="Show more workshops" onPress={() => setVisibleGarages((count) => count + 5)}>
+              <Text style={[s.moreText, { color: actionTextColor }]}>Show more workshops</Text>
+            </Pressable>
+          ) : null}
+        </MotionScreen>
       </ScrollView>
-      <DiscoveryControls {...discovery} />
-      <DiscoveryResults services={discovery.services} garageList={discovery.garageList} garagesById={discovery.garagesById} />
-    </Frame>
+    </SafeAreaView>
   );
 }
 
 export function CategoryGaragesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const c = useQarColors();
   const category = serviceCategories.find((item) => item.id === id) ?? serviceCategories[0];
   const discovery = useDiscovery('', category.id);
 
   return (
     <Frame title={category.label} subtitle="Category services and garages">
-      <View style={[s.hero, { backgroundColor: c.surface, borderColor: c.border }]}>
-        <View style={[s.heroIcon, { backgroundColor: c.primaryLight }]}>
-          <Icon name={categoryIcon(category.id)} size={24} color={c.primary} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[s.heroTitle, { color: c.text }]}>{category.label}</Text>
-          <Text style={[s.heroBody, { color: c.textSecondary }]}>{category.count} providers with filtered services, transparent prices, and booking availability.</Text>
-        </View>
-      </View>
       <DiscoveryControls {...discovery} />
       <DiscoveryResults services={discovery.services} garageList={discovery.garageList} garagesById={discovery.garagesById} />
     </Frame>
@@ -728,7 +968,7 @@ export function ServiceDetailScreen() {
       <Section title="Other matching garages" />
       {alternatives.map((item) => <GarageCard key={item.id} garage={item} />)}
       <Pressable style={[s.primaryBtn, { backgroundColor: c.primary, ...shadow.primary }]} onPress={() => router.push(route(`/checkout/${service.id}`))}>
-        <Text style={s.primaryText}>Book now</Text>
+        <Text style={s.primaryText}>Request service</Text>
       </Pressable>
     </Frame>
   );
@@ -753,16 +993,11 @@ export function MapNearbyScreen() {
 }
 
 export function FiltersSortingScreen() {
-  const router = useRouter();
-  const c = useQarColors();
   const discovery = useDiscovery('');
   return (
-    <Frame title="Filters" subtitle="Location, price, rating, availability">
+    <Frame title="Explore" subtitle="Sort and filter live results">
       <DiscoveryControls {...discovery} />
       <DiscoveryResults services={discovery.services} garageList={discovery.garageList} garagesById={discovery.garagesById} />
-      <Pressable style={[s.primaryBtn, { backgroundColor: c.primary }]} onPress={() => router.push('/search' as never)}>
-        <Text style={s.primaryText}>Apply to search</Text>
-      </Pressable>
     </Frame>
   );
 }
@@ -857,9 +1092,10 @@ const s = StyleSheet.create({
   screenStack: { gap: 16 },
   search: { height: 54, borderRadius: radius.xl, borderWidth: 1, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10, ...shadow.xs },
   searchInput: { flex: 1, ...typography.body },
+  catalogSearch: { borderRadius: radius.xs, shadowOpacity: 0, elevation: 0 },
   rail: { gap: 10, paddingVertical: 3 },
   controls: { gap: 10 },
-  pill: { minHeight: 40, paddingHorizontal: 14, paddingVertical: 9, borderRadius: radius.full, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  pill: { minHeight: 44, paddingHorizontal: 14, paddingVertical: 9, borderRadius: radius.full, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 7 },
   pillText: { ...typography.caption, fontWeight: '900' },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   sectionTitle: { ...typography.h3 },
@@ -906,6 +1142,33 @@ const s = StyleSheet.create({
   termWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   resultHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   resultCount: { ...typography.bodySm, fontWeight: '700', flex: 1 },
+  mapStrip: { minHeight: 76, borderRadius: radius.xs, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
+  mapIcon: { width: 44, height: 44, borderRadius: radius.xs, alignItems: 'center', justifyContent: 'center' },
+  mapTitle: { ...typography.h4 },
+  mapMeta: { ...typography.caption, marginTop: 2 },
+  browseLinks: { flexDirection: 'row', gap: 12, paddingTop: 2 },
+  browseLink: { flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  browseLinkText: { ...typography.bodySm, fontWeight: '700' },
+  featuredCard: { borderRadius: radius.xs, borderWidth: 1, overflow: 'hidden' },
+  featuredPhoto: { height: 215, justifyContent: 'flex-end', backgroundColor: '#11161D' },
+  featuredImage: { ...StyleSheet.absoluteFill },
+  featuredVerified: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.xs, backgroundColor: 'rgba(8,10,13,0.86)', paddingHorizontal: 9, paddingVertical: 6 },
+  featuredVerifiedText: { color: '#fff', ...typography.caption },
+  featuredIdentity: { padding: 14, gap: 3, backgroundColor: 'rgba(8,10,13,0.88)' },
+  featuredName: { color: '#fff', ...typography.h3 },
+  featuredLocation: { color: '#fff', ...typography.caption },
+  featuredBody: { padding: 14, gap: 12 },
+  featuredFacts: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  featuredFact: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  featuredFactText: { ...typography.caption },
+  featuredPriceRow: { flexDirection: 'row', alignItems: 'center', borderRadius: radius.xs, padding: 12 },
+  featuredPriceLabel: { ...typography.overline },
+  featuredPrice: { ...typography.h4, marginTop: 3 },
+  featuredSave: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  featuredBook: { minHeight: 52, borderRadius: radius.xs, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  featuredBookText: { color: '#fff', ...typography.h4 },
+  moreButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  moreText: { ...typography.bodySm, fontWeight: '800' },
   garageCard: { padding: 12, borderRadius: radius.xl, borderWidth: 1, gap: 10, ...shadow.xs },
   garageFavorite: { position: 'absolute', top: 4, right: 4, zIndex: 1, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   garageTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
@@ -945,6 +1208,46 @@ const s = StyleSheet.create({
   serviceIcon: { width: 46, height: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   bookButton: { minHeight: 44, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
   bookButtonText: { color: '#fff', ...typography.caption, fontWeight: '900' },
+  catalogHeader: { minHeight: 62, paddingHorizontal: spacing.page, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  catalogHeaderButton: { width: 44, height: 44, borderRadius: radius.xs, alignItems: 'center', justifyContent: 'center' },
+  catalogHeaderTitle: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  catalogBrandMark: { width: 38, height: 38 },
+  catalogBrand: { fontSize: 19, fontWeight: '800' },
+  catalogHeaderSub: { ...typography.overline },
+  catalogContent: { padding: spacing.page, paddingBottom: spacing.xxl },
+  catalogStack: { gap: 14 },
+  catalogRail: { gap: 8, paddingVertical: 2 },
+  catalogToolbar: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  catalogCount: { ...typography.caption, flex: 1, minWidth: 0 },
+  catalogTool: { minHeight: 44, maxWidth: 144, paddingHorizontal: 9, borderRadius: radius.xs, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  catalogToolText: { ...typography.caption, fontWeight: '800', flexShrink: 1 },
+  catalogFilterButton: { width: 44, height: 44, borderRadius: radius.xs, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  catalogMenu: { borderRadius: radius.xs, borderWidth: 1, paddingHorizontal: 12 },
+  catalogMenuItem: { minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  catalogMenuText: { ...typography.bodySm, flex: 1 },
+  catalogMapLink: { minHeight: 44, justifyContent: 'center' },
+  catalogCard: { borderRadius: radius.xs, borderWidth: 1, padding: 12, gap: 10 },
+  catalogDetails: { minHeight: 76, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  catalogThumb: { width: 70, height: 70, borderRadius: radius.xs },
+  catalogCopy: { flex: 1, minWidth: 0, gap: 4 },
+  catalogName: { ...typography.h4 },
+  catalogMeta: { ...typography.caption },
+  catalogFacts: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  catalogTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  catalogTag: { borderRadius: radius.xs, paddingHorizontal: 8, paddingVertical: 5 },
+  catalogTagText: { ...typography.caption },
+  catalogFooter: { minHeight: 58, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  catalogPriceBlock: { flex: 1, minWidth: 0, gap: 3 },
+  catalogEyebrow: { ...typography.overline },
+  catalogPrice: { ...typography.bodySm, fontWeight: '800' },
+  catalogRequest: { minHeight: 44, minWidth: 102, borderRadius: radius.xs, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  catalogRequestText: { color: '#fff', ...typography.caption, fontWeight: '800' },
+  catalogWorkshopTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
+  catalogSave: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  catalogLoading: { marginVertical: spacing.lg },
+  catalogEmpty: { minHeight: 154, borderTopWidth: StyleSheet.hairlineWidth, alignItems: 'flex-start', justifyContent: 'center', gap: 7, paddingVertical: 16 },
+  catalogClear: { minHeight: 44, justifyContent: 'center' },
+  catalogNoWorkshops: { ...typography.bodySm, paddingVertical: 10 },
   detailCard: { gap: 14, padding: 18, borderRadius: radius.xl, borderWidth: 1, ...shadow.sm },
   detailTop: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
   detailIcon: { width: 64, height: 64, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' },

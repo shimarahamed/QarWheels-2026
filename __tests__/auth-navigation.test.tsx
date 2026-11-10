@@ -55,6 +55,9 @@ it('does not overwrite an explicit KYC route before the login screen leaves the 
   expect(authRedirect({ ...base, segments: ['(auth)', 'login'], userId: 'vendor', currentUserId: 'vendor', navigation: 'completed',
     claims: { r: 'business_owner', b: 'business', br: [] } })).toBeNull();
 });
+it('does not overwrite the email-verification route while registration finishes', () => {
+  expect(authRedirect({ ...base, segments: ['(auth)', 'register'], userId: 'new-user', currentUserId: 'new-user', navigation: 'completed' })).toBeNull();
+});
 it('resumes automatic routing only after the explicit destination has committed', async () => {
   const { result } = await renderHook(() => useSignInNavigation());
   await act(() => beginSignInNavigation()(true));

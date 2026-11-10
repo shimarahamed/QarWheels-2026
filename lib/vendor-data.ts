@@ -20,6 +20,7 @@ export type VendorBooking = {
   service: string;
   serviceCategory: string;
   date: string;
+  bookingDate?: string;
   timeSlot: string;
   status: VendorBookingStatus;
   notes?: string;

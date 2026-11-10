@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import VendorBookings from '@/app/vendor/bookings';
+import VendorRequests from '@/app/vendor/requests';
 import ServicesScreen from '@/app/vendor/services';
 import BookingDetailScreen from '@/app/vendor/booking-detail/[id]';
 import StatusUpdateScreen from '@/app/vendor/status-update/[id]';
@@ -46,6 +47,9 @@ afterEach(cleanup);
 function bookingsView(loading = false, error = false) {
   return <VendorFeedStatusContext.Provider value={{ loading, error, retry }}><VendorBookings /></VendorFeedStatusContext.Provider>;
 }
+function requestsView(loading = false, error = false) {
+  return <VendorFeedStatusContext.Provider value={{ loading, error, retry }}><VendorRequests /></VendorFeedStatusContext.Provider>;
+}
 
 it('distinguishes loading and failed feeds from a confirmed empty branch', async () => {
   const { rerender } = await render(bookingsView(true));
@@ -64,6 +68,29 @@ it('virtualizes thousands of bookings instead of mounting every card', async () 
   await render(bookingsView());
   expect(screen.getByText('3000 bookings')).toBeTruthy();
   expect(screen.getAllByRole('button', { name: /^View booking/ }).length).toBeLessThan(100);
+});
+
+it('does not call a stalled or failed request feed all caught up', async () => {
+  const { rerender } = await render(requestsView(true));
+  expect(screen.getByLabelText('Loading new requests')).toBeTruthy();
+  expect(screen.queryByText('All caught up')).toBeNull();
+  await rerender(requestsView(false, true));
+  expect(screen.getByText('Requests unavailable')).toBeTruthy();
+  expect(screen.queryByText('All caught up')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: /retry/i }));
+  expect(retry).toHaveBeenCalledTimes(1);
+  await rerender(requestsView());
+  expect(screen.getByText('All caught up')).toBeTruthy();
+});
+
+it('keeps the pending inbox virtualized and oldest first', async () => {
+  useQarWheelStore.setState({ vendorBookings: Array.from({ length: 3000 }, (_, i) => ({
+    ...booking(String(i)), createdAt: new Date(Date.UTC(2026, 10, 2, 0, 0, i)).toISOString(),
+  })) });
+  await render(requestsView());
+  expect(screen.getByText('3000 awaiting your response')).toBeTruthy();
+  expect(screen.getByText('Customer 0')).toBeTruthy();
+  expect(screen.getAllByRole('button', { name: /^Open booking/ }).length).toBeLessThan(100);
 });
 
 it('provides declined and missed filters and independent booking actions', async () => {

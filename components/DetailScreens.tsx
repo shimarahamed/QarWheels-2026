@@ -5,7 +5,7 @@
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   lookupBooking,
@@ -119,7 +119,7 @@ function GarageMini({ id, name, detail }: { id: string; name: string; detail: st
   return (
     <AnimatedPressable style={[ds.miniCard, { borderTopColor: c.border }]} onPress={() => router.push(route(`/garage/${id}`))} scaleValue={0.98}>
       {garage ? (
-        <Image source={{ uri: garage.imageUrl }} style={[ds.miniThumb, { backgroundColor: c.surfaceAlt }]} resizeMode="cover" />
+        <RemoteImage uri={garage.imageUrl} style={[ds.miniThumb, { backgroundColor: c.surfaceAlt }]} fallbackIcon="business-outline" accessibilityLabel={`${garage.name} workshop`} />
       ) : (
         <View style={[ds.miniThumb, { backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center' }]}>
           <Icon name="business-outline" size={18} color={c.muted} />
@@ -164,12 +164,14 @@ export function GarageDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { garage, loading: garageLoading } = useGarage(id);
-  const { services: garageServices } = useBranchServices(id ?? '');
+  const { services: garageServices, loading: servicesLoading } = useBranchServices(id ?? '');
   // Hooks must run before the guard below, so read favourites defensively.
   const isFav = useQarWheelStore((s) => (garage ? s.favoriteGarageIds.includes(garage.id) : false));
   const toggleFav = useQarWheelStore((s) => s.toggleFavoriteGarage);
 
-  if (!garage && garageLoading) return null;
+  if (!garage && garageLoading) {
+    return <Page title="Garage"><View style={ds.garageLoading}><ActivityIndicator color={c.primary} accessibilityLabel="Loading garage" /><Text style={[ds.cardMeta, { color: c.textSecondary }]}>Loading workshop</Text></View></Page>;
+  }
   if (!garage) {
     return (
       <RecordNotFound
@@ -218,33 +220,9 @@ export function GarageDetailScreen() {
 
       <View style={ds.garageSummary}>
         <Text style={[ds.eyebrow, { color: c.primary }]}>{garage.type}</Text>
-
-        <View style={ds.factChips}>
-          <View style={[ds.factChip, { backgroundColor: c.surfaceAlt }]}>
-            <Icon name="location" size={13} color={c.muted} />
-            <Text style={[ds.factChipText, { color: c.textSecondary }]}>{garageDistanceLabel(garage.distanceKm)} · {garage.area}</Text>
-          </View>
-          <View style={[ds.factChip, { backgroundColor: c.surfaceAlt }]}>
-            <Icon name="time-outline" size={13} color={c.muted} />
-            <Text style={[ds.factChipText, { color: c.textSecondary }]}>{garage.responseTime === 'Response time unavailable' ? garage.responseTime : `${garage.responseTime} response`}</Text>
-          </View>
-          <View style={[ds.factChip, { backgroundColor: c.surfaceAlt }]}>
-            <Icon name="pricetag-outline" size={13} color={c.primary} />
-            <Text style={[ds.factChipText, { color: c.primary, fontWeight: '700' }]}>
-              {garage.startingPriceValue > 0 ? `From ${garage.startingPrice}` : garage.startingPrice}
-            </Text>
-          </View>
-          <View style={[ds.factChip, { backgroundColor: c.surfaceAlt }]}>
-            <Icon name="calendar-outline" size={13} color={c.success} />
-            <Text style={[ds.factChipText, { color: c.success, fontWeight: '800' }]}>
-              Time confirmed after request
-            </Text>
-          </View>
-        </View>
-
         <InfoRow icon="car-outline" label="Category" value={garage.category} />
-        <InfoRow icon="shield-checkmark-outline" label="Warranty" value={garage.warranty} valueColor={c.success} />
-        <InfoRow icon="navigate-outline" label="Pickup" value={garage.pickupAvailable ? 'Pickup and drop-off available' : 'Drop-off booking'} />
+        {garage.warranty ? <InfoRow icon="shield-checkmark-outline" label="Warranty" value={garage.warranty} valueColor={c.success} /> : null}
+        <InfoRow icon="navigate-outline" label="Pickup" value={garage.pickupAvailable ? 'Ask about pickup' : 'Visit the garage'} />
 
         <View style={ds.tagRow}>
           {garage.tags.map((tag) => (
@@ -255,26 +233,25 @@ export function GarageDetailScreen() {
         </View>
       </View>
 
-      {/* Quick actions */}
-      <View style={[ds.garageActionCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <View style={ds.garageActionCard}>
         <View style={ds.garageActionHeader}>
-          <View style={{ flex: 1, gap: 3 }}>
+          <View style={{ flex: 1, gap: 3, minWidth: 0 }}>
             <Text style={[ds.sectionTitle, { color: c.text }]}>Request a service</Text>
-            <Text style={[ds.garageActionMeta, { color: c.muted }]}>{garage.responseTime === 'Response time unavailable' ? garage.responseTime : `${garage.responseTime} average response`}{garage.warranty ? ` · ${garage.warranty}` : ''}</Text>
+            <Text style={[ds.garageActionMeta, { color: c.muted }]}>Preferred time and final price confirmed by the garage.</Text>
           </View>
           <View style={ds.garageActionPrice}>
             <Text style={[ds.garageActionPriceLabel, { color: c.muted }]}>{garage.startingPriceValue > 0 ? 'Listed from' : 'Price'}</Text>
-            <Text style={[ds.garageActionPriceValue, { color: c.primary }]}>{garage.startingPrice}</Text>
+            <Text style={[ds.garageActionPriceValue, { color: c.primary }]} numberOfLines={2}>{garage.startingPrice}</Text>
           </View>
         </View>
 
-        <AnimatedPressable style={[ds.garagePrimaryAction, { backgroundColor: c.primary }]} onPress={handleBook} scaleValue={0.98} accessibilityRole="button" accessibilityLabel={`Choose service and preferred time at ${garage.name}`}>
+        <AnimatedPressable style={[ds.garagePrimaryAction, { backgroundColor: c.primary, opacity: !servicesLoading && visibleServices.length === 0 ? 0.5 : 1 }]} onPress={handleBook} disabled={!servicesLoading && visibleServices.length === 0} scaleValue={0.98} accessibilityRole="button" accessibilityLabel={`Choose service and preferred time at ${garage.name}`}>
           <View style={ds.garagePrimaryIcon}>
             <Icon name="calendar" size={18} color={c.primary} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={ds.garagePrimaryTitle}>Choose service and time</Text>
-            <Text style={ds.garagePrimarySub}>The garage confirms your request</Text>
+            <Text style={ds.garagePrimarySub}>No charge when you request</Text>
           </View>
           <Icon name="arrow-forward" size={18} color="#fff" />
         </AnimatedPressable>
@@ -284,25 +261,10 @@ export function GarageDetailScreen() {
             <Icon name="chatbubble-ellipses-outline" size={17} color={c.primary} />
             <Text style={[ds.garageContactText, { color: c.primary }]}>Message</Text>
           </Pressable>
-          <Pressable style={[ds.garageContactButton, { borderColor: c.primaryMid, backgroundColor: c.primaryLight }]} onPress={() => router.push('/map')} accessibilityRole="button" accessibilityLabel={`See ${garage.name} on map`}>
+          <Pressable style={[ds.garageContactButton, { borderColor: c.primaryMid, backgroundColor: c.primaryLight }]} onPress={() => router.push(route(`/map?garageId=${encodeURIComponent(garage.id)}`))} accessibilityRole="button" accessibilityLabel={`Show ${garage.name} on map`}>
             <Icon name="navigate-outline" size={17} color={c.primary} />
-            <Text style={[ds.garageContactText, { color: c.primary }]}>Directions</Text>
+            <Text style={[ds.garageContactText, { color: c.primary }]}>Map</Text>
           </Pressable>
-        </View>
-
-        <View style={ds.garageUtilityGrid}>
-          {[
-            { label: 'Quote', icon: 'flash-outline' as IoniconsName, onPress: () => router.push('/modal' as never) },
-            { label: 'Services', icon: 'construct-outline' as IoniconsName, onPress: () => router.push(route(`/garage-services/${garage.id}`)) },
-            { label: 'Reviews', icon: 'star-outline' as IoniconsName, onPress: () => router.push(route(`/garage-reviews/${garage.id}`)) },
-            { label: 'Photos', icon: 'images-outline' as IoniconsName, onPress: () => router.push(route(`/garage-photos/${garage.id}`)) },
-            { label: isFav ? 'Saved' : 'Save', icon: isFav ? 'heart' as IoniconsName : 'heart-outline' as IoniconsName, onPress: () => { void tap(); toggleFav(garage.id); } },
-          ].map((item) => (
-            <Pressable key={item.label} style={[ds.garageUtilityButton, { borderColor: c.border, backgroundColor: c.surfaceAlt }]} onPress={item.onPress}>
-              <Icon name={item.icon} size={16} color={item.label === 'Saved' ? c.danger : c.textSecondary} />
-              <Text style={[ds.garageUtilityText, { color: c.textSecondary }, item.label === 'Saved' && { color: c.danger }]}>{item.label}</Text>
-            </Pressable>
-          ))}
         </View>
       </View>
 
@@ -310,9 +272,13 @@ export function GarageDetailScreen() {
       <View style={ds.garageServices}>
         <View style={ds.sectionHeaderRow}>
           <Text style={[ds.sectionTitle, { color: c.text }]}>Bookable services</Text>
-          <Text style={[ds.sectionMeta, { color: c.muted }]}>{visibleServices.length} listed</Text>
+          <Pressable onPress={() => router.push(route(`/garage-services/${garage.id}`))} accessibilityRole="button" accessibilityLabel="View all garage services" style={ds.servicesMore}>
+            <Text style={[ds.sectionMeta, { color: c.primary }]}>View all</Text>
+            <Icon name="chevron-forward" size={15} color={c.primary} />
+          </Pressable>
         </View>
-        {visibleServices.length === 0 ? <Text style={[ds.cardMeta, { color: c.textSecondary }]}>No services listed yet. Message the garage to ask about your repair.</Text> : null}
+        {servicesLoading ? <ActivityIndicator color={c.primary} accessibilityLabel="Loading services" /> : null}
+        {!servicesLoading && visibleServices.length === 0 ? <Text style={[ds.cardMeta, { color: c.textSecondary }]}>No services listed yet. Message the garage to ask about your repair.</Text> : null}
         {visibleServices.map((svc, i, arr) => (
           <View key={svc.id} style={[ds.svcRow, i < arr.length - 1 && [ds.svcRowBorder, { borderBottomColor: c.border }]]}>
             <Pressable style={ds.svcLeft} onPress={() => router.push(route(`/service/${svc.id}`))}
@@ -332,6 +298,15 @@ export function GarageDetailScreen() {
             </View>
           </View>
         ))}
+      </View>
+
+      <View style={[ds.garageMoreLinks, { borderTopColor: c.border }]}>
+        <Pressable style={ds.garageMoreLink} onPress={() => router.push(route(`/garage-reviews/${garage.id}`))} accessibilityRole="button" accessibilityLabel={`Read reviews for ${garage.name}`}>
+          <Icon name="star-outline" size={17} color={c.textSecondary} /><Text style={[ds.garageMoreText, { color: c.textSecondary }]}>Reviews</Text>
+        </Pressable>
+        <Pressable style={ds.garageMoreLink} onPress={() => router.push(route(`/garage-photos/${garage.id}`))} accessibilityRole="button" accessibilityLabel={`View photos of ${garage.name}`}>
+          <Icon name="images-outline" size={17} color={c.textSecondary} /><Text style={[ds.garageMoreText, { color: c.textSecondary }]}>Photos</Text>
+        </Pressable>
       </View>
 
     </Page>
@@ -641,7 +616,6 @@ export function BookingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const storeBooking = useQarWheelStore((s) => s.bookings.find((b) => b.id === id));
   const vendorInvoices = useQarWheelStore((s) => s.vendorInvoices);
-  const createVendorInvoice = useQarWheelStore((s) => s.createVendorInvoice);
   const cancelBooking = useQarWheelStore((s) => s.cancelBooking);
   const themeMode = useQarWheelStore((s) => s.themeMode);
   const themedStatusColors = getThemedStatusColors(themeMode);
@@ -668,9 +642,7 @@ export function BookingDetailScreen() {
     if (!isCompleted) return undefined;
     const vbid = booking.vendorBookingId;
     if (!vbid) return undefined;
-    const found = vendorInvoices.find((inv) => inv.bookingId === vbid) ?? findVendorInvoiceByBooking(vbid);
-    if (found) return found;
-    try { return createVendorInvoice(vbid); } catch { return undefined; }
+    return vendorInvoices.find((inv) => inv.bookingId === vbid) ?? findVendorInvoiceByBooking(vbid);
   })();
 
   function handleCancel() {
@@ -699,7 +671,11 @@ export function BookingDetailScreen() {
 
   function handleReschedule() {
     if (!canModify || !storeBooking) return;
-    Alert.alert('Reschedule with the garage', 'Contact the garage to agree on a new time. Your current booking remains unchanged.');
+    const garageId = booking?.garageId;
+    Alert.alert('Ask for a new time', 'Your current request stays unchanged until the garage agrees to a new time.', [
+      { text: 'Not now', style: 'cancel' },
+      { text: 'Message garage', onPress: () => router.push(garageId ? route(`/chat/${garageId}`) : '/messages') },
+    ]);
   }
 
   return (
@@ -708,11 +684,11 @@ export function BookingDetailScreen() {
 
       {/* ── Navbar ── */}
       <View style={[bds.navbar, { backgroundColor: c.background, borderBottomColor: c.border }]}>
-        <AnimatedPressable style={[bds.navBtn, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.back()} scaleValue={0.96}>
+        <AnimatedPressable accessibilityRole="button" accessibilityLabel="Go back" style={[bds.navBtn, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/bookings')} scaleValue={0.96}>
           <Icon name="arrow-back" size={20} color={c.text} />
         </AnimatedPressable>
         <Text style={[bds.navTitle, { color: c.text }]}>Booking</Text>
-        <AnimatedPressable accessibilityRole="button" accessibilityLabel="Message garage" style={[bds.navBtn, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.push(booking.garageId ? route(`/chat/${booking.garageId}`) : '/messages')} scaleValue={0.96}>
+        <AnimatedPressable accessibilityRole="button" accessibilityLabel="Open garage chat" style={[bds.navBtn, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.push(booking.garageId ? route(`/chat/${booking.garageId}`) : '/messages')} scaleValue={0.96}>
           <Icon name="chatbubble-ellipses-outline" size={18} color={c.text} />
         </AnimatedPressable>
       </View>
@@ -835,6 +811,9 @@ export function BookingDetailScreen() {
               style={[bds.actionCard, { backgroundColor: c.surface, borderColor: c.border, opacity: canModify ? 1 : 0.45 }]}
               onPress={handleReschedule}
               disabled={!canModify}
+              accessibilityRole="button"
+              accessibilityLabel="Ask garage for a new time"
+              accessibilityState={{ disabled: !canModify }}
               scaleValue={0.96}
             >
               <View style={[bds.actionCardIcon, { backgroundColor: c.primaryLight }]}>
@@ -843,20 +822,24 @@ export function BookingDetailScreen() {
               <Text style={[bds.actionCardLabel, { color: c.text }]}>Reschedule</Text>
             </AnimatedPressable>
 
-            <AnimatedPressable
+            {booking.garageId ? <AnimatedPressable
               style={[bds.actionCard, { backgroundColor: c.surface, borderColor: c.border }]}
-              onPress={() => { void success(); }}
+              onPress={() => router.push(route(`/garage/${booking.garageId}`))}
+              accessibilityRole="button"
+              accessibilityLabel={`View ${booking.garage} garage`}
               scaleValue={0.96}
             >
               <View style={[bds.actionCardIcon, { backgroundColor: c.successBg }]}>
-                <Icon name="add-circle-outline" size={20} color={c.success} />
+                <Icon name="business-outline" size={20} color={c.success} />
               </View>
-              <Text style={[bds.actionCardLabel, { color: c.text }]}>Calendar</Text>
-            </AnimatedPressable>
+              <Text style={[bds.actionCardLabel, { color: c.text }]}>Garage</Text>
+            </AnimatedPressable> : null}
 
             <AnimatedPressable
               style={[bds.actionCard, { backgroundColor: c.surface, borderColor: c.border }]}
-              onPress={() => router.push('/notifications')}
+              onPress={() => router.push(booking.garageId ? route(`/chat/${booking.garageId}`) : '/messages')}
+              accessibilityRole="button"
+              accessibilityLabel="Message garage"
               scaleValue={0.96}
             >
               <View style={[bds.actionCardIcon, { backgroundColor: c.aiBg }]}>
@@ -868,6 +851,10 @@ export function BookingDetailScreen() {
             <AnimatedPressable
               style={[bds.actionCard, { backgroundColor: c.surface, borderColor: c.border, opacity: canModify ? 1 : 0.45 }]}
               onPress={handleCancel}
+              disabled={!canModify}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel booking"
+              accessibilityState={{ disabled: !canModify }}
               scaleValue={0.96}
             >
               <View style={[bds.actionCardIcon, { backgroundColor: c.dangerBg }]}>
@@ -1208,7 +1195,6 @@ const ds = StyleSheet.create({
   // Hero image
   heroWrap:     { borderRadius: radius.xs, overflow: 'hidden', height: 268, justifyContent: 'flex-end', backgroundColor: colors.surfaceAlt },
   heroImage:    { ...StyleSheet.absoluteFill },
-  heroOverlay:  { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.32)' },
   heroStatusRow: { position: 'absolute', top: 12, left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between' },
   heroVerified: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(8,10,13,0.84)', borderRadius: radius.xs, paddingHorizontal: 10, paddingVertical: 7 },
   heroVerifiedText: { color: '#fff', ...typography.caption, fontWeight: '800' },
@@ -1223,12 +1209,6 @@ const ds = StyleSheet.create({
   },
   openDot:      { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ADE80' },
   openText:     { color: '#fff', fontSize: 12, fontWeight: '800' },
-  heroRatingBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: radius.full,
-    paddingHorizontal: 10, paddingVertical: 5,
-  },
-  heroRatingText: { color: '#fff', fontSize: 12, fontWeight: '900' },
 
   // Cards
   card: {
@@ -1238,19 +1218,11 @@ const ds = StyleSheet.create({
   },
   garageSummary: { gap: 8, paddingVertical: 8 },
   garageServices: { gap: 8, paddingVertical: 8 },
+  garageLoading: { minHeight: 240, alignItems: 'center', justifyContent: 'center', gap: 12 },
   eyebrow:     { ...typography.overline, color: colors.primary },
   cardTitle:   { ...typography.h2, color: colors.text },
   cardMeta:    { ...typography.body, color: colors.muted, lineHeight: 21 },
   sectionTitle: { ...typography.h3, color: colors.text },
-
-  // Fact chips
-  factChips:  { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  factChip:   {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: colors.surfaceAlt, borderRadius: radius.full,
-    paddingHorizontal: 10, paddingVertical: 5,
-  },
-  factChipText: { ...typography.caption, color: colors.textSecondary },
 
   // Tags
   tagRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
@@ -1260,14 +1232,6 @@ const ds = StyleSheet.create({
   },
   tagText: { color: colors.primary, fontSize: 12, fontWeight: '900' },
 
-  // Discovery context
-  discoveryMetrics: {
-    flexDirection: 'row', backgroundColor: colors.surface, borderRadius: radius.xl,
-    borderWidth: 1, borderColor: colors.border, ...shadow.sm,
-  },
-  discoveryMetric: { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 4 },
-  discoveryMetricValue: { ...typography.h4, color: colors.text },
-  discoveryMetricLabel: { ...typography.caption, color: colors.muted },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   sectionMeta: { ...typography.caption, color: colors.muted, fontWeight: '900' },
 
@@ -1287,22 +1251,17 @@ const ds = StyleSheet.create({
 
   // Garage action panel
   garageActionCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
+    paddingVertical: 8,
     gap: 12,
-    ...shadow.sm,
   },
   garageActionHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   garageActionMeta: { ...typography.caption, color: colors.muted, lineHeight: 17 },
-  garageActionPrice: { alignItems: 'flex-end', gap: 2 },
+  garageActionPrice: { alignItems: 'flex-end', gap: 2, maxWidth: '42%' },
   garageActionPriceLabel: { ...typography.caption, color: colors.muted, fontWeight: '900' },
   garageActionPriceValue: { ...typography.h4, color: colors.primary },
   garagePrimaryAction: {
     minHeight: 62,
-    borderRadius: radius.lg,
+    borderRadius: radius.xs,
     backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1317,7 +1276,7 @@ const ds = StyleSheet.create({
   garageContactButton: {
     flex: 1,
     minHeight: 50,
-    borderRadius: radius.lg,
+    borderRadius: radius.xs,
     borderWidth: 1,
     borderColor: colors.primaryMid,
     backgroundColor: colors.primaryLight,
@@ -1327,22 +1286,10 @@ const ds = StyleSheet.create({
     gap: 7,
   },
   garageContactText: { color: colors.primary, ...typography.caption, fontWeight: '900' },
-  garageUtilityGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  garageUtilityButton: {
-    flexGrow: 1,
-    flexBasis: '30%',
-    minHeight: 46,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-  },
-  garageUtilityText: { ...typography.caption, color: colors.textSecondary, fontWeight: '900' },
-
+  servicesMore: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 2 },
+  garageMoreLinks: { borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 8, paddingTop: 10 },
+  garageMoreLink: { flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  garageMoreText: { ...typography.bodySm, fontWeight: '700' },
   // Services list
   svcRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
   svcRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },

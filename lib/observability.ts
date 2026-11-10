@@ -84,16 +84,10 @@ type ConfigIssue = { key: string; effect: string };
 export function missingConfig(): ConfigIssue[] {
   const issues: ConfigIssue[] = [];
 
-  if (!process.env.EXPO_PUBLIC_BACKEND_URL) {
+  if (!process.env.EXPO_PUBLIC_API_BASE_URL) {
     issues.push({
-      key: 'EXPO_PUBLIC_BACKEND_URL',
-      effect: 'AI mechanic, support, coupons and damage analysis fall back to demo data.',
-    });
-  }
-  if (!process.env.EXPO_PUBLIC_TAP_PUBLIC_KEY) {
-    issues.push({
-      key: 'EXPO_PUBLIC_TAP_PUBLIC_KEY',
-      effect: 'Card payments are disabled; only cash and wallet work.',
+      key: 'EXPO_PUBLIC_API_BASE_URL',
+      effect: 'Booking and vendor API operations need a device-reachable backend URL.',
     });
   }
   if (!process.env.EXPO_PUBLIC_SENTRY_DSN) {

@@ -30,6 +30,7 @@ import { haversineKm, useDeviceLocation, type DeviceLocation } from './geo';
 import { vehicleCreateSchema } from './validation';
 import { recordedHealth } from './vehicle-records';
 import { canAccess, isBusinessWideRole } from './permissions';
+import { apiPost } from './api';
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -87,45 +88,21 @@ export type FirestoreCar = {
 export async function createBooking(
   userId: string,
   input: {
-    customerName: string;
-    customerEmail: string;
-    vendorId: string;
-    vendorName: string;
-    businessId: string;
     branchId: string;
     carId: string;
-    carName: string;
-    serviceName: string;
-    bookingDate?: string;
-    cost?: number;
+    serviceId: string;
+    bookingDate: string;
+    timeSlot?: string;
     notes?: string;
+    idempotencyKey: string;
   },
-) {
-  if (!userId || !input.businessId || !input.branchId || !input.carId || !input.serviceName.trim()) {
+) : Promise<{ id: string }> {
+  if (!userId || !input.branchId || !input.carId || !input.serviceId || !input.idempotencyKey) {
     throw new Error('Choose a saved vehicle and an available garage service.');
   }
-  const tomorrow = new Date(Date.now() + 86_400_000);
-  return addDoc(collection(firestore, 'bookings'), {
-    userId,
-    customerName: input.customerName,
-    customerEmail: input.customerEmail,
-    vendorId: input.vendorId,
-    vendorName: input.vendorName,
-    businessId: input.businessId,
-    branchId: input.branchId,
-    branchName: input.vendorName,
-    carId: input.carId,
-    carName: input.carName,
-    carDescription: input.carName,
-    serviceName: input.serviceName,
-    bookingDate: input.bookingDate ?? tomorrow.toISOString(),
-    status: 'Pending',
-    statusHistory: [{ status: 'Pending', at: new Date(), byUid: userId, byRole: 'customer' }],
-    ...(input.cost !== undefined ? { cost: input.cost } : {}),
-    notes: input.notes ?? '',
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+  const currentUser = getAuth().currentUser;
+  if (!currentUser || currentUser.uid !== userId) throw new Error('Sign in again before sending a booking request.');
+  return apiPost<{ id: string }>('/api/bookings', await currentUser.getIdToken(), input);
 }
 
 export async function cancelBooking(bookingId: string) {
@@ -553,9 +530,6 @@ export function useVendorServiceWriter() {
 
 // ── useBranches — real-time list of listed branches for the marketplace ───────
 
-const FALLBACK_GARAGE_IMAGE =
-  'https://images.unsplash.com/photo-1551522435-a13afa10f103?auto=format&fit=crop&w=900&q=80';
-
 /**
  * Maps a `branches/{branchId}` document into the `Garage` shape the mobile UI
  * renders. Branch carries these marketplace fields directly, so this is a
@@ -605,7 +579,7 @@ export function branchToGarage(
     verified: true,
     pickupAvailable: Boolean(data.pickupAvailable ?? false),
     warranty: String(data.warranty ?? ''),
-    imageUrl: String(data.imageUrl ?? FALLBACK_GARAGE_IMAGE),
+    imageUrl: typeof data.imageUrl === 'string' ? data.imageUrl.trim() : '',
     tags: Array.isArray(data.tags) ? (data.tags as string[]) : [],
   };
 }
@@ -617,6 +591,7 @@ function branchServiceToJob(serviceDoc: { id: string; data: () => Record<string,
   const price = Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : 0;
   return {
     id: `${branchId}_${serviceDoc.id}`,
+    sourceServiceId: serviceDoc.id,
     title: String(data.name ?? 'Service'),
     price: price ? `QAR ${price}` : 'Price on request',
     priceValue: price,
@@ -787,7 +762,13 @@ export function useVendorFirestoreBookings() {
               return d.toLocaleDateString('en-QA', { weekday: 'short', month: 'short', day: 'numeric' });
             } catch { return 'Not scheduled'; }
           })(),
-          timeSlot: String(data.timeSlot ?? ''),
+          bookingDate: data.bookingDate ? toIsoString(data.bookingDate) : undefined,
+          timeSlot: (() => {
+            if (data.timeSlot) return String(data.timeSlot);
+            if (!data.bookingDate) return '';
+            const date = new Date(toIsoString(data.bookingDate));
+            return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('en-QA', { timeZone: 'Asia/Qatar', hour: '2-digit', minute: '2-digit' });
+          })(),
           status: (data.status ?? 'Pending') as BookingWorkflowStatus,
           notes: data.notes ? String(data.notes) : '',
           pickupEnabled: Boolean(data.pickupEnabled),

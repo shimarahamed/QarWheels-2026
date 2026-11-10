@@ -25,7 +25,7 @@ export default function ReadyPickupScreen() {
 
   const steps = [
     { icon: 'document-text-outline', title: 'Bring your ID', body: 'Present your Qatar ID or passport at the reception.' },
-    { icon: 'card-outline',          title: 'Settle payment', body: booking?.paymentMethod === 'Cash' ? 'Cash payment at counter.' : 'Payment already processed — just sign.' },
+    { icon: 'card-outline',          title: 'Settle payment', body: 'Confirm the final amount and pay the garage directly. QarWheel has not processed a payment.' },
     { icon: 'key-outline',           title: 'Collect your keys', body: 'A staff member will walk you to your vehicle.' },
     { icon: 'star-outline',          title: 'Leave a review', body: 'Share your experience to help other drivers.' },
   ];
@@ -72,9 +72,9 @@ export default function ReadyPickupScreen() {
               </View>
               <View style={[s.summaryDivider, { backgroundColor: c.border }]} />
               <View style={s.summaryItem}>
-                <Text style={[s.summaryLabel, { color: c.muted }]}>Amount</Text>
+                <Text style={[s.summaryLabel, { color: c.muted }]}>Garage quote</Text>
                 <Text style={[s.summaryValue, { color: c.primary }]}>
-                  {booking.totalAmount ? `QAR ${booking.totalAmount}` : 'At counter'}
+                  {booking.totalAmount ? `QAR ${booking.totalAmount}` : 'Confirm at garage'}
                 </Text>
               </View>
             </View>

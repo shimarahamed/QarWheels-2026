@@ -1,8 +1,4 @@
-/**
- * QarWheel 2026 — Marketplace screens
- * Pixel-accurate reimplementation matching the uploaded design.
- * Light + dark theme fully supported via useQarColors().
- */
+/** Customer search, bookings, vehicles, and account screens. */
 
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type React from 'react';
@@ -11,7 +7,6 @@ import {
   Alert,
   FlatList,
   Keyboard,
-  Image,
   Platform,
   Pressable,
   RefreshControl,
@@ -19,7 +14,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -58,66 +52,8 @@ function route(path: string) { return path as never; }
 function Icon({ name, size = 18, color }: { name: IoniconName; size?: number; color: string }) {
   return <Ionicons name={name} size={size} color={color} />;
 }
-function timeGreeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
-}
 
-// ── Static home-screen data ────────────────────────────────────────
-
-const HOME_CATEGORIES = [
-  { id: 'ac',          label: 'AC & Heating',   labelAr: 'تكييف وتدفئة',  icon: 'snow-outline' as IoniconName,          iconColor: '#38BDF8', bg: 'rgba(56,189,248,0.16)'  },
-  { id: 'electrical',  label: 'Electrical',      labelAr: 'كهربائي',       icon: 'flash-outline' as IoniconName,          iconColor: '#FCD34D', bg: 'rgba(252,211,77,0.16)'  },
-  { id: 'tires',       label: 'Tires & Wheels',  labelAr: 'الإطارات',      icon: 'disc-outline' as IoniconName,           iconColor: '#94A3B8', bg: 'rgba(148,163,184,0.16)' },
-  { id: 'body',        label: 'Body & Paint',    labelAr: 'هيكل ودهان',   icon: 'color-palette-outline' as IoniconName,  iconColor: '#FB923C', bg: 'rgba(251,146,60,0.16)'  },
-  { id: 'wash',        label: 'Car Wash',        labelAr: 'غسيل السيارة', icon: 'water-outline' as IoniconName,          iconColor: '#22D3EE', bg: 'rgba(34,211,238,0.16)'  },
-  { id: 'diagnostics', label: 'Diagnostics',     labelAr: 'تشخيص',        icon: 'analytics-outline' as IoniconName,      iconColor: '#A78BFA', bg: 'rgba(167,139,250,0.16)' },
-  { id: 'detailing',   label: 'Detailing',       labelAr: 'تلميع',        icon: 'sparkles-outline' as IoniconName,       iconColor: '#34D399', bg: 'rgba(52,211,153,0.16)'  },
-  { id: 'accessories', label: 'Accessories',     labelAr: 'إكسسوارات',    icon: 'cube-outline' as IoniconName,           iconColor: '#818CF8', bg: 'rgba(129,140,248,0.16)' },
-  { id: 'roadside',    label: 'Roadside',        labelAr: 'خدمة الطريق',  icon: 'warning-outline' as IoniconName,        iconColor: '#F87171', bg: 'rgba(248,113,113,0.16)' },
-];
-
-const HOME_GARAGES = [
-  { id: 'g1', name: 'German Auto Care',      specialty: 'Specialist in German Cars',    rating: 4.8, reviews: 812, response: '12 min', price: 'AED 150–200', isOpen: true,  isVerified: true,  tags: ['GCC Specs'],       imageUrl: 'https://images.unsplash.com/photo-1551522435-a13afa10f103?auto=format&fit=crop&w=400&q=80' },
-  { id: 'g2', name: 'Al Futtaim Auto Svcs',  specialty: 'Multi-brand Service Center',   rating: 4.8, reviews: 462, response: '15 min', price: 'AED 100–150', isOpen: true,  isVerified: false, tags: ['Free AC Checkup'], imageUrl: 'https://images.unsplash.com/photo-1549636367-13c144c47063?auto=format&fit=crop&w=400&q=80' },
-  { id: 'g3', name: 'Pro PitStop Garage',    specialty: 'One Stop Auto Care',           rating: 4.5, reviews: 321, response: '18 min', price: 'AED 120–180', isOpen: true,  isVerified: true,  tags: ['Gas Top-up'],      imageUrl: 'https://images.unsplash.com/photo-1559416523-140ddc3d238c?auto=format&fit=crop&w=400&q=80' },
-  { id: 'g4', name: 'My Care Garage',        specialty: 'Basic AC Service',             rating: 4.8, reviews: 199, response: '22 min', price: 'AED 159',     isOpen: false, isVerified: false, tags: [],                  imageUrl: 'https://images.unsplash.com/photo-1585014165903-6d6c6ebad3e9?auto=format&fit=crop&w=400&q=80' },
-  { id: 'g5', name: 'Speedy Auto Care',      specialty: 'Quick. Reliable. Affordable.', rating: 4.5, reviews: 201, response: '20 min', price: 'AED 179',     isOpen: true,  isVerified: true,  tags: ['24/7'],            imageUrl: 'https://images.unsplash.com/photo-1486006920555-c77dcf18193c?auto=format&fit=crop&w=400&q=80' },
-];
-
-const FEATURED_SERVICES = [
-  { id: 's1', label: 'AC Service',    price: 'From AED 159', imageUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=300&q=80' },
-  { id: 's2', label: 'Oil Change',    price: 'From AED 99',  imageUrl: 'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=300&q=80' },
-  { id: 's3', label: 'Brake Repair',  price: 'From AED 149', imageUrl: 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=300&q=80' },
-  { id: 's4', label: 'Battery',       price: 'From AED 199', imageUrl: 'https://images.unsplash.com/photo-1580274455191-1c62238fa333?auto=format&fit=crop&w=300&q=80' },
-  { id: 's5', label: 'Tire Change',   price: 'From AED 249', imageUrl: 'https://images.unsplash.com/photo-1551522435-a13afa10f103?auto=format&fit=crop&w=300&q=80' },
-];
-
-const TOP_OFFERS: { id: string; service: string; discount: string; until: string; imageUrl: string }[] = [];
-
-const TRUST_ITEMS = [
-  { icon: 'shield-checkmark' as IoniconName, label: 'Verified Garages',  labelAr: 'كراجات موثقة',        iconColor: '#E31E24', bg: 'rgba(227,30,36,0.14)'  },
-  { icon: 'card' as IoniconName,             label: 'Secure Payments',   labelAr: 'مدفوعات آمنة',        iconColor: '#22C55E', bg: 'rgba(34,197,94,0.14)'   },
-  { icon: 'globe' as IoniconName,            label: 'GCC Standard',      labelAr: 'معيار الخليج',         iconColor: '#38BDF8', bg: 'rgba(56,189,248,0.14)'  },
-  { icon: 'call' as IoniconName,             label: '24/7 Support',      labelAr: 'دعم على مدار الساعة', iconColor: '#FCD34D', bg: 'rgba(252,211,77,0.14)'  },
-];
-
-const QUICK_ACTIONS = [
-  { icon: 'calendar-outline' as IoniconName, label: 'Book Service', href: '/services' },
-  { icon: 'car-outline' as IoniconName,      label: 'My Cars',      href: '/(tabs)/cars' },
-  { icon: 'warning-outline' as IoniconName,  label: 'Roadside',     href: '/checkout/emergency' },
-  { icon: 'pricetag-outline' as IoniconName, label: 'Sell My Car',  href: '/modal'    },
-];
-
-const GERMAN_GARAGES = [
-  { id: 'gg1', name: 'German Auto Care',   specialty: 'BMW · Mercedes',         rating: 4.8, reviews: 512, response: '12 min', price: 'AED 150–200', isVerified: true,  imageUrl: 'https://images.unsplash.com/photo-1551522435-a13afa10f103?auto=format&fit=crop&w=400&q=80' },
-  { id: 'gg2', name: 'Euro Meister Garage',specialty: 'BMW · Mercedes Spec.',   rating: 4.6, reviews: 342, response: '14 min', price: 'AED 130–190', isVerified: false, imageUrl: 'https://images.unsplash.com/photo-1549636367-13c144c47063?auto=format&fit=crop&w=400&q=80' },
-  { id: 'gg3', name: 'Auto Haus Dubai',    specialty: 'Audi · VW Specialist',  rating: 4.5, reviews: 289, response: '16 min', price: 'AED 130–190', isVerified: false, imageUrl: 'https://images.unsplash.com/photo-1559416523-140ddc3d238c?auto=format&fit=crop&w=400&q=80' },
-];
-
-const BRAND_FILTERS = ['All', 'BMW', 'Mercedes', 'Audi', 'Porsche'];
+// ── Pull-to-refresh hook ───────────────────────────────────────────
 
 const ACCOUNT_MENU_SECTIONS = [
   {
@@ -172,8 +108,6 @@ const ACCOUNT_MENU_SECTIONS = [
     ],
   },
 ];
-
-// ── Pull-to-refresh hook ───────────────────────────────────────────
 
 function useRefresh(onRefresh?: () => Promise<void>) {
   const [refreshing, setRefreshing] = useState(false);
@@ -289,368 +223,6 @@ function GarageListCard({ garage, c }: { garage: Garage; c: QarColors }) {
 // ══════════════════════════════════════════════════════════════════
 // HOME SCREEN
 // ══════════════════════════════════════════════════════════════════
-export function HomeScreen() {
-  const router = useRouter();
-  const c = useQarColors();
-  const { user } = useAuthContext();
-  const { width: screenWidth } = useWindowDimensions();
-  const unread = useQarWheelStore((s) => s.notifications.filter((n) => !n.read).length);
-  const [activeBrand, setActiveBrand] = useState('All');
-  const { vendors: liveVendors, loading: vendorsLoading, error: vendorsError, refresh: refreshVendors } = useBranches();
-
-  const firstName = user?.displayName?.split(' ')[0] ?? user?.email?.split('@')[0] ?? 'there';
-  const trustCardWidth = Math.floor((screenWidth - spacing.page * 2 - 10) / 2);
-
-  const handleRefresh = refreshVendors;
-
-  return (
-    <ScreenWrap c={c} onRefresh={handleRefresh}>
-      {vendorsError && <ErrorState compact onRetry={() => void refreshVendors()} />}
-
-      {/* ── Header ─────────────────────────────────────────────── */}
-      <View style={[ss.header, { paddingHorizontal: spacing.page }]}>
-        {/* Logo */}
-        <View style={ss.logoRow}>
-          <View style={[ss.logoQ, { backgroundColor: c.primary }]}>
-            <Text style={ss.logoQText}>Q</Text>
-          </View>
-          <Text style={[ss.logoText, { color: c.text }]}>QarWheel</Text>
-        </View>
-
-        <View style={ss.headerRight}>
-          {/* Language chip */}
-          <View style={[ss.langChip, { borderColor: c.border, backgroundColor: c.surface }]}>
-            <Text style={[ss.langText, { color: c.textSecondary }]}>EN</Text>
-          </View>
-
-          {/* Bell */}
-          <Pressable
-            style={[ss.iconBtn, { backgroundColor: c.surface, borderColor: c.border }]}
-            onPress={() => router.push('/notifications')}
-            hitSlop={6}
-          >
-            <Icon name="notifications-outline" size={19} color={c.text} />
-            {unread > 0 && (
-              <View style={[ss.notifDot, { backgroundColor: c.primary, borderColor: c.surface }]}>
-                <Text style={ss.notifDotText}>{unread > 9 ? '9+' : unread}</Text>
-              </View>
-            )}
-          </Pressable>
-        </View>
-      </View>
-
-      {/* ── Greeting ───────────────────────────────────────────── */}
-      <View style={ss.greetingBlock}>
-        <Text style={[ss.greetingMain, { color: c.text }]}>{timeGreeting()}, {firstName}</Text>
-        <Text style={[ss.greetingSub, { color: c.textSecondary }]}>What's your next move?</Text>
-        <Text style={[ss.greetingAr, { color: c.muted }]}>ما هي خطوتك القادمة؟</Text>
-      </View>
-
-      {/* ── Search bar ─────────────────────────────────────────── */}
-      <Pressable
-        style={[ss.searchBar, { backgroundColor: c.surface, borderColor: c.border }]}
-        onPress={() => router.push('/search')}
-        accessibilityRole="search"
-      >
-        <Icon name="search-outline" size={19} color={c.muted} />
-        <Text style={[ss.searchPlaceholder, { color: c.muted }]}>Search garages, services, parts...</Text>
-        <Text style={[ss.searchAr, { color: c.muted }]}>ابحث</Text>
-        <View style={[ss.searchBtn, { backgroundColor: c.primary }]}>
-          <Icon name="search" size={16} color="#fff" />
-        </View>
-      </Pressable>
-
-      {/* ── Hero card ──────────────────────────────────────────── */}
-      <View style={ss.heroCard}>
-        {/* Car image right side */}
-        <Image
-          source={{ uri: 'https://images.unsplash.com/photo-1544636331-e26879cd4d9b?auto=format&fit=crop&w=600&q=80' }}
-          style={ss.heroImage}
-          resizeMode="cover"
-        />
-        {/* Dark overlay – left 65% */}
-        <View style={[ss.heroOverlayLeft, { backgroundColor: 'rgba(5,7,10,0.93)' }]} />
-        {/* Fade strip */}
-        <View style={[ss.heroOverlayMid, { backgroundColor: 'rgba(5,7,10,0.55)' }]} />
-
-        <View style={ss.heroContent}>
-          <Text style={ss.heroEyebrow}>BOOK WITH CONFIDENCE</Text>
-          <Text style={ss.heroHeadline}>Verified garages.{'\n'}Best prices.</Text>
-          <Text style={ss.heroAr}>كراجات موثقة. أفضل الأسعار.</Text>
-          <View style={ss.heroBtnRow}>
-            <Pressable
-              style={[ss.heroBtnPrimary, { backgroundColor: c.primary }]}
-              onPress={() => { void tap(); router.push('/services'); }}
-            >
-              <Text style={ss.heroBtnPrimaryText}>Explore Now</Text>
-            </Pressable>
-            {user ? (
-              <Pressable
-                style={ss.heroBtnGhost}
-                onPress={() => { void tap(); router.push(route('/checkout/emergency')); }}
-              >
-                <Text style={ss.heroBtnGhostText}>Book Now</Text>
-              </Pressable>
-            ) : (
-              <Pressable
-                style={ss.heroBtnGhost}
-                onPress={() => { void tap(); router.push(route('/(auth)/register')); }}
-              >
-                <Text style={ss.heroBtnGhostText}>Join Free</Text>
-              </Pressable>
-            )}
-          </View>
-        </View>
-      </View>
-
-      {/* ── Quick Actions ───────────────────────────────────────── */}
-      <View style={[ss.quickRow, { paddingHorizontal: spacing.page }]}>
-        {QUICK_ACTIONS.map((qa) => (
-          <Pressable
-            key={qa.label}
-            style={ss.quickItem}
-            onPress={() => { void tap(); router.push(qa.href as never); }}
-          >
-            <View style={[ss.quickIcon, { backgroundColor: c.surface, borderColor: c.border }]}>
-              <Icon name={qa.icon} size={22} color={c.primary} />
-            </View>
-            <Text style={[ss.quickLabel, { color: c.muted }]}>{qa.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {/* ── Featured Services ───────────────────────────────────── */}
-      <View style={{ gap: 10 }}>
-        <SectionRow
-          title="Featured Services"
-          linkLabel="View all"
-          onPress={() => router.push('/services')}
-          c={c}
-          style={{ paddingHorizontal: spacing.page }}
-        />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[ss.hScroll, { paddingHorizontal: spacing.page }]}
-        >
-          {FEATURED_SERVICES.map((svc) => (
-            <Pressable
-              key={svc.id}
-              style={[ss.featSvcCard, { backgroundColor: c.surface, borderColor: c.border }]}
-              onPress={() => { void tap(); router.push('/services'); }}
-            >
-              <RemoteImage uri={svc.imageUrl} style={ss.featSvcImage} fallbackIcon="construct-outline" accessibilityLabel={svc.label} />
-              <View style={ss.featSvcInfo}>
-                <Text style={[ss.featSvcLabel, { color: c.text }]}>{svc.label}</Text>
-                <Text style={[ss.featSvcPrice, { color: c.muted }]}>Browse garages</Text>
-              </View>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        {/* Book Any Service CTA */}
-        <View style={[ss.bookCta, { backgroundColor: c.primary, marginHorizontal: spacing.page }]}>
-          <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1544636331-e26879cd4d9b?auto=format&fit=crop&w=400&q=80' }}
-            style={ss.bookCtaImage}
-            resizeMode="cover"
-          />
-          <View style={ss.bookCtaOverlay} />
-          <View style={ss.bookCtaContent}>
-            <Text style={ss.bookCtaTitle}>Book Any Service</Text>
-            <Text style={ss.bookCtaSub}>Fast. Trusted. Affordable.</Text>
-            <Text style={ss.bookCtaSubAr}>سريع. موثوق. بأسعار مناسبة.</Text>
-            <Pressable
-              style={[ss.bookCtaBtn, { backgroundColor: '#fff' }]}
-              onPress={() => { void tap(); router.push('/services'); }}
-            >
-              <Text style={[ss.bookCtaBtnText, { color: c.primary }]}>Book Now</Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-
-      {/* ── Categories 3×3 ──────────────────────────────────────── */}
-      <View style={{ gap: 10 }}>
-        <SectionRow
-          title="All Categories"
-          linkLabel="See all"
-          onPress={() => router.push('/search')}
-          c={c}
-          style={{ paddingHorizontal: spacing.page }}
-        />
-        <View style={[ss.catGrid, { paddingHorizontal: spacing.page }]}>
-          {HOME_CATEGORIES.map((cat) => (
-            <Pressable
-              key={cat.id}
-              style={[ss.catCard, { backgroundColor: c.surface, borderColor: c.border }]}
-              onPress={() => { void tap(); router.push(route(`/category/${cat.id}`)); }}
-            >
-              <View style={[ss.catIconWrap, { backgroundColor: cat.bg }]}>
-                <Icon name={cat.icon} size={20} color={cat.iconColor} />
-              </View>
-              <Text style={[ss.catLabel, { color: c.text }]}>{cat.label}</Text>
-              <Text style={[ss.catLabelAr, { color: c.muted }]}>{cat.labelAr}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-
-      {/* ── Garages Near You ────────────────────────────────────── */}
-      <View style={ss.landingSection}>
-        <View style={ss.garageHeader}>
-          <View>
-            <Text style={[ss.sectionTitle, { color: c.text }]}>Garages Near You</Text>
-            <View style={ss.locationRow}>
-              <Icon name="location" size={12} color={c.primary} />
-              <Text style={[ss.locationText, { color: c.muted }]}>Doha, Qatar</Text>
-            </View>
-          </View>
-          <Pressable onPress={() => router.push('/map')} hitSlop={8}>
-            <Text style={{ fontSize: 13, fontWeight: '800', color: c.primary }}>See map ›</Text>
-          </Pressable>
-        </View>
-        {vendorsLoading
-          ? <ActivityIndicator color={c.primary} style={{ marginVertical: 16 }} />
-          : liveVendors.slice(0, 5).map((g) => <GarageListCard key={g.id} garage={g} c={c} />)
-        }
-        {liveVendors.length > 5 && <Pressable accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }} onPress={() => router.push('/search')}>
-          <Text style={{ color: c.primary, fontWeight: '700' }}>View all garages</Text>
-        </Pressable>}
-      </View>
-
-      {/* ── Promotional Banner ──────────────────────────────────── */}
-      <View style={[ss.promoBanner, { marginHorizontal: spacing.page }]}>
-        <Image
-          source={{ uri: 'https://images.unsplash.com/photo-1544636331-e26879cd4d9b?auto=format&fit=crop&w=600&q=80' }}
-          style={ss.promoImage}
-          resizeMode="cover"
-        />
-        <View style={ss.promoOverlay} />
-        <View style={ss.promoContent}>
-          <Text style={ss.promoEyebrow}>AC Service</Text>
-          <Text style={ss.promoSub}>Find an AC specialist</Text>
-          <Pressable
-            style={[ss.promoBtn, { backgroundColor: '#fff' }]}
-            onPress={() => { void tap(); router.push(route('/checkout/ac')); }}
-          >
-            <Text style={[ss.promoBtnText, { color: c.primary }]}>Book Now</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      {/* ── Top Offers For You ──────────────────────────────────── */}
-      <View style={ss.landingSection}>
-        <SectionRow
-          title="Offers"
-          linkLabel="View all"
-          onPress={() => router.push('/offers')}
-          c={c}
-        />
-        <View style={ss.offersRow}>
-          {TOP_OFFERS.map((offer) => (
-            <Pressable
-              key={offer.id}
-              style={[ss.offerCard, { backgroundColor: c.surface, borderColor: c.border }]}
-              onPress={() => { void tap(); router.push('/offers'); }}
-            >
-              <View style={ss.offerImgWrap}>
-                <RemoteImage uri={offer.imageUrl} style={ss.offerImg} fallbackIcon="pricetag-outline" accessibilityLabel={offer.service} />
-                <View style={ss.offerImgOverlay} />
-                <Text style={ss.offerDiscount}>{offer.discount}</Text>
-              </View>
-              <View style={ss.offerInfo}>
-                <Text style={[ss.offerService, { color: c.text }]}>{offer.service}</Text>
-                <Text style={[ss.offerUntil, { color: c.muted }]}>{offer.until}</Text>
-              </View>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-
-      {/* ── German Car Specialist ───────────────────────────────── */}
-      <View style={ss.landingSection}>
-        <View>
-          <Text style={[ss.sectionTitle, { color: c.text }]}>German Car Specialist</Text>
-          <Text style={[ss.sectionSubAr, { color: c.muted }]}>متخصصون في السيارات الألمانية</Text>
-        </View>
-        {/* Brand pills */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={ss.brandPills}>
-          {BRAND_FILTERS.map((brand) => (
-            <Pressable
-              key={brand}
-              style={[
-                ss.brandPill,
-                {
-                  backgroundColor: activeBrand === brand ? c.primary : c.surface,
-                  borderColor: activeBrand === brand ? c.primary : c.border,
-                },
-              ]}
-              onPress={() => { void tap(); setActiveBrand(brand); }}
-            >
-              <Text style={[ss.brandPillText, { color: activeBrand === brand ? '#fff' : c.muted }]}>
-                {brand}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-        {vendorsLoading
-          ? <ActivityIndicator color={c.primary} style={{ marginVertical: 8 }} />
-          : liveVendors
-              .filter((g) => {
-                const haystack = `${g.name} ${g.type ?? ''} ${g.category ?? ''}`.toLowerCase();
-                if (activeBrand !== 'All') return haystack.includes(activeBrand.toLowerCase());
-                // Default: show garages that mention any German brand or "german"
-                return ['bmw', 'mercedes', 'audi', 'porsche', 'volkswagen', 'vw', 'german'].some((kw) =>
-                  haystack.includes(kw),
-                );
-              })
-              .slice(0, 5).map((g) => <GarageListCard key={g.id} garage={g} c={c} />)
-        }
-        {/* Fallback when live data has no German-specialist entries yet */}
-        {!vendorsLoading && liveVendors.filter((g) => {
-          const haystack = `${g.name} ${g.type ?? ''} ${g.category ?? ''}`.toLowerCase();
-          if (activeBrand !== 'All') return haystack.includes(activeBrand.toLowerCase());
-          return ['bmw', 'mercedes', 'audi', 'porsche', 'volkswagen', 'vw', 'german'].some((kw) => haystack.includes(kw));
-        }).length === 0 && (
-          <View style={[ss.emptyBox, { backgroundColor: c.surface, borderColor: c.border, paddingVertical: 24 }]}>
-            <Icon name="car-sport-outline" size={32} color={c.muted} />
-            <Text style={[ss.emptyDesc, { color: c.muted }]}>No {activeBrand === 'All' ? 'German specialist' : activeBrand} garages listed yet.</Text>
-          </View>
-        )}
-      </View>
-
-      {/* ── Trust & Safety ──────────────────────────────────────── */}
-      <View style={ss.landingSection}>
-        <View style={ss.sectionRow}>
-          <Text style={[ss.sectionTitle, { color: c.text }]}>Trust & Safety</Text>
-          <Text style={[ss.sectionSubAr, { color: c.muted }]}>الأمان والثقة</Text>
-        </View>
-        <View style={ss.trustGrid}>
-          {TRUST_ITEMS.map((item) => (
-            <View
-              key={item.label}
-              style={[ss.trustCard, { width: trustCardWidth, backgroundColor: c.surface, borderColor: c.border }]}
-            >
-              <View style={[ss.trustIcon, { backgroundColor: item.bg }]}>
-                <Icon name={item.icon} size={20} color={item.iconColor} />
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={[ss.trustLabel, { color: c.text }]}>{item.label}</Text>
-                <Text style={[ss.trustLabelAr, { color: c.muted }]}>{item.labelAr}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-        <Text style={[ss.tagline, { color: c.muted }]}>
-          QarWheel — Your Car. Our Care.{'\n'}
-          <Text style={[ss.taglineAr, { color: c.muted }]}>قارويلز - سيارتك، رعايتنا.</Text>
-        </Text>
-      </View>
-
-    </ScreenWrap>
-  );
-}
 
 // ── SearchGarageList — live vendors for search screen ─────────────
 function SearchGarageList({ c }: { c: QarColors }) {
@@ -1058,11 +630,16 @@ export function CarsScreen() {
           const hc = health === null ? c.muted : hColor(health);
           const hl = health === null ? 'Not measured' : 'Recorded scan';
           return (
-            <Pressable
+            <View
               key={car.id}
               style={[ss.carCard2, { backgroundColor: c.surface, borderColor: c.border }]}
-              onPress={() => router.push(route(`/vehicle-dashboard/${car.id}`))}
             >
+              <Pressable
+                style={ss.carCard2Body}
+                onPress={() => router.push(route(`/vehicle-dashboard/${car.id}`))}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${car.year} ${car.make} ${car.model} dashboard`}
+              >
               {/* ── Top: identity + health badge ── */}
               <View style={ss.carCard2Top}>
                 <View style={[ss.carCard2Icon, { backgroundColor: `${hc}18` }]}>
@@ -1103,6 +680,7 @@ export function CarsScreen() {
                 </View>
               </View>
 
+              </Pressable>
               {/* ── Divider ── */}
               <View style={[ss.carCard2Divider, { backgroundColor: c.border }]} />
 
@@ -1111,6 +689,8 @@ export function CarsScreen() {
                 <Pressable
                   style={[ss.carCard2ActionPrimary, { backgroundColor: c.primary }]}
                   onPress={() => router.push(route(`/checkout/${car.id}`))}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Request service for ${car.year} ${car.make} ${car.model}`}
                 >
                   <Icon name="calendar-outline" size={14} color="#fff" />
                   <Text style={ss.carCard2ActionPrimaryText}>Book service</Text>
@@ -1118,18 +698,20 @@ export function CarsScreen() {
                 {[
                   { label: 'Passport', icon: 'id-card-outline' as IoniconName, href: `/vehicle-passport/${car.id}` },
                   { label: 'Docs',     icon: 'folder-open-outline' as IoniconName, href: `/vehicle-documents/${car.id}` },
-                  { label: 'Predict',  icon: 'analytics-outline' as IoniconName,  href: `/predictive-maintenance/${car.id}` },
+                  { label: 'Health', icon: 'pulse-outline' as IoniconName, href: `/vehicle-health-score/${car.id}` },
                 ].map((item) => (
                   <Pressable
                     key={item.label}
                     style={[ss.carCard2ActionGhost, { borderColor: c.border }]}
                     onPress={() => router.push(route(item.href))}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View ${item.label.toLowerCase()} for ${car.year} ${car.make} ${car.model}`}
                   >
                     <Icon name={item.icon} size={15} color={c.textSecondary} />
                   </Pressable>
                 ))}
               </View>
-            </Pressable>
+            </View>
           );
         })}
 
@@ -1306,92 +888,6 @@ const ss = StyleSheet.create({
   // Section header
   sectionRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 34, gap: 12 },
   sectionTitle:   { fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },
-  sectionSubAr:   { fontSize: 12, lineHeight: 18, textAlign: 'right', writingDirection: 'rtl', flexShrink: 0 },
-  landingSection: { paddingHorizontal: spacing.page, gap: 14 },
-
-  // Header
-  header:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 14, paddingBottom: 8 },
-  logoRow:        { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  logoQ:          { width: 32, height: 32, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  logoQText:      { color: '#fff', fontSize: 18, fontWeight: '900' },
-  logoText:       { fontSize: 18, fontWeight: '900', letterSpacing: -0.4 },
-  headerRight:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  langChip:       { borderWidth: 1, borderRadius: 9, paddingHorizontal: 10, paddingVertical: 6 },
-  langText:       { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
-  // 44×44 minimum touch target for the notification button
-  iconBtn:        { width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  notifDot:       { position: 'absolute', right: -2, top: -2, minWidth: 17, height: 17, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
-  notifDotText:   { color: '#fff', fontSize: 12, fontWeight: '900' },
-
-  // Greeting
-  greetingBlock:  { paddingHorizontal: spacing.page, gap: 4 },
-  greetingMain:   { fontSize: 22, fontWeight: '900', letterSpacing: -0.3 },
-  greetingSub:    { fontSize: 14, fontWeight: '400' },
-  greetingAr:     { fontSize: 12, lineHeight: 18, textAlign: 'right', writingDirection: 'rtl' },
-
-  // Search
-  searchBar:      { marginHorizontal: spacing.page, minHeight: 54, borderRadius: 27, flexDirection: 'row', alignItems: 'center', paddingStart: 16, paddingEnd: 8, borderWidth: 1, gap: 10 },
-  searchBarActive:{ height: 52, borderRadius: 26, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, borderWidth: 1.5, gap: 10 },
-  searchPlaceholder: { fontSize: 14, flex: 1 },
-  searchAr:       { fontSize: 12, writingDirection: 'rtl', textAlign: 'right' },
-  searchBtn:      { height: 36, width: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-
-  // Hero
-  heroCard:       { marginHorizontal: spacing.page, minHeight: 196, borderRadius: 22, overflow: 'hidden', backgroundColor: '#060810' },
-  heroImage:      { position: 'absolute', right: 0, top: 0, bottom: 0, width: '60%' },
-  heroOverlayLeft:{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '50%' },
-  heroOverlayMid: { position: 'absolute', left: '40%', top: 0, bottom: 0, width: '30%' },
-  heroContent:    { position: 'absolute', left: 0, top: 0, bottom: 0, width: '70%', padding: 20, justifyContent: 'center', gap: 5 },
-  heroEyebrow:    { color: '#E31E24', fontSize: 12, fontWeight: '900', letterSpacing: 1.2 },
-  heroHeadline:   { color: '#fff', fontSize: 19, fontWeight: '900', lineHeight: 24 },
-  heroAr:         { color: 'rgba(255,255,255,0.48)', fontSize: 12, lineHeight: 17, marginBottom: 8, textAlign: 'right', writingDirection: 'rtl', alignSelf: 'stretch' },
-  heroBtnRow:     { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  heroBtnPrimary: { height: 36, borderRadius: 11, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
-  heroBtnPrimaryText: { color: '#fff', fontSize: 12, fontWeight: '900' },
-  heroBtnGhost:   { height: 36, borderRadius: 11, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
-  heroBtnGhostText: { color: '#fff', fontSize: 12, fontWeight: '800' },
-
-  // Quick actions — equal-width 4-column grid
-  quickRow:       { flexDirection: 'row', gap: 10 },
-  quickItem:      { flex: 1, alignItems: 'center', gap: 8, minHeight: 82 },
-  quickIcon:      { width: 58, height: 58, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  quickLabel:     { fontSize: 12, fontWeight: '700', textAlign: 'center', lineHeight: 15, minHeight: 30 },
-
-  // Featured services
-  hScroll:        { gap: 12 },
-  featSvcCard:    { width: 136, borderRadius: 16, overflow: 'hidden', borderWidth: 1 },
-  featSvcImage:   { width: 136, height: 88 },
-  featSvcInfo:    { padding: 10, gap: 3 },
-  featSvcLabel:   { fontSize: 12, fontWeight: '800' },
-  featSvcPrice:   { fontSize: 12 },
-
-  // Book any service CTA
-  bookCta:        { borderRadius: 22, overflow: 'hidden', minHeight: 132 },
-  bookCtaImage:   { position: 'absolute', right: 0, top: 0, bottom: 0, width: '45%' },
-  bookCtaOverlay: { position: 'absolute', left: '30%', top: 0, bottom: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)' },
-  bookCtaContent: { padding: 20, flex: 1, justifyContent: 'center', gap: 6 },
-  bookCtaTitle:   { color: '#fff', fontSize: 16, fontWeight: '900' },
-  bookCtaSub:     { color: 'rgba(255,255,255,0.8)', fontSize: 12 },
-  bookCtaSubAr:   { color: 'rgba(255,255,255,0.62)', fontSize: 12, lineHeight: 17, textAlign: 'right', writingDirection: 'rtl', alignSelf: 'stretch' },
-  bookCtaBtn:     { minHeight: 40, borderRadius: 12, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
-  bookCtaBtnText: { fontSize: 12, fontWeight: '900' },
-
-  // Categories 3-column grid — gap 10 on both axes for consistent spacing
-  catGrid:        { flexDirection: 'row', flexWrap: 'wrap', gap: 10, alignItems: 'stretch' },
-  catCard: {
-    flexBasis: '30%',
-    flexGrow: 1,
-    borderRadius: 16,
-    borderWidth: 1,
-    minHeight: 124,
-    paddingVertical: 15,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-    gap: 7,
-  },
-  catIconWrap:    { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  catLabel:       { fontSize: 12, fontWeight: '800', textAlign: 'center', lineHeight: 14 },
-  catLabelAr:     { fontSize: 12, textAlign: 'center', lineHeight: 14, writingDirection: 'rtl', minHeight: 16 },
 
   // Garage card — consistent internal padding and gap
   garageCard:     { flexDirection: 'row', borderRadius: 16, borderWidth: 1, overflow: 'hidden', alignItems: 'center', padding: 12, gap: 12 },
@@ -1414,52 +910,8 @@ const ss = StyleSheet.create({
   tagPill:        { borderRadius: 20, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4 },
   tagText:        { fontSize: 12, fontWeight: '600' },
 
-  // Garage section header
-  garageHeader:   { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
-  locationRow:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  locationText:   { fontSize: 12 },
-
-  // Promo banner
-  promoBanner:    { minHeight: 220, borderRadius: 22, overflow: 'hidden', backgroundColor: '#1A0409' },
-  promoImage:     { position: 'absolute', right: 0, top: 0, bottom: 0, width: '45%' },
-  promoOverlay:   { position: 'absolute', left: 0, top: 0, bottom: 0, right: 0, backgroundColor: 'rgba(15,4,6,0.65)' },
-  promoContent:   { position: 'absolute', left: 0, top: 0, bottom: 0, padding: 22, justifyContent: 'center', gap: 3 },
-  promoEyebrow:   { color: '#FDA4AF', fontSize: 12, fontWeight: '800' },
-  promoSub:       { color: 'rgba(253,164,175,0.7)', fontSize: 12 },
-  promoDiscount:  { color: '#fff', fontSize: 56, fontWeight: '900', lineHeight: 60, marginTop: 2 },
-  promoOff:       { color: '#fff', fontSize: 24, fontWeight: '900', lineHeight: 28 },
-  promoBtn:       { marginTop: 10, height: 38, borderRadius: 12, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
-  promoBtnText:   { fontSize: 13, fontWeight: '900' },
-
-  // Top offers
-  offersRow:      { flexDirection: 'row', gap: 10 },
-  offerCard:      { flex: 1, borderRadius: 14, overflow: 'hidden', borderWidth: 1 },
-  offerImgWrap:   { height: 76, position: 'relative' },
-  offerImg:       { ...StyleSheet.absoluteFill },
-  offerImgOverlay:{ ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.48)' },
-  offerDiscount:  { position: 'absolute', bottom: 7, left: 9, color: '#fff', fontSize: 12, fontWeight: '900' },
-  offerInfo:      { padding: 9, gap: 2 },
-  offerService:   { fontSize: 12, fontWeight: '800' },
-  offerUntil:     { fontSize: 12 },
-
-  // German car section
-  brandPills:     { gap: 10, paddingVertical: 2 },
-  brandPill:      { borderRadius: 20, borderWidth: 1, paddingHorizontal: 15, paddingVertical: 9, minHeight: 40 },
-  brandPillText:  { fontSize: 12, fontWeight: '800' },
-
-  // Trust & Safety
-  trustGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  trustCard:      {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    borderRadius: 16, borderWidth: 1, padding: 14, minHeight: 82,
-  },
-  trustIcon:      { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  trustLabel:     { fontSize: 12, fontWeight: '800', lineHeight: 16 },
-  trustLabelAr:   { fontSize: 12, lineHeight: 16, textAlign: 'right', writingDirection: 'rtl' },
-  tagline:        { textAlign: 'center', fontSize: 12, lineHeight: 19, paddingTop: 2 },
-  taglineAr:      { fontSize: 12, lineHeight: 18, textAlign: 'center', writingDirection: 'rtl' },
-
   // Search screen
+  searchBarActive:{ height: 52, borderRadius: 26, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, borderWidth: 1.5, gap: 10 },
   suggestCard:    { borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
   suggestHeading: { fontSize: 12, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', padding: 12, paddingBottom: 8 },
   suggestRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 13, borderTopWidth: StyleSheet.hairlineWidth },
@@ -1551,6 +1003,7 @@ const ss = StyleSheet.create({
     borderRadius: 20, borderWidth: 1, overflow: 'hidden',
     padding: 16, gap: 12, ...shadow.sm,
   },
+  carCard2Body: { gap: 12, minHeight: 44 },
   carCard2Top:      { flexDirection: 'row', alignItems: 'center', gap: 12 },
   carCard2Icon:     { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   carCard2Name:     { fontSize: 16, fontWeight: '900', letterSpacing: -0.2 },
@@ -1568,11 +1021,11 @@ const ss = StyleSheet.create({
   carCard2Actions:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
   carCard2ActionPrimary: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, height: 40, borderRadius: 12,
+    gap: 6, minHeight: 44, borderRadius: 12,
   },
   carCard2ActionPrimaryText: { fontSize: 13, fontWeight: '900', color: '#fff' },
   carCard2ActionGhost: {
-    width: 40, height: 40, borderRadius: 12, borderWidth: 1,
+    width: 44, height: 44, borderRadius: 12, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
 

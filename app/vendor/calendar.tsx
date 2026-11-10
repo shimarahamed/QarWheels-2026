@@ -1,17 +1,16 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { bookingAmountLabel, getStatusColor, getStatusLabel } from '@/lib/vendor-data';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
-
-const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const WEEK_DATES = ['Jun 2', 'Jun 3', 'Jun 4', 'Jun 5', 'Jun 6', 'Jun 7', 'Jun 8'];
-const HOURS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'];
+import ErrorState from '@/components/ErrorState';
+import { useVendorFeedStatus } from '@/lib/vendor-feed-status';
+import { qatarWeekDays, vendorBookingDayId } from '@/lib/vendor-calendar';
 
 export default function VendorCalendar() {
   const c = useQarColors();
@@ -20,15 +19,10 @@ export default function VendorCalendar() {
   const bookings = useQarWheelStore((s) => s.vendorBookings);
   const profile = useQarWheelStore((s) => s.vendorProfile);
   const [selectedDay, setSelectedDay] = useState(0);
-
-  const dayBookings = bookings.filter((b) => {
-    if (selectedDay === 0) return b.date === 'Today';
-    if (selectedDay === 1) return b.date === 'Tomorrow';
-    return b.date === WEEK_DATES[selectedDay];
-  });
-
-  const slotsUsed = dayBookings.filter((b) => b.status !== 'Cancelled').length;
-  const slotsTotal = profile.maxSlotsPerHour * (profile.workDays.length > 0 ? 10 : 0);
+  const feed = useVendorFeedStatus();
+  const days = qatarWeekDays();
+  const dayBookings = bookings.filter((booking) => vendorBookingDayId(booking) === days[selectedDay].id);
+  const pendingCount = dayBookings.filter((booking) => booking.status === 'Pending').length;
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: c.background }]} edges={['top']}>
@@ -40,29 +34,28 @@ export default function VendorCalendar() {
           <Text style={[s.navSub, { color: c.muted }]}>{profile.openTime} – {profile.closeTime}</Text>
           <Pressable
             style={[s.blockBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
-            onPress={() => Alert.alert('Block Time', 'Select a time slot to mark it as unavailable.')}
-            accessible accessibilityRole="button" accessibilityLabel="Block time slot"
+            onPress={() => router.push('/vendor/settings' as never)}
+            accessible accessibilityRole="button" accessibilityLabel="Workshop hours and settings"
           >
-            <Ionicons name="ban-outline" size={14} color={c.textSecondary} />
-            <Text style={[s.blockBtnText, { color: c.textSecondary }]}>Block</Text>
+            <Ionicons name="settings-outline" size={14} color={c.textSecondary} />
+            <Text style={[s.blockBtnText, { color: c.textSecondary }]}>Hours</Text>
           </Pressable>
         </View>
       </View>
 
       {/* Week strip */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[s.weekStrip, { paddingTop: 60 }]} contentContainerStyle={s.weekStripContent}>
-        {DAYS_OF_WEEK.map((day, i) => {
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.weekStrip} contentContainerStyle={s.weekStripContent}>
+        {days.map((day, i) => {
           const active = selectedDay === i;
-          const isWorkDay = profile.workDays.includes(day);
-          const dayBookingCount = bookings.filter((b) => {
-            if (i === 0) return b.date === 'Today';
-            if (i === 1) return b.date === 'Tomorrow';
-            return b.date === WEEK_DATES[i];
-          }).length;
+          const isWorkDay = profile.workDays.includes(day.weekday);
+          const dayBookingCount = bookings.filter((booking) => vendorBookingDayId(booking) === day.id).length;
 
           return (
             <Pressable
-              key={day}
+              key={day.id}
+              accessibilityRole="tab"
+              accessibilityLabel={`${day.label}, ${dayBookingCount} ${dayBookingCount === 1 ? 'request' : 'requests'}`}
+              accessibilityState={{ selected: active }}
               style={[
                 s.dayPill,
                 { backgroundColor: active ? c.primary : c.surface, borderColor: active ? c.primary : c.border },
@@ -70,8 +63,8 @@ export default function VendorCalendar() {
               ]}
               onPress={() => setSelectedDay(i)}
             >
-              <Text style={[s.dayLabel, { color: active ? '#fff' : c.muted }]}>{day}</Text>
-              <Text style={[s.dayDate, { color: active ? '#fff' : c.text }]}>{i === 0 ? 'Today' : WEEK_DATES[i].split(' ')[1]}</Text>
+              <Text style={[s.dayLabel, { color: active ? '#fff' : c.muted }]}>{day.weekday}</Text>
+              <Text style={[s.dayDate, { color: active ? '#fff' : c.text }]}>{i === 0 ? 'Today' : day.day}</Text>
               {dayBookingCount > 0 && (
                 <View style={[s.dayDot, { backgroundColor: active ? 'rgba(255,255,255,0.6)' : c.primary }]} />
               )}
@@ -82,37 +75,29 @@ export default function VendorCalendar() {
 
       <ScrollView contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16 }]} showsVerticalScrollIndicator={false}>
         <MotionScreen>
-          {/* Capacity bar */}
+          {/* A request schedule does not imply bookable capacity. */}
           <View style={[s.capacityCard, { backgroundColor: c.surface, borderColor: c.border }]}>
             <View style={s.capacityHeader}>
               <Text style={[s.capacityTitle, { color: c.text }]}>
-                {slotsUsed} of {profile.maxSlotsPerHour * 10} slots booked
+                {feed.error ? 'Requests unavailable' : feed.loading && !dayBookings.length ? 'Loading requests' : `${dayBookings.length} ${dayBookings.length === 1 ? 'request' : 'requests'}`} · {days[selectedDay].label}
               </Text>
               <Text style={[s.capacityPct, { color: c.muted }]}>
-                {slotsTotal > 0 ? Math.round((slotsUsed / (profile.maxSlotsPerHour * 10)) * 100) : 0}%
+                {feed.error ? 'Retry below' : `${pendingCount} pending`}
               </Text>
             </View>
-            <View style={[s.capacityBar, { backgroundColor: c.surfaceAlt }]}>
-              <View
-                style={[
-                  s.capacityFill,
-                  {
-                    width: `${Math.min(100, slotsTotal > 0 ? (slotsUsed / (profile.maxSlotsPerHour * 10)) * 100 : 0)}%`,
-                    backgroundColor: slotsUsed > profile.maxSlotsPerHour * 8 ? c.danger : c.primary,
-                  },
-                ]}
-              />
-            </View>
+            <Text style={[s.emptyText, { color: c.textSecondary }]}>Times are preferences until confirmed by the garage.</Text>
           </View>
 
           {/* Bookings for this day */}
-          {dayBookings.length === 0 ? (
+          {feed.error ? <ErrorState compact onRetry={feed.retry} /> : null}
+          {feed.loading && dayBookings.length === 0 ? <ActivityIndicator color={c.primary} accessibilityLabel="Loading vendor requests" /> : null}
+          {!feed.loading && !feed.error && dayBookings.length === 0 ? (
             <View style={s.emptyState}>
               <Ionicons name="calendar-clear-outline" size={40} color={c.muted} />
-              <Text style={[s.emptyTitle, { color: c.text }]}>No bookings</Text>
-              <Text style={[s.emptyText, { color: c.muted }]}>This day is clear.</Text>
+              <Text style={[s.emptyTitle, { color: c.text }]}>No dated requests</Text>
+              <Text style={[s.emptyText, { color: c.muted }]}>Requests with a preferred time will appear here.</Text>
             </View>
-          ) : (
+          ) : dayBookings.length > 0 ? (
             <View style={{ gap: 10 }}>
               {dayBookings.map((b) => {
                 const sc = getStatusColor(b.status);
@@ -140,42 +125,7 @@ export default function VendorCalendar() {
                 );
               })}
             </View>
-          )}
-
-          {/* Hour grid overview */}
-          <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
-            <Text style={[s.sectionTitle, { color: c.text }]}>Hour Overview</Text>
-            <View style={{ gap: 6 }}>
-              {HOURS.map((hour) => {
-                const [h] = hour.split(':');
-                const slotBookings = dayBookings.filter((b) => b.timeSlot.startsWith(h === '12' ? '12' : h.replace(/^0/, '')));
-                const busy = slotBookings.length >= profile.maxSlotsPerHour;
-                const isWork = parseInt(h) >= parseInt(profile.openTime.split(':')[0]) && parseInt(h) < parseInt(profile.closeTime.split(':')[0]);
-
-                return (
-                  <View key={hour} style={s.hourRow}>
-                    <Text style={[s.hourLabel, { color: c.muted }]}>{hour}</Text>
-                    <View style={[s.hourBar, { backgroundColor: c.surfaceAlt }]}>
-                      {isWork ? (
-                        <View
-                          style={[
-                            s.hourFill,
-                            {
-                              width: `${Math.min(100, (slotBookings.length / profile.maxSlotsPerHour) * 100)}%`,
-                              backgroundColor: busy ? c.danger : c.success,
-                            },
-                          ]}
-                        />
-                      ) : null}
-                    </View>
-                    <Text style={[s.hourCount, { color: isWork ? c.textSecondary : c.border }]}>
-                      {isWork ? `${slotBookings.length}/${profile.maxSlotsPerHour}` : 'Closed'}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
+          ) : null}
         </MotionScreen>
       </ScrollView>
       <VendorTabBar />
@@ -186,11 +136,6 @@ export default function VendorCalendar() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
     flexDirection: 'row', 
     alignItems: 'center', 
     justifyContent: 'space-between',

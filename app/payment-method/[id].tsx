@@ -167,7 +167,7 @@ export default function PaymentMethodScreen() {
     if (!hasKey) {
       Alert.alert(
         'Payments unavailable',
-        'Card payments are not configured in this build. Choose cash or wallet at checkout.',
+        'Card payments are not offered in this release. Pay the garage directly.',
       );
       return;
     }
@@ -220,7 +220,7 @@ export default function PaymentMethodScreen() {
     if (!hasKey) {
       Alert.alert(
         'Payments unavailable',
-        'Card payments are not configured in this build. Choose cash or wallet at checkout.',
+        'Card payments are not offered in this release. Pay the garage directly.',
       );
       return;
     }
@@ -336,7 +336,7 @@ export default function PaymentMethodScreen() {
                   <View style={[s.demoBar, { backgroundColor: c.warningBg, borderColor: `${c.warning}33` }]}>
                     <Ionicons name="flask-outline" size={13} color={c.warning} />
                     <Text style={[s.demoText, { color: c.warning }]}>
-                      Demo mode — set EXPO_PUBLIC_TAP_PUBLIC_KEY for live tokenisation
+                      Card checkout is unavailable in this release
                     </Text>
                   </View>
                 )}

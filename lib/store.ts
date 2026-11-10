@@ -506,6 +506,7 @@ export const useQarWheelStore = create<QarWheelState>()(
           date: input.bookingDate
             ? new Date(input.bookingDate).toLocaleDateString('en-QA', { month: 'short', day: 'numeric' })
             : input.date.split(',')[0] || 'Pending',
+          bookingDate: input.bookingDate,
           timeSlot: input.timeSlot ?? input.date.split(',')[1]?.trim() ?? 'Pending',
           status: input.status ?? 'Pending',
           notes: input.notes,

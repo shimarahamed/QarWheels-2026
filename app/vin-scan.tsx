@@ -1,12 +1,9 @@
 /**
- * VIN Scan screen
+ * VIN entry and vehicle lookup screen
  *
  * Two modes:
- *  1. Camera — launches expo-image-picker, user photographs the VIN barcode or
- *     the printed VIN on the windscreen/door jamb. We attempt to extract the
- *     17-char VIN from the filename / user description (real barcode decoding
- *     requires expo-barcode-scanner which is a separate native module).
- *     A clear "manual entry" fallback is always visible.
+ *  1. Camera — optional reference photo that remains on screen for reading.
+ *     It does not decode the barcode or extract text.
  *  2. Manual — text input with real-time format validation.
  *
  * After a VIN is confirmed we call the free NHTSA vPIC API:
@@ -25,6 +22,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -117,6 +115,7 @@ export default function VinScanScreen() {
   const [result, setResult] = useState<NhtsaResult | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [cameraLoading, setCameraLoading] = useState(false);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   const inputRef = useRef<TextInputInstance>(null);
   const shakeAnim = useRef(new Animated.Value(0)).current;
@@ -159,22 +158,16 @@ export default function VinScanScreen() {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Camera permission required', 'Allow camera access in Settings to scan your VIN barcode.');
+        Alert.alert('Camera permission required', 'Allow camera access to take a VIN reference photo, or enter the VIN manually.');
         return;
       }
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: false,
         quality: 0.9,
-        // No barcode decoding without expo-barcode-scanner — we show the photo
-        // and ask the user to type the VIN they see.
       });
-      if (!result.canceled) {
-        Alert.alert(
-          'Photo taken',
-          'Now type the 17-character VIN you can see in the photo below the barcode, on the driver-side door jamb, or on the dashboard.',
-          [{ text: 'Enter VIN', onPress: () => setTimeout(() => inputRef.current?.focus(), 300) }],
-        );
-      }
+      if (!result.canceled && result.assets[0]?.uri) setPhotoUri(result.assets[0].uri);
+    } catch {
+      Alert.alert('Camera unavailable', 'You can still enter the VIN manually.');
     } finally {
       setCameraLoading(false);
     }
@@ -208,7 +201,7 @@ export default function VinScanScreen() {
           <Pressable style={[s.backBtn, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={20} color={c.text} />
           </Pressable>
-          <Text style={[s.navTitle, { color: c.text }]}>Scan VIN</Text>
+          <Text style={[s.navTitle, { color: c.text }]}>Enter VIN</Text>
           <View style={{ width: 42 }} />
         </View>
 
@@ -244,11 +237,13 @@ export default function VinScanScreen() {
                 ))}
               </View>
 
-              {/* Camera scan button */}
+              {/* Optional reference photo; no barcode decoding is implied. */}
               <Pressable
                 style={[s.cameraBtn, { backgroundColor: c.surface, borderColor: c.border }]}
                 onPress={handleCameraScan}
                 disabled={cameraLoading}
+                accessibilityRole="button"
+                accessibilityLabel="Take a VIN reference photo"
               >
                 <View style={[s.cameraBtnIcon, { backgroundColor: c.successBg }]}>
                   {cameraLoading
@@ -257,16 +252,26 @@ export default function VinScanScreen() {
                   }
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.cameraBtnTitle, { color: c.text }]}>Scan with camera</Text>
-                  <Text style={[s.cameraBtnSub, { color: c.muted }]}>Take a photo of the VIN barcode</Text>
+                  <Text style={[s.cameraBtnTitle, { color: c.text }]}>Take VIN photo</Text>
+                  <Text style={[s.cameraBtnSub, { color: c.muted }]}>Use the photo to read the code; it is not scanned automatically.</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={c.muted} />
               </Pressable>
 
+              {photoUri ? (
+                <View style={[s.photoPreview, { backgroundColor: c.surface, borderColor: c.border }]}>
+                  <Image source={{ uri: photoUri }} style={s.photoImage} resizeMode="contain" accessibilityLabel="VIN reference photo" />
+                  <Pressable accessibilityRole="button" accessibilityLabel="Remove VIN reference photo" onPress={() => setPhotoUri(null)} style={s.photoRemove}>
+                    <Ionicons name="close-circle-outline" size={20} color={c.textSecondary} />
+                    <Text style={[s.cameraBtnSub, { color: c.textSecondary }]}>Remove photo</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+
               {/* Divider */}
               <View style={s.orRow}>
                 <View style={[s.orLine, { backgroundColor: c.border }]} />
-                <Text style={[s.orText, { color: c.muted }]}>or type manually</Text>
+                <Text style={[s.orText, { color: c.muted }]}>Enter the 17-character VIN</Text>
                 <View style={[s.orLine, { backgroundColor: c.border }]} />
               </View>
 
@@ -293,6 +298,7 @@ export default function VinScanScreen() {
                       },
                     ]}
                     value={vin}
+                    accessibilityLabel="Vehicle Identification Number"
                     onChangeText={(v) => setVin(v.toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/gi, ''))}
                     placeholder="e.g. 1HGCM82633A123456"
                     placeholderTextColor={c.muted}
@@ -428,6 +434,9 @@ const s = StyleSheet.create({
   cameraBtnIcon: { width: 46, height: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   cameraBtnTitle: { fontSize: 15, fontWeight: '800' },
   cameraBtnSub: { fontSize: 12, marginTop: 2 },
+  photoPreview: { borderRadius: radius.md, borderWidth: 1, overflow: 'hidden', padding: 8, gap: 8 },
+  photoImage: { width: '100%', height: 180 },
+  photoRemove: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
 
   orRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   orLine: { flex: 1, height: 1 },

@@ -1,14 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarWheelStore, useQarColors } from '@/lib/store';
-import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
 import { BookingActionSheet } from '@/components/vendor/BookingActionSheet';
 import { bookingAmountLabel, type VendorBooking } from '@/lib/vendor-data';
+import { useVendorFeedStatus } from '@/lib/vendor-feed-status';
+import ErrorState from '@/components/ErrorState';
 
 // No expiresAt is reliably populated yet, so "soonest expiring" is approximated
 // by oldest-request-first: the longer a customer has been waiting on an answer,
@@ -26,6 +27,7 @@ export default function VendorRequests() {
   const router = useRouter();
   const vendorTabBottom = useVendorTabBottom();
   const bookings = useQarWheelStore((s) => s.vendorBookings);
+  const feed = useVendorFeedStatus();
 
   const pending = useMemo(
     () => bookings.filter((b) => b.status === 'Pending').sort((a, b) => requestAge(a) - requestAge(b)),
@@ -46,31 +48,38 @@ export default function VendorRequests() {
         </Pressable>
         <View style={{ flex: 1, gap: 1 }}>
           <Text style={[s.navTitle, { color: c.text }]}>New Requests</Text>
-          <Text style={[s.navSub, { color: c.muted }]}>
-            {pending.length === 0
+          <Text accessibilityLiveRegion="polite" style={[s.navSub, { color: c.muted }]}>
+            {feed.loading ? 'Updating requests...' : feed.error ? 'Requests unavailable' : pending.length === 0
               ? 'Nothing waiting on you'
               : `${pending.length} awaiting your response`}
           </Text>
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16, paddingTop: 86 }]}
+      <FlatList
+        data={pending}
+        keyExtractor={(booking) => booking.id}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16 }]}
         showsVerticalScrollIndicator={false}
-      >
-        <MotionScreen>
-          {pending.length === 0 ? (
-            <View style={s.emptyState}>
-              <Ionicons name="checkmark-done-outline" size={40} color={c.muted} />
-              <Text style={[s.emptyTitle, { color: c.text }]}>All caught up</Text>
-              <Text style={[s.emptyText, { color: c.muted }]}>
-                New booking requests will appear here as soon as customers send them.
-              </Text>
-            </View>
-          ) : (
-            <View style={{ gap: 10 }}>
-              {pending.map((b) => (
-                <View key={b.id} style={[s.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+        refreshing={feed.loading && bookings.length > 0}
+        onRefresh={feed.retry}
+        ListHeaderComponent={feed.error ? <ErrorState compact onRetry={feed.retry} /> : undefined}
+        ListEmptyComponent={feed.loading ? (
+          <ActivityIndicator accessibilityLabel="Loading new requests" color={c.primary} />
+        ) : feed.error ? undefined : (
+          <View style={s.emptyState}>
+            <Ionicons name="checkmark-done-outline" size={40} color={c.muted} />
+            <Text style={[s.emptyTitle, { color: c.text }]}>All caught up</Text>
+            <Text style={[s.emptyText, { color: c.muted }]}>
+              New booking requests will appear here as soon as customers send them.
+            </Text>
+          </View>
+        )}
+        renderItem={({ item: b }) => (
+                <View style={[s.card, { backgroundColor: c.surface, borderColor: c.border }]}>
                   <Pressable
                     style={s.cardTop}
                     onPress={() => router.push(`/vendor/booking-detail/${b.id}` as never)}
@@ -100,11 +109,8 @@ export default function VendorRequests() {
                     <BookingActionSheet booking={b} compact />
                   </View>
                 </View>
-              ))}
-            </View>
-          )}
-        </MotionScreen>
-      </ScrollView>
+        )}
+      />
       <VendorTabBar />
     </SafeAreaView>
   );
@@ -113,11 +119,6 @@ export default function VendorRequests() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -133,7 +134,7 @@ const s = StyleSheet.create({
   navTitle: { ...typography.h3 },
   navSub: { fontSize: 12, fontWeight: '600' },
 
-  content: { padding: spacing.page },
+  content: { padding: spacing.page, gap: 10 },
 
   emptyState: { alignItems: 'center', gap: 12, paddingVertical: 60 },
   emptyTitle: { ...typography.h4 },

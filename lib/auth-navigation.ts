@@ -30,7 +30,7 @@ export function authRedirect(input: {
   const inAuth = input.segments[0] === '(auth)';
   if (input.userId) {
     if (!inAuth || onboarding.has(input.segments[1] ?? '')) return null;
-    if (input.navigation !== 'idle' && ['login', 'vendor-login'].includes(input.segments[1] ?? '')) return null;
+    if (input.navigation !== 'idle' && ['login', 'vendor-login', 'register'].includes(input.segments[1] ?? '')) return null;
     return isVendorClaims(input.claims) ? '/vendor/dashboard' : '/(tabs)';
   }
   if (inAuth) return null;

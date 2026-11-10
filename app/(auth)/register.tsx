@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth } from '@/lib/firebase';
+import { beginSignInNavigation } from '@/lib/auth-navigation';
 import { createUserProfile } from '@/lib/firestoreOps';
 import { emailSchema, firstError, nameSchema, passwordSchema, qatarPhoneSchema } from '@/lib/validation';
 import { colors, radius, shadow, spacing, typography } from '@/lib/theme';
@@ -50,7 +51,7 @@ export default function RegisterScreen() {
       firstError(nameSchema, firstName) ??
       firstError(nameSchema, lastName) ??
       firstError(emailSchema, email) ??
-      firstError(qatarPhoneSchema, phone) ??
+      (phone.trim() ? firstError(qatarPhoneSchema, phone) : null) ??
       firstError(passwordSchema, password);
 
     if (problem) {
@@ -63,6 +64,8 @@ export default function RegisterScreen() {
     }
 
     setLoading(true);
+    const finishNavigation = beginSignInNavigation();
+    let routed = false;
     try {
       const { user } = await createUserWithEmailAndPassword(auth, email.trim(), password);
       await createUserProfile(user.uid, {
@@ -71,10 +74,17 @@ export default function RegisterScreen() {
         lastName: lastName.trim(),
         phone: phone.trim() || undefined,
       });
-      router.push('/(auth)/phone-otp' as never);
+      try {
+        await sendEmailVerification(user);
+      } catch {
+        Alert.alert('Account created', 'We could not send the verification email. You can retry on the next screen.');
+      }
+      router.replace('/(auth)/email-verification' as never);
+      routed = true;
     } catch (e: unknown) {
       Alert.alert('Registration failed', mapAuthError(e));
     } finally {
+      finishNavigation(routed);
       setLoading(false);
     }
   }
@@ -141,7 +151,7 @@ export default function RegisterScreen() {
           </View>
 
           <View style={s.field}>
-            <Text style={s.label}>Mobile number</Text>
+            <Text style={s.label}>Mobile number (optional)</Text>
             <View style={s.inputRow}>
               <Ionicons name="call-outline" size={17} color={colors.muted} style={s.inputIcon} />
               <TextInput
@@ -196,7 +206,7 @@ export default function RegisterScreen() {
           </View>
 
           {/* Submit */}
-          <Pressable style={[s.btn, loading && { opacity: 0.7 }]} onPress={handleRegister} disabled={loading}>
+          <Pressable style={[s.btn, loading && { opacity: 0.7 }]} onPress={handleRegister} disabled={loading} accessibilityRole="button" accessibilityLabel="Create account" accessibilityState={{ disabled: loading, busy: loading }}>
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (

@@ -2,8 +2,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
-import { useEffect } from 'react';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
@@ -11,26 +9,6 @@ import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { tap } from '@/lib/haptics';
 
 const TAB_BOTTOM = Platform.OS === 'ios' ? 98 : 70;
-
-// ─── SOS pulse animation ──────────────────────────────────────────────────────
-
-function SOSPulse({ c }: { c: ReturnType<typeof useQarColors> }) {
-  const scale = useSharedValue(1);
-  useEffect(() => {
-    scale.value = withRepeat(
-      withSequence(
-        withTiming(1.15, { duration: 700 }),
-        withTiming(1, { duration: 700 }),
-      ),
-      -1,
-      false,
-    );
-  }, [scale]);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  return (
-    <Animated.View style={[style, sos.pulse, { backgroundColor: `${c.danger}22`, borderColor: `${c.danger}44` }]} />
-  );
-}
 
 // ─── Feature card ─────────────────────────────────────────────────────────────
 
@@ -104,16 +82,14 @@ export default function QuickScreen() {
   const toggleTheme = useQarWheelStore((s) => s.toggleThemeMode);
   const bookings = useQarWheelStore((s) => s.bookings);
   const notifications = useQarWheelStore((s) => s.notifications);
-  const quoteRequests = useQarWheelStore((s) => s.quoteRequests);
   const favoriteGarageIds = useQarWheelStore((s) => s.favoriteGarageIds);
 
   const upcomingBookings = bookings.filter((b) => b.status !== 'Completed' && b.status !== 'Cancelled').length;
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  // 3-column card width
+  // Keep the two primary actions balanced on narrow screens.
   const SIDE_PAD = spacing.page * 2;
   const GAP = 10;
-  const threeColW = Math.floor((width - SIDE_PAD - GAP * 2) / 3);
   const twoColW = Math.floor((width - SIDE_PAD - GAP) / 2);
 
   return (
@@ -140,34 +116,32 @@ export default function QuickScreen() {
             </AnimatedPressable>
           </View>
 
-          {/* ── SOS / Roadside hero ──────────────────────────────────── */}
+          {/* Primary working action. */}
           <AnimatedPressable
-            style={[s.sosCard, { backgroundColor: c.dangerBg, borderColor: `${c.danger}50` }]}
-            onPress={() => { void tap(); router.push('/roadside' as never); }}
+            style={[s.serviceCard, { backgroundColor: c.primaryLight, borderColor: c.primaryMid }]}
+            onPress={() => { void tap(); router.push('/services' as never); }}
+            accessibilityRole="button"
+            accessibilityLabel="Find a service"
             scaleValue={0.97}
           >
-            <View style={s.sosPulseWrap}>
-              <SOSPulse c={c} />
-              <View style={[s.sosIconCore, { backgroundColor: c.danger }]}>
-                <Ionicons name="warning" size={22} color="#fff" />
+            <View style={s.serviceIconWrap}>
+              <View style={[s.serviceIcon, { backgroundColor: c.primary }]}>
+                <Ionicons name="construct-outline" size={22} color="#fff" />
               </View>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[s.sosTitle, { color: c.danger }]}>Roadside Help</Text>
-              <Text style={[s.sosSub, { color: c.textSecondary }]}>
-                Breakdown, flat tyre, dead battery — we dispatch help to your location.
+              <Text style={[s.serviceTitle, { color: c.text }]}>Find a service</Text>
+              <Text style={[s.serviceSub, { color: c.textSecondary }]}>
+                Compare listed workshops and send a request for your preferred time.
               </Text>
             </View>
-            <View style={[s.sosBadge, { backgroundColor: c.danger }]}>
-              <Text style={s.sosBadgeText}>SOS</Text>
-            </View>
+            <Ionicons name="arrow-forward" size={20} color={c.primary} />
           </AnimatedPressable>
 
-          {/* ── Section: Smart tools ─────────────────────────────────── */}
+          {/* Vehicle and workshop actions. */}
           <View style={{ gap: 12 }}>
             <View style={s.sectionRow}>
-              <Text style={[s.sectionTitle, { color: c.text }]}>Smart tools</Text>
-              <Text style={[s.sectionSub, { color: c.muted }]}>Powered by AI & sensors</Text>
+              <Text style={[s.sectionTitle, { color: c.text }]}>Vehicle tools</Text>
             </View>
 
             {/* VIN Scan (full-width) */}
@@ -180,43 +154,35 @@ export default function QuickScreen() {
               </View>
               <View style={{ flex: 1, gap: 4 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Text style={[s.vinTitle, { color: c.text }]}>Scan VIN</Text>
+                  <Text style={[s.vinTitle, { color: c.text }]}>Enter VIN</Text>
                   <View style={[s.vinBadge, { backgroundColor: c.successBg, borderColor: `${c.success}44` }]}>
-                    <Text style={[s.vinBadgeText, { color: c.success }]}>Camera · Manual</Text>
+                    <Text style={[s.vinBadgeText, { color: c.success }]}>Manual entry</Text>
                   </View>
                 </View>
                 <Text style={[s.vinSub, { color: c.muted }]}>
-                  Point camera at your windscreen barcode or type it — we decode make, model, year, engine automatically.
+                  Type your VIN to look up vehicle details. Check the results before saving.
                 </Text>
-                <View style={[s.vinChipsRow]}>
-                  {['NHTSA decode', 'Auto prefill', 'Instant results'].map((chip) => (
-                    <View key={chip} style={[s.vinChip, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-                      <Text style={[s.vinChipText, { color: c.muted }]}>{chip}</Text>
-                    </View>
-                  ))}
-                </View>
               </View>
               <Ionicons name="chevron-forward" size={18} color={c.success} />
             </AnimatedPressable>
 
-            {/* AI Mechanic + secondary cards side-by-side */}
+            {/* Secondary actions. */}
             <View style={{ flexDirection: 'row', gap: GAP }}>
               <FeatureCard
-                icon="sparkles-outline"
-                label="Ask AI Mechanic"
-                sub="Describe symptoms, get diagnosis and next steps."
-                tone="ai"
-                bg={c.aiBg}
-                border={`${c.ai}44`}
-                iconColor={c.ai}
-                badge="AI"
-                onPress={() => router.push('/ai-mechanic' as never)}
+                icon="business-outline"
+                label="Workshops"
+                sub="Find listed garages and services."
+                tone="primary"
+                bg={c.primaryLight}
+                border={c.primaryMid}
+                iconColor={c.primary}
+                onPress={() => router.push('/search' as never)}
                 width={twoColW}
               />
               <FeatureCard
                 icon="add-circle-outline"
                 label="Add Vehicle"
-                sub="Register a car with OBD scan."
+                sub="Save a car; OBD scan is optional."
                 tone="primary"
                 bg={c.primaryLight}
                 border={c.primaryMid}
@@ -235,10 +201,9 @@ export default function QuickScreen() {
             <View style={s.statsGrid}>
               {[
                 { label: 'Active bookings', value: String(upcomingBookings), color: c.text },
-                { label: 'Quote requests', value: String(quoteRequests.length), color: c.text },
                 { label: 'Saved garages', value: String(favoriteGarageIds.length), color: c.primary },
               ].map((stat, i) => (
-                <View key={stat.label} style={[s.statCell, i < 2 && { borderRightWidth: 1, borderRightColor: c.border }]}>
+                <View key={stat.label} style={[s.statCell, i < 1 && { borderRightWidth: 1, borderRightColor: c.border }]}>
                   <Text style={[s.statValue, { color: stat.color }]}>{stat.value}</Text>
                   <Text style={[s.statLabel, { color: c.muted }]}>{stat.label}</Text>
                 </View>
@@ -255,8 +220,8 @@ export default function QuickScreen() {
               {[
                 { icon: 'calendar-outline',     label: 'Book Service',    href: '/services',              color: c.primary },
                 { icon: 'car-sport-outline',    label: 'My Cars',         href: '/(tabs)/cars',           color: c.primary },
-                { icon: 'pricetag-outline',     label: 'Sell My Car',     href: '/vehicles',              color: c.warning },
-                { icon: 'chatbubble-outline',   label: 'Get a Quote',     href: '/ai-mechanic',           color: c.ai },
+                { icon: 'business-outline',     label: 'Find Garages',    href: '/search',                color: c.warning },
+                { icon: 'calendar-number-outline', label: 'My Bookings', href: '/(tabs)/bookings',       color: c.ai },
                 { icon: 'receipt-outline',      label: 'My Invoices',     href: '/invoices',              color: c.success },
                 { icon: 'person-circle-outline',label: 'Account',         href: '/(tabs)/account',        color: c.muted },
               ].map((item) => (
@@ -304,18 +269,15 @@ const s = StyleSheet.create({
   notifBtn: { width: 46, height: 46, borderRadius: radius.full, borderWidth: 1, alignItems: 'center', justifyContent: 'center', ...shadow.xs, marginTop: 4 },
   notifDot: { position: 'absolute', top: 11, right: 11, width: 8, height: 8, borderRadius: 4 },
 
-  // SOS card
-  sosCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: radius.xl, borderWidth: 1.5, padding: 16, ...shadow.sm },
-  sosPulseWrap: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
-  sosIconCore: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', position: 'absolute' },
-  sosTitle: { fontSize: 17, fontWeight: '900' },
-  sosSub: { fontSize: 12, lineHeight: 17, marginTop: 2 },
-  sosBadge: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: radius.full },
-  sosBadgeText: { fontSize: 12, fontWeight: '900', color: '#fff', letterSpacing: 1 },
+  // Primary service action
+  serviceCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: radius.xl, borderWidth: 1.5, padding: 16, ...shadow.sm },
+  serviceIconWrap: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
+  serviceIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  serviceTitle: { fontSize: 17, fontWeight: '900' },
+  serviceSub: { fontSize: 12, lineHeight: 17, marginTop: 2 },
 
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { ...typography.h3 },
-  sectionSub: { fontSize: 12, fontWeight: '600' },
 
   // VIN card
   vinCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: radius.xl, borderWidth: 1, padding: 16, ...shadow.xs },
@@ -324,9 +286,6 @@ const s = StyleSheet.create({
   vinBadge: { borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
   vinBadgeText: { fontSize: 12, fontWeight: '800' },
   vinSub: { fontSize: 12, lineHeight: 17 },
-  vinChipsRow: { flexDirection: 'row', gap: 6, marginTop: 4 },
-  vinChip: { borderRadius: radius.full, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
-  vinChipText: { fontSize: 12, fontWeight: '700' },
 
   // Stats
   statsCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: radius.xl, borderWidth: 1, padding: 14, ...shadow.xs },
@@ -346,11 +305,6 @@ const s = StyleSheet.create({
   themeSub: { fontSize: 12, marginTop: 2 },
   themeChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.full },
   themeChipText: { fontSize: 12, fontWeight: '900' },
-});
-
-// SOS pulse ring
-const sos = StyleSheet.create({
-  pulse: { position: 'absolute', width: 52, height: 52, borderRadius: 26, borderWidth: 2 },
 });
 
 // Feature card

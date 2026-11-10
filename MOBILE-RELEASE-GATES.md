@@ -1,9 +1,25 @@
 # Mobile Production and Store Release Gates
 
-Updated: 2026-11-03. Scope: QarWheel iOS/Android. This is an acceptance
+Updated: 2026-11-10. Scope: QarWheel iOS/Android. This is an acceptance
 contract, not evidence that production capacity or store approval exists.
 
 ## Evidence Now
+
+- Mobile and web booking submissions now use a server-owned, idempotent API;
+  direct client booking creation is denied by Firestore rules. Completion
+  does not settle funds and payout requests are disabled. Local API/rules
+  tests pass, but a staging journey and deployed-rule check are still required.
+- First-release payment policy is pay-at-garage only. QarWheel does not
+  collect or settle those funds, and old `Settled` records are not eligible
+  for a payout. A quote, customer acceptance, invoice, and garage receipt
+  with dispute handling still need a server-owned contract and local tests.
+- Roll out the booking API first, then the updated web/mobile clients, then
+  the deny-create rule after an enforced minimum mobile version or migration
+  period. Older installed clients still write bookings directly and will fail
+  once that rule is deployed. Verify the rollout with disposable accounts.
+- The 2026-11-10 Expo export produced Android, iOS and web bundles and 153
+  static routes. Sentry organization/project setup and an Expo Router package
+  export warning remain; neither result proves native installability.
 
 - Expo SDK 58 dependency alignment, TypeScript, unit tests and JS bundle export
   are locally verifiable. Bundle export does not build or install a native app.
@@ -13,6 +29,22 @@ contract, not evidence that production capacity or store approval exists.
 - Customer bookings initially subscribe to at most 51 documents (50 visible
   plus one lookahead), with an explicit older-history action. Vendor bookings
   and public branch discovery still have unbounded listeners.
+- The vendor dashboard now derives its booking counts and today's preview from
+  the live scoped feed. Fabricated activity, payment, review, and weekly
+  revenue figures have been removed. These counts still inherit the vendor
+  feed's unbounded-query cost and are not proof of 5,000-DAU capacity.
+- The vendor Requests inbox now distinguishes loading, failure, and confirmed
+  empty states, offers retry, and virtualizes pending cards. Dashboard metrics
+  do not present zeros while the feed is loading or unavailable. This does not
+  bound Firestore reads: pending coverage and exact dashboard counts must be
+  preserved in any future paginated feed.
+- The customer Home screen retains its original section order while removing
+  invented offer prices, unsupported payment/support promises, and Dubai/AED
+  service copy. Registration now sends a
+  Firebase email verification and checks the refreshed user before advancing;
+  phone OTP is marked unavailable rather than simulated. Missing branch photos
+  show a neutral placeholder instead of an unrelated workshop image. Email delivery and
+  verified-email access policy still require staging acceptance.
 - In-app account deletion exists in Account > Notifications & privacy. Its API
   and data-retention behavior still require end-to-end acceptance. The public
   web deletion request URL needed by Google Play is not established here.
@@ -22,7 +54,8 @@ contract, not evidence that production capacity or store approval exists.
 DAU is not concurrency. Before a release claim, measure the actual mix of
 customer browsing, booking, messaging, vendor operations and notifications.
 Use a disposable Firebase project and staging API with realistic fixture sizes,
-not production users or billing-sensitive production load.
+not production users or billing-sensitive production load. No staging project
+exists yet; keep authorization tests on emulators and do not run load tests.
 
 1. Instrument per-flow Firestore reads/writes, API request counts, p50/p95/p99
    latency, failures, client memory and startup time. Separate customer and

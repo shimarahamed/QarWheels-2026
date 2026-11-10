@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Stack, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
@@ -11,14 +11,15 @@ import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { useBranches } from '@/lib/firestoreOps';
 import { useDeviceLocation } from '@/lib/geo';
 import type { Garage } from '@/lib/marketplace';
+import { garageDistanceLabel, knownFirst } from '@/lib/marketplace-display';
 import GarageMap from '@/components/GarageMap';
 
 function sortGarages(list: Garage[], mode: string): Garage[] {
   const copy = [...list];
   if (mode === 'Top rated') return copy.sort((a, b) => b.rating - a.rating);
-  if (mode === 'Price: Low') return copy.sort((a, b) => a.startingPriceValue - b.startingPriceValue);
+  if (mode === 'Price: Low') return copy.sort((a, b) => knownFirst(a.startingPriceValue) - knownFirst(b.startingPriceValue));
   if (mode === 'Available now') return copy.sort((a, b) => (b.openNow ? 1 : 0) - (a.openNow ? 1 : 0));
-  return copy.sort((a, b) => a.distanceKm - b.distanceKm); // Nearest
+  return copy.sort((a, b) => knownFirst(a.distanceKm) - knownFirst(b.distanceKm));
 }
 
 const SORT_OPTIONS = ['Nearest', 'Top rated', 'Price: Low', 'Available now'] as const;
@@ -27,11 +28,22 @@ type SortOption = (typeof SORT_OPTIONS)[number];
 export default function MapScreen() {
   const c = useQarColors();
   const router = useRouter();
+  const { garageId } = useLocalSearchParams<{ garageId?: string }>();
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortOption>('Nearest');
   const [selected, setSelected] = useState<Garage | null>(null);
+  const [visibleCount, setVisibleCount] = useState(20);
   const { vendors, loading } = useBranches();
   const { location: deviceLocation } = useDeviceLocation();
+
+  useEffect(() => {
+    if (!selected && garageId) {
+      const linkedGarage = vendors.find((garage) => garage.id === garageId);
+      if (linkedGarage) setSelected(linkedGarage);
+    }
+  }, [garageId, selected, vendors]);
+
+  useEffect(() => { setVisibleCount(20); }, [search, sort]);
 
   const filtered = useMemo(() => {
     const sorted = sortGarages(vendors, sort);
@@ -103,14 +115,14 @@ export default function MapScreen() {
             >
               <View style={{ flex: 1 }}>
                 <Text style={[s.selName, { color: c.text }]}>{selected.name}</Text>
-                <Text style={[s.selMeta, { color: c.muted }]}>{selected.type} · {selected.area} · {selected.distanceKm.toFixed(1)} km</Text>
+                <Text style={[s.selMeta, { color: c.muted }]}>{[selected.type, selected.area, garageDistanceLabel(selected.distanceKm)].filter(Boolean).join(' · ')}</Text>
                 <View style={s.selChips}>
-                  <View style={[s.chip, { backgroundColor: c.surfaceAlt }]}>
+                  {selected.rating > 0 ? <View style={[s.chip, { backgroundColor: c.surfaceAlt }]}>
                     <Ionicons name="star" size={10} color="#F59E0B" />
                     <Text style={[s.chipText, { color: c.textSecondary }]}>{selected.rating}</Text>
-                  </View>
+                  </View> : null}
                   <View style={[s.chip, { backgroundColor: selected.openNow ? c.successBg : c.surfaceAlt }]}>
-                    <Text style={[s.chipText, { color: selected.openNow ? c.success : c.muted }]}>{selected.openNow ? 'Open' : 'Closed'}</Text>
+                    <Text style={[s.chipText, { color: selected.openNow ? c.success : c.muted }]}>{selected.openNow === null ? 'Hours unavailable' : selected.openNow ? 'Open' : 'Closed'}</Text>
                   </View>
                   <View style={[s.chip, { backgroundColor: c.primaryLight }]}>
                     <Text style={[s.chipText, { color: c.primary, fontWeight: '800' }]}>{selected.startingPrice}</Text>
@@ -132,7 +144,7 @@ export default function MapScreen() {
           </Text>
 
           {/* List */}
-          {filtered.map((g) => (
+          {filtered.slice(0, visibleCount).map((g) => (
             <Pressable
               key={g.id}
               style={[s.listRow, { backgroundColor: c.surface, borderColor: selected?.id === g.id ? c.primary : c.border }]}
@@ -143,13 +155,13 @@ export default function MapScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[s.listName, { color: c.text }]}>{g.name}</Text>
-                <Text style={[s.listMeta, { color: c.muted }]}>{g.area} · {g.distanceKm.toFixed(1)} km · {g.startingPrice}</Text>
+                <Text style={[s.listMeta, { color: c.muted }]}>{[g.area, garageDistanceLabel(g.distanceKm), g.startingPrice].filter(Boolean).join(' · ')}</Text>
               </View>
               <View style={s.listRight}>
-                <View style={[s.chip, { backgroundColor: c.surfaceAlt }]}>
+                {g.rating > 0 ? <View style={[s.chip, { backgroundColor: c.surfaceAlt }]}>
                   <Ionicons name="star" size={9} color="#F59E0B" />
                   <Text style={[s.chipText, { color: c.textSecondary }]}>{g.rating}</Text>
-                </View>
+                </View> : null}
                 {g.openNow && (
                   <View style={[s.chip, { backgroundColor: c.successBg }]}>
                     <Text style={[s.chipText, { color: c.success }]}>Open</Text>
@@ -159,6 +171,11 @@ export default function MapScreen() {
               <Ionicons name="chevron-forward" size={16} color={c.muted} />
             </Pressable>
           ))}
+          {filtered.length > visibleCount ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Show more workshops" style={[s.listRow, { backgroundColor: c.surface, borderColor: c.border, justifyContent: 'center' }]} onPress={() => setVisibleCount((count) => count + 20)}>
+              <Text style={[s.listName, { color: c.primary }]}>Show more workshops</Text>
+            </Pressable>
+          ) : null}
         </MotionScreen>
       </ScrollView>
     </SafeAreaView>

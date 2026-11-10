@@ -81,7 +81,7 @@ export default function BookingConfirmationScreen() {
               { icon: 'construct-outline',  label: 'Service',  value: booking?.service ?? '—' },
               { icon: 'car-outline',        label: 'Vehicle',  value: booking?.vehicle ?? '—' },
               { icon: 'time-outline',       label: 'Date',     value: booking?.date ?? '—' },
-              { icon: 'card-outline',       label: 'Payment',  value: booking?.paymentMethod ?? 'Cash on delivery' },
+              { icon: 'card-outline',       label: 'Payment',  value: 'Pay at garage' },
               ...(booking?.totalAmount ? [{ icon: 'wallet-outline', label: 'Amount', value: `QAR ${booking.totalAmount}` }] : [] as never[]),
               ...(booking?.notes ? [{ icon: 'document-text-outline', label: 'Notes', value: booking.notes }] : [] as never[]),
             ] as { icon: string; label: string; value: string }[]).map((row, idx, arr) => (
