@@ -20,7 +20,7 @@ The six principal experiences share three codebases. Web roles use separate rout
 - `src/lib/`: shared web utilities and server modules; server credentials stay out of client imports.
 - `src/firebase/`: web client SDK integration.
 - `src/ai/`: server flows invoked by APIs; the optional Genkit development UI is not a production service.
-- `mobile/`: separate Expo/Git project containing both mobile experiences.
+- `mobile/`: Expo project containing both mobile experiences, tracked in this repository.
 - `QarWheel-Unified-Website/`: maintained static website, with separate source and generated output.
 - `packages/tokens/`: source for committed generated web/mobile tokens.
 - Root Firebase policy/config: shared data access boundary, kept at existing paths.
@@ -38,7 +38,7 @@ Identity, business/branch scope and state validation belong in server routes and
 
 ## Git and dependency boundaries
 
-Main and mobile have separate histories, lockfiles and CI. The parent repository ignores `mobile/`; a main push does not release mobile. Generated token files are `src/app/tokens.generated.css` and `mobile/lib/theme.generated.ts`. Shared changes need compatible commits in both repositories.
+The main repository now contains the earlier mobile history under `mobile/`. Web and mobile retain separate lockfiles and npm dependencies; root CI verifies both. A main push includes mobile source but does not itself publish a store binary. Generated token files are `src/app/tokens.generated.css` and `mobile/lib/theme.generated.ts`; update them together with `npm run tokens:build`.
 
 Keep Next.js and React Native dependency sets independent. Neither a new workspace framework nor a dependency upgrade is necessary to organize file ownership. `systems.json` and `qarwheel.code-workspace` describe locations and do not run the application.
 

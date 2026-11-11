@@ -2,8 +2,7 @@
  * build-tokens.mjs — generates platform-specific token files from the shared
  * source in packages/tokens/src/index.ts.
  *
- * Outputs (both committed, so neither app needs a workspace dependency on
- * the other — the two apps are separate git repos):
+ * Outputs (both committed; the apps keep separate dependency trees):
  *   - src/app/tokens.generated.css      (CSS custom properties, imported by globals.css)
  *   - mobile/lib/theme.generated.ts     (re-exported by mobile/lib/theme.ts)
  *
@@ -18,11 +17,9 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 const { values } = parseArgs({ options: { check: { type: 'boolean' }, platform: { type: 'string' } } });
-const mobilePresent = existsSync(resolve(root, 'mobile/package.json'));
-const platform = values.platform ?? (mobilePresent ? 'all' : 'web');
+const platform = values.platform ?? 'all';
 if (!['all', 'web', 'mobile'].includes(platform)) throw new Error('--platform must be web, mobile or all.');
-if (platform !== 'web' && !mobilePresent) throw new Error('Mobile is a separate checkout. Clone it first or use --platform web.');
-if (!mobilePresent && !values.platform) console.log('SKIP: mobile checkout is absent; checking/building web tokens only.');
+if (platform !== 'web' && !existsSync(resolve(root, 'mobile/package.json'))) throw new Error('Mobile source is missing from this checkout.');
 
 // The token source is plain TS with no imports and only `as const` object
 // literals, so it can be evaluated by stripping the type-only syntax rather

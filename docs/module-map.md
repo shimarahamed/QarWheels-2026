@@ -20,6 +20,6 @@ This file maps module locations. Application routes and source paths stay in pla
 
 Open `qarwheel.code-workspace` for named module folders in the IDE. `systems.json` is a location inventory; it is not loaded by the application.
 
-Customer, vendor and admin web modules remain inside the same Next.js application. Mobile remains a separate Git repository containing both mobile experiences. Their executable paths are preserved so imports, routes and existing commands keep their current locations.
+Customer, vendor and admin web modules remain inside the same Next.js application. Mobile is tracked in this repository at `mobile/` and contains both mobile experiences. Its executable paths are preserved so imports, routes and existing commands keep their current locations.
 
 The two older websites and extracted UI reference were moved as whole folders into `archive/`; their file contents were preserved. The maintained business website stays at its existing path.

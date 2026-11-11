@@ -11,7 +11,7 @@ QarWheel has three application codebases serving six principal experiences: busi
 | Vendor web | `src/app/vendor/`, `src/components/vendor/` |
 | Master administration | `src/app/admin/`, `src/components/admin/` |
 | Shared backend | `src/app/api/`, server modules in `src/lib/`, `src/ai/` |
-| Customer and vendor mobile | Independent `mobile/` repository |
+| Customer and vendor mobile | `mobile/` (Expo app in this repository) |
 | Shared design tokens | `packages/tokens/src/index.ts` |
 | Firebase policy | Root rules, indexes and `firebase.json` |
 
@@ -19,7 +19,7 @@ The web portals and backend share one Next.js deployment. Both mobile experience
 
 ## Development
 
-Use Node.js 22 and each application's committed npm lockfile. This is not an npm-workspace monorepo.
+Use Node.js 22.13 or newer and each application's committed npm lockfile. This is one Git repository with separate web and mobile npm projects, not an npm-workspace package tree.
 
 ```sh
 npm ci
@@ -28,7 +28,7 @@ npm run dev
 
 Copy `.env.example` to `.env.local` and supply the appropriate development configuration. Web development uses port 9002. The API invokes AI flows directly; `npm run genkit:dev` is an optional development tool, not a second production backend.
 
-`mobile/` has its own Git history and is excluded from the main repository. Obtain its approved checkout separately, configure its `.env.example`, then:
+Mobile source is included in this checkout. Configure `mobile/.env.example`, then:
 
 ```sh
 npm --prefix mobile ci
@@ -46,7 +46,7 @@ python QarWheel-Unified-Website/validate.py
 
 ## Verification and release
 
-Use the commands in [the production runbook](docs/production-runbook.md). Shared token changes must be reviewed in both Git repositories. Firebase rule changes must account for already-installed mobile clients.
+Use the commands in [the production runbook](docs/production-runbook.md). Shared token changes must update both committed generated files. Firebase rule changes must account for already-installed mobile clients.
 
 Firebase App Hosting is the selected primary web/API host; Cloudflare/OpenNext is retained as an explicit alternate. [Firebase setup](docs/firebase-app-hosting.md) separates repository configuration from real project, backend, secret and rollout acceptance.
 

@@ -31,7 +31,6 @@
       "id": "mobile",
       "name": "Customer and vendor mobile application",
       "root": "mobile",
-      "independentRepository": true,
       "paths": [
         "mobile/package.json",
         "mobile/app",
