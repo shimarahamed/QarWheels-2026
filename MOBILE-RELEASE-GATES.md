@@ -3,6 +3,53 @@
 Updated: 2026-11-11. Scope: QarWheel iOS/Android. This is an acceptance
 contract, not evidence that production capacity or store approval exists.
 
+## Configuration preflight
+
+Run from `mobile/` with Node 22.13 or newer:
+
+```sh
+npm run test:release-config
+npm run release:check
+npm run release:check -- --env-file .env.production
+npm run release:check -- --platform web --env-file .env.production
+npm run release:check -- --env-file .env.staging --web-env-file ../.env.staging
+```
+
+The check reads optional local `.env` by default, or the explicitly selected
+file. Existing process/EAS environment values take precedence. It prints
+missing field names and configuration problems, never their values. Exit 0
+means configuration passed, 1 means release configuration is blocked, and 2
+means the invocation or configuration file could not be read. It does not
+deploy, modify environment files, or change ordinary development/build behavior.
+
+`EXPO_PUBLIC_API_BASE_URL` is the canonical Firebase App Hosting HTTPS origin
+serving the Next.js shared web/backend application, with no `/api` suffix;
+callers append their own `/api/...` paths. It is neither the static business
+website URL nor a Firestore service endpoint. Public Firebase fields must select the intended release project,
+and Sentry must be configured. Native checks also require the Maps key and
+compare an existing Android `applicationId` with `app.json`. The current native
+identity mismatch needs an explicit published-app decision; the check does not
+rewrite it. Web checks skip native identity/Maps checks. With no local native
+folder, CNG generates native projects from Expo config, but signing and actual
+binary identity still require acceptance testing.
+
+For a coordinated web/mobile release, pass `--web-env-file` with the web
+release environment file. This additionally checks that the mobile Firebase
+project ID matches `NEXT_PUBLIC_FIREBASE_PROJECT_ID` and that its API origin
+matches `NEXT_PUBLIC_APP_URL`. The web file must explicitly select `staging`
+or `production` through `QARWHEEL_ENV`. Different Firebase client app IDs and
+API keys are valid and are not compared. The web file is parsed as data; its
+server secrets are never loaded into the mobile process environment. Existing
+public `NEXT_PUBLIC_*` process values and `QARWHEEL_ENV` take precedence over
+the web file, matching the web release check. Run the root web release check
+separately: this alignment test does not validate backend secrets or providers.
+
+`EXPO_PUBLIC_BACKEND_URL` belongs to unfinished legacy integrations; setting it
+does not enable their missing services. Keep those feature gates in place.
+No server credential may use an `EXPO_PUBLIC_` name: those values are bundled
+into the client. A passing preflight is not proof that endpoints, rules,
+provider credentials, monitoring delivery or store acceptance work in production.
+
 ## Evidence Now
 
 - Mobile and web booking submissions now use a server-owned, idempotent API;

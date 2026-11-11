@@ -8,15 +8,6 @@ import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { useGarage } from '@/lib/firestoreOps';
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://api.qarwheel.qa';
-
-async function addToCalendar(bookingId: string) {
-  await fetch(`${BACKEND_URL}/api/bookings/${bookingId}/calendar`, {
-    method: 'POST',
-    signal: AbortSignal.timeout(10_000),
-  }).catch(() => null);
-}
-
 export default function BookingConfirmationScreen() {
   const c = useQarColors();
   const router = useRouter();
@@ -131,22 +122,15 @@ export default function BookingConfirmationScreen() {
           )}
 
           {/* Actions */}
-          <View style={s.actionRow}>
-            <Pressable
-              style={[s.actionBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border, flex: 1 }]}
-              onPress={() => { void addToCalendar(id ?? ''); }}
-            >
-              <Ionicons name="calendar-outline" size={18} color={c.primary} />
-              <Text style={[s.actionBtnText, { color: c.primary }]}>Add to calendar</Text>
-            </Pressable>
-            <Pressable
-              style={[s.actionBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border, flex: 1 }]}
-              onPress={() => router.push(`/booking/${id}` as never)}
-            >
-              <Ionicons name="eye-outline" size={18} color={c.textSecondary} />
-              <Text style={[s.actionBtnText, { color: c.textSecondary }]}>Track booking</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View booking"
+            style={[s.actionBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
+            onPress={() => router.push(`/booking/${id}` as never)}
+          >
+            <Ionicons name="eye-outline" size={18} color={c.textSecondary} />
+            <Text style={[s.actionBtnText, { color: c.textSecondary }]}>View booking</Text>
+          </Pressable>
 
           <Pressable
             style={[s.homeBtn, { backgroundColor: c.primary }]}
@@ -190,7 +174,6 @@ const s = StyleSheet.create({
   garageArea: { fontSize: 12, fontWeight: '500', marginTop: 2 },
   ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.full, paddingHorizontal: 8, paddingVertical: 4 },
   ratingText: { fontSize: 12, fontWeight: '900' },
-  actionRow: { flexDirection: 'row', gap: 10 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, height: 46, borderRadius: radius.xl, borderWidth: 1 },
   actionBtnText: { fontSize: 13, fontWeight: '800' },
   homeBtn: { height: 54, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center', ...shadow.primary },
