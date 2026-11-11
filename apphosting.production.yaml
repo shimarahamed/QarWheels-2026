@@ -1,0 +1,6 @@
+# Set the production backend's Environment name to production in Firebase.
+# Select its project/domain in the console; never copy development credentials.
+env:
+  - variable: QARWHEEL_ENV
+    value: production
+    availability: [BUILD, RUNTIME]

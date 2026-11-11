@@ -1,88 +1,37 @@
-﻿# QarWheel Production Data Architecture
+# QarWheel current data map
 
-This document is the source of truth for the schema that the app uses today and the target shape for production migration.
+Updated: 2026-11-11. Use [the module map](module-map.md) for file locations. This map replaces the obsolete `vendors/{uid}` schema proposal; it does not change data or confirm any cloud project's deployed state.
 
-## Current Live Schema
+Web and mobile share Firebase Authentication, Firestore and Storage. The static business website has no database connection. Business IDs, branch IDs and Firebase user IDs are distinct identities.
 
-The app currently uses a hybrid Firestore model:
-
-| Collection path | Purpose | Owner field | Notes |
-| --- | --- | --- | --- |
-| `users/{uid}` | Customer profile | document id | Customer-only profile document. |
-| `users/{uid}/cars/{carId}` | Customer vehicles | parent uid + `userId` | Existing dashboard depends on nested cars. |
-| `users/{uid}/cars/{carId}/serviceRecords/{recordId}` | Vehicle service records | `userId`, `carId` | Used by car detail pages and collection-group stats. |
-| `vendors/{uid}` | Vendor profile | `ownerId` | Vendor docs should use auth UID as document ID. |
-| `vendors/{vendorId}/services/{serviceId}` | Vendor services | parent vendor id | Used by customer garage details and vendor service management. |
-| `vendors/{vendorId}/inventory/{itemId}` | Vendor inventory | parent vendor id | Vendor-only. |
-| `vendors/{vendorId}/staff/{staffId}` | Vendor staff | parent vendor id | Vendor-only. |
-| `vendors/{vendorId}/promotions/{promoId}` | Vendor promotions | parent vendor id | Vendor-only. |
-| `vendors/{vendorId}/reviews/{reviewId}` | Vendor reviews | parent vendor id | Public read surface in garage details. |
-| `bookings/{bookingId}` | Customer/vendor bookings | `userId`, `vendorId` | Shared customer and vendor operational object. |
-| `roles_admin/{uid}` | Admin role marker | document id | Managed manually or by Admin SDK only. |
-
-## Production Target
-
-Keep these current nested paths until the app is stable, then migrate only if query needs require it. The production-safe target is:
-
-1. Keep `users/{uid}` and `vendors/{uid}` as identity-root documents.
-2. Keep nested vendor operational collections because ownership and rules are simple.
-3. Consider flattening `cars` and `serviceRecords` later only if admin dashboards or reporting need cross-user queries.
-4. Treat `bookings` as a root collection because both customers and vendors query it.
-5. Add `audit_log` as an append-only root collection for privileged actions.
-
-## Required Indexes
-
-Already-declared indexes should cover:
-
-| Query | Required index |
+| Current path | Responsibility |
 | --- | --- |
-| Customer bookings by `userId` and date | `bookings(userId, bookingDate desc)` |
-| Vendor bookings by `vendorId`, status, date | `bookings(vendorId, status, bookingDate asc)` |
-| Service record collection-group stats by user | `serviceRecords(userId)` |
-| Approved vendors by status/city/rating | `vendors(status, city, rating desc)` |
+| `users/{uid}` | User profile/preferences |
+| `users/{uid}/cars/{carId}` | Customer-owned vehicles |
+| `users/{uid}/cars/{carId}/serviceRecords/{recordId}` | Vehicle service history |
+| `users/{uid}/cars/{carId}/servicePredictions/{predictionId}` | Vehicle prediction records |
+| `businesses/{businessId}`, `businesses_private/{businessId}` | Business tenant and restricted business information |
+| `branches/{branchId}` | Business locations and listed discovery |
+| `memberships/{membershipId}`, `staff_invites/{inviteId}` | Roles, business/branch scope and invitations |
+| `branch_services/{serviceId}` | Branch service catalogue |
+| `branch_inventory/{itemId}`, `branch_promotions/{promotionId}` | Branch operations |
+| `bookings/{bookingId}` | Shared customer/business/branch lifecycle |
+| `bookings/{bookingId}/quote_requests/{requestId}` | Server-owned quote retry receipts |
+| `reviews/{reviewId}` | Completed-booking reviews and replies |
+| `conversations/{conversationId}`, `messages/{messageId}` | Scoped communication |
+| `roles_admin/{uid}` | Platform administrator role/level |
+| `invoices/{invoiceId}`, `invoice_counters/{businessId}_{year}` | Server-owned invoices and numbering |
+| `transactions/{transactionId}`, `payouts/{payoutId}` | Server-owned financial records; not proof of live settlement |
+| `audit_log/{entryId}` | Privileged-operation audit records |
 
-Before production, run:
+The complete conditions are in [firestore.rules](../firestore.rules), with types in [src/lib/types.ts](../src/lib/types.ts). Firebase Admin SDK bypasses client rules, so server handlers must also validate identity, role, tenant, branch, input and allowed state transitions. Rules do not filter an over-broad query into an authorized subset.
 
-```bash
-firebase deploy --only firestore:indexes
-```
+Booking creation, quotes, vendor progression and invoicing use server contracts. Current policy denies direct client booking creation. Other permitted profile, vehicle and communication operations still use Firebase client SDK calls; preserve this hybrid boundary.
 
-## Migration Rules
+Storage paths are `kyc/{businessId}/{fileName}`, `damage/{uid}/{fileName}` and the declared `profile-photos/{uid}/{fileName}` policy. See [storage.rules](../storage.rules) for file restrictions and permissions. A declared upload path does not establish a finished analysis or photo feature.
 
-All migrations must be:
+Web, mobile and server must target the same approved environment. Firebase App Hosting uses explicitly selected application-default identity and matching `FIREBASE_CONFIG`; local/alternate service-account mode remains available. Metadata consistency does not prove IAM permission. See [Firebase setup](firebase-app-hosting.md).
 
-1. Idempotent.
-2. Safe to run against partial data.
-3. Logged with a migration name and timestamp.
-4. Dry-run capable before writing.
+[firestore.indexes.json](../firestore.indexes.json) is the checked index definition. Deploy new indexes before dependent clients and wait for readiness. No collection rename, ID rewrite or schema migration is part of file organization. Future migrations need a separate mapping, backup, dry run, validation and rollback plan.
 
-Recommended migration order:
-
-1. Normalize vendor docs to `vendors/{ownerId}`.
-2. Backfill `vendorId` on bookings to match deterministic vendor doc IDs.
-3. Backfill `displayName` on cars if a flat car index is introduced.
-4. Add audit logs for admin/vendor status changes.
-
-## Data Ownership Rules
-
-| Resource | Customer | Vendor owner | Admin |
-| --- | --- | --- | --- |
-| Own user profile | read/write limited | no | yes |
-| Own cars | read/write | no | yes |
-| Own service records | read/create | no | yes |
-| Approved vendors | read | read | read/write |
-| Own vendor profile | no | read/write except status/rating/owner | read/write |
-| Bookings | own customer bookings | own vendor bookings | all |
-
-## Backup Policy
-
-Use scheduled Firestore exports to a locked Cloud Storage bucket. Keep:
-
-| Backup | Retention |
-| --- | --- |
-| Daily Firestore export | 14 days |
-| Weekly Firestore export | 8 weeks |
-| Monthly Firestore export | 12 months |
-| Storage documents/invoices | 12 months minimum |
-
-Restore drills should be run quarterly into a non-production Firebase project.
+Backups need explicit Firestore, Storage and Authentication recovery ownership. Test restore in an isolated environment; do not restore a database over active production as an ordinary code rollback. Follow [the release runbook](production-runbook.md).

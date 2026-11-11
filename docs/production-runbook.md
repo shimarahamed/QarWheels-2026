@@ -1,99 +1,56 @@
-# Production Runbook
+# QarWheel verification and release runbook
 
-## Deploy Checklist
+Updated: 2026-11-11. File organization is documented in [the module map](module-map.md). This procedure describes technical checks and a future release; it does not perform deployment or certify production readiness.
 
-1. `npm run typecheck`
-2. `npm run build`
-3. `firebase deploy --only firestore:rules`
-4. `firebase deploy --only firestore:indexes`
-5. Seed demo data only in non-production projects.
-6. Create the first admin marker at `roles_admin/{uid}`.
-7. Smoke test customer and vendor auth flows.
+## Repository checks
 
-## Observability
+Main and mobile have separate lockfiles, Git history and CI. Install with `npm ci` and `npm --prefix mobile ci`; an ordinary main checkout does not include mobile.
 
-Minimum production telemetry:
-
-| Signal | Tooling |
-| --- | --- |
-| Client runtime errors | Firebase Crashlytics/Sentry-equivalent web SDK |
-| API errors and latency | Structured server logs |
-| Web vitals | Firebase Performance or Vercel Analytics |
-| AI request count/errors | Structured `ai.*` events |
-| Permission denials | Existing `FirebaseErrorListener` plus structured logs |
-| Auth events | Firebase Auth logs |
-
-Use `src/lib/observability.ts` for local structured logging until a hosted provider is wired in.
-
-## Rate Limits
-
-Current in-memory rate limits are appropriate for local/single-instance deployments only. Production should move to Redis/Upstash or Cloud Armor/Firebase App Check.
-
-Current AI limits:
-
-| Endpoint | Limit |
-| --- | --- |
-| Diagnose | 10/user/hour |
-| Maintenance | 10/user/day |
-| VIN | 5/user/day |
-| Service summary | 5/user/day |
-| Vendor insights | 20/vendor/day |
-
-## Backup And Recovery
-
-Firestore export:
-
-```bash
-gcloud firestore export gs://<backup-bucket>/firestore/$(date +%Y-%m-%d)
+```sh
+npm run check:systems
+npm run tokens:check
+npm run test:tooling
+npm run check:web
+npm run check:website
+npm run test:rules
+npm run mobile:verify
 ```
 
-Restore to a staging project first:
+`npm run check:all` combines system, token, tooling, web, website and mobile checks; emulator rule tests remain a separate gate and require Java. Main-only token verification can use `npm run tokens:check -- --platform web`. Shared token changes must be reviewed and committed in both repositories.
 
-```bash
-gcloud firestore import gs://<backup-bucket>/firestore/<snapshot>
+## Firebase primary configuration
+
+Firebase App Hosting is the selected primary web/API host. Cloudflare/OpenNext remains an explicit alternate. [Firebase setup](firebase-app-hosting.md) explains managed server identity, public configuration, secrets and staging/production markers without inventing environment values.
+
+```sh
+npm run release:check -- --target firebase --env-file .env.staging
+npm run mobile:release:check -- --env-file .env.staging
 ```
 
-Recovery order:
+The web file is relative to the main root; the mobile file is relative to `mobile/`. Keep files out of Git. Injected process variables take precedence, and values are literal rather than `$VARIABLE` expansions. Repeat with approved production files before production release.
 
-1. Freeze writes if data corruption is active.
-2. Export current damaged state for forensics.
-3. Restore into staging.
-4. Validate auth users, vendors, bookings, cars, and service records.
-5. Restore production only after sign-off.
+Preflight checks validate configuration, not credentials, IAM, deployment or connectivity. Application-default mode needs matching `FIREBASE_CONFIG` metadata even when checked outside App Hosting; it does not locally impersonate the backend.
 
-## Mobile QA Matrix
+## Release ownership and compatibility
 
-Test every primary flow at:
+Record the actual backend/project IDs, URLs, main/mobile commits, installed-client policy, enabled features, responsible operators and rollback artifacts. No real project IDs or domains follow from the folder structure. Do not reset or seed production to prepare a release; administrator bootstrap is a separate privileged operation.
 
-| Width | Device class |
-| --- | --- |
-| 360px | Small Android |
-| 390px | iPhone standard |
-| 430px | Large iPhone |
-| 768px | Tablet |
-| 1024px | Small desktop/tablet landscape |
-| 1440px | Desktop |
+Deploy backward-compatible server support and required indexes first. Wait for indexes to become ready. Release dependent clients next. Deploy incompatible rules only after handling older installed mobile versions: current rules deny direct booking creation, which older clients may still attempt. Select the Firebase project explicitly for any policy/index deployment; no deployment command is run by this documentation.
 
-Required flows:
+No schema migration, application-ID change, dependency upgrade or active-root move is required by segregation.
 
-1. Customer signup/login.
-2. Add first car.
-3. Update mileage.
-4. Search garage.
-5. Create booking.
-6. View service history.
-7. Vendor signup/login.
-8. Create vendor profile.
-9. Add service.
-10. Update booking status.
+## Acceptance on the actual host
 
-## Accessibility QA
+Before production, prove a disposable staging journey: customer identity -> saved vehicle -> approved garage/service -> booking request -> vendor quote -> customer acceptance -> service progression -> matching invoice -> eligible review. Verify cross-device persistence, retries and concurrent actions.
 
-1. Keyboard tab order reaches every interactive control.
-2. Dialogs trap focus and return focus after close.
-3. Buttons have accessible names.
-4. Form inputs have visible labels.
-5. Color contrast is at least WCAG AA.
-6. Error messages are visible and specific.
-7. Loading states do not trap keyboard users.
-8. Tables remain readable on mobile or collapse into cards.
+Also verify signed-out/wrong-role/cross-business access, revoked membership, stale quote acceptance, API denials and deployed rules. Check middleware redirects and CSP on Firebase App Hosting; a successful local build does not prove deployed execution.
+
+Use [mobile release gates](../mobile/MOBILE-RELEASE-GATES.md) for fresh/upgrade binaries, native integrations and accessibility. Confirm the published application identity before rebuilding differing native configurations.
+
+Operational acceptance includes distributed rate limiting, monitored expiry scheduling and deadline policy, push delivery, error/latency/cost alerts, backups and a restore drill. Online payments/payouts and email-provider delivery remain unfinished; keep unsupported features gated and pay at garage as the financial scope.
+
+For the business website, rebuild/validate the maintained package and publish only its output after approving contact/store links, legal copy and image rights. Archived packages remain references.
+
+## Rollback
+
+Keep compatible server/client/rule artifacts and preserve the API contract required by installed mobile clients. Roll back code without relaxing authorization or reporting payment settlement that did not occur. Data recovery is a separate reviewed procedure, first tested in isolation. Organization and verification do not themselves deploy services or mutate production data.

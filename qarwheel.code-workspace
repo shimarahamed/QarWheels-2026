@@ -1,0 +1,40 @@
+{
+  "folders": [
+    {
+      "name": "Business website",
+      "path": "QarWheel-Unified-Website"
+    },
+    {
+      "name": "Customer web portal",
+      "path": "src/app/dashboard"
+    },
+    {
+      "name": "Vendor web portal",
+      "path": "src/app/vendor"
+    },
+    {
+      "name": "Master admin portal",
+      "path": "src/app/admin"
+    },
+    {
+      "name": "Backend API",
+      "path": "src/app/api"
+    },
+    {
+      "name": "Customer and vendor mobile",
+      "path": "mobile"
+    },
+    {
+      "name": "Shared components",
+      "path": "src/components"
+    },
+    {
+      "name": "Shared design tokens",
+      "path": "packages/tokens"
+    },
+    {
+      "name": "Repository configuration",
+      "path": "."
+    }
+  ]
+}

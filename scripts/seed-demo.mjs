@@ -9,13 +9,14 @@
  * temporarily bypassing Firestore rules. Requires FIREBASE_SERVICE_ACCOUNT_KEY
  * in .env.local (see .env.example).
  *
- * Run: node --env-file=.env.local scripts/seed-demo.mjs
- * Reset first: node --env-file=.env.local scripts/reset-firestore.mjs --yes-i-mean-it
+ * Run: npm run seed:demo -- --project <development-project-id>
+ * Reset: npm run seed:reset -- --project <development-project-id> --yes-i-mean-it
  */
 import 'dotenv/config';
 import { cert, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
+import { assertDevelopmentProject } from './development-project.mjs';
 
 function loadServiceAccount() {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
@@ -24,6 +25,7 @@ function loadServiceAccount() {
 }
 
 const serviceAccount = loadServiceAccount();
+assertDevelopmentProject(process.env, process.argv.slice(2), serviceAccount);
 const app = initializeApp({
   credential: cert({
     projectId: serviceAccount.project_id,

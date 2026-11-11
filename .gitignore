@@ -15,6 +15,7 @@
 
 # local-only credential references — never commit real login credentials
 seed-accounts.html
+.claude/settings.local.json
 
 # next.js
 /.next/

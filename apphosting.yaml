@@ -1,7 +1,25 @@
-# Settings to manage and configure a Firebase App Hosting backend.
+# Primary web/API deployment. Project-specific public values belong in each
+# backend's console environment; see docs/firebase-app-hosting.md.
 # https://firebase.google.com/docs/app-hosting/configure
 
 runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+
+env:
+  - variable: QARWHEEL_ENV
+    value: staging
+    availability: [BUILD, RUNTIME]
+  - variable: FIREBASE_ADMIN_AUTH_MODE
+    value: application-default
+    availability: [RUNTIME]
+  - variable: GEMINI_API_KEY
+    secret: GEMINI_API_KEY
+    availability: [RUNTIME]
+  - variable: UPSTASH_REDIS_REST_TOKEN
+    secret: UPSTASH_REDIS_REST_TOKEN
+    availability: [RUNTIME]
+  - variable: CRON_SECRET
+    secret: CRON_SECRET
+    availability: [RUNTIME]

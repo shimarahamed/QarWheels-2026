@@ -1,80 +1,55 @@
-﻿# QarWheel
+# QarWheel
 
-**QarWheel** is a modern, AI-powered mobile and web application designed to help car owners in Qatar intelligently manage their vehicles. It provides predictive maintenance suggestions, a digital service passport, and a curated directory of trusted local garages.
+Start with [the module map](docs/module-map.md) and open `qarwheel.code-workspace` for grouped application folders. Existing application paths, URLs and database paths are preserved. Historical websites and extracted reference material are under [archive/](archive/README.md).
 
-## ✨ Features
+QarWheel has three application codebases serving six principal experiences: business website; customer, vendor and master-admin web; customer and vendor mobile. See [the current architecture](docs/system-architecture.md) for dependencies and ownership.
 
-*   **User Portal**:
-    *   **AI-Powered Dashboards**: Get at-a-glance statistics on your vehicles, including upcoming appointments and total maintenance costs.
-    *   **Digital Car Passport**: Add your vehicles via VIN and maintain a complete digital history of service records.
-    *   **AI Maintenance Predictions**: Leverages Genkit and the Gemini API to analyze your car's service history and mileage to forecast future maintenance needs.
-    *   **AI Service Analysis**: Get an AI-generated summary of your vehicle's service history to identify potential issues.
-    *   **Find & Book Garages**: Search a map of approved garages, view their services and reviews, and book appointments directly through the platform.
-*   **Vendor Portal**:
-    *   **Workshop Command Center**: A dedicated dashboard for garage owners to manage their business.
-    *   **Service & Inventory Management**: Add and price services, and manage a real-time inventory of parts.
-    *   **Booking Management**: View and update customer appointments.
-    *   **Customer & Staff Directory**: Manage customer information and staff roles.
-    *   **Promotions & Reviews**: Create promotional offers and view customer feedback.
-*   **Modern Tech**: Built with Next.js, React, TypeScript, and styled with Tailwind CSS and ShadCN UI components for a sleek, responsive experience.
-*   **Secure Backend**: Powered by Firebase for secure authentication and a scalable Firestore database with granular security rules.
+| System | Source / entry point |
+| --- | --- |
+| Business website | `QarWheel-Unified-Website/source/`, `build.py`; generated `website/` |
+| Customer web | `src/app/dashboard/`, `src/components/dashboard/` |
+| Vendor web | `src/app/vendor/`, `src/components/vendor/` |
+| Master administration | `src/app/admin/`, `src/components/admin/` |
+| Shared backend | `src/app/api/`, server modules in `src/lib/`, `src/ai/` |
+| Customer and vendor mobile | Independent `mobile/` repository |
+| Shared design tokens | `packages/tokens/src/index.ts` |
+| Firebase policy | Root rules, indexes and `firebase.json` |
 
-## 🚀 Tech Stack
+The web portals and backend share one Next.js deployment. Both mobile experiences share one Expo application. The business website is a separate static deployment with no application database or server runtime.
 
-*   **Framework**: [Next.js](https://nextjs.org/) (with App Router)
-*   **Language**: [TypeScript](https://www.typescriptlang.org/)
-*   **AI/Generative**: [Firebase Genkit](https://firebase.google.com/docs/genkit) with Google Gemini
-*   **UI**: [React](https://reactjs.org/), [ShadCN UI](https://ui.shadcn.com/), [Tailwind CSS](https://tailwindcss.com/)
-*   **Backend & Database**: [Firebase](https://firebase.google.com/) (Authentication, Firestore, Hosting)
-*   **Form Management**: [React Hook Form](https://react-hook-form.com/) with [Zod](https://zod.dev/) for validation
-*   **Charting**: [Recharts](https://recharts.org/)
+## Development
 
-## 🏁 Getting Started
+Use Node.js 22 and each application's committed npm lockfile. This is not an npm-workspace monorepo.
 
-To run the project locally, you will need Node.js and npm installed.
-
-### 1. Installation
-
-Clone the repository and install the dependencies:
-
-```bash
-git clone <repository-url>
-cd qarwheel
-npm install
-```
-
-### 2. Firebase Setup
-
-This project requires a Firebase project to run.
-
-1.  Go to the [Firebase Console](https://console.firebase.google.com/) and create a new project.
-2.  Navigate to your project's settings and find your Firebase configuration object.
-3.  Copy this object into the `src/firebase/config.ts` file, replacing the placeholder values.
-4.  In the Firebase Console, go to **Build > Firestore Database** and create a new database in **Production mode**. Then, go to the **Rules** tab and paste the contents of the `firestore.rules` file from this repository.
-5.  Go to **Build > Authentication** and enable the **Email/Password** and **Anonymous** sign-in providers.
-
-### 3. Running the Development Server
-
-Start the Next.js development server:
-
-```bash
+```sh
+npm ci
 npm run dev
 ```
 
-The application will be available at `http://localhost:9002`.
+Copy `.env.example` to `.env.local` and supply the appropriate development configuration. Web development uses port 9002. The API invokes AI flows directly; `npm run genkit:dev` is an optional development tool, not a second production backend.
 
-### 4. Running Genkit (for AI Features)
+`mobile/` has its own Git history and is excluded from the main repository. Obtain its approved checkout separately, configure its `.env.example`, then:
 
-The AI features are powered by Genkit. To use them, you'll need a Google AI API key.
+```sh
+npm --prefix mobile ci
+npm run mobile:start
+```
 
-1.  Create a `.env` file in the root of the project.
-2.  Add your API key to the file:
-    ```
-    GEMINI_API_KEY=your_api_key_here
-    ```
-3.  In a separate terminal, start the Genkit development server:
-    ```bash
-    npm run genkit:dev
-    ```
+A native phone needs a device-reachable API URL, not localhost. Web, mobile and server credentials must target the same intended Firebase environment. Never place server credentials in client-prefixed variables.
 
-This will run the AI flows that the Next.js application calls.
+For the business website, edit source and rebuild; do not edit generated pages:
+
+```sh
+python QarWheel-Unified-Website/build.py --package
+python QarWheel-Unified-Website/validate.py
+```
+
+## Verification and release
+
+Use the commands in [the production runbook](docs/production-runbook.md). Shared token changes must be reviewed in both Git repositories. Firebase rule changes must account for already-installed mobile clients.
+
+Firebase App Hosting is the selected primary web/API host; Cloudflare/OpenNext is retained as an explicit alternate. [Firebase setup](docs/firebase-app-hosting.md) separates repository configuration from real project, backend, secret and rollout acceptance.
+
+No folder organization establishes production readiness. Payments/payouts and provider email delivery are unfinished; several advanced mobile capabilities remain gated and some management screens are device-local. The release policy is pay at garage. See [capability boundaries](docs/system-architecture.md#capability-boundaries).
+
+Earlier architecture/launch plans contain obsolete paths and proposed features. Use the module map, current source and release evidence for operational decisions. Never reset or seed production as a deployment step.

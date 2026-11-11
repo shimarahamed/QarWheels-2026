@@ -1,0 +1,89 @@
+{
+  "systems": [
+    {
+      "id": "web",
+      "name": "Customer, vendor and master-admin web platform",
+      "root": ".",
+      "paths": [
+        "package.json",
+        "src/app",
+        "src/app/api",
+        "middleware.ts",
+        "apphosting.staging.yaml",
+        "apphosting.production.yaml"
+      ],
+      "dependsOn": [
+        "firebase",
+        "tokens"
+      ],
+      "surfaces": {
+        "customer": "src/app/dashboard",
+        "vendor": "src/app/vendor",
+        "masterAdmin": "src/app/admin"
+      },
+      "deployments": {
+        "firebase": "apphosting.yaml",
+        "cloudflare": "wrangler.toml"
+      },
+      "primaryDeployment": "firebase"
+    },
+    {
+      "id": "mobile",
+      "name": "Customer and vendor mobile application",
+      "root": "mobile",
+      "independentRepository": true,
+      "paths": [
+        "mobile/package.json",
+        "mobile/app",
+        "mobile/lib/api.ts"
+      ],
+      "dependsOn": [
+        "web",
+        "firebase",
+        "tokens"
+      ],
+      "surfaces": {
+        "customer": "mobile/app/(tabs)",
+        "vendor": "mobile/app/vendor"
+      }
+    },
+    {
+      "id": "website",
+      "name": "English and Arabic business website",
+      "root": "QarWheel-Unified-Website",
+      "paths": [
+        "QarWheel-Unified-Website/build.py",
+        "QarWheel-Unified-Website/source",
+        "QarWheel-Unified-Website/website"
+      ],
+      "dependsOn": [],
+      "surfaces": {
+        "business": "QarWheel-Unified-Website/website"
+      }
+    }
+  ],
+  "shared": [
+    {
+      "id": "firebase",
+      "paths": [
+        "firebase.json",
+        "firestore.rules",
+        "firestore.indexes.json",
+        "storage.rules"
+      ]
+    },
+    {
+      "id": "tokens",
+      "paths": [
+        "packages/tokens/src/index.ts",
+        "scripts/build-tokens.mjs",
+        "src/app/tokens.generated.css"
+      ]
+    }
+  ],
+  "archive": [
+    "archive/websites/QarWheel-Deployable-Website",
+    "archive/websites/QarWheel-UI-UX-Refined-Shared-Hosting",
+    "archive/references/lgtb"
+  ]
+}

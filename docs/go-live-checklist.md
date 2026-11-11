@@ -1,3 +1,5 @@
+> Historical checklist: superseded by [the current runbook](production-runbook.md), [module map](module-map.md) and [mobile release gates](../mobile/MOBILE-RELEASE-GATES.md). Do not execute its old seed/reset launch sequence or treat its feature-status claims as current. Retained for history.
+
 # Go-live checklist
 
 Things built but deliberately **not yet switched on**, and the order they

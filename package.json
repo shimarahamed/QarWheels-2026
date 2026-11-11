@@ -17,15 +17,24 @@
     "mobile:ios": "npm --prefix mobile run ios",
     "mobile:typecheck": "npm --prefix mobile run typecheck",
     "mobile:export:web": "npm --prefix mobile run export:web",
-    "check:all": "npm run typecheck && npm run build && npm run mobile:typecheck && npm run mobile:export:web",
+    "check:all": "npm run check:systems -- --with-mobile && npm run tokens:check && npm run test:tooling && npm run check:web && npm run check:website && npm run mobile:verify",
     "test:rules": "firebase emulators:exec --project demo-no-project --only firestore,storage \"vitest run tests/rules tests/storage\"",
-    "seed:reset": "node --env-file=.env.local scripts/reset-firestore.mjs --yes-i-mean-it",
+    "seed:reset": "node --env-file=.env.local scripts/reset-firestore.mjs",
     "seed:demo": "node --env-file=.env.local scripts/seed-demo.mjs",
     "admin:bootstrap": "node --env-file=.env.local scripts/bootstrap-admin.mjs",
     "tokens:build": "node scripts/build-tokens.mjs",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
+    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "check:systems": "node scripts/check-systems.mjs",
+    "check:web": "npm run lint && npm run typecheck && npm test && npm run build",
+    "check:website": "python QarWheel-Unified-Website/validate.py && node --check QarWheel-Unified-Website/source/assets/unified.js && node --check QarWheel-Unified-Website/source/assets/theme-init.js",
+    "test:tooling": "node --test tests/tooling/*.test.mjs",
+    "tokens:check": "node scripts/build-tokens.mjs --check",
+    "mobile:verify": "npm --prefix mobile run verify",
+    "mobile:release:check": "npm --prefix mobile run release:check",
+    "release:check": "node scripts/check-release.mjs",
+    "website:build": "python QarWheel-Unified-Website/build.py --package"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.43.0",
@@ -97,5 +106,8 @@
     "protobufjs": "^7.6.3",
     "postcss": "$postcss",
     "qs": "^6.17.1"
+  },
+  "engines": {
+    "node": ">=22.13.0"
   }
 }

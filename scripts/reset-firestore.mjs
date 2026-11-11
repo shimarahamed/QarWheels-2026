@@ -4,18 +4,15 @@
  * branch_promotions, reviews) plus the legacy vendors collection, so
  * seed-demo.mjs can be re-run against a clean slate.
  *
- * SAFETY: refuses to run unless --yes-i-mean-it is passed, and refuses to run
- * at all against any project ID listed in PROD_PROJECT_IDS below.
+ * SAFETY: explicit development environment, matching --project and reset
+ * confirmation are required before initializing Firebase.
  *
- * Run: node --env-file=.env.local scripts/reset-firestore.mjs --yes-i-mean-it
+ * Run: npm run seed:reset -- --project <development-project-id> --yes-i-mean-it
  */
 import 'dotenv/config';
 import { cert, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-
-// Add real production project IDs here once one exists. This script must
-// never be runnable against them, confirmation flag or not.
-const PROD_PROJECT_IDS = [];
+import { assertDevelopmentProject } from './development-project.mjs';
 
 const COLLECTIONS_TO_WIPE = [
   'businesses', 'branches', 'memberships', 'staff_invites',
@@ -45,10 +42,7 @@ async function main() {
   }
 
   const serviceAccount = loadServiceAccount();
-  if (PROD_PROJECT_IDS.includes(serviceAccount.project_id)) {
-    console.error(`Refusing to run against ${serviceAccount.project_id} — listed as a production project.`);
-    process.exit(1);
-  }
+  assertDevelopmentProject(process.env, process.argv.slice(2), serviceAccount, true);
 
   const app = initializeApp({
     credential: cert({

@@ -7,14 +7,22 @@
  *   - src/app/tokens.generated.css      (CSS custom properties, imported by globals.css)
  *   - mobile/lib/theme.generated.ts     (re-exported by mobile/lib/theme.ts)
  *
- * Run: npm run tokens:build
+ * Run: npm run tokens:build [-- --platform web|mobile|all]
+ * Check committed output without writing: npm run tokens:check
  */
-import { writeFileSync, readFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { parseArgs } from 'node:util';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
+const { values } = parseArgs({ options: { check: { type: 'boolean' }, platform: { type: 'string' } } });
+const mobilePresent = existsSync(resolve(root, 'mobile/package.json'));
+const platform = values.platform ?? (mobilePresent ? 'all' : 'web');
+if (!['all', 'web', 'mobile'].includes(platform)) throw new Error('--platform must be web, mobile or all.');
+if (platform !== 'web' && !mobilePresent) throw new Error('Mobile is a separate checkout. Clone it first or use --platform web.');
+if (!mobilePresent && !values.platform) console.log('SKIP: mobile checkout is absent; checking/building web tokens only.');
 
 // The token source is plain TS with no imports and only `as const` object
 // literals, so it can be evaluated by stripping the type-only syntax rather
@@ -164,9 +172,6 @@ ${shadcnBlock(tokens.darkColors)}
 }
 `;
 
-writeFileSync(resolve(root, 'src/app/tokens.generated.css'), css, 'utf8');
-console.log('  ✓ src/app/tokens.generated.css');
-
 // ── Mobile: TS module ────────────────────────────────────────────────────────
 
 function tsExport(name, value) {
@@ -196,7 +201,18 @@ ${tsExport('categoryColorsDark', tokens.categoryColorsDark)}
 ${tsExport('categoryColorsLight', tokens.categoryColorsLight)}
 `;
 
-writeFileSync(resolve(root, 'mobile/lib/theme.generated.ts'), mobileTs, 'utf8');
-console.log('  ✓ mobile/lib/theme.generated.ts');
-
-console.log('\nTokens built.\n');
+const outputs = [];
+if (platform !== 'mobile') outputs.push(['src/app/tokens.generated.css', css]);
+if (platform !== 'web') outputs.push(['mobile/lib/theme.generated.ts', mobileTs]);
+for (const [path, content] of outputs) {
+  const destination = resolve(root, path);
+  if (values.check) {
+    if (!existsSync(destination) || readFileSync(destination, 'utf8') !== content) {
+      console.error(`FAIL: ${path} is stale. Run npm run tokens:build -- --platform ${platform}.`);
+      process.exitCode = 1;
+    } else console.log(`PASS: ${path}`);
+  } else {
+    writeFileSync(destination, content, 'utf8');
+    console.log(`Built: ${path}`);
+  }
+}

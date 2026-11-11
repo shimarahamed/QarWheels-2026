@@ -1,0 +1,5 @@
+# Set the staging backend's Environment name to staging in Firebase.
+env:
+  - variable: QARWHEEL_ENV
+    value: staging
+    availability: [BUILD, RUNTIME]

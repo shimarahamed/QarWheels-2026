@@ -8,7 +8,7 @@ on:
 
 jobs:
   quality:
-    name: Web, Rules & Build
+    name: Web, Website, Rules & Build
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -29,8 +29,25 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Install dependencies
         run: npm ci
+
+      - name: System boundaries
+        run: npm run check:systems
+
+      - name: Shared web tokens
+        run: npm run tokens:check -- --platform web
+
+      - name: Release tooling tests
+        run: npm run test:tooling
+
+      - name: Business website
+        run: npm run check:website
 
       - name: Typecheck
         run: npm run typecheck
