@@ -1,6 +1,6 @@
 # Mobile Production and Store Release Gates
 
-Updated: 2026-11-10. Scope: QarWheel iOS/Android. This is an acceptance
+Updated: 2026-11-11. Scope: QarWheel iOS/Android. This is an acceptance
 contract, not evidence that production capacity or store approval exists.
 
 ## Evidence Now
@@ -11,13 +11,15 @@ contract, not evidence that production capacity or store approval exists.
   tests pass, but a staging journey and deployed-rule check are still required.
 - First-release payment policy is pay-at-garage only. QarWheel does not
   collect or settle those funds, and old `Settled` records are not eligible
-  for a payout. A quote, customer acceptance, invoice, and garage receipt
-  with dispute handling still need a server-owned contract and local tests.
+  for a payout. Quote offer/revision and customer acceptance now have a
+  server-owned contract and local tests; invoice totals for new quote bookings
+  must match the accepted quote. A garage receipt and dispute lifecycle are
+  still missing, and a sent invoice must never be presented as paid.
 - Roll out the booking API first, then the updated web/mobile clients, then
   the deny-create rule after an enforced minimum mobile version or migration
   period. Older installed clients still write bookings directly and will fail
   once that rule is deployed. Verify the rollout with disposable accounts.
-- The 2026-11-10 Expo export produced Android, iOS and web bundles and 153
+- The 2026-11-11 Expo export produced Android, iOS and web bundles and 153
   static routes. Sentry organization/project setup and an Expo Router package
   export warning remain; neither result proves native installability.
 
@@ -48,6 +50,9 @@ contract, not evidence that production capacity or store approval exists.
 - In-app account deletion exists in Account > Notifications & privacy. Its API
   and data-retention behavior still require end-to-end acceptance. The public
   web deletion request URL needed by Google Play is not established here.
+- Account document uploads now check file type and size, and sign-out tries to
+  remove app-owned copies. Those files are unencrypted while signed in, and
+  cleanup is best-effort; do not treat this as a secure document vault.
 
 ## Capacity Target: At Least 5,000 Daily Active Users
 

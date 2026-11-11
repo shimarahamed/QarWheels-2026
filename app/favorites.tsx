@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
@@ -15,7 +15,7 @@ export default function FavoritesScreen() {
   const router = useRouter();
   const favoriteIds = useQarWheelStore((s) => s.favoriteGarageIds);
   const toggleFav = useQarWheelStore((s) => s.toggleFavoriteGarage);
-  const { vendors } = useBranches();
+  const { vendors, loading, error, refresh } = useBranches();
 
   const savedGarages = vendors.filter((g) => favoriteIds.includes(g.id));
 
@@ -24,7 +24,7 @@ export default function FavoritesScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <View style={[s.navbar, { borderBottomColor: c.border }]}>
-        <Pressable style={[s.navBtn, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.back()}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Go back" style={[s.navBtn, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/search')}>
           <Ionicons name="arrow-back" size={20} color={c.text} />
         </Pressable>
         <Text style={[s.navTitle, { color: c.text }]}>Saved garages</Text>
@@ -35,37 +35,51 @@ export default function FavoritesScreen() {
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         <MotionScreen>
-          {savedGarages.length === 0 ? (
+          {loading ? (
+            <ActivityIndicator accessibilityLabel="Loading saved garages" color={c.primary} />
+          ) : error ? (
+            <View style={s.empty}>
+              <Text accessibilityRole="alert" style={[s.emptyTitle, { color: c.text }]}>Could not load saved garages</Text>
+              <Pressable accessibilityRole="button" style={[s.browseBtn, { backgroundColor: c.primary }]} onPress={() => void refresh()}>
+                <Text style={s.browseBtnText}>Retry</Text>
+              </Pressable>
+            </View>
+          ) : savedGarages.length === 0 ? (
             <View style={s.empty}>
               <View style={[s.emptyIcon, { backgroundColor: c.surfaceAlt }]}>
                 <Ionicons name="heart-outline" size={40} color={c.muted} />
               </View>
-              <Text style={[s.emptyTitle, { color: c.text }]}>No saved garages</Text>
+              <Text style={[s.emptyTitle, { color: c.text }]}>{favoriteIds.length ? 'Saved garages unavailable' : 'No saved garages'}</Text>
               <Text style={[s.emptySub, { color: c.muted }]}>
-                Tap the ♥ on any garage to save it here for quick access.
+                {favoriteIds.length ? 'Your saved garages are not currently listed.' : 'Tap the heart on any garage to save it here for quick access.'}
               </Text>
               <Pressable
+                accessibilityRole="button"
                 style={[s.browseBtn, { backgroundColor: c.primary }]}
-                onPress={() => router.replace('/(tabs)' as never)}
+                onPress={() => router.replace('/(tabs)/search')}
               >
                 <Text style={s.browseBtnText}>Browse garages</Text>
               </Pressable>
             </View>
           ) : (
             savedGarages.map((garage) => (
-              <Pressable
+              <View
                 key={garage.id}
                 style={[s.card, { backgroundColor: c.surface, borderColor: c.border }]}
-                onPress={() => router.push(`/garage/${garage.id}` as never)}
               >
+                <Pressable accessibilityRole="button" accessibilityLabel={`View ${garage.name}`} onPress={() => router.push(`/garage/${garage.id}` as never)}>
                 <RemoteImage uri={garage.imageUrl} style={s.thumb} fallbackIcon="business-outline" accessibilityLabel={`${garage.name} workshop`} />
+                </Pressable>
                 <View style={s.cardBody}>
                   <View style={s.cardTop}>
-                    <View style={{ flex: 1 }}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Details for ${garage.name}`} style={{ flex: 1 }} onPress={() => router.push(`/garage/${garage.id}` as never)}>
                       <Text style={[s.garageName, { color: c.text }]}>{garage.name}</Text>
                       <Text style={[s.garageType, { color: c.muted }]}>{garage.type} · {garage.area}</Text>
-                    </View>
+                    </Pressable>
                     <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${garage.name} from saved garages`}
+                      style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
                       hitSlop={10}
                       onPress={() => { void tap(); toggleFav(garage.id); }}
                     >
@@ -94,13 +108,15 @@ export default function FavoritesScreen() {
                   </View>
 
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Book ${garage.name}`}
                     style={[s.bookBtn, { backgroundColor: c.primary }]}
                     onPress={() => router.push(`/checkout/${garage.id}` as never)}
                   >
                     <Text style={s.bookBtnText}>Book now</Text>
                   </Pressable>
                 </View>
-              </Pressable>
+              </View>
             ))
           )}
         </MotionScreen>

@@ -1,6 +1,6 @@
 # QarWheel Mobile Architecture and Flow Map
 
-Updated: 2026-11-10. Scope: mobile and its backend. This is an implementation map,
+Updated: 2026-11-11. Scope: mobile and its backend. This is an implementation map,
 not a claim that every screen has production data or a validated native build.
 
 ## Runtime and Boundaries
@@ -59,13 +59,13 @@ renderable route is not automatically a functional product feature.
 | Vendor identity | `(auth)/vendor-login`, `vendor/kyc`, `vendor/_layout`, `components/AuthGate.tsx` | Claims and business/branch checks precede destination routing. Missing vendor claims stay on login with an error. KYC submission depends on backend configuration. |
 | Customer main tabs | `(tabs)/index`, `bookings`, `quick`, `cars`, `account`; secondary `(tabs)/search` | Home retains the original header, greeting, search, hero, quick actions, featured services, category grid, garage list, AC banner, offers, specialist filter, and trust sections. Listings are live; category and service tiles open search with a term. Unsupported prices, offers, support/payment claims, and Dubai/AED fixtures are not shown. Quick emphasizes working actions rather than gated AI/roadside capabilities. Search and booking lists are virtualized. |
 | Garage discovery | `services`, `category/[id]`, `filters`, `map`, `garage/[id]`, `garage-services/[id]`, `garage-reviews/[id]`, `garage-photos/[id]`, `offers`, `saved`, `favorites`, `compare`, `no-results` | Listed branches and branch services are backend reads; some metadata, offers or comparisons still depend on local/sample data and must not be sold as verified live facts. |
-| Booking creation | `modal`, `choose-vehicle/[id]`, `choose-date-time/[id]`, `pickup-dropoff/[id]`, `add-ons/[id]`, `booking-summary/[id]`, `checkout/[id]`, `booking-confirmation/[id]` | `BookingComposer` requires a saved vehicle, explicit garage and listed service. The quote modal carries issue notes into that flow. `POST /api/bookings` verifies ownership and branch/service tenancy, derives identity and Pending status, and accepts a retry-stable idempotency key. Firestore rules deny direct client creation. Time is a preference, not a reserved slot; no cost is charged. Quote acceptance and payment remain open. |
-| Customer booking follow-up | `booking/[id]`, `booking-history`, `job/[id]`, `job-progress/[id]`, `ready-pickup/[id]`, `post-service-review/[id]`, `invoice/[id]`, `invoices` | Customer-scoped booking reads and state transitions; PDF is local generation. Review and invoice paths need end-to-end authorization/persistence checks. |
+| Booking creation | `modal`, `choose-vehicle/[id]`, `choose-date-time/[id]`, `pickup-dropoff/[id]`, `add-ons/[id]`, `booking-summary/[id]`, `checkout/[id]`, `booking-confirmation/[id]` | `BookingComposer` requires a saved vehicle, explicit garage and listed service. The quote modal carries issue notes into that flow. `POST /api/bookings` verifies ownership and branch/service tenancy, derives identity and Pending status, and accepts a retry-stable idempotency key. Firestore rules deny direct client creation. Time is a preference, not a reserved slot; no cost is charged. |
+| Customer booking follow-up | `booking/[id]`, `booking-history`, `job/[id]`, `job-progress/[id]`, `ready-pickup/[id]`, `post-service-review/[id]`, `invoice/[id]`, `invoices` | A scoped direct booking read handles cold links. The garage can offer/revise a server-owned quote, and the customer can accept it before confirmation. The quote is not a charge. PDF is local generation; receipt/dispute persistence and end-to-end invoice acceptance remain open. |
 | Customer messaging | `messages`, `chat/[garageId]` | Customer conversation reads and bounded message display; account/branch ownership must be enforced by backend rules. |
 | Vehicles and records | `vehicles`, `add-car`, `car/[id]`, `vehicle-dashboard/[id]`, `vehicle-documents/[id]`, `vehicle-service-history/[id]`, `vehicle-passport/[id]`, `vehicle-health-score/[id]`, `maintenance-schedule/[id]`, `tire-tracking/[id]`, `battery-health/[id]`, `fuel-log/[id]`, `expense-history/[id]`, `expense-analytics/[id]`, `insurance-registration/[id]`, `vin-scan` | Core vehicle create/read path is Firestore. Health/diagnostics and some record views include local or simulated values. VIN camera capture remains visible as a reference photo for manual entry; it is not barcode recognition. Vehicle-card actions are independent from dashboard navigation. |
-| Customer account | `profile-overview`, `edit-profile`, `addresses`, `documents`, `wallet`, `transactions`, `payment-methods`, `saved-cards`, `subscriptions`, `coupons`, `notifications`, `privacy-security`, `settings/[section]`, `help-center`, `faq`, `privacy-policy`, `terms-of-service`, `modal` | Mix of Firebase profile, persisted local data, and static information. Wallet balance and saved card screens are not a verified payment ledger/vault. |
+| Customer account | `profile-overview`, `edit-profile`, `addresses`, `documents`, `wallet`, `transactions`, `payment-methods`, `saved-cards`, `subscriptions`, `coupons`, `notifications`, `privacy-security`, `settings/[section]`, `help-center`, `faq`, `privacy-policy`, `terms-of-service`, `modal` | Mix of Firebase profile, persisted local data, and static information. Wallet balance and saved card screens are not a verified payment ledger/vault. Document copies have size/type checks and sign-out cleanup but are not encrypted. |
 | Vendor daily operations | `vendor/dashboard`, `bookings`, `requests`, `calendar`, `booking-detail/[id]`, `status-update/[id]`, `customer/[id]`, `chat/[id]`, `reviews`, `analytics` | Business/branch-scoped reads, recoverable timeouts, bounded insights; status transition uses backend API; chat and review reply use scoped Firestore paths. Calendar shows Qatar-dated preferred requests, not confirmed capacity or blocked slots. Booking feeds are still unpaginated server-side. |
-| Vendor management | `vendor/services`, `inventory`, `promotions`, `staff`, `assign-staff/[id]`, `settings`, `invoice/[id]`, `send-invoice/[id]`, `payouts`, `request-payout` | Most edits live in the local persisted store only. They do not become business records on another device and should not be represented as completed backend operations. |
+| Vendor management | `vendor/services`, `inventory`, `promotions`, `staff`, `assign-staff/[id]`, `settings`, `invoice/[id]`, `send-invoice/[id]`, `payouts`, `request-payout` | Services, inventory, promotions and staff edits are explicitly device-local drafts, restricted by role, and do not become business records on another device. Branch settings writes use the scoped backend and read live vacation status; local initial hours still need server hydration. |
 | Intentionally unavailable | `roadside`, `damage-upload`, `damage-results`, `ai-mechanic`, `ai-support`, `repair-cost-forecast`, `support-ticket`, `contact-us`, `apply-coupon/[id]`, `live-tracking/[id]`, `availability-calendar/[id]`, `fuel-log/[id]`, `renew-policy/[id]`, `share-passport/[id]`, `payment-method/[id]` | `lib/feature-availability.ts` plus the root `screenLayout` gate prevents these screens from mounting when required backend endpoints or persisted data are absent; a recovery screen is shown instead. The fuel-log implementation still contains fixture data and must be replaced before its gate is removed. |
 | Other entry points | `+not-found` | Unknown routes get a fallback. |
 
@@ -78,7 +78,9 @@ renderable route is not automatically a functional product feature.
    Firestore vehicle, and ask `POST /api/bookings` to create a Pending request.
    The server validates the car, service, branch and business, owns identity
    and status, and leaves the final cost unset. Direct client creation is
-   denied. Booking status and conversation content remain identity-scoped.
+   denied. A scoped vendor offers a revisioned quote; only the owning customer
+   accepts that revision. Booking status and conversation content remain
+   identity-scoped.
 3. Vendors derive business and permitted branch IDs from claims. Business-wide
    roles may query the business; branch staff may only read assigned branches.
    Selecting a branch updates local UI scope, not the authorization grant.
@@ -96,9 +98,9 @@ renderable route is not automatically a functional product feature.
 
 Use `npm ci`, `npx expo install --check`, `npm run typecheck`,
 `npm test -- --runInBand`, then `npm run export:all` from `mobile/`.
-On 2026-11-10, typecheck, 52 suites / 478 tests, and an Android/iOS/web
-export with 153 static routes passed. The backend typecheck, 13 unit tests,
-and serial Firestore/Storage rules suite passed. Expo
+On 2026-11-11, typecheck, 59 suites / 515 tests, and an Android/iOS/web
+export with 153 static routes passed. The backend typecheck, 85 unit tests,
+and 92 serial Firestore/Storage rules tests passed. Expo
 Router file-resolution and missing Sentry project configuration warnings
 remain; neither was an export failure.
 Bundle export checks JS packaging for Android/iOS/web, not installability or

@@ -64,7 +64,7 @@ export const BOOKING_WORKFLOW: BookingWorkflowStep[] = [
     label: 'Pending',
     customerLabel: 'Request sent',
     vendorLabel: 'New request',
-    description: 'Booking request received and waiting for vendor confirmation.',
+    description: 'Waiting for a garage quote or your acceptance.',
   },
   {
     status: 'Confirmed',

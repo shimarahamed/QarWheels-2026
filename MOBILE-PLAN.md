@@ -1,6 +1,6 @@
 # Mobile Completion Plan
 
-Updated: 2026-11-10. Mobile/backend execution plan. "Complete" means the code
+Updated: 2026-11-11. Mobile/backend execution plan. "Complete" means the code
 and stated tests passed; it does not imply a production backend, native binary,
 or real-device acceptance test exists.
 
@@ -11,7 +11,7 @@ or real-device acceptance test exists.
 - [x] Migrate the root HTML document, React Native strict ref/component types,
   and custom tab-navigation contract.
 - [x] TypeScript compilation on SDK 58.
-- [x] Full Jest regression suite (52 suites, 478 tests) and Android/iOS/web
+- [x] Full Jest regression suite (59 suites, 515 tests) and Android/iOS/web
   export (153 static routes) on SDK 58; static HTML entry checked.
 - [ ] New native development binaries and hardware verification on both OSes.
 
@@ -24,6 +24,10 @@ or real-device acceptance test exists.
   existing web booking form uses the same endpoint without a visual redesign.
 - [x] Stop booking completion from creating a `Settled` transaction. Keep
   payout requests disabled while the provider boundary is a stub.
+- [x] Authenticate before invoice booking lookup; require the branch to belong
+  to the booking business and the job to be completed. New quote bookings
+  require customer acceptance and an invoice total matching the accepted quote.
+  A sent invoice is not proof of garage payment.
 - [x] Select pay-at-garage only for the first release. Booking and pickup
   screens do not claim a payment was processed; disabled payouts expose no
   eligible balance. Card, wallet, subscription and sample coupon offers are
@@ -49,11 +53,13 @@ or real-device acceptance test exists.
 - [x] A vehicle-origin request requires an explicit garage choice. Preferred
   time now reaches the vendor booking feed; booking detail follow-up actions
   open the actual garage/chat instead of a no-op calendar or notifications.
-- [ ] Implement a server-owned garage quote, customer acceptance, final
-  invoice and pay-at-garage receipt/dispute record. A listed service price is
-  not a confirmed total or a charge; a garage-entered receipt is not proof
-  of platform-verified funds. Online charging and payouts are out of scope
-  for the first release.
+- [x] Implement server-owned garage quote offer/revision and customer
+  acceptance with idempotent offer requests, branch authorization, exact
+  integer money, and direct-link customer/vendor detail actions.
+- [ ] Complete the final invoice and pay-at-garage receipt/dispute contract.
+  A listed service price is not a confirmed total or a charge; a garage-entered
+  receipt is not proof of platform-verified funds. Online charging and payouts
+  are out of scope for the first release.
 - [x] Fail closed when a native build has no device-reachable backend API;
   keep the localhost default only for local web development. KYC now checks
   this before uploading documents and updates local status only after success.
@@ -61,7 +67,11 @@ or real-device acceptance test exists.
   credential or production URL is invented here.
 - [ ] Give vendor services, inventory, promotions, staff assignments, customer
   notes, and invoices scoped remote persistence with rule/index tests. Migrate
-  local drafts only with an explicit account/branch ownership policy.
+  local drafts only with an explicit account/branch ownership policy. Management
+  screens now label these as device-local drafts and gate restricted roles.
+- [ ] Encrypt or replace device-local customer document copies. Uploads now
+  reject unsupported types and files over 10 MB, and sign-out attempts cleanup,
+  but the copied files are not encrypted and deletion may fail.
 - [ ] Secure or migrate legacy device-only wallet/transaction records without
   losing user access to their history; remove remaining false money claims
   from release UX. No provider ledger is needed for pay-at-garage payments.
@@ -125,7 +135,7 @@ or real-device acceptance test exists.
 - [ ] Close the store/privacy and 5,000-DAU gates in
   `MOBILE-RELEASE-GATES.md` with measured evidence.
 
-Release decision: **Do not ship yet.** Remote persistence, quote/receipt
+Release decision: **Do not ship yet.** Remote persistence, receipt/dispute
 contracts, staging authorization tests, and native binary/device acceptance
 are blocking.
 Tasks requiring deployment credentials, backend ownership, a staging project,

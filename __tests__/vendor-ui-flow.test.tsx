@@ -113,6 +113,7 @@ it.each([BookingDetailScreen, StatusUpdateScreen, AssignStaffScreen, CustomerScr
 });
 
 it('loads each service into a fresh editor and preserves navigation', async () => {
+  jest.mocked(useAuthContext).mockReturnValue({ ...session, role: 'vendor_manager' } as never);
   useQarWheelStore.setState({ vendorServices: [service('a'), service('b')] });
   await render(<ServicesScreen />);
   expect(screen.getByTestId('vendor-navigation')).toBeTruthy();
@@ -126,6 +127,7 @@ it('loads each service into a fresh editor and preserves navigation', async () =
 });
 
 it('rejects non-finite prices and fractional minutes without closing the editor', async () => {
+  jest.mocked(useAuthContext).mockReturnValue({ ...session, role: 'vendor_manager' } as never);
   useQarWheelStore.setState({ vendorServices: [service('a')] });
   await render(<ServicesScreen />);
   await fireEvent.press(screen.getByRole('button', { name: 'Edit Service a' }));

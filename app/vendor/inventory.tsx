@@ -1,48 +1,76 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack } from 'expo-router';
-import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarWheelStore, useQarColors } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { useVendorTabBottom } from '@/components/VendorTabBar';
+import { useAuthContext } from '@/lib/AuthContext';
+import { canAccess } from '@/lib/permissions';
 
 const CATEGORIES = ['All', 'Fluids', 'Filters', 'Brakes', 'Electrical', 'Ignition', 'Accessories'];
 
 export default function InventoryScreen() {
   const c = useQarColors();
+  const { role, claimsLoading } = useAuthContext();
+  const canRead = !claimsLoading && !!role && role !== 'customer' && role !== 'master_admin' && canAccess(role, 'inventory');
+  const canWrite = canRead && canAccess(role, 'inventory', 'write');
   const vendorTabBottom = useVendorTabBottom();
   const inventory = useQarWheelStore((s) => s.vendorInventory);
   const updateQty = useQarWheelStore((s) => s.updateVendorInventoryQty);
   const addInventoryItem = useQarWheelStore((s) => s.addVendorInventoryItem);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [showAdd, setShowAdd] = useState(false);
+  const [draft, setDraft] = useState({ name: '', sku: '', quantity: '0', minQuantity: '1', unitPrice: '', unit: 'piece', supplier: '' });
+  const [category, setCategory] = useState('Accessories');
+  const [error, setError] = useState('');
+  const submitted = useRef(false);
 
   const filtered = activeCategory === 'All' ? inventory : inventory.filter((i) => i.category === activeCategory);
   const lowStock = inventory.filter((i) => i.quantity <= i.minQuantity);
 
   function handleAdjust(itemId: string, itemName: string, delta: number) {
+    if (!canWrite) return;
     const item = inventory.find((i) => i.id === itemId);
-    if (!item) return;
+    if (!item) { setError('This draft is no longer available.'); return; }
     if (delta < 0 && item.quantity === 0) {
       Alert.alert('Out of stock', `${itemName} is already at 0.`);
       return;
     }
-    updateQty(itemId, delta);
+    if (!Number.isSafeInteger(item.quantity + delta) || item.quantity + delta > 1000000) {
+      setError('Quantity must be a whole number between 0 and 1,000,000.'); return;
+    }
+    try { updateQty(itemId, delta); setError(''); }
+    catch { setError('Quantity was not updated. Please try again.'); }
   }
 
   function handleAddItem() {
-    const item = addInventoryItem({
-      sku: `PART-${Date.now().toString().slice(-5)}`,
-      name: 'New inventory item',
-      category: activeCategory === 'All' ? 'Accessories' : activeCategory,
-      quantity: 1,
-      minQuantity: 1,
-      unitPrice: 0,
-      unit: 'piece',
-      supplier: 'Unassigned supplier',
-    });
-    Alert.alert('Inventory item added', `${item.name} was added. Adjust quantity now, then rename it when the edit form is added.`);
+    if (!canWrite) return;
+    if (submitted.current) return;
+    if (!draft.name.trim() || !draft.sku.trim() || !draft.unit.trim()) {
+      setError('Enter an item name, SKU and unit.'); return;
+    }
+    if (inventory.some((item) => item.sku.toLowerCase() === draft.sku.trim().toLowerCase())) {
+      setError('This SKU already exists. Use a different SKU.'); return;
+    }
+    const quantity = Number(draft.quantity);
+    const minQuantity = Number(draft.minQuantity);
+    if (![draft.quantity, draft.minQuantity].every((value) => /^\d+$/.test(value.trim()) && Number(value) <= 1000000)) {
+      setError('Quantity and minimum must be whole numbers between 0 and 1,000,000.'); return;
+    }
+    const unitPrice = Number(draft.unitPrice);
+    if (!/^\d+(\.\d{1,2})?$/.test(draft.unitPrice.trim()) || !Number.isFinite(unitPrice) || unitPrice > 10000000) {
+      setError('Enter a price between 0 and 10,000,000 QAR, with at most two decimal places.'); return;
+    }
+    submitted.current = true;
+    try {
+      addInventoryItem({ name: draft.name.trim(), sku: draft.sku.trim(), category, quantity, minQuantity,
+        unitPrice, unit: draft.unit.trim(), supplier: draft.supplier.trim(), lastRestocked: 'Not recorded' });
+      setDraft({ name: '', sku: '', quantity: '0', minQuantity: '1', unitPrice: '', unit: 'piece', supplier: '' });
+      setActiveCategory('All'); setShowAdd(false); setError('');
+    } catch { submitted.current = false; setError('Draft was not added. Your entries are still here; please try again.'); }
   }
 
   return (
@@ -51,32 +79,34 @@ export default function InventoryScreen() {
 
       <View style={[s.navbar, { backgroundColor: c.background, borderBottomColor: c.border }]}>
         <Text style={[s.navTitle, { color: c.text }]}>Inventory</Text>
-        <Pressable
+        {canWrite && <Pressable
           style={[s.addBtn, { backgroundColor: c.primary }]}
-          onPress={handleAddItem}
+          onPress={() => { submitted.current = false; setError(''); setShowAdd(!showAdd); }}
+          accessibilityState={{ expanded: showAdd }}
           accessible accessibilityRole="button" accessibilityLabel="Add inventory item"
         >
-          <Ionicons name="add" size={18} color="#fff" />
-        </Pressable>
+          <Ionicons name={showAdd ? 'close' : 'add'} size={18} color="#fff" />
+        </Pressable>}
       </View>
 
       {/* Low stock alert */}
-      {lowStock.length > 0 && (
-        <View style={[s.alertBanner, { backgroundColor: '#F59E0B20', borderColor: '#F59E0B30', marginTop: 60 }]}>
+      {canRead && lowStock.length > 0 && (
+        <View style={[s.alertBanner, { backgroundColor: '#F59E0B20', borderColor: '#F59E0B30' }]}>
           <Ionicons name="warning-outline" size={16} color="#F59E0B" />
           <Text style={[s.alertText, { color: '#F59E0B' }]}>
-            {lowStock.length} item{lowStock.length > 1 ? 's' : ''} low or out of stock — reorder needed
+            {lowStock.length} item{lowStock.length > 1 ? 's' : ''} low or out of stock. Review stock.
           </Text>
         </View>
       )}
 
       {/* Category filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[s.catBar, { paddingTop: lowStock.length === 0 ? 60 : 0 }]} contentContainerStyle={s.catBarContent}>
+      {canRead && <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catBar} contentContainerStyle={s.catBarContent}>
         {CATEGORIES.map((cat) => {
           const active = activeCategory === cat;
           return (
             <Pressable
               key={cat}
+              accessibilityRole="tab" accessibilityState={{ selected: active }}
               style={[s.catChip, { backgroundColor: active ? c.primary : c.surface, borderColor: active ? c.primary : c.border }]}
               onPress={() => setActiveCategory(cat)}
             >
@@ -84,10 +114,38 @@ export default function InventoryScreen() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </ScrollView>}
 
-      <ScrollView contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16 }]} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16 }]} showsVerticalScrollIndicator={false}>
         <MotionScreen>
+          {!canRead ? <Text accessibilityRole="alert" style={{ color: c.muted }}>{claimsLoading ? 'Checking inventory access...' : 'Inventory is unavailable for your role.'}</Text> : <>
+          <Text style={{ color: c.muted, marginBottom: 12 }}>Device-local inventory drafts. Stock changes are not synced to any branch. No supplier orders are sent.</Text>
+          {!!error && <Text accessibilityRole="alert" style={{ color: c.danger, marginBottom: 12 }}>{error}</Text>}
+          {showAdd && canWrite && <View style={{ gap: 10, marginBottom: 16 }}>
+            <Text style={[s.emptyTitle, { color: c.text }]}>New inventory draft</Text>
+            {([
+              ['name', 'Item name'], ['sku', 'SKU'], ['quantity', 'Quantity'], ['minQuantity', 'Minimum quantity'],
+              ['unitPrice', 'Unit price in QAR'], ['unit', 'Unit'], ['supplier', 'Supplier (optional)'],
+            ] as const).map(([key, label]) => <View key={key} style={{ gap: 4 }}>
+              <Text style={{ color: c.textSecondary }}>{label}</Text>
+              <TextInput accessibilityLabel={label} value={draft[key]} maxLength={key === 'name' ? 200 : 100}
+                keyboardType={key === 'unitPrice' ? 'decimal-pad' : key === 'quantity' || key === 'minQuantity' ? 'number-pad' : 'default'}
+                onChangeText={(value) => setDraft((prev) => ({ ...prev, [key]: value }))}
+                style={[s.input, { color: c.text, borderColor: c.border, backgroundColor: c.surface }]} />
+            </View>)}
+            <Text style={{ color: c.textSecondary }}>Category</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {CATEGORIES.filter((cat) => cat !== 'All').map((cat) => <Pressable key={cat}
+                accessibilityRole="radio" accessibilityState={{ checked: category === cat }} onPress={() => setCategory(cat)}
+                style={[s.catChip, { borderColor: c.border, backgroundColor: category === cat ? c.primaryLight : c.surface }]}>
+                <Text style={{ color: c.text }}>{cat}</Text>
+              </Pressable>)}
+            </View>
+            <Pressable accessibilityRole="button" onPress={handleAddItem} style={[s.formButton, { backgroundColor: c.primary }]}>
+              <Text style={{ color: '#fff', fontWeight: '700' }}>Add inventory draft</Text>
+            </Pressable>
+          </View>}
           {/* Summary */}
           <View style={s.summaryRow}>
             {[
@@ -152,37 +210,35 @@ export default function InventoryScreen() {
                   <View style={[s.itemFooter, { borderTopColor: c.border }]}>
                     {/* Qty control */}
                     <View style={s.qtyControl}>
-                      <Pressable
+                      {canWrite && <Pressable
                         style={[s.qtyBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
                         onPress={() => handleAdjust(item.id, item.name, -1)}
                         accessible accessibilityRole="button" accessibilityLabel={`Decrease ${item.name} quantity`}
+                        disabled={isOut} accessibilityState={{ disabled: isOut }}
                       >
                         <Ionicons name="remove" size={14} color={c.text} />
-                      </Pressable>
-                      <Text style={[s.qtyValue, { color: c.text }]}>{item.quantity}</Text>
-                      <Pressable
+                      </Pressable>}
+                      <Text accessibilityLiveRegion="polite" style={[s.qtyValue, { color: c.text }]}>{item.quantity}</Text>
+                      {canWrite && <Pressable
                         style={[s.qtyBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
                         onPress={() => handleAdjust(item.id, item.name, 1)}
                         accessible accessibilityRole="button" accessibilityLabel={`Increase ${item.name} quantity`}
+                        disabled={item.quantity >= 1000000} accessibilityState={{ disabled: item.quantity >= 1000000 }}
                       >
                         <Ionicons name="add" size={14} color={c.text} />
-                      </Pressable>
+                      </Pressable>}
                     </View>
                     <Text style={[s.minQty, { color: c.muted }]}>Min: {item.minQuantity}</Text>
                     <Text style={[s.restocked, { color: c.muted }]}>Restocked: {item.lastRestocked}</Text>
-                    <Pressable
-                      style={[s.reorderBtn, { backgroundColor: c.primaryLight, borderColor: c.primaryMid }]}
-                      onPress={() => Alert.alert('Reorder', `Reorder request sent for ${item.name}.`)}
-                    >
-                      <Text style={[s.reorderText, { color: c.primary }]}>Reorder</Text>
-                    </Pressable>
                   </View>
                 </View>
               );
             })}
           </View>
+          </>}
         </MotionScreen>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -190,11 +246,6 @@ export default function InventoryScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1 },
   navbar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
     flexDirection: 'row', 
     alignItems: 'center', 
     justifyContent: 'space-between',
@@ -204,7 +255,9 @@ const s = StyleSheet.create({
     ...shadow.sm,
   },
   navTitle: { ...typography.h3 },
-  addBtn: { width: 38, height: 38, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  addBtn: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  input: { minHeight: 44, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12 },
+  formButton: { minHeight: 44, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
 
   alertBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -215,16 +268,16 @@ const s = StyleSheet.create({
   catBar: { flexGrow: 0 },
   catBarContent: { paddingHorizontal: spacing.page, paddingVertical: 12, gap: 12 },
   catChip: {
-    minHeight: 42, minWidth: 76, paddingHorizontal: 15, paddingVertical: 9, borderRadius: radius.full, borderWidth: 1,
+    minHeight: 44, minWidth: 76, paddingHorizontal: 15, paddingVertical: 9, borderRadius: radius.full, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
   catChipText: { fontSize: 13, fontWeight: '700' },
 
   content: { padding: spacing.page, gap: spacing.gap },
 
-  summaryRow: { flexDirection: 'row', gap: 10 },
+  summaryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   summaryCard: {
-    flex: 1, borderRadius: radius.lg, borderWidth: 1, padding: 12,
+    flexGrow: 1, flexBasis: 100, borderRadius: radius.lg, borderWidth: 1, padding: 12,
     alignItems: 'center', gap: 4, ...shadow.xs,
   },
   summaryValue: { ...typography.h4 },
@@ -234,7 +287,7 @@ const s = StyleSheet.create({
   itemTop: { flexDirection: 'row', padding: 14, gap: 10 },
   itemName: { fontSize: 14, fontWeight: '700' },
   itemSku: { fontSize: 12, fontWeight: '600' },
-  itemMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  itemMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   catTag: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: radius.full, borderWidth: 1 },
   catTagText: { fontSize: 12, fontWeight: '700' },
   supplier: { fontSize: 12, fontWeight: '500' },
@@ -243,7 +296,7 @@ const s = StyleSheet.create({
   stockAlertText: { fontSize: 12, fontWeight: '800' },
 
   itemFooter: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
+    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10,
     paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth,
   },
   qtyControl: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -251,10 +304,8 @@ const s = StyleSheet.create({
   emptyTitle: { fontSize: 15, fontWeight: '800' },
   emptyText: { fontSize: 13, fontWeight: '500', textAlign: 'center' },
 
-  qtyBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  qtyBtn: { width: 44, height: 44, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   qtyValue: { fontSize: 15, fontWeight: '900', minWidth: 28, textAlign: 'center' },
   minQty: { fontSize: 12, fontWeight: '600' },
   restocked: { fontSize: 12, fontWeight: '500', flex: 1 },
-  reorderBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.full, borderWidth: 1 },
-  reorderText: { fontSize: 12, fontWeight: '800' },
 });

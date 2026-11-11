@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, Pressable, View, Alert } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, Pressable, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQarColors, useQarWheelStore } from '@/lib/store';
 import { MotionScreen } from '@/lib/motion';
@@ -13,6 +13,7 @@ import {
 } from '@/lib/vendor-data';
 import { MissingRecord } from '@/components/vendor/MissingRecord';
 import { BOOKING_WORKFLOW, getBookingStatusIndex } from '@/lib/booking-workflow';
+import BookingQuotePanel from '@/components/BookingQuotePanel';
 
 function InfoRow({ label, value, c }: { label: string; value: string; c: ReturnType<typeof useQarColors> }) {
   return (
@@ -58,14 +59,17 @@ export default function BookingDetailScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <View style={[s.navbar, { borderBottomColor: c.border }]}>
-        <Pressable style={[s.backBtn, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.back()}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Go back"
+          style={[s.backBtn, { backgroundColor: c.surface, borderColor: c.border }]}
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/vendor/bookings')}>
           <Ionicons name="arrow-back" size={20} color={c.text} />
         </Pressable>
         <Text style={[s.navTitle, { color: c.text }]}>Booking Detail</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={[s.content, { paddingTop: 60 }]} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.content, { paddingTop: 60 }]} showsVerticalScrollIndicator={false}>
         <MotionScreen>
           {/* Status header */}
           <View style={[s.statusHeader, { backgroundColor: sc.bg, borderColor: `${sc.dot}30` }]}>
@@ -78,6 +82,8 @@ export default function BookingDetailScreen() {
               <Text style={s.updateBtnText}>Update Status</Text>
             </Pressable>
           </View>
+
+          <BookingQuotePanel bookingId={booking.id} audience="vendor" />
 
           {/* Workflow */}
           <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
@@ -203,6 +209,7 @@ export default function BookingDetailScreen() {
           </View>
         </MotionScreen>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -224,7 +231,7 @@ const s = StyleSheet.create({
     ...shadow.sm,
   },
   backBtn: {
-    width: 40, height: 40, borderRadius: radius.md,
+    width: 44, height: 44, borderRadius: radius.md,
     borderWidth: 1, alignItems: 'center', justifyContent: 'center', ...shadow.xs,
   },
   navTitle: { ...typography.h4 },

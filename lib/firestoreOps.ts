@@ -50,6 +50,25 @@ export type FirestoreBooking = {
   notes?: string;
 };
 
+function customerBookingFromDocument(id: string, data: Record<string, any>): Booking {
+  return {
+    id,
+    garage: data.branchName ?? data.vendorName ?? '',
+    garageId: data.branchId ?? data.vendorId ?? '',
+    service: data.serviceName ?? '',
+    vehicle: data.carDescription ?? data.carName ?? '',
+    vehicleId: data.carId,
+    date: toIsoString(data.bookingDate),
+    bookingDate: toIsoString(data.bookingDate),
+    status: (data.status ?? 'Pending') as BookingWorkflowStatus,
+    totalAmount: data.cost ?? 0,
+    notes: data.notes ? String(data.notes) : undefined,
+    vendorBookingId: data.vendorBookingId ? String(data.vendorBookingId) : undefined,
+    timeSlot: data.timeSlot ? String(data.timeSlot) : undefined,
+    paymentMethod: data.paymentMethod ? String(data.paymentMethod) : undefined,
+  };
+}
+
 export type ObdDiagnostics = {
   scannedAt: string;        // ISO timestamp
   simulationMode: boolean;
@@ -357,25 +376,8 @@ export function useFirestoreBookings(userId: string | null) {
     const unsub = onSnapshot(q, (snap) => {
       if (!active) return;
       clearTimeout(timer);
-      const firestoreBookings: Booking[] = snap.docs.slice(0, requestedSize).map((d) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          garage: data.branchName ?? data.vendorName ?? '',
-          garageId: data.branchId ?? data.vendorId ?? '',
-          service: data.serviceName ?? '',
-          vehicle: data.carDescription ?? data.carName ?? '',
-          vehicleId: data.carId,
-          date: toIsoString(data.bookingDate),
-          bookingDate: toIsoString(data.bookingDate),
-          status: (data.status ?? 'Pending') as BookingWorkflowStatus,
-          totalAmount: data.cost ?? 0,
-          notes: data.notes ? String(data.notes) : undefined,
-          vendorBookingId: data.vendorBookingId ? String(data.vendorBookingId) : undefined,
-          timeSlot: data.timeSlot ? String(data.timeSlot) : undefined,
-          paymentMethod: data.paymentMethod ? String(data.paymentMethod) : undefined,
-        };
-      });
+      const firestoreBookings: Booking[] = snap.docs.slice(0, requestedSize)
+        .map((d) => customerBookingFromDocument(d.id, d.data()));
       mergeFirestoreBookings(firestoreBookings);
       setResult({ userId, bookings: firestoreBookings, loading: false, loadingMore: false, hasMore: snap.docs.length > requestedSize, error: false });
     }, () => {
@@ -398,6 +400,45 @@ export function useFirestoreBookings(userId: string | null) {
         setRequestedPage({ userId, size: requestedSize + pageSize });
       }
     },
+  };
+}
+
+export function useBookingDocument(bookingId: string | undefined, userId: string | null) {
+  const scope = `${userId ?? ''}:${bookingId ?? ''}`;
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState<{ scope: string; booking: Booking | null; loading: boolean; error: boolean }>({
+    scope: '', booking: null, loading: true, error: false,
+  });
+  useEffect(() => {
+    if (!bookingId || !userId) {
+      setResult({ scope, booking: null, loading: false, error: false });
+      return;
+    }
+    let active = true;
+    setResult({ scope, booking: null, loading: true, error: false });
+    const deadline = setTimeout(() => {
+      if (active) setResult((previous) => ({ ...previous, loading: false, error: true }));
+    }, 15_000);
+    const unsubscribe = onSnapshot(doc(firestore, 'bookings', bookingId), (snapshot) => {
+      if (!active) return;
+      clearTimeout(deadline);
+      const data = snapshot.data();
+      setResult({
+        scope,
+        booking: snapshot.exists() && data?.userId === userId ? customerBookingFromDocument(snapshot.id, data) : null,
+        loading: false,
+        error: false,
+      });
+    }, () => {
+      if (active) { clearTimeout(deadline); setResult({ scope, booking: null, loading: false, error: true }); }
+    });
+    return () => { active = false; clearTimeout(deadline); unsubscribe(); };
+  }, [scope, bookingId, userId, attempt]);
+  return {
+    booking: result.scope === scope ? result.booking : null,
+    loading: result.scope !== scope || result.loading,
+    error: result.scope === scope && result.error,
+    retry: () => setAttempt((value) => value + 1),
   };
 }
 

@@ -1,10 +1,13 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import type { ComponentProps, ReactNode } from 'react';
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as Sharing from 'expo-sharing';
+import { File, Paths } from 'expo-file-system';
+import { randomUUID } from 'expo-crypto';
 import { updateProfile } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import AnimatedPressable from '@/components/AnimatedPressable';
@@ -87,10 +90,6 @@ const sectionCopy: Record<AccountSection, { title: string; eyebrow: string; icon
   vehiclePreferences: { title: 'Vehicle & preferences', eyebrow: 'Garage', icon: 'car-sport-outline' },
 };
 
-// Support line shown on System Settings — the same number contact-us.tsx uses.
-const SUPPORT_PHONE_DISPLAY = '+974 4000 1234';
-const SUPPORT_PHONE_TEL = 'tel:+97440001234';
-
 const sectionTabs: Array<{ id: AccountSection; label: string; icon: IconName }> = [
   { id: 'profile', label: 'Profile', icon: 'person-outline' },
   { id: 'addresses', label: 'Address', icon: 'location-outline' },
@@ -107,7 +106,7 @@ function route(path: string) {
 }
 
 function fromSettingsSection(section?: string): AccountSection {
-  const normalized = decodeURIComponent(section ?? '').toLowerCase();
+  const normalized = (section ?? '').toLowerCase();
   const map: Record<string, AccountSection> = {
     notifications: 'notifications',
     language: 'language',
@@ -136,7 +135,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
   const { user } = useAuthContext();
   const bookings = useQarWheelStore((s) => s.bookings);
   const favorites = useQarWheelStore((s) => s.favoriteGarageIds);
-  const { vendors: liveGarages } = useBranches();
+  const { vendors: liveGarages, loading: loadingGarages, error: garagesError, refresh: refreshGarages } = useBranches();
   const { language, changeLanguage } = useTranslation();
   const notifications = useQarWheelStore((s) => s.notifications);
   const markNotificationsRead = useQarWheelStore((s) => s.markNotificationsRead);
@@ -144,6 +143,12 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
   const toggleThemeMode = useQarWheelStore((s) => s.toggleThemeMode);
   const [section, setSection] = useState<AccountSection>(initialSection);
   const [saving, setSaving] = useState(false);
+  const profileSavePending = useRef(false);
+  const preferenceSavePending = useRef(false);
+  const carSavePending = useRef(false);
+  const [loadingProfile, setLoadingProfile] = useState(!!user);
+  const [profileError, setProfileError] = useState(false);
+  const [profileLoad, setProfileLoad] = useState(0);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [profile, setProfile] = useState<AccountProfile>({
     name: 'QarWheel User',
@@ -166,16 +171,29 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
 
   // Vehicles + default vehicle preference, for the Profile stat tiles and
   // the Vehicle & Preferences screen.
-  const { cars, isLoading: isLoadingCars } = useCars(user?.uid);
+  const { cars, isLoading: isLoadingCars, error: carsError, refresh: refreshCars } = useCars(user?.uid);
   const [defaultCarId, setDefaultCarIdState] = useState<string | null>(null);
+  const [savingDefaultCar, setSavingDefaultCar] = useState(false);
 
   useEffect(() => {
-    if (!user) { setDefaultCarIdState(null); return; }
+    setProfile({ name: user?.displayName ?? '', email: user?.email ?? '', phone: user?.phoneNumber ?? '', country: 'Qatar', area: '' });
+    setNotificationPrefs({ bookingConfirmations: true, serviceReminders: true, promotionalOffers: false });
+    setDefaultCarIdState(null);
+    setProfileError(false);
+    setLoadingProfile(!!user);
+    if (!user) return;
     let cancelled = false;
     getDoc(doc(firestore, 'users', user.uid))
       .then((snap) => {
         if (cancelled) return;
         const data = snap.data();
+        setProfile({
+          name: typeof data?.displayName === 'string' ? data.displayName : user.displayName ?? '',
+          email: user.email ?? '',
+          phone: typeof data?.phone === 'string' ? data.phone : user.phoneNumber ?? '',
+          country: typeof data?.country === 'string' ? data.country : 'Qatar',
+          area: typeof data?.area === 'string' ? data.area : '',
+        });
         if (data?.notificationPreferences) {
           setNotificationPrefs({
             bookingConfirmations: data.notificationPreferences.bookingConfirmations ?? true,
@@ -185,14 +203,16 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
         }
         setDefaultCarIdState(typeof data?.defaultCarId === 'string' ? data.defaultCarId : null);
       })
-      .catch(() => { /* keep defaults — this is a preference, not critical data */ });
+      .catch(() => { if (!cancelled) setProfileError(true); })
+      .finally(() => { if (!cancelled) setLoadingProfile(false); });
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user?.uid, profileLoad]);
 
   async function updateNotificationPref(key: keyof NotificationPreferences, value: boolean) {
+    if (!user || loadingProfile || profileError || preferenceSavePending.current) return;
+    preferenceSavePending.current = true;
     const next = { ...notificationPrefs, [key]: value };
     setNotificationPrefs(next);
-    if (!user) return;
     setSavingNotificationPrefs(true);
     try {
       await saveNotificationPreferences(user.uid, next);
@@ -201,18 +221,24 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
       setNotificationPrefs(notificationPrefs);
       Alert.alert('Could not save', 'Your notification preference could not be saved. Please try again.');
     } finally {
+      preferenceSavePending.current = false;
       setSavingNotificationPrefs(false);
     }
   }
 
   async function chooseDefaultCar(carId: string) {
-    setDefaultCarIdState(carId);
-    if (!user) return;
+    if (!user || loadingProfile || profileError || carSavePending.current) return;
+    carSavePending.current = true;
+    setSavingDefaultCar(true);
     try {
       await setDefaultCar(user.uid, carId);
+      setDefaultCarIdState(carId);
       void success();
     } catch {
       Alert.alert('Could not save', 'Your default vehicle could not be saved. Please try again.');
+    } finally {
+      carSavePending.current = false;
+      setSavingDefaultCar(false);
     }
   }
 
@@ -230,15 +256,20 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
   const removeDocument = useQarWheelStore((s) => s.removeDocument);
 
   const [addressEditor, setAddressEditor] = useState<AddressDraft | null>(null);
+  const [documentPicker, setDocumentPicker] = useState(false);
+  const [addingDocument, setAddingDocument] = useState(false);
+  const [documentPreview, setDocumentPreview] = useState<VaultDocument | null>(null);
+  const [documentError, setDocumentError] = useState(false);
 
   useEffect(() => setSection(initialSection), [initialSection]);
 
   // ── Document vault ────────────────────────────────────────────────────────
 
-  async function handleUploadDocument() {
-    const kind = await pickDocumentKind();
-    if (!kind) return;
-
+  async function handleUploadDocument(kind: { id: VaultDocumentKind; label: string }) {
+    setDocumentPicker(false);
+    setAddingDocument(true);
+    let copiedFile: File | null = null;
+    try {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert('Permission needed', 'Allow photo access to attach a document.');
@@ -251,40 +282,56 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
     if (result.canceled) return;
 
     const asset = result.assets[0];
+    if (!asset) throw new Error('No image selected');
+    const subtype = asset.mimeType?.split('/')[1];
+    if (!subtype || !['jpeg', 'png', 'heic', 'webp'].includes(subtype)) {
+      throw new Error('Choose a JPEG, PNG, HEIC or WebP image.');
+    }
+    const source = new File(asset.uri);
+    const size = asset.fileSize ?? source.size;
+    if (!Number.isFinite(size) || size < 1 || size > 10 * 1024 * 1024) {
+      throw new Error('Choose an image smaller than 10 MB.');
+    }
+    const file = new File(Paths.document, `qarwheel-vault-${randomUUID()}.${subtype}`);
+    await source.copy(file);
+    copiedFile = file;
     addDocument({
       kind: kind.id,
       title: kind.label,
-      uri: asset.uri,
+      uri: file.uri,
       mimeType: asset.mimeType,
-      sizeBytes: asset.fileSize,
+      sizeBytes: size,
     });
+    copiedFile = null;
     void success();
+    } catch (error) {
+      try { if (copiedFile?.exists) copiedFile.delete(); } catch { /* a failed copy may not exist */ }
+      Alert.alert('Could not add document', error instanceof Error ? error.message : 'Please try selecting the image again.');
+    } finally {
+      setAddingDocument(false);
+    }
   }
 
-  /** Ask what the file is, so the vault is organised rather than a photo dump. */
-  function pickDocumentKind(): Promise<{ id: VaultDocumentKind; label: string } | null> {
-    const options: Array<{ id: VaultDocumentKind; label: string }> = [
+  const documentKinds: Array<{ id: VaultDocumentKind; label: string }> = [
       { id: 'license', label: 'Driving licence' },
       { id: 'id', label: 'QID / national ID' },
       { id: 'insurance', label: 'Insurance certificate' },
       { id: 'registration', label: 'Vehicle registration' },
       { id: 'other', label: 'Other document' },
-    ];
-    return new Promise((resolve) => {
-      Alert.alert('What are you adding?', 'This keeps your vault organised.', [
-        ...options.map((option) => ({ text: option.label, onPress: () => resolve(option) })),
-        { text: 'Cancel', style: 'cancel' as const, onPress: () => resolve(null) },
-      ]);
-    });
-  }
+  ];
 
   function openDocument(document: VaultDocument) {
-    router.push(route(`/modal?uri=${encodeURIComponent(document.uri)}&title=${encodeURIComponent(document.title)}`));
+    setDocumentError(false);
+    setDocumentPreview(document);
   }
 
   async function shareDocument(document: VaultDocument) {
     try {
-      await Share.share({ title: document.title, url: document.uri, message: document.title });
+      if (Platform.OS === 'web' || !(await Sharing.isAvailableAsync())) {
+        Alert.alert('Sharing unavailable', 'File sharing is not available on this device.');
+        return;
+      }
+      await Sharing.shareAsync(document.uri, { dialogTitle: document.title, mimeType: document.mimeType });
     } catch {
       Alert.alert('Share failed', 'This document could not be shared.');
     }
@@ -293,7 +340,18 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
   function confirmDeleteDocument(document: VaultDocument) {
     Alert.alert('Delete document', `Remove "${document.title}" from your vault?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => { removeDocument(document.id); void tap(); } },
+      { text: 'Delete', style: 'destructive', onPress: () => {
+        try {
+          if (document.uri.startsWith(new File(Paths.document, 'qarwheel-vault-').uri)) {
+            const file = new File(document.uri);
+            if (file.exists) file.delete();
+          }
+          removeDocument(document.id);
+          void tap();
+        } catch {
+          Alert.alert('Could not delete document', 'Please try again.');
+        }
+      } },
     ]);
   }
 
@@ -345,6 +403,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
   // anonymized. A business_owner account is rejected server-side with an
   // explanation, since a business can't be left ownerless by this flow.
   async function handleDeleteAccount() {
+    if (deletingAccount) return;
     if (!user) {
       Alert.alert('Login required', 'Please sign in before deleting your account.');
       return;
@@ -388,6 +447,8 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
         date: b.date,
       })),
       savedGarages: favorites,
+      vehicles: cars,
+      invoices,
     };
     try {
       await Share.share({
@@ -425,16 +486,6 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
     }
   }
 
-  useEffect(() => {
-    setProfile({
-      name: user?.displayName ?? 'QarWheel User',
-      email: user?.email ?? '',
-      phone: user?.phoneNumber ?? '+974 ',
-      country: 'Qatar',
-      area: 'Doha',
-    });
-  }, [user?.displayName, user?.email, user?.phoneNumber]);
-
   const copy = sectionCopy[section];
   const initials = useMemo(() => {
     const source = profile.name || profile.email || 'User';
@@ -447,10 +498,16 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
   }, [profile.name, profile.email]);
 
   async function saveProfile() {
+    if (profileSavePending.current || loadingProfile || profileError) return;
     if (!user) {
       Alert.alert('Login required', 'Please sign in before saving profile details.');
       return;
     }
+    if (!profile.name.trim()) {
+      Alert.alert('Name needed', 'Enter your full name before saving.');
+      return;
+    }
+    profileSavePending.current = true;
     setSaving(true);
     try {
       await updateProfile(auth.currentUser ?? user, { displayName: profile.name.trim() || 'QarWheel User' });
@@ -474,6 +531,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
     } catch {
       Alert.alert('Could not save', 'Profile changes are kept on this screen. Please try again when Firebase is reachable.');
     } finally {
+      profileSavePending.current = false;
       setSaving(false);
     }
   }
@@ -484,12 +542,12 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
         return (
           <>
             <SectionCard title="Personal details" subtitle="Used for booking confirmation, invoices, pickup, and support." icon="person-outline" c={c}>
-              <Field label="Full name" value={profile.name} onChangeText={(name) => setProfile((state) => ({ ...state, name }))} c={c} editable />
+              <Field label="Full name" value={profile.name} onChangeText={(name) => setProfile((state) => ({ ...state, name }))} c={c} editable={!saving && !loadingProfile && !profileError} />
               <Field label="Email" value={profile.email} onChangeText={(email) => setProfile((state) => ({ ...state, email }))} c={c} editable={false} />
-              <Field label="Phone" value={profile.phone} onChangeText={(phone) => setProfile((state) => ({ ...state, phone }))} c={c} editable keyboardType="phone-pad" />
-              <Field label="Country" value={profile.country} onChangeText={(country) => setProfile((state) => ({ ...state, country }))} c={c} editable />
-              <Field label="Preferred area" value={profile.area} onChangeText={(area) => setProfile((state) => ({ ...state, area }))} c={c} editable />
-              <PrimaryButton label={saving ? 'Saving...' : 'Save profile'} icon="checkmark-circle-outline" onPress={saveProfile} c={c} disabled={saving} />
+              <Field label="Phone" value={profile.phone} onChangeText={(phone) => setProfile((state) => ({ ...state, phone }))} c={c} editable={!saving && !loadingProfile && !profileError} keyboardType="phone-pad" />
+              <Field label="Country" value={profile.country} onChangeText={(country) => setProfile((state) => ({ ...state, country }))} c={c} editable={!saving && !loadingProfile && !profileError} />
+              <Field label="Preferred area" value={profile.area} onChangeText={(area) => setProfile((state) => ({ ...state, area }))} c={c} editable={!saving && !loadingProfile && !profileError} />
+              <PrimaryButton label={saving ? 'Saving...' : 'Save profile'} icon="checkmark-circle-outline" onPress={saveProfile} c={c} disabled={saving || loadingProfile || profileError || !user} />
             </SectionCard>
             <ComingSoonCard
               title="Profile photo upload"
@@ -521,12 +579,13 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
             <SummaryGrid
               c={c}
               items={[
-                { label: 'Vehicles', value: isLoadingCars ? '—' : String(cars.length), icon: 'car-sport-outline' },
-                { label: 'Fleet mileage', value: isLoadingCars ? '—' : `${totalMileage.toLocaleString()} km`, icon: 'speedometer-outline' },
+                { label: 'Vehicles', value: isLoadingCars || carsError ? '—' : String(cars.length), icon: 'car-sport-outline' },
+                { label: 'Fleet mileage', value: isLoadingCars || carsError ? '—' : `${totalMileage.toLocaleString()} km`, icon: 'speedometer-outline' },
                 { label: 'Upcoming', value: String(upcomingCount), icon: 'calendar-outline' },
                 { label: 'Total bookings', value: String(bookings.length), icon: 'receipt-outline' },
               ]}
             />
+            {carsError && <PrimaryButton label="Retry vehicles" icon="refresh-outline" onPress={refreshCars} c={c} />}
           </SectionCard>
 
           <SectionCard title="Manage" subtitle="Everything else about your account, in one place." icon="grid-outline" c={c}>
@@ -607,7 +666,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
 
           <SectionCard
             title="Document vault"
-            subtitle="Keep licences, insurance and registration ready for bookings and claims."
+            subtitle="Documents saved on this device, not uploaded to your account."
             icon="folder-open-outline"
             c={c}
           >
@@ -630,7 +689,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
                 />
               ))
             )}
-            <PrimaryButton label="Add document" icon="cloud-upload-outline" onPress={handleUploadDocument} c={c} />
+            <PrimaryButton label={addingDocument ? 'Adding document...' : 'Add document'} icon="cloud-upload-outline" onPress={() => setDocumentPicker(true)} c={c} disabled={addingDocument} />
           </SectionCard>
         </>
       );
@@ -652,7 +711,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
               value={notificationPrefs.bookingConfirmations}
               onValueChange={(v) => updateNotificationPref('bookingConfirmations', v)}
               c={c}
-              disabled={savingNotificationPrefs}
+              disabled={savingNotificationPrefs || loadingProfile || profileError || !user}
             />
             <ToggleRow
               label="Service reminders"
@@ -660,7 +719,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
               value={notificationPrefs.serviceReminders}
               onValueChange={(v) => updateNotificationPref('serviceReminders', v)}
               c={c}
-              disabled={savingNotificationPrefs}
+              disabled={savingNotificationPrefs || loadingProfile || profileError || !user}
             />
             <ToggleRow
               label="Promotional offers"
@@ -668,16 +727,16 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
               value={notificationPrefs.promotionalOffers}
               onValueChange={(v) => updateNotificationPref('promotionalOffers', v)}
               c={c}
-              disabled={savingNotificationPrefs}
+              disabled={savingNotificationPrefs || loadingProfile || profileError || !user}
             />
-            <ActionRow label={`Mark ${unread} unread as read`} meta="Clear notification badges" icon="checkmark-done-outline" onPress={() => { markNotificationsRead(); void success(); }} c={c} />
+            <ActionRow label={`Mark ${unread} unread as read`} meta="Clear notification badges" icon="checkmark-done-outline" onPress={() => { markNotificationsRead(); void success(); }} c={c} disabled={unread === 0} />
           </SectionCard>
 
           <SectionCard title="Privacy and account" subtitle="Data export, legal, and account deletion." icon="shield-checkmark-outline" c={c}>
-            <ActionRow label="Export my data" meta="Profile, vehicles, bookings, invoices" icon="download-outline" onPress={handleExportData} c={c} />
+            <ActionRow label="Export my data" meta="Profile, vehicles, bookings, invoices" icon="download-outline" onPress={handleExportData} disabled={loadingProfile || profileError || isLoadingCars || carsError} c={c} />
             <ActionRow label="Privacy Policy" meta="How we collect, use, and share your data" icon="document-text-outline" onPress={() => router.push('/privacy-policy' as never)} c={c} />
             <ActionRow label="Terms of Service" meta="The terms that govern using QarWheel" icon="document-text-outline" onPress={() => router.push('/terms-of-service' as never)} c={c} />
-            <ActionRow label={deletingAccount ? 'Deleting…' : 'Delete my account'} meta="Permanently deletes your login and personal data" icon="trash-outline" onPress={deletingAccount ? () => {} : confirmDeleteAccount} c={c} danger />
+            <ActionRow label={deletingAccount ? 'Deleting…' : 'Delete my account'} meta="Permanently deletes your login and personal data" icon="trash-outline" onPress={confirmDeleteAccount} disabled={deletingAccount} c={c} danger />
           </SectionCard>
 
           <SectionCard title="Device security" subtitle="Unlock this account with your device credentials." icon="finger-print-outline" c={c}>
@@ -697,6 +756,8 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
                 return (
                   <AnimatedPressable
                     key={mode}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: active }}
                     style={[styles.segmentOption, active && { backgroundColor: c.primary }]}
                     onPress={() => { if (!active) { toggleThemeMode(); void tap(); } }}
                   >
@@ -738,13 +799,13 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
 
           <SectionCard title="Support" subtitle="Reach the QarWheel team directly." icon="call-outline" c={c}>
             <ActionRow
-              label="Call support"
-              meta={`${SUPPORT_PHONE_DISPLAY} · Sun–Thu 8 AM – 8 PM`}
+              label="Contact support"
+              meta="Unavailable in this release"
               icon="call-outline"
-              onPress={() => Linking.openURL(SUPPORT_PHONE_TEL)}
+              onPress={() => router.push('/contact-us')}
               c={c}
             />
-            <ActionRow label={deletingAccount ? 'Deleting…' : 'Delete my account'} meta="Permanently deletes your login and personal data" icon="trash-outline" onPress={deletingAccount ? () => {} : confirmDeleteAccount} c={c} danger />
+            <ActionRow label={deletingAccount ? 'Deleting…' : 'Delete my account'} meta="Permanently deletes your login and personal data" icon="trash-outline" onPress={confirmDeleteAccount} disabled={deletingAccount} c={c} danger />
           </SectionCard>
 
           <ComingSoonCard
@@ -763,6 +824,8 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
           <SectionCard title="Your vehicles" subtitle="Pick which car is used by default when booking a service." icon="car-sport-outline" c={c}>
             {isLoadingCars ? (
               <EmptyState title="Loading your vehicles…" body="This will just take a moment." icon="car-sport-outline" c={c} />
+            ) : carsError ? (
+              <PrimaryButton label="Retry vehicles" icon="refresh-outline" onPress={refreshCars} c={c} />
             ) : cars.length === 0 ? (
               <EmptyState
                 title="No vehicles yet"
@@ -777,6 +840,7 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
                   car={carItem}
                   isDefault={defaultCarId === carItem.id}
                   onSetDefault={() => chooseDefaultCar(carItem.id)}
+                  disabled={savingDefaultCar || loadingProfile || profileError || !user}
                   c={c}
                 />
               ))
@@ -822,8 +886,12 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
         .filter((g): g is Garage => g !== undefined);
       return (
         <SectionCard title="Saved garages" subtitle="Fast access to trusted workshops and repeat bookings." icon="heart-outline" c={c}>
-          {saved.length === 0 ? (
-            <EmptyState title="No saved garages yet" body="Save a garage from discovery to keep it here." icon="heart-outline" c={c} />
+          {loadingGarages ? (
+            <Text accessibilityLiveRegion="polite" style={{ color: c.text }}>Loading saved garages...</Text>
+          ) : garagesError ? (
+            <PrimaryButton label="Retry saved garages" icon="refresh-outline" onPress={() => void refreshGarages()} c={c} />
+          ) : saved.length === 0 ? (
+            <EmptyState title={favorites.length ? 'Saved garages unavailable' : 'No saved garages yet'} body={favorites.length ? 'Your saved garages are not currently listed.' : 'Save a garage from discovery to keep it here.'} icon="heart-outline" c={c} />
           ) : (
             saved.map((garage) => (
               <ActionRow key={garage.id} label={garage.name} meta={`${garage.area} - ${garage.rating} rating - ${garage.startingPrice}`} icon="business-outline" onPress={() => router.push(route(`/garage/${garage.id}`))} c={c} />
@@ -936,11 +1004,11 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[styles.navbar, { backgroundColor: c.background, borderBottomColor: c.border }]}>
-        <AnimatedPressable style={[styles.navButton, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => router.back()} hitSlop={8}>
+        <AnimatedPressable accessibilityLabel="Go back" style={[styles.navButton, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => section !== initialSection ? setSection(initialSection) : router.canGoBack() ? router.back() : router.replace('/(tabs)/account')} hitSlop={8}>
           <Ionicons name="chevron-back" size={20} color={c.text} />
         </AnimatedPressable>
         <Text style={[styles.navTitle, { color: c.text }]} numberOfLines={1}>{copy.title}</Text>
-        <AnimatedPressable style={[styles.navButton, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => setSection('editProfile')} hitSlop={8}>
+        <AnimatedPressable accessibilityLabel="Edit profile" style={[styles.navButton, { backgroundColor: c.surface, borderColor: c.border }]} onPress={() => setSection('editProfile')} hitSlop={8}>
           <Ionicons name="create-outline" size={18} color={c.primary} />
         </AnimatedPressable>
       </View>
@@ -969,6 +1037,8 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
             return (
               <AnimatedPressable
                 key={tab.id}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
                 style={[styles.tabChip, { backgroundColor: active ? c.primary : c.surface, borderColor: active ? c.primary : c.border }]}
                 onPress={() => { void tap(); setSection(tab.id); }}
               >
@@ -979,6 +1049,12 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
           })}
         </ScrollView>
 
+        {loadingProfile && <Text accessibilityLiveRegion="polite" style={{ color: c.text }}>Loading account...</Text>}
+        {profileError && <>
+          <Text accessibilityRole="alert" style={{ color: c.danger }}>Could not load your account. Retry before changing saved details.</Text>
+          <PrimaryButton label="Retry account" icon="refresh-outline" onPress={() => setProfileLoad((value) => value + 1)} c={c} />
+        </>}
+        {!user && <ActionRow label="Sign in" meta="Sign in to save account preferences" icon="log-in-outline" onPress={() => router.push('/(auth)/login')} c={c} />}
         {renderSection()}
       </ScrollView>
 
@@ -989,6 +1065,23 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
         onCancel={() => setAddressEditor(null)}
         onSave={saveAddressDraft}
       />
+      <Modal visible={documentPicker} transparent animationType="slide" onRequestClose={() => setDocumentPicker(false)}>
+        <View style={styles.sheetBackdrop}>
+          <View accessibilityViewIsModal style={[styles.sheet, { backgroundColor: c.surface }]}>
+            <Text style={[styles.title, { color: c.text }]}>What are you adding?</Text>
+            {documentKinds.map((kind) => <ActionRow key={kind.id} label={kind.label} meta="Select an image" icon={documentIcons[kind.id]} onPress={() => void handleUploadDocument(kind)} c={c} />)}
+            <PrimaryButton label="Cancel" icon="close-outline" onPress={() => setDocumentPicker(false)} c={c} />
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={!!documentPreview} animationType="slide" onRequestClose={() => setDocumentPreview(null)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
+          <PrimaryButton label="Close document" icon="close-outline" onPress={() => setDocumentPreview(null)} c={c} />
+          {documentError ? <Text accessibilityRole="alert" style={{ color: c.danger }}>This image is no longer available on this device. Add the document again.</Text> : documentPreview && (
+            <Image source={{ uri: documentPreview.uri }} accessibilityLabel={documentPreview.title} resizeMode="contain" style={{ flex: 1 }} onError={() => setDocumentError(true)} />
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1118,6 +1211,7 @@ function Field({ label, value, onChangeText, c, editable = true, keyboardType }:
       <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>{label}</Text>
       <TextInput
         value={value}
+        accessibilityLabel={label}
         onChangeText={onChangeText}
         editable={editable}
         keyboardType={keyboardType}
@@ -1179,7 +1273,7 @@ function ToggleRow({ label, meta, value, onValueChange, c, disabled }: {
         <Text style={[styles.rowTitle, { color: c.text }]}>{label}</Text>
         <Text style={[styles.rowMeta, { color: c.textSecondary }]}>{meta}</Text>
       </View>
-      <Switch value={value} onValueChange={onValueChange} disabled={disabled} trackColor={{ false: c.surfaceAlt, true: c.primaryMid }} thumbColor={value ? c.primary : c.muted} />
+      <Switch accessibilityLabel={label} accessibilityHint={meta} accessibilityState={{ disabled: !!disabled }} value={value} onValueChange={onValueChange} disabled={disabled} trackColor={{ false: c.surfaceAlt, true: c.primaryMid }} thumbColor={value ? c.primary : c.muted} />
     </View>
   );
 }
@@ -1213,10 +1307,11 @@ function ComingSoonCard({ title, description, icon, c }: {
 /** A single vehicle row on the Vehicle & Preferences screen — real
  * make/model/year, mileage, and data-source badge, plus a default-vehicle
  * selector. */
-function VehiclePreferenceRow({ car, isDefault, onSetDefault, c }: {
+function VehiclePreferenceRow({ car, isDefault, onSetDefault, c, disabled }: {
   car: FirestoreCar;
   isDefault: boolean;
   onSetDefault: () => void;
+  disabled?: boolean;
   c: ReturnType<typeof useQarColors>;
 }) {
   const sourceLabel = car.dataSource === 'obd' ? 'OBD connected' : car.dataSource === 'smartcar' ? 'Smartcar connected' : 'Manual entry';
@@ -1236,7 +1331,7 @@ function VehiclePreferenceRow({ car, isDefault, onSetDefault, c }: {
       </Text>
       {!isDefault && (
         <View style={styles.addressActions}>
-          <AnimatedPressable style={[styles.miniAction, { borderColor: c.border }]} onPress={onSetDefault} accessibilityLabel={`Make ${car.make} ${car.model} the default vehicle`}>
+          <AnimatedPressable disabled={disabled} style={[styles.miniAction, { borderColor: c.border }]} onPress={onSetDefault} accessibilityLabel={`Make ${car.make} ${car.model} the default vehicle`}>
             <Ionicons name="star-outline" size={13} color={c.textSecondary} />
             <Text style={[styles.miniActionText, { color: c.textSecondary }]}>Set default</Text>
           </AnimatedPressable>
@@ -1246,18 +1341,20 @@ function VehiclePreferenceRow({ car, isDefault, onSetDefault, c }: {
   );
 }
 
-function ActionRow({ label, meta, icon, onPress, c, danger }: {
+function ActionRow({ label, meta, icon, onPress, c, danger, disabled }: {
   label: string;
   meta: string;
   icon: IconName;
   onPress: () => void;
   c: ReturnType<typeof useQarColors>;
   danger?: boolean;
+  disabled?: boolean;
 }) {
   const color = danger ? c.danger : c.primary;
   return (
     <AnimatedPressable
       style={[styles.actionRow, { borderColor: c.border }]}
+      disabled={disabled}
       onPress={() => { void tap(); onPress(); }}
       // Screen readers announce the row as one control: title then detail.
       // The decorative icon and chevron are hidden so they aren't read out.
@@ -1492,7 +1589,7 @@ function PrimaryButton({ label, icon, onPress, c, disabled }: {
   disabled?: boolean;
 }) {
   return (
-    <AnimatedPressable style={[styles.primaryButton, { backgroundColor: disabled ? c.muted : c.primary }]} onPress={() => { if (!disabled) onPress(); }}>
+    <AnimatedPressable accessibilityLabel={label} disabled={disabled} style={[styles.primaryButton, { backgroundColor: disabled ? c.muted : c.primary }]} onPress={onPress}>
       <Ionicons name={icon} size={18} color="#fff" />
       <Text style={styles.primaryButtonText}>{label}</Text>
     </AnimatedPressable>

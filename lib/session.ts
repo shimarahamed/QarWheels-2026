@@ -1,4 +1,6 @@
 import { signOut } from 'firebase/auth';
+import { File, Paths } from 'expo-file-system';
+import { Platform } from 'react-native';
 
 import { auth } from './firebase';
 import { clearPushTokenFromProfile } from './notifications';
@@ -21,6 +23,7 @@ import { disableBiometricUnlock } from './biometrics';
  */
 export async function signOutCompletely(): Promise<void> {
   const uid = auth.currentUser?.uid;
+  const vaultDocuments = useQarWheelStore.getState().documents;
 
   track('signed_out');
 
@@ -34,6 +37,19 @@ export async function signOutCompletely(): Promise<void> {
   } finally {
     // Runs even if signOut throws: leaving personal data behind is worse than
     // an inconsistent auth state, which the auth listener resolves anyway.
+    if (Platform.OS !== 'web') {
+      try {
+        const ownedPrefix = new File(Paths.document, 'qarwheel-vault-').uri;
+        for (const document of vaultDocuments) {
+          const suffix = document.uri.startsWith(ownedPrefix) ? document.uri.slice(ownedPrefix.length) : '';
+          if (!/^[0-9a-f-]{36}\.[a-z0-9+_-]{1,32}$/i.test(suffix)) continue;
+          try {
+            const file = new File(document.uri);
+            if (file.exists) file.delete();
+          } catch { /* continue clearing the account even if a local file is already missing */ }
+        }
+      } catch { /* native storage failure must not leave the signed-out account visible */ }
+    }
     useQarWheelStore.getState().clearPersonalData();
     await disableBiometricUnlock().catch(() => {});
     identifyUser(null);

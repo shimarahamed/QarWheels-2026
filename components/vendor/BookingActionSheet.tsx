@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useQarColors } from '@/lib/store';
@@ -9,13 +10,13 @@ import {
   nextForwardStatus,
 } from '@/lib/booking-workflow';
 import { getStatusColor, getStatusLabel, type VendorBooking } from '@/lib/vendor-data';
-import { acceptBooking, advanceBookingStatus, cancelBooking, declineBooking } from '@/lib/vendorOps';
+import { advanceBookingStatus, cancelBooking, declineBooking } from '@/lib/vendorOps';
 
 // Same reason set as the web decline dialog — keep in sync.
 const DECLINE_REASONS = ['Fully booked', 'Service not offered', 'Vehicle not supported', 'Other'] as const;
 type DeclineReason = (typeof DECLINE_REASONS)[number];
 
-type PendingAction = 'accept' | 'decline' | 'advance' | 'cancel' | null;
+type PendingAction = 'decline' | 'advance' | 'cancel' | null;
 
 export type BookingActionSheetProps = {
   booking: VendorBooking;
@@ -33,6 +34,7 @@ export function BookingActionSheet({
   showCancel = false,
 }: BookingActionSheetProps) {
   const c = useQarColors();
+  const router = useRouter();
   const [pending, setPending] = useState<PendingAction>(null);
   const [reasonOpen, setReasonOpen] = useState(false);
   const [selectedReason, setSelectedReason] = useState<DeclineReason | null>(null);
@@ -173,18 +175,12 @@ export function BookingActionSheet({
           </Pressable>
           <Pressable
             style={[s.btn, s.btnSolid, { backgroundColor: c.success, opacity: busy ? 0.6 : 1 }]}
-            onPress={() => { void run('accept', () => acceptBooking(booking.id)); }}
+            onPress={() => router.push(`/vendor/booking-detail/${booking.id}` as never)}
             disabled={busy}
-            accessible accessibilityRole="button" accessibilityLabel="Accept booking"
+            accessible accessibilityRole="button" accessibilityLabel="Review booking quote"
           >
-            {pending === 'accept' ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
-                <Text style={s.btnSolidText}>Accept</Text>
-              </>
-            )}
+            <Ionicons name="document-text-outline" size={16} color="#fff" />
+            <Text style={s.btnSolidText}>Review quote</Text>
           </Pressable>
         </View>
       </View>

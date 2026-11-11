@@ -6,13 +6,17 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   lookupBooking,
   lookupCar,
   lookupCategory,
 } from '@/lib/marketplace';
-import { useBranches, useGarage, useBranchServices, cancelBooking as cancelRemoteBooking } from '@/lib/firestoreOps';
+import { useBranches, useGarage, useBranchServices, useBookingDocument, cancelBooking as cancelRemoteBooking } from '@/lib/firestoreOps';
+import { useAuthContext } from '@/lib/AuthContext';
+import BookingQuotePanel from '@/components/BookingQuotePanel';
+import { ErrorState } from '@/components/ErrorState';
 import RecordNotFound from '@/components/RecordNotFound';
 import { findVendorInvoiceByBooking } from '@/lib/vendor-data';
 import { categoryColors, colors, getThemedStatusColors, radius, shadow, spacing, statusColors, typography } from '@/lib/theme';
@@ -31,6 +35,7 @@ import {
   getBookingStatusIndex,
   getBookingStatusLabel,
   actorAllowedTransitions,
+  type BookingWorkflowStatus,
 } from '@/lib/booking-workflow';
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -614,16 +619,33 @@ export function BookingDetailScreen() {
   const router = useRouter();
   const c = useQarColors();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { user } = useAuthContext();
+  const remote = useBookingDocument(id, user?.uid ?? null);
   const storeBooking = useQarWheelStore((s) => s.bookings.find((b) => b.id === id));
+  const [liveStatus, setLiveStatus] = useState<{ id: string; status: BookingWorkflowStatus } | null>(null);
   const vendorInvoices = useQarWheelStore((s) => s.vendorInvoices);
   const cancelBooking = useQarWheelStore((s) => s.cancelBooking);
   const themeMode = useQarWheelStore((s) => s.themeMode);
   const themedStatusColors = getThemedStatusColors(themeMode);
   // Prefer the user's own booking; the seed lookup is strict so a stale link
   // cannot render somebody else's appointment under this id.
-  const booking = storeBooking ?? lookupBooking(id);
+  const baseBooking = remote.booking
+    ?? (user && (remote.loading || remote.error || id?.startsWith('booking_')) ? storeBooking : null)
+    ?? lookupBooking(id);
+  const booking = baseBooking && liveStatus?.id === baseBooking.id
+    ? { ...baseBooking, status: liveStatus.status } : baseBooking;
 
   if (!booking) {
+    if (remote.loading && user) {
+      return <SafeAreaView style={[bds.safe, { backgroundColor: c.background }]} edges={['top']}>
+        <ActivityIndicator accessibilityLabel="Loading booking" color={c.primary} />
+      </SafeAreaView>;
+    }
+    if (remote.error) {
+      return <SafeAreaView style={[bds.safe, { backgroundColor: c.background }]} edges={['top']}>
+        <ErrorState onRetry={remote.retry} />
+      </SafeAreaView>;
+    }
     return (
       <RecordNotFound
         title="Booking not found"
@@ -634,7 +656,7 @@ export function BookingDetailScreen() {
 
   const sc = themedStatusColors[booking.status] ?? themedStatusColors.Pending;
   const currentIndex = getBookingStatusIndex(booking.status);
-  const canModify = actorAllowedTransitions('customer', booking.status).includes('Cancelled');
+  const canModify = !remote.error && actorAllowedTransitions('customer', booking.status).includes('Cancelled');
   const isCancelled = booking.status === 'Cancelled';
   const isCompleted = booking.status === 'Completed';
 
@@ -696,6 +718,13 @@ export function BookingDetailScreen() {
       <ScrollView contentContainerStyle={bds.content} showsVerticalScrollIndicator={false} style={{ backgroundColor: c.background }}>
         <MotionScreen>
 
+          {remote.error ? (
+            <AnimatedPressable accessibilityRole="button" accessibilityLabel="Retry booking update"
+              onPress={remote.retry} style={[bds.section, { backgroundColor: c.surface, borderColor: c.danger }]}>
+              <Text style={{ color: c.danger }}>Booking may be out of date. Tap to retry before changing it.</Text>
+            </AnimatedPressable>
+          ) : null}
+
           {/* ── Hero card ── */}
           <View style={[bds.heroCard, { backgroundColor: c.surface, borderColor: c.border }]}>
             <View style={[bds.accentBar, { backgroundColor: sc.dot }]} />
@@ -733,6 +762,8 @@ export function BookingDetailScreen() {
           </View>
 
           {/* ── Invoice CTA (completed only) ── */}
+          <BookingQuotePanel bookingId={booking.id} audience="customer"
+            onStatusChange={(status) => setLiveStatus({ id: booking.id, status })} />
           {invoice ? (
             <AnimatedPressable
               style={[bds.invoiceCta, { backgroundColor: c.surface, borderColor: c.primaryMid }]}

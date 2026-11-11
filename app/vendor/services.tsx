@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
-  KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet,
+  Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet,
   Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +12,8 @@ import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
 import { BranchSwitcher } from '@/components/vendor/BranchSwitcher';
 import type { VendorService } from '@/lib/vendor-data';
+import { useAuthContext } from '@/lib/AuthContext';
+import { canAccess } from '@/lib/permissions';
 
 const SERVICE_CATEGORIES = ['All', 'Maintenance', 'Tyres', 'Brakes', 'AC', 'Diagnostics', 'Electrical', 'Labour'];
 
@@ -49,7 +51,7 @@ function EditServiceModal({ visible, service, onSave, onClose, c }: {
     if (!name.trim()) { setError('Enter a service name.'); return; }
     const priceNum = Number(price);
     const durNum = Number(duration);
-    if (!price.trim() || !Number.isFinite(priceNum) || priceNum < 0) { setError('Enter a valid price.'); return; }
+    if (!/^\d+(\.\d{1,2})?$/.test(price.trim()) || !Number.isFinite(priceNum) || priceNum > 10000000) { setError('Enter a valid price.'); return; }
     if (!Number.isSafeInteger(durNum) || durNum <= 0) { setError('Enter a whole number of minutes greater than zero.'); return; }
     busy.current = true;
     setSaving(true); setError('');
@@ -66,10 +68,11 @@ function EditServiceModal({ visible, service, onSave, onClose, c }: {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { if (!saving) onClose(); }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable style={mod.overlay} onPress={() => { if (!saving) onClose(); }}>
-        <Pressable style={[mod.sheet, { backgroundColor: c.surface }]} onPress={(e) => e.stopPropagation()}>
+        <Pressable accessibilityViewIsModal style={[mod.sheet, { backgroundColor: c.surface }]} onPress={(e) => e.stopPropagation()}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: 36 }}>
           <View style={[mod.handle, { backgroundColor: c.border }]} />
           <Text style={[mod.title, { color: c.text }]}>{isNew ? 'Add service' : 'Edit service'}</Text>
+          <Text style={{ color: c.muted, marginBottom: 12 }}>Device-local draft. Not published to customers.</Text>
 
           <Text style={[mod.label, { color: c.muted }]}>Service name</Text>
           <TextInput
@@ -118,7 +121,7 @@ function EditServiceModal({ visible, service, onSave, onClose, c }: {
           <TextInput
             style={[mod.input, { backgroundColor: c.surfaceAlt, borderColor: c.border, color: c.text, height: 64, textAlignVertical: 'top', paddingTop: 10 }]}
             value={description} onChangeText={setDescription} accessibilityLabel="Service description" editable={!saving} maxLength={1000}
-            placeholder="Short description shown to customers…" placeholderTextColor={c.muted}
+            placeholder="Short service description" placeholderTextColor={c.muted}
             multiline numberOfLines={2}
           />
 
@@ -143,6 +146,9 @@ function EditServiceModal({ visible, service, onSave, onClose, c }: {
 
 export default function ServicesScreen() {
   const c = useQarColors();
+  const { role, claimsLoading } = useAuthContext();
+  const canRead = !claimsLoading && !!role && role !== 'customer' && role !== 'master_admin' && canAccess(role, 'services');
+  const canWrite = canRead && canAccess(role, 'services', 'write');
   const vendorTabBottom = useVendorTabBottom();
   const services = useQarWheelStore((s) => s.vendorServices);
   const addService = useQarWheelStore((s) => s.addVendorService);
@@ -163,11 +169,19 @@ export default function ServicesScreen() {
   }
 
   function handleSaveService(data: Omit<VendorService, 'id'>) {
+    if (!canWrite) throw new Error('Service draft access changed.');
+    // shortcut: local IDs have no branch/server mapping; publish only after scoped reconciliation exists.
     if (editingService?.id) {
       updateService(editingService.id, data);
     } else {
       addService(data);
     }
+  }
+
+  function handleToggle(id: string) {
+    if (!canWrite) return;
+    try { toggleService(id); }
+    catch { Alert.alert('Draft not updated', 'Please try changing the draft availability again.'); }
   }
 
   return (
@@ -177,22 +191,23 @@ export default function ServicesScreen() {
       <View style={[s.navbar, { backgroundColor: c.background, borderBottomColor: c.border }]}>
         <Text style={[s.navTitle, { color: c.text }]}>Services</Text>
         <BranchSwitcher />
-        <Pressable
+        {canWrite && <Pressable
           style={[s.addBtn, { backgroundColor: c.primary }]}
           accessibilityRole="button" accessibilityLabel="Add service"
           onPress={() => { setEditingService(null); setShowModal(true); }}
         >
           <Ionicons name="add" size={18} color="#fff" />
-        </Pressable>
+        </Pressable>}
       </View>
 
       {/* Category filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catBar} contentContainerStyle={s.catBarContent}>
+      {canRead && <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catBar} contentContainerStyle={s.catBarContent}>
         {SERVICE_CATEGORIES.map((cat) => {
           const active = activeCategory === cat;
           return (
             <Pressable
               key={cat}
+              accessibilityRole="tab" accessibilityState={{ selected: active }}
               style={[s.catChip, { backgroundColor: active ? c.primary : c.surface, borderColor: active ? c.primary : c.border }]}
               onPress={() => setActiveCategory(cat)}
             >
@@ -200,10 +215,12 @@ export default function ServicesScreen() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </ScrollView>}
 
       <ScrollView contentContainerStyle={[s.content, { paddingBottom: vendorTabBottom + 16 }]} showsVerticalScrollIndicator={false}>
         <MotionScreen>
+          {!canRead ? <Text accessibilityRole="alert" style={{ color: c.muted }}>{claimsLoading ? 'Checking service access...' : 'Services are unavailable for your role.'}</Text> : <>
+          <Text style={{ color: c.muted, marginBottom: 12 }}>Device-local service drafts. Prices and availability are not published or synced to any branch.</Text>
 
           {/* Summary */}
           <View style={s.summaryRow}>
@@ -257,27 +274,27 @@ export default function ServicesScreen() {
                       backgroundColor: svc.active ? c.successBg : c.surfaceAlt,
                     }]}>
                       <Text style={[s.activeBadgeText, { color: svc.active ? c.success : c.muted }]}>
-                        {svc.active ? 'Active' : 'Inactive'}
+                        {svc.active ? 'Draft: active' : 'Draft: inactive'}
                       </Text>
                     </View>
                   </View>
                 </View>
 
                 <View style={[s.cardFooter, { borderTopColor: c.border }]}>
-                  <Pressable
+                  {canWrite && <Pressable
                     style={[s.footerBtn, { borderColor: c.border }]}
                     accessibilityRole="button" accessibilityLabel={`Edit ${svc.name}`}
                     onPress={() => handleEdit(svc)}
                   >
                     <Ionicons name="pencil-outline" size={13} color={c.textSecondary} />
                     <Text style={[s.footerBtnText, { color: c.textSecondary }]}>Edit</Text>
-                  </Pressable>
-                  <Pressable
+                  </Pressable>}
+                  {canWrite && <Pressable
                     style={[s.footerBtn, {
                       borderColor: svc.active ? c.border : c.primaryMid,
                       backgroundColor: svc.active ? 'transparent' : c.primaryLight,
                     }]}
-                    onPress={() => toggleService(svc.id)}
+                    onPress={() => handleToggle(svc.id)}
                     accessibilityRole="switch" accessibilityLabel={`Availability of ${svc.name}`} accessibilityState={{ checked: svc.active }}
                   >
                     <Ionicons
@@ -288,7 +305,7 @@ export default function ServicesScreen() {
                     <Text style={[s.footerBtnText, { color: svc.active ? c.muted : c.primary }]}>
                       {svc.active ? 'Deactivate' : 'Activate'}
                     </Text>
-                  </Pressable>
+                  </Pressable>}
                   <View style={[s.priceTag, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                     <Ionicons name="pricetag-outline" size={11} color={c.muted} />
                     <Text style={[s.priceTagText, { color: c.muted }]}>Base price</Text>
@@ -297,11 +314,11 @@ export default function ServicesScreen() {
               </View>
             ))}
           </View>
-
+          </>}
         </MotionScreen>
       </ScrollView>
 
-      {showModal && <EditServiceModal
+      {showModal && canWrite && <EditServiceModal
         key={editingService?.id ?? 'new'}
         visible={showModal}
         service={editingService}
@@ -333,7 +350,7 @@ const s = StyleSheet.create({
 
   catBar: { flexGrow: 0 },
   catBarContent: { paddingHorizontal: spacing.page, paddingVertical: 12, gap: 12 },
-  catChip: { paddingHorizontal: 15, paddingVertical: 9, borderRadius: radius.full, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  catChip: { minHeight: 44, paddingHorizontal: 15, paddingVertical: 9, borderRadius: radius.full, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   catChipText: { fontSize: 13, fontWeight: '700' },
 
   content: { padding: spacing.page, gap: spacing.gap },
@@ -351,7 +368,7 @@ const s = StyleSheet.create({
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14 },
   iconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   svcName: { fontSize: 14, fontWeight: '800' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
   catTag: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: radius.full, borderWidth: 1 },
   catTagText: { fontSize: 12, fontWeight: '700' },
   duration: { fontSize: 12 },
@@ -374,7 +391,7 @@ const mod = StyleSheet.create({
   title: { fontSize: 17, fontWeight: '900', marginBottom: 14 },
   label: { fontSize: 12, fontWeight: '700', marginBottom: 5 },
   input: { borderRadius: radius.lg, borderWidth: 1, paddingHorizontal: 14, height: 48, fontSize: 15 },
-  catChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.full, borderWidth: 1 },
+  catChip: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.full, borderWidth: 1 },
   catChipText: { fontSize: 12, fontWeight: '700' },
   actions: { flexDirection: 'row', gap: 10, marginTop: 20 },
   cancelBtn: { flex: 1, height: 46, borderRadius: radius.lg, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
