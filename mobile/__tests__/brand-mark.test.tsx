@@ -1,0 +1,43 @@
+import { render, screen } from '@testing-library/react-native';
+
+import { BrandMark } from '@/components/auth-flow';
+
+// The lockup must match the web `Logo`: a red disc carrying "Q", the wordmark,
+// and the "Your Car. Our Care." tagline. An earlier version dropped the
+// tagline in compact mode, which is exactly the piece that was asked for.
+
+describe('BrandMark', () => {
+  it('renders the Q glyph, wordmark and tagline by default', async () => {
+    await render(<BrandMark />);
+    expect(screen.getByText('Q')).toBeTruthy();
+    expect(screen.getByText('QarWheel')).toBeTruthy();
+    expect(screen.getByText('Your Car. Our Care.')).toBeTruthy();
+  });
+
+  it('keeps the tagline when compact', async () => {
+    await render(<BrandMark compact />);
+    expect(screen.getByText('Your Car. Our Care.')).toBeTruthy();
+  });
+
+  it('keeps the tagline when stacked', async () => {
+    await render(<BrandMark stacked />);
+    expect(screen.getByText('Your Car. Our Care.')).toBeTruthy();
+  });
+
+  it('drops the whole text block, disc included, only for hideText', async () => {
+    await render(<BrandMark hideText />);
+    expect(screen.getByText('Q')).toBeTruthy();
+    expect(screen.queryByText('QarWheel')).toBeNull();
+    expect(screen.queryByText('Your Car. Our Care.')).toBeNull();
+  });
+
+  it('exposes the full brand to screen readers as one label', async () => {
+    await render(<BrandMark />);
+    expect(screen.getByLabelText('QarWheel — Your Car. Our Care.')).toBeTruthy();
+  });
+
+  it('does not scale the glyph with system text size, which would break the disc', async () => {
+    await render(<BrandMark />);
+    expect(screen.getByText('Q').props.allowFontScaling).toBe(false);
+  });
+});
