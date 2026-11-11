@@ -95,23 +95,23 @@ export async function POST(request: NextRequest) {
   const { bookingId, lineItems, taxMinorUnits, notes } = parsed.data;
 
   try {
+    const permitted = await requireSection(request, 'invoices', 'write');
+    if (!permitted.ok) {
+      return permitted.reason === 'unauthenticated' ? Errors.unauthorized() : Errors.forbidden();
+    }
+
     const db = getAdminFirestore();
     const bookingSnap = await db.collection('bookings').doc(bookingId).get();
     if (!bookingSnap.exists) return Errors.notFound('Booking');
     const booking = bookingSnap.data() as Booking;
 
-    // Two separate questions, both of which have to pass: may this role raise
-    // invoices at all, and is this one of their branches. Branch access alone
-    // would let anyone assigned to the branch invoice, including roles whose
-    // job doesn't involve billing.
-    const permitted = await requireSection(request, 'invoices', 'write');
-    if (!permitted.ok) {
-      return permitted.reason === 'unauthenticated' ? Errors.unauthorized() : Errors.forbidden();
-    }
     const access = await requireBranchAccess(request, booking.branchId);
     if (!access.ok) {
       return access.reason === 'unauthenticated' ? Errors.unauthorized() : Errors.forbidden();
     }
+    const branch = await db.collection('branches').doc(booking.branchId).get();
+    if (!branch.exists || branch.get('businessId') !== booking.businessId) return Errors.forbidden();
+    if (booking.status !== 'Completed') return Errors.badRequest('Only completed bookings can be invoiced');
 
     const rateLimitKey = await getRateLimitKey('vendor:invoice-create', access.auth.user.uid);
     if (await isRateLimited(rateLimitKey, API_LIMITS.invoiceCreate)) {
@@ -125,7 +125,18 @@ export async function POST(request: NextRequest) {
     );
     const totalMinorUnits = subtotalMinorUnits + taxMinorUnits;
 
-    // Reconcile against what the customer actually booked and agreed to pay.
+    if (booking.requiresQuote) {
+      const quote = booking.quote;
+      if (!quote || quote.status !== 'Accepted' || quote.acceptedBy !== booking.userId) {
+        return Errors.badRequest('The customer must accept a garage quote before an invoice can be issued');
+      }
+      if (totalMinorUnits !== quote.amountMinorUnits) {
+        return Errors.badRequest('Invoice total must match the amount accepted by the customer');
+      }
+    }
+
+    // shortcut: this sanity ceiling is not customer quote acceptance; require
+    // an accepted server-owned quote before treating an invoice as a charge.
     // booking.cost is whole QAR; invoices are minor units (fils) — convert
     // before comparing. Real jobs can legitimately exceed the quote (extra
     // parts, more labor), so this isn't equality — it's a ceiling that stops

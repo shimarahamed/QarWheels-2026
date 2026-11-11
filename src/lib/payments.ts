@@ -1,11 +1,8 @@
 /**
  * Payment provider boundary.
  *
- * No provider is wired in yet (no Stripe account exists for this project),
- * so every function here is a clearly-marked adapter: the ledger, commission
- * maths, payout records and all the UI around them are real and work end to
- * end — only the actual money movement is stubbed until STRIPE_SECRET_KEY is
- * set. Same posture as src/lib/email.ts.
+ * No provider is wired in yet. Setting STRIPE_SECRET_KEY alone must not make
+ * payout routes appear live or turn completed jobs into settled funds.
  *
  * When wiring Stripe up:
  *   1. npm install stripe
@@ -84,5 +81,5 @@ export function calculateCommission(grossMinorUnits: number, commissionRateBps: 
 }
 
 export function paymentsAreLive(): boolean {
-  return isConfigured();
+  return false;
 }

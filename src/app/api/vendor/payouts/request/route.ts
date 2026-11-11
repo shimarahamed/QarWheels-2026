@@ -1,8 +1,8 @@
 import { type NextRequest } from 'next/server';
-import { ok, Errors } from '@/lib/api-response';
+import { ok, err, Errors } from '@/lib/api-response';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { requireAction } from '@/lib/auth/require-role';
-import { ensureConnectAccount, sendPayout } from '@/lib/payments';
+import { ensureConnectAccount, paymentsAreLive, sendPayout } from '@/lib/payments';
 import { claimPayoutTransactions } from '@/lib/payout-claims';
 import { writeAuditLog } from '@/lib/audit';
 import { isRateLimited, API_LIMITS, getRateLimitKey } from '@/lib/rate-limit';
@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
   }
   const { auth } = access;
   if (!auth.claims || auth.claims.r === 'master_admin') return Errors.forbidden();
+  if (!paymentsAreLive()) return err('Payouts are unavailable until payment reconciliation is live', 503);
   const businessId = auth.claims.b;
 
   // Keyed on businessId, not the calling user — the limit is meant to bound

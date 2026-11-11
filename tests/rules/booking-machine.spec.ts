@@ -35,26 +35,14 @@ describe('Phase 1 booking state machine', () => {
     await teardownTestEnv();
   });
 
-  it('mobile-shaped booking create (no cost, minimal fields) is allowed', async () => {
-    const ctx = await asCustomer('uid_customer_1');
-    const ref = collection(ctx.firestore(), 'bookings');
-    await assertSucceeds(addDoc(ref, {
-      userId: 'uid_customer_1', customerName: 'Cust One', customerEmail: 'c1@example.com',
-      businessId: BIZ_A, branchId: BRANCH_A1, branchName: 'AAB — Industrial',
-      carId: 'car_1', serviceName: 'Oil change', bookingDate: new Date(),
-      status: 'Pending', statusHistory: [{ status: 'Pending', at: new Date(), byUid: 'uid_customer_1', byRole: 'customer' }],
-      createdAt: new Date(), updatedAt: new Date(),
-    }));
-  });
-
-  it('rejects a booking create that starts at a non-Pending status', async () => {
+  it('denies direct client booking creation', async () => {
     const ctx = await asCustomer('uid_customer_1');
     const ref = collection(ctx.firestore(), 'bookings');
     await assertFails(addDoc(ref, {
       userId: 'uid_customer_1', customerName: 'Cust One', customerEmail: 'c1@example.com',
       businessId: BIZ_A, branchId: BRANCH_A1, branchName: 'AAB — Industrial',
       carId: 'car_1', serviceName: 'Oil change', bookingDate: new Date(),
-      status: 'Confirmed', statusHistory: [{ status: 'Pending', at: new Date(), byUid: 'uid_customer_1', byRole: 'customer' }],
+      status: 'Pending', statusHistory: [{ status: 'Pending', at: new Date(), byUid: 'uid_customer_1', byRole: 'customer' }],
       createdAt: new Date(), updatedAt: new Date(),
     }));
   });

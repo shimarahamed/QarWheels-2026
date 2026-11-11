@@ -1,12 +1,11 @@
 import { type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { ok, Errors } from '@/lib/api-response';
+import { ok, err, Errors } from '@/lib/api-response';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { requireBranchAccess } from '@/lib/auth/require-role';
 import { getVerifiedUserFromRequest } from '@/lib/firebase-auth';
-import { canTransitionBooking, actorAllowedTransitions, type BookingActorRole, type BookingStatus, type Booking, type Membership, type Transaction } from '@/lib/types';
+import { canTransitionBooking, actorAllowedTransitions, type BookingActorRole, type BookingStatus, type Booking, type Membership } from '@/lib/types';
 import { canAccess, isBusinessWideRole } from '@/lib/auth/permissions';
-import { calculateCommission } from '@/lib/payments';
 import { isRateLimited, API_LIMITS, getRateLimitKey } from '@/lib/rate-limit';
 import { trackApiError, trackRateLimit } from '@/lib/observability';
 import { getPushTokensForUsers, sendPushNotifications } from '@/lib/push';
@@ -43,7 +42,6 @@ type TransitionResult = {
   branchName: string;
   customerUserId: string;
   actorRole: BookingActorRole;
-  transactionId: string | null;
 };
 
 /**
@@ -106,18 +104,8 @@ async function sendNotificationsForTransition(result: TransitionResult, bookingI
 // The single server-side enforcement point for booking status changes.
 // Firestore rules independently enforce the same transition table as a
 // floor (so a direct SDK write from either app still can't skip a step),
-// but only THIS route can atomically write statusHistory + acceptedAt/
-// declinedReason/declinedAt together, create the ledger entry (on
-// ->Completed), and send a push notification to whichever side didn't
-// make the change (see sendNotificationsForTransition below). One gap
-// this route can't close: a brand-new booking (customer -> Pending) is
-// still created via a direct client Firestore write (see
-// mobile/lib/firestoreOps.ts createBooking, gated by firestore.rules'
-// bookings create rule), not through an API route, so there's no
-// server-side hook to notify branch staff of a NEW request today — only
-// existing-booking transitions go through here. Closing that needs either
-// routing booking creation through a server route too, or a Firestore
-// trigger (Cloud Functions, which this project doesn't currently deploy).
+// this route atomically writes statusHistory and transition metadata, then
+// notifies the other side. Completion does not prove payment or settle funds.
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ bookingId: string }> },
@@ -162,6 +150,10 @@ export async function POST(
       } else {
         const access = await requireBranchAccess(request, booking.branchId);
         if (!access.ok) return { error: access.reason };
+        const branch = await tx.get(db.collection('branches').doc(booking.branchId));
+        if (!branch.exists || branch.get('businessId') !== booking.businessId) {
+          return { error: 'forbidden' as const };
+        }
         if (access.auth.role === 'master_admin') {
           actorRole = 'master_admin';
         } else {
@@ -175,29 +167,18 @@ export async function POST(
       }
 
       const currentStatus = booking.status;
+      if (booking.requiresQuote && (
+        (currentStatus === 'Pending' && requestedStatus === 'Confirmed') ||
+        (!['Pending', 'Declined', 'Cancelled'].includes(requestedStatus) && booking.quote?.status !== 'Accepted')
+      )) {
+        return { error: 'quote_required' as const };
+      }
       const allowed = actorRole === 'master_admin'
         ? true
         : actorAllowedTransitions(actorRole, currentStatus).includes(requestedStatus as BookingStatus);
 
       if (!allowed || !canTransitionBooking(currentStatus, requestedStatus as BookingStatus)) {
         return { error: 'invalid_transition' as const, currentStatus };
-      }
-
-      // ── All reads must happen before any write in a Firestore
-      // transaction, so the ledger lookups come first even though the
-      // corresponding write happens further down.
-      const grossMinorUnits = Math.round((booking.cost ?? 0) * 100);
-      const shouldCreateTransaction = requestedStatus === 'Completed' && grossMinorUnits > 0;
-
-      let commissionRateBps = 1000;
-      let alreadyBilled = true;
-      if (shouldCreateTransaction) {
-        const [existing, businessSnap] = await Promise.all([
-          tx.get(db.collection('transactions').where('bookingId', '==', bookingId).limit(1)),
-          tx.get(db.collection('businesses').doc(booking.businessId)),
-        ]);
-        alreadyBilled = !existing.empty;
-        commissionRateBps = (businessSnap.data()?.commissionRateBps as number | undefined) ?? 1000;
       }
 
       const now = new Date().toISOString();
@@ -214,7 +195,7 @@ export async function POST(
         updatedAt: now,
         statusHistory: [...(booking.statusHistory ?? []), historyEntry],
       };
-      if (requestedStatus === 'Confirmed') {
+      if (requestedStatus === 'Confirmed' && !booking.requiresQuote) {
         update.acceptedAt = now;
         update.acceptedBy = user.uid;
       }
@@ -225,31 +206,6 @@ export async function POST(
 
       tx.update(bookingRef, update);
 
-      // Completing a booking creates its ledger entry in the same
-      // transaction — a completed job and the money owed for it must never
-      // be able to diverge. Skipped when the booking was already billed, so
-      // a re-completion can't double-charge.
-      let transactionId: string | null = null;
-      if (shouldCreateTransaction && !alreadyBilled) {
-        const commissionMinorUnits = calculateCommission(grossMinorUnits, commissionRateBps);
-        const transactionRef = db.collection('transactions').doc();
-        const transaction: Transaction = {
-          businessId: booking.businessId,
-          branchId: booking.branchId,
-          bookingId,
-          customerName: booking.customerName,
-          serviceName: booking.serviceName,
-          grossMinorUnits,
-          commissionMinorUnits,
-          netMinorUnits: grossMinorUnits - commissionMinorUnits,
-          currency: 'QAR',
-          status: 'Settled',
-          createdAt: now,
-        };
-        tx.set(transactionRef, transaction);
-        transactionId = transactionRef.id;
-      }
-
       return {
         ok: true as const,
         from: currentStatus,
@@ -259,7 +215,6 @@ export async function POST(
         branchName: booking.branchName,
         customerUserId: booking.userId,
         actorRole,
-        transactionId,
       };
     });
 
@@ -267,6 +222,7 @@ export async function POST(
       if (result.error === 'not_found') return Errors.notFound('Booking');
       if (result.error === 'unauthenticated') return Errors.unauthorized();
       if (result.error === 'forbidden') return Errors.forbidden();
+      if (result.error === 'quote_required') return err('Customer quote acceptance is required', 409);
       return Errors.badRequest(
         `Cannot transition from ${'currentStatus' in result ? result.currentStatus : 'current status'} to ${requestedStatus}`,
       );

@@ -6,8 +6,8 @@ import { paymentsAreLive } from '@/lib/payments';
 import { trackApiError } from '@/lib/observability';
 import type { Payout, Transaction, WithId } from '@/lib/types';
 
-// Payout history plus the currently-available balance: every settled
-// transaction not yet rolled into a payout. Owner/admin only — a
+// Keep historical payout records visible, but never call unverified funds
+// available while provider reconciliation is disabled. Owner/admin only — a
 // branch_manager or branch_staff has no business seeing company finances.
 export async function GET(request: NextRequest) {
   const access = await requireSection(request, 'payouts');
@@ -25,15 +25,23 @@ export async function GET(request: NextRequest) {
 
   try {
     const db = getAdminFirestore();
-    const [payoutsSnap, unpaidSnap] = await Promise.all([
-      db.collection('payouts').where('businessId', '==', businessId).orderBy('createdAt', 'desc').limit(50).get(),
-      db.collection('transactions')
-        .where('businessId', '==', businessId)
-        .where('status', '==', 'Settled')
-        .get(),
-    ]);
+    const payoutsSnap = await db.collection('payouts')
+      .where('businessId', '==', businessId).orderBy('createdAt', 'desc').limit(50).get();
 
     const payouts: WithId<Payout>[] = payoutsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Payout) }));
+    if (!paymentsAreLive()) {
+      return ok({
+        payouts,
+        available: { transactionCount: 0, grossMinorUnits: 0, commissionMinorUnits: 0, netMinorUnits: 0, currency: 'QAR' },
+        transactions: [],
+        paymentsLive: false,
+      });
+    }
+
+    const unpaidSnap = await db.collection('transactions')
+      .where('businessId', '==', businessId)
+      .where('status', '==', 'Settled')
+      .get();
 
     // A transaction is "available" once settled and not yet attached to a
     // payout. Filtered here rather than in the query because Firestore can't

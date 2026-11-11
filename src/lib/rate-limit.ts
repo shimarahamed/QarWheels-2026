@@ -1,5 +1,5 @@
 /**
- * Sliding-window rate limiter.
+ * Per-key expiring-window rate limiter.
  * Uses Upstash Redis when UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN are set;
  * otherwise falls back to an in-process store that resets on restart.
  *
@@ -33,14 +33,13 @@ const store = new Map<string, Window>();
 const isProduction = process.env.NODE_ENV === 'production' && process.env.VERCEL_ENV !== 'preview';
 let warnedInMemoryFallback = false;
 function assertProductionRateLimitConfigured(): void {
-  if (process.env.UPSTASH_REDIS_REST_URL) return;
-  if (isProduction && process.env.ALLOW_INSECURE_RATE_LIMIT !== '1') {
+  if (getUpstashConfig()) return;
+  if (isProduction) {
     throw new Error(
       '[rate-limit] UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN are required in production — ' +
       'the in-memory fallback does not work across multiple server instances and resets on every ' +
       'restart, silently disabling rate limiting for a high-traffic deployment. Set both in the ' +
-      'production environment (see console.upstash.com) or explicitly set ALLOW_INSECURE_RATE_LIMIT=1 ' +
-      'to acknowledge and bypass this check.',
+      'production environment (see console.upstash.com).',
     );
   }
   if (!warnedInMemoryFallback) {
@@ -110,22 +109,23 @@ async function isRateLimitedWithUpstash(key: string, options: RateLimitOptions) 
   const config = getUpstashConfig();
   if (!config) return null;
 
-  const encodedKey = encodeURIComponent(key);
-  const headers = { Authorization: `Bearer ${config.token}` };
-  const incrementResponse = await fetch(`${config.url}/incr/${encodedKey}`, { headers });
+  const script = "local n = redis.call('INCR', KEYS[1]); if n == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end; return n";
+  const incrementResponse = await fetch(config.url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${config.token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(['EVAL', script, 1, key, options.windowSecs]),
+    signal: AbortSignal.timeout(3000),
+  });
 
   if (!incrementResponse.ok) {
     throw new Error('Upstash rate-limit increment failed');
   }
 
-  const incrementBody = (await incrementResponse.json()) as { result?: number };
-  const count = incrementBody.result ?? 0;
-
-  if (count === 1) {
-    await fetch(`${config.url}/expire/${encodedKey}/${options.windowSecs}`, { headers });
+  const incrementBody = (await incrementResponse.json()) as { result?: number; error?: string };
+  if (!Number.isSafeInteger(incrementBody.result) || incrementBody.result! < 1 || incrementBody.error) {
+    throw new Error('Upstash rate-limit response was invalid');
   }
-
-  return count > options.max;
+  return incrementBody.result! > options.max;
 }
 
 export async function isRateLimited(key: string, options: RateLimitOptions): Promise<boolean> {
@@ -141,7 +141,7 @@ export async function isRateLimited(key: string, options: RateLimitOptions): Pro
     // the request as rate-limited until Redis recovers. Non-prod keeps the
     // permissive in-memory fallback so local/preview dev isn't blocked by a
     // missing/misconfigured Upstash env.
-    if (isProduction && process.env.ALLOW_INSECURE_RATE_LIMIT !== '1') {
+    if (isProduction) {
       return true;
     }
   }
@@ -163,6 +163,7 @@ export const AI_LIMITS = {
 // requests move money, business registration and booking transitions are
 // otherwise-unthrottled writes reachable by any authenticated account.
 export const API_LIMITS = {
+  bookingCreate: { max: 12, windowSecs: 3600 },   // 12/customer/hour
   staffInvite: { max: 20, windowSecs: 3600 },       // 20/business-owner/hour
   payoutRequest: { max: 5, windowSecs: 3600 },      // 5/business/hour
   vendorRegister: { max: 5, windowSecs: 3600 },     // 5/user/hour

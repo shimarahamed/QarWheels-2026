@@ -310,9 +310,18 @@ service cloud.firestore {
     // ─── Branch Services (public read, business-wide-role write) ────────────────
     match /branch_services/{serviceId} {
       allow read: if true;
-      allow create, update: if isAdmin()
+      allow create: if isAdmin()
         || (isBusinessWideBranchWriter(request.resource.data.businessId, request.resource.data.branchId)
+        && exists(/databases/$(database)/documents/branches/$(request.resource.data.branchId))
+        && get(/databases/$(database)/documents/branches/$(request.resource.data.branchId)).data.businessId == request.resource.data.businessId
         && hasAllRequired(['businessId', 'branchId', 'name', 'price', 'duration'])
+        && request.resource.data.price is number
+        && request.resource.data.price >= 0
+        && request.resource.data.duration is int
+        && request.resource.data.duration > 0);
+      allow update: if isAdmin()
+        || (isBusinessWideBranchWriter(resource.data.businessId, resource.data.branchId)
+        && notChanging(['businessId', 'branchId'])
         && request.resource.data.price is number
         && request.resource.data.price >= 0
         && request.resource.data.duration is int
@@ -415,19 +424,25 @@ service cloud.firestore {
         || isAdmin()
       );
 
-      allow create: if isSignedIn()
-        && hasAllRequired([
-             'userId', 'customerName', 'customerEmail', 'businessId', 'branchId',
-             'branchName', 'carId', 'serviceName', 'bookingDate', 'status',
-             'statusHistory', 'createdAt', 'updatedAt'
-           ])
-        && request.resource.data.userId == request.auth.uid
-        // New bookings always start Pending — no self-confirming a booking.
-        && request.resource.data.status == 'Pending'
-        && request.resource.data.statusHistory.size() == 1
-        && (!('cost' in request.resource.data) || (request.resource.data.cost is number && request.resource.data.cost >= 0));
+      // API-only: the server verifies car ownership, active service, branch
+      // tenancy and availability, and omits unverified price.
+      allow create: if false;
 
-      allow update: if isSignedIn() && (
+      // Only operational job-card fields are client writable; quote and
+      // receipt fields (including future additions) remain server-owned.
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'statusHistory', 'updatedAt', 'cost', 'notes', 'timeSlot',
+          'assignedStaffId', 'assignedStaffName', 'partsUsed', 'laborEntries', 'photoPaths',
+          'acceptedAt', 'acceptedBy', 'declinedAt', 'declinedReason', 'expiresAt'
+        ])
+        && (resource.data.get('requiresQuote', false) != true || (
+          notChanging(['cost', 'acceptedAt', 'acceptedBy'])
+          && !(resource.data.status == 'Pending' && request.resource.data.status == 'Confirmed')
+          && (request.resource.data.status in ['Pending', 'Declined', 'Cancelled']
+            || resource.data.get('quote', {}).get('status', '') == 'Accepted')
+        ))
+        && (
         // Customers can only cancel their own booking, and only before it's
         // reached a terminal state.
         (isOwner(resource.data.userId)
@@ -444,7 +459,7 @@ service cloud.firestore {
         // ['bookings.editCost'] in src/lib/auth/permissions.ts, so staff and
         // cashier can move a booking forward but can't touch what it costs.
         || (isBookingActor(resource.data.businessId, resource.data.branchId)
-          && notChanging(['userId', 'customerName', 'customerEmail', 'customerPhone', 'businessId', 'branchId', 'carId', 'carDescription', 'createdAt'])
+          && notChanging(['userId', 'customerName', 'customerEmail', 'customerPhone', 'businessId', 'branchId', 'branchName', 'carId', 'carDescription', 'serviceId', 'serviceName', 'bookingDate', 'requestFingerprint', 'createdAt'])
           && canTransitionBooking(resource.data.status, request.resource.data.status)
           // statusHistory must grow by exactly one entry when the status is
           // actually changing (the audit trail for that transition), but a
@@ -454,7 +469,7 @@ service cloud.firestore {
           && (request.resource.data.status == resource.data.status
                 ? request.resource.data.statusHistory.size() == resource.data.statusHistory.size()
                 : request.resource.data.statusHistory.size() == resource.data.statusHistory.size() + 1)
-          && (!changing('cost') || isBusinessWideRole())
+          && (notChanging(['cost']) || isBusinessWideRole())
           && (!('cost' in request.resource.data) || (request.resource.data.cost is number && request.resource.data.cost >= 0)))
         // Admin is a support/oversight role here, not a bypass of the
         // booking state machine or a way to rewrite who a booking belongs
@@ -462,7 +477,7 @@ service cloud.firestore {
         // to be legal, same as branch staff. Only the actor-role check is
         // relaxed (an admin can act on any business's booking).
         || (isAdmin()
-          && notChanging(['userId', 'customerName', 'customerEmail', 'customerPhone', 'businessId', 'branchId', 'carId', 'carDescription', 'createdAt'])
+          && notChanging(['userId', 'customerName', 'customerEmail', 'customerPhone', 'businessId', 'branchId', 'branchName', 'carId', 'carDescription', 'serviceId', 'serviceName', 'bookingDate', 'requestFingerprint', 'createdAt'])
           && canTransitionBooking(resource.data.status, request.resource.data.status)
           && request.resource.data.statusHistory.size() == resource.data.statusHistory.size() + 1)
       );

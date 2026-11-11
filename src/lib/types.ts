@@ -136,6 +136,19 @@ export type BookingLaborEntry = {
   loggedBy: string;
 };
 
+export type BookingQuote = {
+  revision: number;
+  status: 'Offered' | 'Accepted';
+  amountMinorUnits: number;
+  currency: 'QAR';
+  description: string;
+  offeredAt: FirestoreDate;
+  offeredBy: string;
+  requestId: string;
+  acceptedAt?: FirestoreDate;
+  acceptedBy?: string;
+};
+
 export type Booking = {
   userId: string;
   customerName: string;
@@ -150,6 +163,9 @@ export type Booking = {
   serviceName: string;
   bookingDate: Timestamp | Date | string;
   status: BookingStatus;
+  /** Absent on legacy bookings that predate customer quote acceptance. */
+  requiresQuote?: boolean;
+  quote?: BookingQuote;
   cost?: number;
   notes?: string;
   assignedStaffId?: string;

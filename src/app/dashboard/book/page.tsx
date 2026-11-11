@@ -2,9 +2,9 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useMemo, useState, Suspense } from 'react';
-import { useFirebase, useCollection, useDoc, useMemoFirebase, safeAddDoc } from '@/firebase';
-import { collection, doc, query, serverTimestamp, where, Timestamp } from 'firebase/firestore';
+import { useMemo, useRef, useState, Suspense } from 'react';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { format, isSameDay, startOfToday } from 'date-fns';
 import { cn } from '@/lib/utils';
-import type { Car, Service, UserProfile, WithId } from '@/lib/types';
+import type { Car, Service, WithId } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -50,6 +50,13 @@ const STEPS = [
 type StepId = (typeof STEPS)[number]['id'];
 
 const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00'];
+
+function appointmentTime(date: Date, slot: string): Date {
+  const [hours, minutes] = slot.split(':').map(Number);
+  const appointment = new Date(date);
+  appointment.setHours(hours, minutes, 0, 0);
+  return appointment;
+}
 
 type BookingDraft = {
   carId: string;
@@ -113,22 +120,14 @@ function BookingWizard() {
   const { toast } = useToast();
 
   const garageId = searchParams.get('garageId');
-  const businessId = searchParams.get('businessId');
   const garageName = searchParams.get('garageName');
   const serviceName = searchParams.get('serviceName');
-  const price = searchParams.get('price');
 
   const carsCollectionRef = useMemoFirebase(
     () => (user ? collection(firestore, 'users', user.uid, 'cars') : null),
     [firestore, user]
   );
   const { data: cars, isLoading: isLoadingCars } = useCollection<WithId<Car>>(carsCollectionRef);
-
-  const userProfileRef = useMemoFirebase(
-    () => (user ? doc(firestore, 'users', user.uid) : null),
-    [firestore, user]
-  );
-  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
 
   // Add-ons are the garage's *other* real services rather than a hardcoded
   // list, so every add-on price is one a branch actually charges and the cost
@@ -148,6 +147,7 @@ function BookingWizard() {
   const [stepIndex, setStepIndex] = useState(0);
   const [maxReached, setMaxReached] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const requestIdentity = useRef<{ signature: string; key: string } | null>(null);
   const [draft, setDraft] = useState<BookingDraft>({
     carId: '',
     bookingDate: undefined,
@@ -158,7 +158,10 @@ function BookingWizard() {
 
   const patch = (next: Partial<BookingDraft>) => setDraft((prev) => ({ ...prev, ...next }));
 
-  const basePrice = price ? parseFloat(price) : 0;
+  const baseService = branchServices?.find(
+    (service) => service.name === serviceName && service.active !== false,
+  );
+  const basePrice = Number(baseService?.price ?? 0);
 
   const availableAddOns = useMemo(
     () =>
@@ -213,6 +216,9 @@ function BookingWizard() {
     if (step === 'schedule') {
       if (!draft.bookingDate) return 'Pick a date for the appointment.';
       if (!draft.bookingTime) return 'Pick a preferred time.';
+      const preferredAt = appointmentTime(draft.bookingDate, draft.bookingTime);
+      if (preferredAt.getTime() < Date.now() + 60 * 60 * 1000) return 'Choose a time at least one hour from now.';
+      if (preferredAt.getTime() > Date.now() + 90 * 86_400_000) return 'Choose a date within 90 days.';
     }
     if (step === 'review' && draft.notes.length > 500) {
       return 'Notes must be under 500 characters.';
@@ -230,8 +236,6 @@ function BookingWizard() {
   const goBack = () => setStepIndex((prev) => Math.max(prev - 1, 0));
 
   // ── Submit ──────────────────────────────────────────────────────────────────
-  // This write is unchanged from the single-page form: same Phase 1 shape,
-  // same required single-entry statusHistory the rules check for.
   async function onConfirm() {
     if (!user || !draft.bookingDate || !garageId || !garageName || !serviceName) return;
 
@@ -247,9 +251,7 @@ function BookingWizard() {
 
     setIsSubmitting(true);
 
-    const [hours, minutes] = draft.bookingTime.split(':').map(Number);
-    const appointmentDate = new Date(draft.bookingDate);
-    appointmentDate.setHours(hours, minutes, 0, 0);
+    const appointmentDate = appointmentTime(draft.bookingDate, draft.bookingTime);
 
     // Add-ons ride along in notes because the booking document has no add-on
     // field — inventing one would need a schema/rules change, which is out of
@@ -261,48 +263,41 @@ function BookingWizard() {
       : '';
     const combinedNotes = [draft.notes.trim(), addOnNote].filter(Boolean).join('\n\n').slice(0, 500);
 
-    const bookingsCollection = collection(firestore, 'bookings');
-    const newBookingData = {
-      userId: user.uid,
-      customerName: userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : (user.displayName || 'Customer'),
-      customerEmail: userProfile?.email || user.email || '',
-      customerPhone: userProfile?.phoneNumber || '',
-      businessId: businessId || '',
-      branchId: garageId,
-      branchName: garageName,
-      carId: draft.carId,
-      carDescription: selectedCar ? `${selectedCar.year} ${selectedCar.make} ${selectedCar.model}` : '',
-      serviceName,
-      bookingDate: appointmentDate,
-      status: 'Pending' as const,
-      // Rules require a new booking to open with exactly one history entry.
-      statusHistory: [
-        {
-          status: 'Pending' as const,
-          at: Timestamp.now(),
-          byUid: user.uid,
-          byRole: 'customer' as const,
-        },
-      ],
-      cost: estimatedTotal,
-      notes: combinedNotes,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-
     try {
-      await safeAddDoc(bookingsCollection, newBookingData);
+      const matchingServices = (branchServices ?? []).filter(
+        (service) => service.name === serviceName && service.active !== false,
+      );
+      if (matchingServices.length !== 1) throw new Error('This service is no longer available. Refresh the garage page.');
+      const bookingRequest = {
+        branchId: garageId,
+        carId: draft.carId,
+        serviceId: matchingServices[0].id,
+        bookingDate: appointmentDate.toISOString(),
+        timeSlot: draft.bookingTime,
+        notes: combinedNotes,
+      };
+      const signature = JSON.stringify(bookingRequest);
+      if (requestIdentity.current?.signature !== signature) {
+        requestIdentity.current = { signature, key: crypto.randomUUID() };
+      }
+      const token = await user.getIdToken();
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ...bookingRequest, idempotencyKey: requestIdentity.current.key }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!response.ok) throw new Error('The garage could not accept this request. Check your choices and try again.');
       toast({
         title: 'Booking Request Sent',
         description: `${garageName} can now confirm your ${serviceName} appointment.`,
       });
       router.push('/dashboard/bookings');
     } catch (e) {
-      console.error('Booking failed:', e);
       toast({
         variant: 'destructive',
         title: 'Booking Failed',
-        description: 'Could not complete your booking. Please try again.',
+        description: e instanceof Error ? e.message : 'Could not complete your booking. Please try again.',
       });
       setIsSubmitting(false);
     }
@@ -431,7 +426,7 @@ function BookingWizard() {
                     mode="single"
                     selected={draft.bookingDate}
                     onSelect={(date) => patch({ bookingDate: date })}
-                    disabled={(date) => date < startOfToday()}
+                    disabled={(date) => date < startOfToday() || date.getTime() > Date.now() + 90 * 86_400_000}
                     initialFocus
                   />
                 </div>
@@ -441,11 +436,14 @@ function BookingWizard() {
                 <div className="grid grid-cols-3 gap-2">
                   {TIME_SLOTS.map((slot) => {
                     const isSelected = draft.bookingTime === slot;
+                    const unavailable = draft.bookingDate
+                      && appointmentTime(draft.bookingDate, slot).getTime() < Date.now() + 60 * 60 * 1000;
                     return (
                       <button
                         key={slot}
                         type="button"
                         onClick={() => patch({ bookingTime: slot })}
+                        disabled={Boolean(unavailable)}
                         className={cn(
                           'flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-semibold transition-all',
                           isSelected
