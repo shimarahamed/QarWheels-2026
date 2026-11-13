@@ -40,6 +40,16 @@ describe('Phase 4 audit log, admin roles, and private business data', () => {
     await assertSucceeds(getDoc(doc(ctx.firestore(), 'audit_log', 'aud_1')));
   });
 
+  it('keeps support admins read-only while ops admins can update a business', async () => {
+    const support = await asUserWithClaims('uid_support', { r: 'master_admin', lvl: 'support' });
+    const business = doc(support.firestore(), 'businesses', BIZ_A);
+    await assertSucceeds(getDoc(business));
+    await assertFails(updateDoc(business, { displayName: 'Changed by support' }));
+    const ops = await asUserWithClaims('uid_ops', { r: 'master_admin', lvl: 'ops' });
+    await assertSucceeds(updateDoc(doc(ops.firestore(), 'businesses', BIZ_A), { displayName: 'Changed by ops' }));
+    await assertFails(updateDoc(doc(ops.firestore(), 'businesses', BIZ_A), { status: 'Suspended' }));
+  });
+
   it('a business owner CANNOT read the audit log', async () => {
     const ctx = await asUserWithClaims('uid_owner_a', { r: 'business_owner', b: BIZ_A, br: [] });
     await assertFails(getDoc(doc(ctx.firestore(), 'audit_log', 'aud_1')));

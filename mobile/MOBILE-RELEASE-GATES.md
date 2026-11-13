@@ -1,6 +1,6 @@
 # Mobile Production and Store Release Gates
 
-Updated: 2026-11-11. Scope: QarWheel iOS/Android. This is an acceptance
+Updated: 2026-11-13. Scope: QarWheel iOS/Android. This is an acceptance
 contract, not evidence that production capacity or store approval exists.
 
 ## Configuration preflight
@@ -19,18 +19,20 @@ The check reads optional local `.env` by default, or the explicitly selected
 file. Existing process/EAS environment values take precedence. It prints
 missing field names and configuration problems, never their values. Exit 0
 means configuration passed, 1 means release configuration is blocked, and 2
-means the invocation or configuration file could not be read. It does not
-deploy, modify environment files, or change ordinary development/build behavior.
+means the invocation or configuration file could not be read. Production EAS
+builds run this check after install and stop on failure; development and preview
+builds do not. The check does not deploy or modify environment files.
 
 `EXPO_PUBLIC_API_BASE_URL` is the canonical Firebase App Hosting HTTPS origin
 serving the Next.js shared web/backend application, with no `/api` suffix;
 callers append their own `/api/...` paths. It is neither the static business
 website URL nor a Firestore service endpoint. Public Firebase fields must select the intended release project,
 and Sentry must be configured. Native checks also require the Maps key and
-compare an existing Android `applicationId` with `app.json`. The current native
-identity mismatch needs an explicit published-app decision; the check does not
-rewrite it. Web checks skip native identity/Maps checks. With no local native
-folder, CNG generates native projects from Expo config, but signing and actual
+compare a submitted Android `applicationId` with `app.json`. An ignored local
+`android/` folder is CNG output, not the EAS build input, so it is not used for
+this comparison. A tracked native project is checked and a mismatch blocks the
+release. Web checks skip native identity/Maps checks. CNG generates native
+projects from Expo config, but the published identity, signing and actual
 binary identity still require acceptance testing.
 
 For a coordinated web/mobile release, pass `--web-env-file` with the web
@@ -62,6 +64,12 @@ provider credentials, monitoring delivery or store acceptance work in production
   server-owned contract and local tests; invoice totals for new quote bookings
   must match the accepted quote. A garage receipt and dispute lifecycle are
   still missing, and a sent invoice must never be presented as paid.
+- Vendor booking detail now reads and creates server invoices, with an exact
+  accepted-quote amount and duplicate-request recovery. Completing a job no
+  longer auto-generates a device-only invoice; customer booking detail and
+  account invoices link to the real invoice list. Unknown invoice links no
+  longer fall back to sample bills. Local contract and screen tests cover these paths,
+  but receipt verification and deployed end-to-end billing remain untested.
 - Roll out the booking API first, then the updated web/mobile clients, then
   the deny-create rule after an enforced minimum mobile version or migration
   period. Older installed clients still write bookings directly and will fail
@@ -78,6 +86,15 @@ provider credentials, monitoring delivery or store acceptance work in production
 - Customer bookings initially subscribe to at most 51 documents (50 visible
   plus one lookahead), with an explicit older-history action. Vendor bookings
   and public branch discovery still have unbounded listeners.
+- The local `branch_services` rule now permits public reads only for active
+  services at approved, listed branches. Current web/mobile customer queries
+  include `active == true`; vendor queries retain scoped draft access. The
+  Firestore emulator covers public get/list, hidden drafts, vendor access, and
+  a ten-branch catalog query. Do not deploy this rule before updated clients
+  reach an enforced minimum mobile version or their 30-branch query shape is
+  validated in staging. The emulator allowed an 11-branch query, so it does
+  not prove a hard cutoff; the current app uses conservative ten-branch batches.
+  Measure branch lookup and catalog read latency/cost in staging before release.
 - The vendor dashboard now derives its booking counts and today's preview from
   the live scoped feed. Fabricated activity, payment, review, and weekly
   revenue figures have been removed. These counts still inherit the vendor
@@ -87,6 +104,29 @@ provider credentials, monitoring delivery or store acceptance work in production
   do not present zeros while the feed is loading or unavailable. This does not
   bound Firestore reads: pending coverage and exact dashboard counts must be
   preserved in any future paginated feed.
+- Vendor status taps no longer generate local customer-style notifications
+  before the server accepts a transition; rejected writes roll back without a
+  false notification. Old demo-prefixed IDs no longer bypass the server.
+  The server remains the source of customer status push.
+- Customer booking detail now renders only an owned live record, even on a
+  direct link. Missing records, failed reads and loading are distinct states;
+  cancel/reschedule actions require the live booking. A successful server
+  booking request is not reported as failed when optional device caching fails.
+- Support admins are read-only across Firestore and the affected server
+  mutations. Suspending a business delists its branches in the same
+  transaction; reactivation requires deliberate branch relisting. Local rules
+  and API tests pass, but deployed authorization still needs staging checks.
+- Vendor KYC resubmission now delists that business's branches atomically,
+  and booking creation rejects an unverified business even if a branch was
+  left listed. Local API tests cover both cases; deployed checks remain open.
+- The mobile vendor flow uses the server booking-transition API, but the web
+  vendor dashboard still has a direct Firestore status writer. Do not claim
+  the transition contract is universal until that writer is migrated and
+  the corresponding direct rule update is denied with an installed-client
+  rollout plan.
+- Live vendor bookings are no longer written to AsyncStorage or restored from
+  older device caches. This removes duplicate serialization and stale customer
+  data on startup, but the active Firestore listener itself remains unbounded.
 - The customer Home screen retains its original section order while removing
   invented offer prices, unsupported payment/support promises, and Dubai/AED
   service copy. Registration now sends a
@@ -133,6 +173,8 @@ exists yet; keep authorization tests on emulators and do not run load tests.
 - [ ] Confirm EAS production environment has a reachable HTTPS API, correct
   Firebase project, Sentry project/source maps, signing credentials and store
   application records. No local `.env` value is a deployment guarantee.
+- [ ] Deny unauthenticated reads of inactive and unlisted branch services;
+  verify public discovery and vendor draft access after the data/query migration.
 - [ ] Publish an accurate, public privacy policy and support URL. Complete
   Apple privacy answers and Google Data safety disclosures against observed
   SDK/network behavior, including analytics, push, location and diagnostics.

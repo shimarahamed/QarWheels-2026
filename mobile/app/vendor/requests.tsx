@@ -1,12 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { VendorText as Text } from '@/components/vendor/VendorText';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarWheelStore, useQarColors } from '@/lib/store';
+import { useQarWheelStore } from '@/lib/store';
+import { useVendorColors as useQarColors } from '@/lib/vendor-theme';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
 import { BookingActionSheet } from '@/components/vendor/BookingActionSheet';
+import { BranchSwitcher } from '@/components/vendor/BranchSwitcher';
 import { bookingAmountLabel, type VendorBooking } from '@/lib/vendor-data';
 import { useVendorFeedStatus } from '@/lib/vendor-feed-status';
 import ErrorState from '@/components/ErrorState';
@@ -53,6 +56,7 @@ export default function VendorRequests() {
               ? 'Nothing waiting on you'
               : `${pending.length} awaiting your response`}
           </Text>
+          <View style={{ alignSelf: 'flex-start', marginTop: 7 }}><BranchSwitcher /></View>
         </View>
       </View>
 

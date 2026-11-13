@@ -8,18 +8,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { isBusinessWideRole } from '@/lib/auth/permissions';
 import { BOOKING_TRANSITIONS } from '@/lib/types';
 import type { Booking, BookingStatus, InventoryItem, Membership, WithId } from '@/lib/types';
 
 /**
- * The assignment picker only ever needs id/name/role/status, never the full
- * membership record (contact info, branchIds, invite metadata) — deliberately
+ * The assignment picker only needs identity, role, status, and branch IDs, never the full
+ * membership record (contact info or invite metadata) — deliberately
  * narrow so it's also satisfied by /api/vendor/staff/roster's trimmed
  * response (see useStaffRoster), not just a full Firestore `Membership` doc.
  * Direct client `list` queries against `memberships` are rejected by
  * firestore.rules; the roster route is how non-admin roles get this data.
  */
-export type StaffMember = Pick<Membership, 'displayName' | 'role' | 'status'>;
+export type StaffMember = Pick<Membership, 'displayName' | 'role' | 'status' | 'branchIds'>;
 
 const BOOKING_STATUSES = [
   'Pending',
@@ -37,7 +38,6 @@ export const editBookingSchema = z.object({
   status: z.enum(BOOKING_STATUSES),
   cost: z.coerce.number().min(0, 'Cost must be a positive number'),
   assignedStaffId: z.string().optional(),
-  assignedStaffName: z.string().optional(),
   partsUsed: z
     .array(
       z.object({
@@ -80,7 +80,6 @@ export function EditBookingForm({
       status: booking.status,
       cost: booking.cost || 0,
       assignedStaffId: booking.assignedStaffId || '',
-      assignedStaffName: booking.assignedStaffName || '',
       partsUsed: booking.partsUsed || [],
     },
   });
@@ -117,7 +116,9 @@ export function EditBookingForm({
   }
 
   const partsTotal = partsUsed.reduce((sum, p) => sum + p.qty * p.unitPrice, 0);
-  const activeStaff = (staff || []).filter((s) => s.status === 'Active');
+  const activeStaff = (staff || []).filter((s) =>
+    s.status === 'Active' && (isBusinessWideRole(s.role) || s.branchIds.includes(booking.branchId)),
+  );
 
   return (
     <form onSubmit={handleSubmit(onSave)} className="max-h-[70vh] space-y-5 overflow-y-auto pr-1 pt-4">
@@ -152,7 +153,7 @@ export function EditBookingForm({
       </div>
 
       {/* Staff assignment */}
-      {activeStaff.length > 0 && (
+      {(activeStaff.length > 0 || booking.assignedStaffId) && (
         <div className="space-y-2">
           <Label className="flex items-center gap-2">
             <UserCheck className="h-4 w-4 text-primary" />
@@ -170,8 +171,6 @@ export function EditBookingForm({
                   // form's own '' representation here.
                   const resolved = val === 'unassigned' ? '' : val;
                   field.onChange(resolved);
-                  const member = activeStaff.find((s) => s.id === resolved);
-                  setValue('assignedStaffName', member?.displayName || '');
                 }}
                 value={field.value || 'unassigned'}
               >
@@ -180,6 +179,11 @@ export function EditBookingForm({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {booking.assignedStaffId && !activeStaff.some((s) => s.id === booking.assignedStaffId) && (
+                    <SelectItem value={booking.assignedStaffId} disabled>
+                      {booking.assignedStaffName || 'Previously assigned staff'} (unavailable)
+                    </SelectItem>
+                  )}
                   {activeStaff.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.displayName} — {s.role}

@@ -1,9 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { VendorText as Text } from '@/components/vendor/VendorText';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors } from '@/lib/store';
+import { useVendorColors as useQarColors } from '@/lib/vendor-theme';
 import { spacing, typography } from '@/lib/theme';
 import { useAuthContext } from '@/lib/AuthContext';
 import { customerChatError, MAX_MESSAGE_LENGTH } from '@/lib/customer-chat';

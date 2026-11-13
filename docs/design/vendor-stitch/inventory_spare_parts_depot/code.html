@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;family=Outfit:wght@100..900&amp;family=Space+Grotesk:wght@300..700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {"darkMode":"class","theme":{"extend":{"colors":{"error":"#ffb4ab","surface-bright":"#36393e","secondary":"#ffb3af","surface-tint":"#ffb4ab","outline-variant":"#5d3f3c","on-background":"#e0e2e8","surface-container":"#1d2024","on-tertiary-fixed":"#241a00","on-tertiary-fixed-variant":"#574500","surface-variant":"#32353a","on-secondary-fixed":"#410005","on-tertiary-container":"#4f3d00","on-primary-fixed-variant":"#93000d","on-secondary":"#68000d","primary-fixed":"#ffdad6","inverse-on-surface":"#2d3135","background":"#101418","secondary-fixed-dim":"#ffb3af","on-primary-container":"#fffafa","error-container":"#93000a","inverse-surface":"#e0e2e8","tertiary-fixed":"#ffe088","surface-container-low":"#191c20","secondary-container":"#92131e","surface-container-high":"#272a2f","on-error":"#690005","on-secondary-fixed-variant":"#8e101c","outline":"#ae8883","on-surface-variant":"#e7bdb8","tertiary":"#e9c349","on-surface":"#e0e2e8","primary":"#ffb4ab","surface":"#101418","on-error-container":"#ffdad6","inverse-primary":"#c00014","surface-dim":"#101418","surface-container-lowest":"#0b0e13","primary-fixed-dim":"#ffb4ab","secondary-fixed":"#ffdad7","tertiary-container":"#cca730","on-primary-fixed":"#410002","on-secondary-container":"#ff9e99","surface-container-highest":"#32353a","primary-container":"#e31e24","on-tertiary":"#3c2f00","on-primary":"#690006","tertiary-fixed-dim":"#e9c349"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"unit":"4px","md":"16px","gutter":"14px","xxs":"4px","xxxl":"40px","xxl":"32px","lg":"20px","sm":"12px","xs":"8px","xl":"24px","card-pad":"20px","section-gap":"26px"},"fontFamily":{"body-bold":["DM Sans"],"display-lg":["Outfit"],"kpi-stat":["Space Grotesk"],"body-medium":["DM Sans"],"label-eyebrow":["Space Grotesk"],"display-xl-mobile":["Outfit"],"display-xl":["Outfit"],"headline-md":["Outfit"],"body-base":["DM Sans"],"headline-lg":["Outfit"],"display-lg-mobile":["Outfit"],"body-lg":["DM Sans"],"chip-status":["DM Sans"]},"fontSize":{"body-bold":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"600"}],"display-lg":["36px",{"lineHeight":"42px","letterSpacing":"-0.025em","fontWeight":"800"}],"kpi-stat":["30px",{"lineHeight":"36px","letterSpacing":"-0.02em","fontWeight":"700"}],"body-medium":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"500"}],"label-eyebrow":["10px",{"lineHeight":"14px","letterSpacing":"0.18em","fontWeight":"700"}],"display-xl-mobile":["32px",{"lineHeight":"38px","letterSpacing":"-0.025em","fontWeight":"900"}],"display-xl":["48px",{"lineHeight":"52px","letterSpacing":"-0.03em","fontWeight":"900"}],"headline-md":["22px",{"lineHeight":"28px","letterSpacing":"-0.015em","fontWeight":"700"}],"body-base":["15px",{"lineHeight":"24px","letterSpacing":"-0.005em","fontWeight":"400"}],"headline-lg":["28px",{"lineHeight":"34px","letterSpacing":"-0.02em","fontWeight":"700"}],"display-lg-mobile":["26px",{"lineHeight":"32px","letterSpacing":"-0.02em","fontWeight":"800"}],"body-lg":["18px",{"lineHeight":"28px","letterSpacing":"0em","fontWeight":"400"}],"chip-status":["11px",{"lineHeight":"16px","letterSpacing":"0.02em","fontWeight":"700"}]}}}}</script></head><body class="bg-background font-body-base text-on-surface antialiased min-h-screen"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-container-low z-50 flex flex-col justify-between shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex flex-col"><div class="h-16 px-lg flex items-center justify-between bg-surface-container-lowest"><div class="flex items-center gap-xs"><img alt="Brand logo. - Primary color: #e31e24
+- Font: outfit
+- Mode: dark
+- Roundness: rounded-md
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1VZBLIcu6uddLqupC0qGR_CLAjvKm9PYsh-TQ4mNUgMYi9FmQXPiOin-p8S4IXCtqtuFbirUDS-JvxsrrKJytaJLSndD-8fWSiT4ko-iPtSqIRP7OqqYoVmMSb05UWT5JGhXvbgGf8iL8vWqV6wRqB4SfQlfpe2wDYUjKb8rLfsohE_q5D0_7b-Ud0nEv5ZfMHtxD9jZ2ZOaVItKzLho-tCI5XbijFUS0KzvG0bhEz4bHt-JTBpjHCd"/><div class="flex flex-col"><span class="font-headline-md text-headline-md tracking-tight text-on-surface leading-none">QarWheel</span><span class="font-label-eyebrow text-label-eyebrow text-primary uppercase">Vendor OS</span></div></div><span class="px-xs py-xxs rounded-full bg-secondary-container text-on-secondary-container font-chip-status text-chip-status uppercase tracking-wider">Al Quoz 3</span></div><nav class="px-sm py-md space-y-md overflow-y-auto max-h-[calc(100vh-140px)]" data-active-classes="bg-primary-container text-on-primary-container font-body-bold rounded-lg shadow-[0_4px_20px_-4px_rgba(227,30,36,0.35)]"><div class="space-y-xxs"><span class="px-sm font-label-eyebrow text-label-eyebrow text-outline uppercase">Operations</span><div class="space-y-xxs pt-xxs"><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="dashboard" href="#"><span class="material-symbols-outlined text-lg leading-none">speed</span><span>Dashboard</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="bookings-bay-calendar" href="#"><span class="material-symbols-outlined text-lg leading-none">calendar_view_week</span><span>Bookings &amp; Bay Calendar</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="work-orders" href="#"><span class="material-symbols-outlined text-lg leading-none">precision_manufacturing</span><span>Work Orders</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="services-rates" href="#"><span class="material-symbols-outlined text-lg leading-none">tune</span><span>Services &amp; Rates</span></a><a aria-current="page" class="flex items-center gap-sm px-sm py-xs transition-all duration-150 bg-primary-container text-on-primary-container font-body-bold rounded-lg shadow-[0_4px_20px_-4px_rgba(227,30,36,0.35)]" data-path="inventory-depot" href="#"><span class="material-symbols-outlined text-lg leading-none">inventory_2</span><span>Inventory Depot</span></a></div></div><div class="space-y-xxs"><span class="px-sm font-label-eyebrow text-label-eyebrow text-outline uppercase">Fleet &amp; Customers</span><div class="space-y-xxs pt-xxs"><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="customer-directory" href="#"><span class="material-symbols-outlined text-lg leading-none">contact_page</span><span>Customer Directory</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="fleet-telemetry" href="#"><span class="material-symbols-outlined text-lg leading-none">sensors</span><span>Fleet Telemetry</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="staff-roster" href="#"><span class="material-symbols-outlined text-lg leading-none">badge</span><span>Staff Roster</span></a></div></div><div class="space-y-xxs"><span class="px-sm font-label-eyebrow text-label-eyebrow text-outline uppercase">Telemetry Core</span><div class="space-y-xxs pt-xxs"><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="workshop-profile" href="#"><span class="material-symbols-outlined text-lg leading-none">garage</span><span>Workshop Profile</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="analytics-ratings" href="#"><span class="material-symbols-outlined text-lg leading-none">monitoring</span><span>Analytics &amp; Ratings</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="settings" href="#"><span class="material-symbols-outlined text-lg leading-none">settings_suggest</span><span>Settings</span></a></div></div></nav></div><div class="p-sm bg-surface-container-lowest mx-xs mb-xs rounded-xl flex items-center justify-between"><div class="flex items-center gap-xs"><span class="material-symbols-outlined text-tertiary text-lg">router</span><div class="flex flex-col"><span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant">LINK NODE</span><span class="font-kpi-stat text-body-medium text-on-surface">DXB-OBD-09</span></div></div><span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span></div></aside><div class="pl-72"><header class="fixed top-0 left-72 right-0 h-16 bg-surface-container-low/90 backdrop-blur-xl z-40 px-xl flex items-center justify-between shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex items-center gap-lg"><div class="flex items-center gap-xs"><span class="w-2.5 h-2.5 rounded-full bg-primary-container animate-ping"></span><span class="font-body-bold text-body-bold text-on-surface">Apex Performance Lab</span><span class="text-outline font-body-medium text-body-medium">•</span><span class="font-kpi-stat text-body-medium text-primary">6/8 Bays Active</span></div><div class="hidden xl:flex items-center gap-xs px-sm py-xxs rounded-full bg-surface-container-high"><span class="w-2 h-2 rounded-full bg-tertiary"></span><span class="font-label-eyebrow text-label-eyebrow text-tertiary tracking-widest">CAN-BUS LIVE (100Hz)</span></div></div><div class="flex items-center gap-lg"><div class="hidden md:flex items-center gap-xs px-sm py-xxs rounded-lg bg-surface-container-high"><span class="material-symbols-outlined text-base text-on-surface-variant">schedule</span><span class="font-kpi-stat text-body-medium text-on-surface">GST 14:48:22</span></div><div class="flex items-center gap-xs px-sm py-xxs rounded-full bg-error-container text-on-error-container font-chip-status text-chip-status"><span class="material-symbols-outlined text-sm leading-none">warning</span><span>2 Critical DTC Alerts</span></div><button aria-label="Notifications" class="relative p-xs rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-lg leading-none">notifications</span><span class="absolute top-1 right-1 w-2 h-2 bg-primary-container rounded-full"></span></button><div class="flex items-center gap-xs pl-xs"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1VHZAp-vFBUryJpjtcoNB5jW4UunNwrxJ3GnOa_FS01vACtrCrtoKBFlMgoOQOpZoYtPnIc9LhFk_-xHY-qt2JXvIKkHOR8UvN1AtQCP_A2TC6n2HOHV3Y5EU2bCz26PseTvCCLu13t0gdg08qhA8yWZPdYdGtFATij_mOVIQM7WUY9UopWmuoav-tU62XgzNF0qhGHHZPphhPbLZFgzWNL6ZpG6xIv3Qi25wQRi2jPlkIPJJfhObJk"/><div class="hidden lg:flex flex-col text-left"><span class="font-body-bold text-body-medium text-on-surface leading-tight">Tariq Al-Mansoor</span><span class="font-label-eyebrow text-label-eyebrow text-outline leading-tight uppercase">Master Tech L4</span></div></div></div></header><main class="w-full pt-16 bg-background min-h-screen px-xl py-lg"><div class="flex flex-col w-full space-y-section-gap">
+<!-- Top Command & Telemetry Header -->
+<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-md">
+<div class="space-y-xxs">
+<div class="flex items-center gap-xs">
+<span class="px-xs py-xxs rounded-full bg-secondary-container text-on-secondary-container font-chip-status text-chip-status uppercase tracking-widest flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse"></span>
+          Telemetry Depot Node #04
+        </span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase tracking-wider">CAN-BUS LINK: SYNCHRONIZED</span>
+</div>
+<h1 class="font-display-lg text-display-lg text-on-surface tracking-tight">Inventory &amp; Spare Parts Depot</h1>
+<p class="font-body-base text-body-base text-on-surface-variant max-w-3xl">
+        Automotive parts tracking, automated reordering, OEM Taycan/EV high-voltage supplies, and barcode bin location system.
+      </p>
+</div>
+<!-- Quick Global Action Group -->
+<div class="flex flex-wrap items-center gap-xs">
+<button class="flex items-center gap-xs px-md py-xs rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-all duration-150 font-body-bold text-body-medium shadow-sm active:scale-95" type="button">
+<span class="material-symbols-outlined text-base text-tertiary">barcode_scanner</span>
+<span>Scan Barcode</span>
+</button>
+<button class="flex items-center gap-xs px-md py-xs rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-all duration-150 font-body-bold text-body-medium shadow-sm active:scale-95" type="button">
+<span class="material-symbols-outlined text-base text-primary">receipt_long</span>
+<span>Generate Supplier PO</span>
+</button>
+<button class="flex items-center gap-xs px-md py-xs rounded-lg bg-primary-container text-on-primary-container hover:brightness-110 transition-all duration-150 font-body-bold text-body-medium shadow-[0_4px_20px_-4px_rgba(227,30,36,0.4)] active:scale-95" type="button">
+<span class="material-symbols-outlined text-base">add_circle</span>
+<span>Add Stock Item</span>
+</button>
+</div>
+</div>
+<!-- Metric KPI Cards (4-Grid Balancer) -->
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-gutter">
+<!-- Card 1: Active SKUs -->
+<div class="p-card-pad rounded-xl bg-surface-container-low shadow-sm flex flex-col justify-between relative overflow-hidden group hover:bg-surface-container transition-colors duration-200">
+<div class="flex items-center justify-between">
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase tracking-wider">Active Inventory SKUs</span>
+<span class="material-symbols-outlined text-on-surface-variant text-lg">view_in_ar</span>
+</div>
+<div class="pt-sm">
+<div class="flex items-baseline gap-xs">
+<span class="font-kpi-stat text-kpi-stat text-on-surface">1,482</span>
+<span class="font-chip-status text-chip-status text-on-surface-variant uppercase">Units logged</span>
+</div>
+<div class="flex items-center justify-between pt-xxs">
+<span class="font-body-medium text-body-medium text-on-surface-variant">Asset Valuation</span>
+<span class="font-kpi-stat text-body-medium text-tertiary">AED 642,800</span>
+</div>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden mt-sm">
+<div class="bg-tertiary h-full w-[84%]"></div>
+</div>
+</div>
+<!-- Card 2: Critical Alerts -->
+<div class="p-card-pad rounded-xl bg-surface-container-low shadow-[0_0_24px_-6px_rgba(227,30,36,0.25)] flex flex-col justify-between relative overflow-hidden group hover:bg-surface-container transition-colors duration-200">
+<div class="flex items-center justify-between">
+<span class="font-label-eyebrow text-label-eyebrow text-primary uppercase tracking-wider">Critical Low Stock</span>
+<span class="px-xs py-xxs rounded-full bg-secondary-container text-on-secondary-container font-chip-status text-chip-status animate-pulse flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+          4 Urgent
+        </span>
+</div>
+<div class="pt-sm">
+<div class="flex items-baseline gap-xs">
+<span class="font-kpi-stat text-kpi-stat text-primary">04</span>
+<span class="font-body-medium text-body-medium text-on-surface-variant">Items below threshold</span>
+</div>
+<div class="flex items-center justify-between pt-xxs">
+<span class="font-body-medium text-body-medium text-outline">Lead-time Risk</span>
+<span class="font-chip-status text-chip-status text-primary">Bays 1 &amp; 4 Blocked</span>
+</div>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden mt-sm">
+<div class="bg-primary-container h-full w-[35%]"></div>
+</div>
+</div>
+<!-- Card 3: Dispatched Today -->
+<div class="p-card-pad rounded-xl bg-surface-container-low shadow-sm flex flex-col justify-between relative overflow-hidden group hover:bg-surface-container transition-colors duration-200">
+<div class="flex items-center justify-between">
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase tracking-wider">Parts Dispatched Today</span>
+<span class="material-symbols-outlined text-on-surface-variant text-lg">local_shipping</span>
+</div>
+<div class="pt-sm">
+<div class="flex items-baseline gap-xs">
+<span class="font-kpi-stat text-kpi-stat text-on-surface">38</span>
+<span class="font-chip-status text-chip-status text-on-surface-variant uppercase">Requisitions</span>
+</div>
+<div class="flex items-center justify-between pt-xxs">
+<span class="font-body-medium text-body-medium text-on-surface-variant">Active Bay Consumption</span>
+<span class="font-kpi-stat text-body-medium text-on-surface">AED 14,200</span>
+</div>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden mt-sm">
+<div class="bg-on-surface-variant h-full w-[62%]"></div>
+</div>
+</div>
+<!-- Card 4: Supplier Shipments -->
+<div class="p-card-pad rounded-xl bg-surface-container-low shadow-sm flex flex-col justify-between relative overflow-hidden group hover:bg-surface-container transition-colors duration-200">
+<div class="flex items-center justify-between">
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase tracking-wider">Pending Supplier Shipments</span>
+<span class="px-xs py-xxs rounded-full bg-surface-container-high text-tertiary font-chip-status text-chip-status">3 POs</span>
+</div>
+<div class="pt-sm">
+<div class="flex items-baseline gap-xs">
+<span class="font-kpi-stat text-kpi-stat text-tertiary">16:30</span>
+<span class="font-chip-status text-chip-status text-on-surface-variant">ETA GST</span>
+</div>
+<div class="flex items-center justify-between pt-xxs">
+<span class="font-body-medium text-body-medium text-on-surface-variant truncate">Porsche UAE Hub Delivery</span>
+<span class="font-label-eyebrow text-label-eyebrow text-primary uppercase">Expedited</span>
+</div>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden mt-sm">
+<div class="bg-tertiary h-full w-[90%]"></div>
+</div>
+</div>
+</div>
+<!-- Critical Low Stock Warning Banner -->
+<div class="p-md rounded-xl bg-secondary-container/30 shadow-[0_4px_24px_rgba(146,19,30,0.25)] flex flex-col md:flex-row items-start md:items-center justify-between gap-md relative overflow-hidden">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-lg bg-secondary-container flex items-center justify-center shrink-0 text-on-secondary-container">
+<span class="material-symbols-outlined text-xl">priority_high</span>
+</div>
+<div class="space-y-xxs">
+<div class="flex items-center gap-xs">
+<span class="font-chip-status text-chip-status uppercase bg-primary-container text-on-primary-container px-xs py-0.5 rounded">Depleted Stock Alert</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase">BIN: A-12-04</span>
+</div>
+<p class="font-body-medium text-body-medium text-on-surface">
+<strong class="font-body-bold text-secondary">Porsche Genuine DOT 4 LV Fluid (1.5L)</strong> is down to <span class="font-kpi-stat text-primary font-bold">3 cans</span> (Min Threshold: 10). Re-order suggested from Al Nabooda Porsche Central Depot.
+        </p>
+</div>
+</div>
+<div class="flex items-center gap-xs shrink-0 self-end md:self-auto">
+<button class="px-md py-xs rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-body-bold text-body-medium transition-all duration-150" type="button">
+        Dismiss
+      </button>
+<button class="flex items-center gap-xs px-md py-xs rounded-lg bg-primary-container hover:brightness-110 text-on-primary-container font-body-bold text-body-medium shadow-md transition-all duration-150 active:scale-95" type="button">
+<span class="material-symbols-outlined text-base">bolt</span>
+<span>One-Click PO Reorder (24 Units)</span>
+</button>
+</div>
+</div>
+<!-- Cockpit Action Toolbar & Filters -->
+<div class="p-sm rounded-xl bg-surface-container-low shadow-sm flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-sm">
+<!-- Search Bar -->
+<div class="relative flex-1 max-w-xl">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline text-lg pointer-events-none">search</span>
+<input class="w-full h-10 pl-10 pr-sm rounded-lg bg-surface-container-lowest text-on-surface placeholder:text-outline font-body-medium text-body-medium focus:outline-none shadow-inner transition-all" id="inventorySearchInput" placeholder="Filter by Part Description, SKU, OEM Part #, or Bin ID..." type="text"/>
+</div>
+<!-- Category Tabs Filter -->
+<div class="flex items-center gap-xxs overflow-x-auto pb-xxs xl:pb-0" id="categoryFilterGroup">
+<button class="px-sm py-xs rounded-lg bg-primary-container text-on-primary-container font-body-bold text-chip-status tracking-wide whitespace-nowrap active-category shadow-sm" data-filter="all" type="button">
+        All Parts (1,482)
+      </button>
+<button class="px-sm py-xs rounded-lg bg-surface-container text-on-surface-variant hover:text-on-surface font-body-medium text-chip-status tracking-wide whitespace-nowrap transition-colors" data-filter="ev" type="button">
+        EV &amp; High-Voltage
+      </button>
+<button class="px-sm py-xs rounded-lg bg-surface-container text-on-surface-variant hover:text-on-surface font-body-medium text-chip-status tracking-wide whitespace-nowrap transition-colors" data-filter="fluids" type="button">
+        Fluids &amp; Chemicals
+      </button>
+<button class="px-sm py-xs rounded-lg bg-surface-container text-on-surface-variant hover:text-on-surface font-body-medium text-chip-status tracking-wide whitespace-nowrap transition-colors" data-filter="braking" type="button">
+        Braking Systems
+      </button>
+<button class="px-sm py-xs rounded-lg bg-surface-container text-on-surface-variant hover:text-on-surface font-body-medium text-chip-status tracking-wide whitespace-nowrap transition-colors" data-filter="suspension" type="button">
+        Suspension
+      </button>
+<button class="px-sm py-xs rounded-lg bg-surface-container text-on-surface-variant hover:text-on-surface font-body-medium text-chip-status tracking-wide whitespace-nowrap transition-colors" data-filter="sensors" type="button">
+        Sensors &amp; ECU
+      </button>
+</div>
+</div>
+<!-- Primary Split Cockpit Grid: Ledger (8 Cols) vs Bay Log & Intake Dock (4 Cols) -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-section-gap items-start">
+<!-- Ledger Table Container (8 Cols) -->
+<div class="lg:col-span-8 space-y-md">
+<div class="rounded-xl bg-surface-container-low shadow-sm overflow-hidden">
+<!-- Table Header Bar -->
+<div class="px-card-pad py-sm bg-surface-container flex items-center justify-between">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-primary text-base">table_rows</span>
+<span class="font-headline-md text-body-bold text-on-surface">Depot Stock Matrix</span>
+<span class="px-xs py-xxs rounded-full bg-surface-container-high text-outline font-label-eyebrow text-label-eyebrow">5 DISPLAYED</span>
+</div>
+<div class="flex items-center gap-xs">
+<button class="p-xxs rounded text-outline hover:text-on-surface transition-colors" title="Export Ledger" type="button">
+<span class="material-symbols-outlined text-base">file_download</span>
+</button>
+<button class="p-xxs rounded text-outline hover:text-on-surface transition-colors" title="Settings" type="button">
+<span class="material-symbols-outlined text-base">view_column</span>
+</button>
+</div>
+</div>
+<!-- Ledger Table Structure -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-lowest text-outline font-label-eyebrow text-label-eyebrow tracking-wider uppercase">
+<th class="py-sm px-card-pad">SKU / Code</th>
+<th class="py-sm px-sm">Part Description &amp; Specs</th>
+<th class="py-sm px-sm">Bin</th>
+<th class="py-sm px-sm text-right">In Stock</th>
+<th class="py-sm px-sm text-right">Cost (AED)</th>
+<th class="py-sm px-sm text-right">Bay Price (AED)</th>
+<th class="py-sm px-sm">Status</th>
+<th class="py-sm px-card-pad text-right">Dispatch</th>
+</tr>
+</thead>
+<tbody class="divide-y-0 divide-transparent font-body-medium text-body-medium text-on-surface" id="inventoryTableBody">
+<!-- Row 1: Low Stock Fluid -->
+<tr class="hover:bg-surface-container-high/60 transition-colors group inventory-item" data-category="fluids">
+<td class="py-sm px-card-pad whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-kpi-stat text-body-medium font-bold text-secondary">SKU-FL-9021</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline tracking-wider">#000 043 203 66</span>
+</div>
+</td>
+<td class="py-sm px-sm min-w-[200px]">
+<div class="flex flex-col">
+<span class="font-body-bold text-on-surface group-hover:text-primary transition-colors">Porsche OEM DOT 4 LV High-Performance Fluid (1.5L)</span>
+<span class="font-chip-status text-chip-status text-on-surface-variant flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> Fluids &amp; Chemicals • Low Viscosity
+                    </span>
+</div>
+</td>
+<td class="py-sm px-sm whitespace-nowrap">
+<span class="px-xs py-xxs rounded bg-surface-container-high text-on-surface font-kpi-stat text-chip-status font-bold">A-12-04</span>
+</td>
+<td class="py-sm px-sm whitespace-nowrap text-right">
+<div class="flex flex-col items-end">
+<span class="font-kpi-stat text-body-bold text-primary font-bold">3 Cans</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline">MIN: 10</span>
+</div>
+</td>
+<td class="py-sm px-sm whitespace-nowrap text-right font-kpi-stat text-body-medium text-on-surface-variant">
+                  62.00
+                </td>
+<td class="py-sm px-sm whitespace-nowrap text-right font-kpi-stat text-body-bold text-tertiary">
+                  110.00
+                </td>
+<td class="py-sm px-sm whitespace-nowrap">
+<span class="px-xs py-xxs rounded-full bg-secondary-container text-on-secondary-container font-chip-status text-chip-status uppercase tracking-wide flex items-center gap-1 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse"></span>
+                    Low Stock
+                  </span>
+</td>
+<td class="py-sm px-card-pad whitespace-nowrap text-right">
+<button class="px-sm py-xxs rounded bg-secondary-container hover:bg-primary-container text-on-primary-container font-body-bold text-chip-status transition-colors shadow-sm" type="button">
+                    Order More
+                  </button>
+</td>
+</tr>
+<!-- Row 2: EV Diverter Valve -->
+<tr class="hover:bg-surface-container-high/60 transition-colors group inventory-item" data-category="ev">
+<td class="py-sm px-card-pad whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-kpi-stat text-body-medium font-bold text-on-surface">SKU-EV-4401</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline tracking-wider">#9J1 121 671 M</span>
+</div>
+</td>
+<td class="py-sm px-sm min-w-[200px]">
+<div class="flex flex-col">
+<span class="font-body-bold text-on-surface group-hover:text-primary transition-colors">Taycan 800V Coolant Diverter Valve Module</span>
+<span class="font-chip-status text-chip-status text-on-surface-variant flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span> EV &amp; High Voltage • Actuator Gen-3
+                    </span>
+</div>
+</td>
+<td class="py-sm px-sm whitespace-nowrap">
+<span class="px-xs py-xxs rounded bg-surface-container-high text-on-surface font-kpi-stat text-chip-status font-bold">E-03-01</span>
+</td>
+<td class="py-sm px-sm whitespace-nowrap text-right">
+<div class="flex flex-col items-end">
+<span class="font-kpi-stat text-body-bold text-on-surface font-bold">6 Units</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline">MIN: 4</span>
+</div>
+</td>
+<td class="py-sm px-sm whitespace-nowrap text-right font-kpi-stat text-body-medium text-on-surface-variant">
+                  850.00
+                </td>
+<td class="py-sm px-sm whitespace-nowrap text-right font-kpi-stat text-body-bold text-tertiary">
+                  1,280.00
+                </td>
+<td class="py-sm px-sm whitespace-nowrap">
+<span class="px-xs py-xxs rounded-full bg-surface-container-highest text-on-surface font-chip-status text-chip-status uppercase tracking-wide flex items-center gap-1 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                    Optimal
+                  </span>
+</td>
+<td class="py-sm px-card-pad whitespace-nowrap text-right">
+<button class="px-sm py-xxs rounded bg-surface-container-high hover:bg-surface-bright text-on-surface font-body-bold text-chip-status transition-colors" type="button">
+                    Bay 1 Transfer
+                  </button>
+</td>
+</tr>
+<!-- Row 3: Brembo Pads -->
+<tr class="hover:bg-surface-container-high/60 transition-colors group inventory-item" data-category="braking">
+<td class="py-sm px-card-pad whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-kpi-stat text-body-medium font-bold text-on-surface">SKU-BR-7810</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline tracking-wider">#991 351 949 02</span>
+</div>
+</td>
+<td class="py-sm px-sm min-w-[200px]">
+<div class="flex flex-col">
+<span class="font-body-bold text-on-surface group-hover:text-primary transition-colors">Brembo 6-Piston Carbon-Ceramic Pad Set (Front)</span>
+<span class="font-chip-status text-chip-status text-on-surface-variant flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span> Braking Systems • PCCB Compound
+                    </span>
+</div>
+</td>
+<td class="py-sm px-sm whitespace-nowrap">
+<span class="px-xs py-xxs rounded bg-surface-container-high text-on-surface font-kpi-stat text-chip-status font-bold">B-01-08</span>
+</td>
+<td class="py-sm px-sm whitespace-nowrap text-right">
+<div class="flex flex-col items-end">
+<span class="font-kpi-stat text-body-bold text-on-surface font-bold">12 Sets</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline">MIN: 6</span>
+</div>
+</td>
+<td class="py-sm px-sm whitespace-nowrap text-right font-kpi-stat text-body-medium text-on-surface-variant">
+                  1,200.00
+                </td>
+<td class="py-sm px-sm whitespace-nowrap text-right font-kpi-stat text-body-bold text-tertiary">
+                  1,750.00
+                </td>
+<td class="py-sm px-sm whitespace-nowrap">
+<span class="px-xs py-xxs rounded-full bg-surface-container-highest text-on-surface font-chip-status text-chip-status uppercase tracking-wide flex items-center gap-1 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                    Optimal
+                  </span>
+</td>
+<td class="py-sm px-card-pad whitespace-nowrap text-right">
+<button class="px-sm py-xxs rounded bg-surface-container-high hover:bg-surface-bright text-on-surface font-body-bold text-chip-status transition-colors" type="button">
+                    Transfer
+                  </button>
+</td>
+</tr>
+<!-- Row 4: Bosch Telemetry Sensor -->
+<tr class="hover:bg-surface-container-high/60 transition-colors group inventory-item" data-category="sensors">
+<td class="py-sm px-card-pad whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-kpi-stat text-body-medium font-bold text-on-surface">SKU-SN-3312</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline tracking-wider">#0 265 007 928</span>
+</div>
+</td>
+<td class="py-sm px-sm min-w-[200px]">
+<div class="flex flex-col">
+<span class="font-body-bold text-on-surface group-hover:text-primary transition-colors">Bosch ASIL-D Wheel Speed &amp; Telemetry Sensor</span>
+<span class="font-chip-status text-chip-status text-on-surface-variant flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span> Sensors &amp; ECU • CAN 500k Speed
+                    </span>
+</div>
+</td>
+<td class="py-sm px-sm whitespace-nowrap">
+<span class="px-xs py-xxs rounded bg-surface-container-high text-on-surface font-kpi-stat text-chip-status font-bold">C-09-02</span>
+</td>
+<td class="py-sm px-sm whitespace-nowrap text-right">
+<div class="flex flex-col items-end">
+<span class="font-kpi-stat text-body-bold text-on-surface font-bold">24 Units</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline">MIN: 10</span>
+</div>
+</td>
+<td class="py-sm px-sm whitespace-nowrap text-right font-kpi-stat text-body-medium text-on-surface-variant">
+                  95.00
+                </td>
+<td class="py-sm px-sm whitespace-nowrap text-right font-kpi-stat text-body-bold text-tertiary">
+                  165.00
+                </td>
+<td class="py-sm px-sm whitespace-nowrap">
+<span class="px-xs py-xxs rounded-full bg-surface-container-highest text-on-surface font-chip-status text-chip-status uppercase tracking-wide flex items-center gap-1 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                    Surplus
+                  </span>
+</td>
+<td class="py-sm px-card-pad whitespace-nowrap text-right">
+<button class="px-sm py-xxs rounded bg-surface-container-high hover:bg-surface-bright text-on-surface font-body-bold text-chip-status transition-colors" type="button">
+                    Transfer
+                  </button>
+</td>
+</tr>
+<!-- Row 5: PASM Air Bellows -->
+<tr class="hover:bg-surface-container-high/60 transition-colors group inventory-item" data-category="suspension">
+<td class="py-sm px-card-pad whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-kpi-stat text-body-medium font-bold text-primary">SKU-SU-5520</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline tracking-wider">#971 616 037 G</span>
+</div>
+</td>
+<td class="py-sm px-sm min-w-[200px]">
+<div class="flex flex-col">
+<span class="font-body-bold text-on-surface group-hover:text-primary transition-colors">PASM Air Suspension Front Bellows Bladder</span>
+<span class="font-chip-status text-chip-status text-on-surface-variant flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-container"></span> Suspension • Active Damping
+                    </span>
+</div>
+</td>
+<td class="py-sm px-sm whitespace-nowrap">
+<span class="px-xs py-xxs rounded bg-surface-container-high text-on-surface font-kpi-stat text-chip-status font-bold">D-04-03</span>
+</td>
+<td class="py-sm px-sm whitespace-nowrap text-right">
+<div class="flex flex-col items-end">
+<span class="font-kpi-stat text-body-bold text-primary font-bold">2 Units</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline">MIN: 5</span>
+</div>
+</td>
+<td class="py-sm px-sm whitespace-nowrap text-right font-kpi-stat text-body-medium text-on-surface-variant">
+                  680.00
+                </td>
+<td class="py-sm px-sm whitespace-nowrap text-right font-kpi-stat text-body-bold text-tertiary">
+                  1,020.00
+                </td>
+<td class="py-sm px-sm whitespace-nowrap">
+<span class="px-xs py-xxs rounded-full bg-secondary-container text-on-secondary-container font-chip-status text-chip-status uppercase tracking-wide flex items-center gap-1 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container animate-ping"></span>
+                    Critical Low
+                  </span>
+</td>
+<td class="py-sm px-card-pad whitespace-nowrap text-right">
+<button class="px-sm py-xxs rounded bg-secondary-container hover:bg-primary-container text-on-primary-container font-body-bold text-chip-status transition-colors shadow-sm" type="button">
+                    Order More
+                  </button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Ledger Footer Stats & Pagination -->
+<div class="px-card-pad py-sm bg-surface-container flex flex-col sm:flex-row items-center justify-between gap-sm">
+<div class="flex items-center gap-sm">
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase">Depot Warehouse: Zone DXB-03 Al Quoz</span>
+<span class="text-outline text-xs">•</span>
+<span class="font-body-medium text-body-medium text-on-surface-variant">Showing 5 of 1,482 SKUs</span>
+</div>
+<div class="flex items-center gap-xs">
+<button class="p-xs rounded bg-surface-container-high text-outline hover:text-on-surface disabled:opacity-30" disabled="" type="button">
+<span class="material-symbols-outlined text-sm leading-none">chevron_left</span>
+</button>
+<span class="px-sm py-xxs rounded bg-surface-container-highest text-on-surface font-kpi-stat text-chip-status">1</span>
+<span class="px-sm py-xxs rounded text-outline hover:text-on-surface font-kpi-stat text-chip-status cursor-pointer">2</span>
+<span class="px-sm py-xxs rounded text-outline hover:text-on-surface font-kpi-stat text-chip-status cursor-pointer">3</span>
+<span class="text-outline text-xs">...</span>
+<span class="px-sm py-xxs rounded text-outline hover:text-on-surface font-kpi-stat text-chip-status cursor-pointer">148</span>
+<button class="p-xs rounded bg-surface-container-high text-outline hover:text-on-surface" type="button">
+<span class="material-symbols-outlined text-sm leading-none">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Live Workshop Floor Imagery Snapshot -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<div class="p-card-pad rounded-xl bg-surface-container-low relative overflow-hidden flex flex-col justify-between group">
+<div class="space-y-xxs z-10">
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase">Active Facility Sensor Cam</span>
+<h2 class="font-headline-md text-headline-md text-on-surface">Bay 03 Diagnostic Rig</h2>
+<p class="font-body-medium text-body-medium text-on-surface-variant">Porsche Taycan 800V bus diagnostic underway with high-voltage diverter valve installation.</p>
+</div>
+<div class="mt-md rounded-lg overflow-hidden h-44 relative">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Modern clean automotive workshop bay with a sleek Porsche Taycan on an elevated mechanical lift, technician holding an OBD diagnostic tablet with live diagnostic monitors on rolling cart, high-tech LED ceiling tubes, dark industrial obsidian aesthetic with red accent details." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBA9yWuTGOK1dd-RwaNRt3dGo4MoYfkptwt4Bkk-99eTCKQFT6PFtE4LmchGHPCX-0CHfr_KCBq-OSO_SZWxYKm5ekhilEuuj16OkZ4AJFXzSOGpj9l1CxhQHEbVOu5JkdCMcHR_Ozx33FjFqOnmEPz3zgFQpcqZrz3e5Ziqzk1lbfzOlKu3t7LbyXQ2OO9U9AaCh3fJFTPRR4QZm2M8yKdjKnV98C1wZE47FySzuMr3atSe9nEUg"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/90 via-transparent to-transparent"></div>
+<div class="absolute bottom-xs left-xs right-xs flex items-center justify-between text-xs font-kpi-stat text-on-surface px-xs py-xxs rounded bg-surface-container-lowest/80 backdrop-blur-md">
+<span class="flex items-center gap-1 text-tertiary">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
+                LIVE FEED DXB-B03
+              </span>
+<span class="text-outline">60 FPS • CAN 2.0B</span>
+</div>
+</div>
+</div>
+<div class="p-card-pad rounded-xl bg-surface-container-low relative overflow-hidden flex flex-col justify-between group">
+<div class="space-y-xxs z-10">
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase">Automated Intake Logistics</span>
+<h2 class="font-headline-md text-headline-md text-on-surface">Bin Telemetry &amp; Shelving</h2>
+<p class="font-body-medium text-body-medium text-on-surface-variant">Direct pneumatic routing and RFID tag identification for precision depot parts tracking.</p>
+</div>
+<div class="mt-md rounded-lg overflow-hidden h-44 relative">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Futuristic automotive parts storage room with labeled modular steel bins, barcode scanners, ambient red and gold LED strip illumination, precision sorted brake rotors and EV batteries on carbon-finish shelves in a dark ultra-clean workshop." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC2zDwgMOPtaL1ssdEblzJcSTKXCr-k1FjEq-WS6hIqGiM9DTA03-nAcQepkTnnC2cQyFwoB-4zNICCyGQaqUN4pUt6v7C_aeN2aYVXHxkPuSsTWsw4hV0CUZ40Do7FkYq1ua8vS13_QN4t_XpxLaT1QJ8D_t0OIQ9eE2inmHSxrtO7KzeFFpU5CEn-BsMzn5NiU2hTA1h1oFvnCwk2PLRWzr-ycT-IaADcQndzSZxOYCIoZtGpuQ"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/90 via-transparent to-transparent"></div>
+<div class="absolute bottom-xs left-xs right-xs flex items-center justify-between text-xs font-kpi-stat text-on-surface px-xs py-xxs rounded bg-surface-container-lowest/80 backdrop-blur-md">
+<span class="flex items-center gap-1 text-primary">
+<span class="w-2 h-2 rounded-full bg-primary-container"></span>
+                RFID SCANNER ONLINE
+              </span>
+<span class="text-outline">Bin Accuracy 99.8%</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Side Telemetry Dock & Requisitions (4 Cols) -->
+<div class="lg:col-span-4 space-y-md">
+<!-- Rapid Barcode Scanner Dock -->
+<div class="p-card-pad rounded-xl bg-surface-container-low shadow-sm space-y-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-primary text-lg">qr_code_scanner</span>
+<span class="font-headline-md text-body-bold text-on-surface">Depot Intake Scanner</span>
+</div>
+<span class="px-xs py-xxs rounded bg-surface-container-highest font-label-eyebrow text-label-eyebrow text-tertiary uppercase">OPTICAL LASER 2D</span>
+</div>
+<!-- Simulated Viewfinder Target -->
+<div class="w-full h-36 rounded-lg bg-surface-container-lowest flex flex-col items-center justify-center relative overflow-hidden group border border-transparent">
+<div class="absolute inset-x-8 top-1/2 -translate-y-1/2 h-0.5 bg-primary-container animate-pulse shadow-[0_0_12px_#e31e24]"></div>
+<div class="absolute inset-4 rounded flex items-center justify-between pointer-events-none opacity-40">
+<div class="w-3 h-3 border-t-2 border-l-2 border-on-surface"></div>
+<div class="w-3 h-3 border-t-2 border-r-2 border-on-surface"></div>
+</div>
+<div class="absolute inset-4 rounded flex items-end justify-between pointer-events-none opacity-40">
+<div class="w-3 h-3 border-b-2 border-l-2 border-on-surface"></div>
+<div class="w-3 h-3 border-b-2 border-r-2 border-on-surface"></div>
+</div>
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase tracking-widest z-10 text-center">
+            Point Zebra Scanner at Part Barcode
+          </span>
+<span class="font-kpi-stat text-chip-status text-on-surface-variant pt-xs z-10">
+            Awaiting Hardware Trigger...
+          </span>
+</div>
+<!-- Quick Manual Part Input Fallback -->
+<div class="flex gap-xs">
+<input class="w-full h-9 px-sm rounded-lg bg-surface-container-lowest text-on-surface placeholder:text-outline font-body-medium text-body-medium focus:outline-none" placeholder="Type SKU or scan..." type="text"/>
+<button class="px-md py-xs rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-body-bold text-chip-status whitespace-nowrap" type="button">
+            Lookup
+          </button>
+</div>
+</div>
+<!-- Realtime Bay Requisitions Activity Log -->
+<div class="p-card-pad rounded-xl bg-surface-container-low shadow-sm space-y-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-tertiary text-lg">receipt</span>
+<span class="font-headline-md text-body-bold text-on-surface">Bay Requisitions Today</span>
+</div>
+<span class="font-kpi-stat text-body-medium text-tertiary">38 Pulled</span>
+</div>
+<div class="space-y-sm">
+<!-- Item 1 -->
+<div class="p-sm rounded-lg bg-surface-container flex flex-col space-y-xs hover:bg-surface-container-high transition-colors">
+<div class="flex items-center justify-between">
+<span class="px-xs py-xxs rounded bg-surface-container-highest text-primary font-kpi-stat text-chip-status font-bold">BAY 01</span>
+<span class="font-kpi-stat text-chip-status text-outline">10:18 AM GST</span>
+</div>
+<div class="flex items-start justify-between gap-xs">
+<div class="flex flex-col">
+<span class="font-body-bold text-body-medium text-on-surface">2x DOT 4 LV Fluid (1.5L)</span>
+<span class="font-chip-status text-chip-status text-on-surface-variant">Tech: Marcus Chen • <span class="text-tertiary">WO-8942</span></span>
+</div>
+<span class="font-kpi-stat text-body-medium text-on-surface whitespace-nowrap">AED 220</span>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="p-sm rounded-lg bg-surface-container flex flex-col space-y-xs hover:bg-surface-container-high transition-colors">
+<div class="flex items-center justify-between">
+<span class="px-xs py-xxs rounded bg-surface-container-highest text-on-surface font-kpi-stat text-chip-status font-bold">BAY 04</span>
+<span class="font-kpi-stat text-chip-status text-outline">09:40 AM GST</span>
+</div>
+<div class="flex items-start justify-between gap-xs">
+<div class="flex flex-col">
+<span class="font-body-bold text-body-medium text-on-surface">1x PASM Front Bellows Bladder</span>
+<span class="font-chip-status text-chip-status text-on-surface-variant">Tech: Tariq Al-Mansoor • <span class="text-tertiary">WO-8939</span></span>
+</div>
+<span class="font-kpi-stat text-body-medium text-on-surface whitespace-nowrap">AED 1,020</span>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="p-sm rounded-lg bg-surface-container flex flex-col space-y-xs hover:bg-surface-container-high transition-colors">
+<div class="flex items-center justify-between">
+<span class="px-xs py-xxs rounded bg-surface-container-highest text-on-surface font-kpi-stat text-chip-status font-bold">BAY 02</span>
+<span class="font-kpi-stat text-chip-status text-outline">08:15 AM GST</span>
+</div>
+<div class="flex items-start justify-between gap-xs">
+<div class="flex flex-col">
+<span class="font-body-bold text-body-medium text-on-surface">1x Brembo Front Ceramic Pad Set</span>
+<span class="font-chip-status text-chip-status text-on-surface-variant">Tech: Vikram Rao • <span class="text-tertiary">WO-8935</span></span>
+</div>
+<span class="font-kpi-stat text-body-medium text-on-surface whitespace-nowrap">AED 1,750</span>
+</div>
+</div>
+</div>
+<button class="w-full py-xs rounded-lg bg-surface-container text-outline hover:text-on-surface hover:bg-surface-container-high font-body-bold text-chip-status transition-colors text-center" type="button">
+          View All 38 Requisition Slips →
+        </button>
+</div>
+<!-- Supplier Order Schedule -->
+<div class="p-card-pad rounded-xl bg-surface-container-low shadow-sm space-y-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase tracking-wider">Scheduled OEM Drops</span>
+<span class="material-symbols-outlined text-outline text-base">local_shipping</span>
+</div>
+<div class="p-sm rounded-lg bg-surface-container-lowest flex items-center justify-between">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-ping"></span>
+<div class="flex flex-col">
+<span class="font-body-bold text-body-medium text-on-surface">Porsche Central Logistics</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline">PO-2024-8819 • 14 LINE ITEMS</span>
+</div>
+</div>
+<span class="font-kpi-stat text-chip-status text-tertiary font-bold">ETA 16:30</span>
+</div>
+<div class="p-sm rounded-lg bg-surface-container-lowest flex items-center justify-between opacity-70">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+<div class="flex flex-col">
+<span class="font-body-bold text-body-medium text-on-surface">Bosch Automotive ME</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline">PO-2024-8822 • SENSORS BATCH</span>
+</div>
+</div>
+<span class="font-kpi-stat text-chip-status text-outline">Tomorrow 09:00</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+  // Simple category filter logic
+  const filterButtons = document.querySelectorAll('#categoryFilterGroup button');
+  const inventoryRows = document.querySelectorAll('.inventory-item');
+  const searchInput = document.getElementById('inventorySearchInput');
+
+  filterButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      filterButtons.forEach(btn => {
+        btn.classList.remove('bg-primary-container', 'text-on-primary-container', 'shadow-sm');
+        btn.classList.add('bg-surface-container', 'text-on-surface-variant');
+      });
+      button.classList.add('bg-primary-container', 'text-on-primary-container', 'shadow-sm');
+      button.classList.remove('bg-surface-container', 'text-on-surface-variant');
+
+      const filterVal = button.getAttribute('data-filter');
+      inventoryRows.forEach(row => {
+        if (filterVal === 'all' || row.getAttribute('data-category') === filterVal) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    });
+  });
+
+  // Client-side search matching
+  searchInput.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase();
+    inventoryRows.forEach(row => {
+      const text = row.innerText.toLowerCase();
+      if (text.includes(query)) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  });
+</script></main></div></body></html>

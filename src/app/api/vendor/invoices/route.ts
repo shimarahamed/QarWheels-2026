@@ -48,6 +48,31 @@ export async function GET(request: NextRequest) {
   const { auth } = access;
 
   const url = new URL(request.url);
+  const invoiceId = url.searchParams.get('invoiceId');
+  const bookingId = url.searchParams.get('bookingId');
+  if (invoiceId || bookingId) {
+    if ((invoiceId && bookingId) || !/^[^/\\.][^/\\]{0,127}$/.test(invoiceId ?? bookingId ?? '')) {
+      return Errors.badRequest('Provide one valid invoice or booking ID');
+    }
+    try {
+      const db = getAdminFirestore();
+      const direct = await db.collection('invoices').doc(invoiceId ?? bookingId!).get();
+      const legacy = !direct.exists && bookingId
+        ? await db.collection('invoices').where('bookingId', '==', bookingId).limit(1).get()
+        : null;
+      const found = direct.exists ? direct : legacy?.docs[0];
+      if (!found?.exists) return ok({ invoice: null });
+      const invoice = { id: found.id, ...(found.data() as Invoice) };
+      if (bookingId && invoice.bookingId !== bookingId) return ok({ invoice: null });
+      const branch = await requireBranchAccess(request, invoice.branchId);
+      if (!branch.ok || (branch.auth.role !== 'master_admin' && branch.auth.claims?.r !== 'master_admin'
+        && branch.auth.claims?.b !== invoice.businessId)) return ok({ invoice: null });
+      return ok({ invoice });
+    } catch (error) {
+      trackApiError('/api/vendor/invoices GET', error);
+      return Errors.serverError();
+    }
+  }
   const requestedBusinessId = url.searchParams.get('businessId');
   const businessId = auth.role === 'master_admin'
     ? requestedBusinessId
@@ -105,7 +130,7 @@ export async function POST(request: NextRequest) {
     if (!bookingSnap.exists) return Errors.notFound('Booking');
     const booking = bookingSnap.data() as Booking;
 
-    const access = await requireBranchAccess(request, booking.branchId);
+    const access = await requireBranchAccess(request, booking.branchId, 'write');
     if (!access.ok) {
       return access.reason === 'unauthenticated' ? Errors.unauthorized() : Errors.forbidden();
     }

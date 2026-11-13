@@ -33,6 +33,7 @@ export function authRedirect(input: {
     if (input.navigation !== 'idle' && ['login', 'vendor-login', 'register'].includes(input.segments[1] ?? '')) return null;
     return isVendorClaims(input.claims) ? '/vendor/dashboard' : '/(tabs)';
   }
+  if (inAuth && input.segments[1] === 'email-verification') return '/(auth)/login';
   if (inAuth) return null;
   if (input.segments[0] === 'vendor') return '/(auth)/vendor-login';
   return input.wasAuthenticated ? '/(auth)/login' : '/(auth)/splash';

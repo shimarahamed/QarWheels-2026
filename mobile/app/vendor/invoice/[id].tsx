@@ -1,15 +1,16 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { VendorText as Text } from '@/components/vendor/VendorText';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors } from '@/lib/store';
+import { useVendorColors as useQarColors } from '@/lib/vendor-theme';
 import { useAuthContext } from '@/lib/AuthContext';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { formatMinorUnits } from '@/lib/money';
 import {
-  fetchInvoices,
+  fetchInvoice,
   formatBillingDate,
   INVOICE_STATUS_COLORS,
   type LiveInvoice,
@@ -25,8 +26,6 @@ export default function InvoiceScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // The invoices route returns the business's list; find this one in it. There
-  // is no single-invoice GET endpoint, so this is the honest way to read it.
   const load = useCallback(async () => {
     if (!businessId) {
       setError('Your account is not linked to a business yet.');
@@ -35,8 +34,7 @@ export default function InvoiceScreen() {
     }
     try {
       setError(null);
-      const invoices = await fetchInvoices(businessId);
-      const found = invoices.find((inv) => inv.id === id) ?? null;
+      const found = await fetchInvoice(id);
       setInvoice(found);
       if (!found) setError('This invoice could not be found.');
     } catch (e) {

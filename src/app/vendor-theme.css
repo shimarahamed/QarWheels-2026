@@ -1,0 +1,89 @@
+/* Cockpit Precision: scoped to the vendor workspace and its dialog portals. */
+.vendor-workspace, .vendor-theme {
+  --background: 220 16% 96%;
+  --foreground: 0 0% 9%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 9%;
+  --primary: 358 77% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 216 15% 94%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 216 15% 94%;
+  --muted-foreground: 219 10% 36%;
+  --accent: 216 15% 92%;
+  --accent-foreground: 0 0% 9%;
+  --border: 213 15% 88%;
+  --input: 213 15% 88%;
+  --ring: 358 77% 50%;
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 0 0% 9%;
+  --sidebar-accent: 216 15% 94%;
+  --sidebar-accent-foreground: 0 0% 9%;
+  --sidebar-border: 213 15% 88%;
+  --sidebar-primary: 358 77% 50%;
+  --vendor-gold: #806100;
+  --vendor-red-text: #bf171d;
+  font-family: var(--font-body), sans-serif;
+  color: hsl(var(--foreground));
+}
+.dark .vendor-workspace, .dark .vendor-theme {
+  --background: 210 20% 8%;
+  --foreground: 225 15% 89%;
+  --card: 214 12% 11%;
+  --card-foreground: 225 15% 89%;
+  --popover: 214 12% 11%;
+  --popover-foreground: 225 15% 89%;
+  --secondary: 214 11% 13%;
+  --secondary-foreground: 225 15% 89%;
+  --muted: 214 11% 13%;
+  --muted-foreground: 218 10% 77%;
+  --accent: 218 9% 17%;
+  --accent-foreground: 225 15% 89%;
+  --border: 224 9% 24%;
+  --input: 224 9% 24%;
+  --sidebar-background: 214 12% 11%;
+  --sidebar-foreground: 225 15% 89%;
+  --sidebar-accent: 218 9% 17%;
+  --sidebar-accent-foreground: 225 15% 89%;
+  --sidebar-border: 224 9% 24%;
+  --vendor-gold: #e9c349;
+  --vendor-red-text: #ffb4ab;
+}
+.vendor-workspace :is(h1,h2,h3,h4,h5,h6), .vendor-theme [role="dialog"] :is(h1,h2,h3) {
+  font-family: var(--font-headline), sans-serif;
+}
+.vendor-workspace :is(.kpi-number,.section-label,.vendor-eyebrow), .vendor-eyebrow {
+  font-family: var(--font-telemetry), sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.vendor-eyebrow { font-size: .75rem; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
+.vendor-gold { color: var(--vendor-gold); }
+.vendor-panel { border: 1px solid hsl(var(--border)); border-radius: 1rem; background: hsl(var(--card)); }
+.vendor-workspace .text-primary, .vendor-theme [role="dialog"] .text-primary { color: var(--vendor-red-text); }
+.vendor-workspace thead { background: hsl(var(--muted)); }
+.vendor-workspace :is(input,select,button,a):focus-visible { outline: 2px solid var(--vendor-gold); outline-offset: 3px; }
+.vendor-workspace .vendor-command { background: linear-gradient(120deg,hsl(var(--card)),hsl(var(--muted))); }
+.vendor-workspace .vendor-matrix { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; }
+@media (max-width: 639px) { .vendor-workspace .vendor-matrix { grid-template-columns: minmax(0,1fr); } }
+.vendor-workspace .vendor-status-header { background: hsl(var(--background) / .88); backdrop-filter: blur(20px); }
+@media (prefers-reduced-motion: reduce) {
+  .vendor-workspace *, .vendor-workspace *::before, .vendor-workspace *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+@media print {
+  body.vendor-theme, .vendor-theme .vendor-workspace {
+    --background: 0 0% 100%; --foreground: 0 0% 0%;
+    --card: 0 0% 100%; --card-foreground: 0 0% 0%;
+    --muted: 0 0% 96%; --muted-foreground: 0 0% 25%; --border: 0 0% 75%;
+    --vendor-red-text: #000; --vendor-gold: #000;
+    color: #000; background: #fff !important;
+  }
+  .vendor-theme :is([data-side], [data-sidebar="sidebar"], .vendor-status-header, .liquid-glass-tab-bar) { display: none !important; }
+  .vendor-theme .vendor-workspace :is(header, nav, button) { display: none !important; }
+  .vendor-theme .vendor-workspace main { min-height: 0; width: 100%; margin: 0; padding: 0; }
+  .vendor-theme .vendor-workspace, .vendor-theme .vendor-workspace :is(.overflow-hidden, .overflow-x-auto, .overflow-y-auto) { overflow: visible !important; }
+  .vendor-theme .vendor-workspace .page-motion { max-width: none; padding: 0; animation: none; transform: none; }
+  .vendor-theme .vendor-workspace :is(.shadow-sm, .shadow-md) { box-shadow: none; }
+  .vendor-theme .vendor-workspace :is(.text-primary, .text-destructive, .text-white, .text-primary-foreground, .vendor-gold) { color: #000; }
+}

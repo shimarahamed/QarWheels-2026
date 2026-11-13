@@ -35,7 +35,32 @@ npm --prefix mobile ci
 npm run mobile:start
 ```
 
-A native phone needs a device-reachable API URL, not localhost. Web, mobile and server credentials must target the same intended Firebase environment. Never place server credentials in client-prefixed variables.
+Run Expo from `mobile/` (or use the root `mobile:*` scripts), not from the
+repository root. The root `app.json` belongs to an older native project; the
+Expo SDK 58 application and its `app.json` are under `mobile/`. Install a
+development build for this project before scanning Metro's QR code: Expo Go
+does not include its BLE and other custom native modules. On a configured
+Android machine, use `npm run mobile:android`; otherwise use the `development`
+profile in `mobile/eas.json` to build an installable dev client. After installing
+it, run `npm run mobile:start` and open the project in that dev client.
+
+If the phone times out while opening Expo, use the computer's Wi-Fi IPv4
+address from `ipconfig` (not `127.0.0.1` or a VPN address). In PowerShell:
+
+```powershell
+$env:REACT_NATIVE_PACKAGER_HOSTNAME = '<Wi-Fi IPv4>'
+npm --prefix mobile start -- --lan --port 8090
+```
+
+The phone must be on the same Wi-Fi and able to open
+`http://<Wi-Fi IPv4>:8090/status` in its browser. Use the QR code from this
+Metro session, not one from an older localhost session.
+
+A native phone needs a device-reachable API URL, not localhost. Set
+`EXPO_PUBLIC_API_BASE_URL` in `mobile/.env` to the matching development API
+origin before testing booking/vendor actions. Web, mobile and server credentials
+must target the same intended Firebase environment. Never place server
+credentials in client-prefixed variables.
 
 For the business website, edit source and rebuild; do not edit generated pages:
 

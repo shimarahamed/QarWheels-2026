@@ -121,6 +121,20 @@ export async function fetchInvoices(businessId: string): Promise<LiveInvoice[]> 
   return data.invoices;
 }
 
+export async function fetchInvoice(invoiceId: string): Promise<LiveInvoice | null> {
+  const data = await apiGet<{ invoice: LiveInvoice | null }>(
+    `/api/vendor/invoices?invoiceId=${encodeURIComponent(invoiceId)}`, await token(),
+  );
+  return data.invoice;
+}
+
+export async function fetchBookingInvoice(bookingId: string): Promise<LiveInvoice | null> {
+  const data = await apiGet<{ invoice: LiveInvoice | null }>(
+    `/api/vendor/invoices?bookingId=${encodeURIComponent(bookingId)}`, await token(),
+  );
+  return data.invoice;
+}
+
 export type CreateInvoiceResult = {
   invoiceId: string;
   invoiceNumber: string;

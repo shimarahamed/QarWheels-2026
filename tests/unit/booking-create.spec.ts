@@ -63,7 +63,7 @@ describe('server-owned booking creation', () => {
     state.docs.set('users/customer_1', { firstName: 'Test', lastName: 'Customer', email: 'customer@example.com' });
     state.docs.set('branches/branch_1', { businessId: 'business_1', name: 'Workshop', status: 'Approved', isListed: true, vacationMode: false });
     state.docs.set('branch_services/service_1', { businessId: 'business_1', branchId: 'branch_1', name: 'Brake inspection', active: true });
-    state.docs.set('businesses/business_1', { status: 'Active' });
+    state.docs.set('businesses/business_1', { status: 'Active', kyc: { status: 'Verified' } });
   });
 
   it('derives identity and tenancy from verified records, and reuses a retry', async () => {
@@ -109,6 +109,12 @@ describe('server-owned booking creation', () => {
     expect((await POST(request(input))).status).toBe(400);
     state.docs.set('branch_services/service_1', { businessId: 'business_1', branchId: 'branch_1', name: 'Brake inspection', active: true });
     state.docs.set('branches/branch_1', { businessId: 'business_1', name: 'Workshop', status: 'Pending Approval', isListed: false });
+    expect((await POST(request(input))).status).toBe(400);
+    expect(state.creates).toBe(0);
+  });
+
+  it('rejects an unverified business even if its branch was left listed', async () => {
+    state.docs.set('businesses/business_1', { status: 'Active', kyc: { status: 'Pending' } });
     expect((await POST(request(input))).status).toBe(400);
     expect(state.creates).toBe(0);
   });

@@ -9,7 +9,6 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 import { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  lookupBooking,
   lookupCar,
   lookupCategory,
 } from '@/lib/marketplace';
@@ -18,7 +17,6 @@ import { useAuthContext } from '@/lib/AuthContext';
 import BookingQuotePanel from '@/components/BookingQuotePanel';
 import { ErrorState } from '@/components/ErrorState';
 import RecordNotFound from '@/components/RecordNotFound';
-import { findVendorInvoiceByBooking } from '@/lib/vendor-data';
 import { categoryColors, colors, getThemedStatusColors, radius, shadow, spacing, statusColors, typography } from '@/lib/theme';
 import { useQarColors } from '@/lib/store';
 import { success, tap } from '@/lib/haptics';
@@ -623,15 +621,11 @@ export function BookingDetailScreen() {
   const remote = useBookingDocument(id, user?.uid ?? null);
   const storeBooking = useQarWheelStore((s) => s.bookings.find((b) => b.id === id));
   const [liveStatus, setLiveStatus] = useState<{ id: string; status: BookingWorkflowStatus } | null>(null);
-  const vendorInvoices = useQarWheelStore((s) => s.vendorInvoices);
+  const [isCancelling, setIsCancelling] = useState(false);
   const cancelBooking = useQarWheelStore((s) => s.cancelBooking);
   const themeMode = useQarWheelStore((s) => s.themeMode);
   const themedStatusColors = getThemedStatusColors(themeMode);
-  // Prefer the user's own booking; the seed lookup is strict so a stale link
-  // cannot render somebody else's appointment under this id.
-  const baseBooking = remote.booking
-    ?? (user && (remote.loading || remote.error || id?.startsWith('booking_')) ? storeBooking : null)
-    ?? lookupBooking(id);
+  const baseBooking = remote.booking;
   const booking = baseBooking && liveStatus?.id === baseBooking.id
     ? { ...baseBooking, status: liveStatus.status } : baseBooking;
 
@@ -656,19 +650,14 @@ export function BookingDetailScreen() {
 
   const sc = themedStatusColors[booking.status] ?? themedStatusColors.Pending;
   const currentIndex = getBookingStatusIndex(booking.status);
-  const canModify = !remote.error && actorAllowedTransitions('customer', booking.status).includes('Cancelled');
+  const canModify = !!remote.booking && !remote.loading && !remote.error && !isCancelling
+    && actorAllowedTransitions('customer', booking.status).includes('Cancelled');
   const isCancelled = booking.status === 'Cancelled';
   const isCompleted = booking.status === 'Completed';
 
-  const invoice = (() => {
-    if (!isCompleted) return undefined;
-    const vbid = booking.vendorBookingId;
-    if (!vbid) return undefined;
-    return vendorInvoices.find((inv) => inv.bookingId === vbid) ?? findVendorInvoiceByBooking(vbid);
-  })();
-
   function handleCancel() {
-    if (!canModify || !storeBooking) return;
+    if (!canModify || !booking) return;
+    const bookingId = booking.id;
     Alert.alert(
       'Cancel booking?',
       'This will cancel the request for both you and the garage.',
@@ -678,12 +667,17 @@ export function BookingDetailScreen() {
           text: 'Cancel booking',
           style: 'destructive',
           onPress: async () => {
+            setIsCancelling(true);
             try {
-              await cancelRemoteBooking(storeBooking.id);
-              cancelBooking(storeBooking.id);
+              await cancelRemoteBooking(bookingId);
+              if (storeBooking) {
+                try { cancelBooking(bookingId); } catch { console.warn('[booking] local cache update failed'); }
+              }
               void success();
             } catch {
               Alert.alert('Cancellation failed', 'Your booking has not been cancelled. Please retry.');
+            } finally {
+              setIsCancelling(false);
             }
           },
         },
@@ -692,7 +686,7 @@ export function BookingDetailScreen() {
   }
 
   function handleReschedule() {
-    if (!canModify || !storeBooking) return;
+    if (!canModify) return;
     const garageId = booking?.garageId;
     Alert.alert('Ask for a new time', 'Your current request stays unchanged until the garage agrees to a new time.', [
       { text: 'Not now', style: 'cancel' },
@@ -764,23 +758,21 @@ export function BookingDetailScreen() {
           {/* ── Invoice CTA (completed only) ── */}
           <BookingQuotePanel bookingId={booking.id} audience="customer"
             onStatusChange={(status) => setLiveStatus({ id: booking.id, status })} />
-          {invoice ? (
+          {isCompleted ? (
             <AnimatedPressable
               style={[bds.invoiceCta, { backgroundColor: c.surface, borderColor: c.primaryMid }]}
-              onPress={() => router.push(`/invoice/${invoice.id}` as never)}
+              onPress={() => router.push('/invoices' as never)}
+              accessibilityRole="button" accessibilityLabel="View invoices"
               scaleValue={0.97}
             >
               <View style={[bds.invoiceCtaIcon, { backgroundColor: c.primaryLight }]}>
                 <Icon name="document-text" size={22} color={c.primary} />
               </View>
               <View style={bds.invoiceCtaBody}>
-                <Text style={[bds.invoiceCtaTitle, { color: c.text }]}>Invoice ready</Text>
+                <Text style={[bds.invoiceCtaTitle, { color: c.text }]}>View invoices</Text>
                 <Text style={[bds.invoiceCtaSub, { color: c.muted }]}>
-                  QAR {invoice.total.toFixed(2)} · Tap to view &amp; download PDF
+                  Garage invoices for completed work appear in your account.
                 </Text>
-              </View>
-              <View style={[bds.invoiceCtaBadge, { backgroundColor: c.primaryLight }]}>
-                <Text style={[bds.invoiceCtaBadgeText, { color: c.primary }]}>{invoice.status}</Text>
               </View>
             </AnimatedPressable>
           ) : null}
@@ -892,7 +884,7 @@ export function BookingDetailScreen() {
                 <Icon name="close-circle-outline" size={20} color={c.danger} />
               </View>
               <Text style={[bds.actionCardLabel, { color: isCancelled ? c.muted : c.danger }]}>
-                {isCancelled ? 'Cancelled' : 'Cancel'}
+                {isCancelled ? 'Cancelled' : isCancelling ? 'Cancelling...' : 'Cancel'}
               </Text>
             </AnimatedPressable>
           </View>

@@ -50,7 +50,7 @@ export async function POST(
       const current = booking.quote;
 
       if (input.action === 'offer') {
-        const access = await requireBranchAccess(request, booking.branchId);
+        const access = await requireBranchAccess(request, booking.branchId, 'write');
         if (!access.ok) return { error: 'Forbidden', code: access.reason === 'unauthenticated' ? 401 : 403 };
         if (access.auth.role !== 'master_admin') {
           const claims = access.auth.claims;

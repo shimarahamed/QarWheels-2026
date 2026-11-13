@@ -10,6 +10,7 @@ import { createBooking, useBranches } from '@/lib/firestoreOps';
 
 let mockUser: { uid: string; displayName: string; email: string } | null = null;
 let mockRouteId = 'g1';
+const mockReplace = jest.fn();
 
 // The booking form is a disclosure list: every row shows the value that is
 // currently chosen and opens the picker in place. Two things must hold for
@@ -50,7 +51,7 @@ async function chooseServiceAndTime(serviceTitle = job.title) {
 jest.mock('expo-router', () => ({
   Stack: { Screen: () => null },
   useLocalSearchParams: () => ({ id: mockRouteId }),
-  useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: mockReplace }),
   useSegments: () => ['booking-summary'],
 }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => '4e5c190f-b8bb-4e73-9c39-7c1d1c4fed1b' }));
@@ -100,6 +101,7 @@ jest.mock('@/lib/firestoreOps', () => ({
 }));
 
 beforeEach(() => {
+  mockReplace.mockClear();
   mockUser = null;
   mockRouteId = 'g1';
   jest.mocked(useBranches).mockReturnValue({
@@ -301,6 +303,20 @@ describe('BookingComposer payment settlement', () => {
     expect(useQarWheelStore.getState().bookings).toHaveLength(0);
     expect(useQarWheelStore.getState().invoices).toHaveLength(0);
     alert.mockRestore();
+  });
+
+  it('keeps server success truthful if the optional local booking cache fails', async () => {
+    const original = useQarWheelStore.getState().createBooking;
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    useQarWheelStore.setState({ createBooking: (() => { throw new Error('cache unavailable'); }) as never });
+    try {
+      await confirmBooking();
+      await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/booking/server_booking_1'));
+      expect(alert).not.toHaveBeenCalledWith('Booking not sent', expect.any(String));
+    } finally {
+      useQarWheelStore.setState({ createBooking: original });
+      alert.mockRestore();
+    }
   });
 
   it('limits service choices and the submitted payload to the newly selected garage', async () => {

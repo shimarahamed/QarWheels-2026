@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import {
   useCollection, useDoc, useFirebase, useMemoFirebase, useUser, safeUpdateDoc,
 } from '@/firebase';
@@ -50,6 +51,7 @@ export default function AdminBusinessDetailPage() {
   const { canMutate, level } = useAdmin();
 
   const [isSavingStatus, setIsSavingStatus] = useState(false);
+  const [confirmSuspend, setConfirmSuspend] = useState(false);
   const [busyBranchId, setBusyBranchId] = useState<string | null>(null);
 
   const businessRef = useMemoFirebase(
@@ -111,13 +113,21 @@ export default function AdminBusinessDetailPage() {
   async function handleBusinessStatus(status: BusinessStatus) {
     setIsSavingStatus(true);
     try {
-      await safeUpdateDoc(doc(firestore, 'businesses', businessId), {
-        status,
-        updatedAt: serverTimestamp(),
+      if (!user) throw new Error('Sign in again to update this business.');
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/admin/businesses/${businessId}/status`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
       });
-      toast({ title: `Business ${status.toLowerCase()}` });
-    } catch {
-      toast({ title: 'Error', description: 'Could not update business status.', variant: 'destructive' });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? 'Could not update business status.');
+      }
+      setConfirmSuspend(false);
+      toast({ title: status === 'Suspended' ? 'Business suspended and branches delisted' : 'Business active; review branch listings' });
+    } catch (error) {
+      toast({ title: 'Error', description: error instanceof Error ? error.message : 'Could not update business status.', variant: 'destructive' });
     } finally {
       setIsSavingStatus(false);
     }
@@ -130,7 +140,7 @@ export default function AdminBusinessDetailPage() {
       // remain visible in the customer marketplace.
       await safeUpdateDoc(doc(firestore, 'branches', branchId), {
         status,
-        ...(status === 'Rejected' ? { isListed: false } : {}),
+        ...(status !== 'Approved' ? { isListed: false } : {}),
         updatedAt: serverTimestamp(),
       });
       toast({ title: `Branch ${status}` });
@@ -213,7 +223,7 @@ export default function AdminBusinessDetailPage() {
                 <span className="inline-flex">
                   <Select
                     value={business.status}
-                    onValueChange={(v) => void handleBusinessStatus(v as BusinessStatus)}
+                    onValueChange={(v) => v === 'Suspended' ? setConfirmSuspend(true) : void handleBusinessStatus('Active')}
                     disabled={!canMutate || isSavingStatus}
                   >
                     <SelectTrigger className="h-9 w-40 rounded-xl">
@@ -370,7 +380,7 @@ export default function AdminBusinessDetailPage() {
                                     size="sm"
                                     variant="outline"
                                     className="h-8 rounded-xl text-xs"
-                                    disabled={!canMutate || busyBranchId === br.id}
+                                    disabled={!canMutate || busyBranchId === br.id || (!br.isListed && (br.status !== 'Approved' || business?.status !== 'Active' || business?.kyc?.status !== 'Verified'))}
                                     onClick={() => void handleBranchListed(br.id, !br.isListed)}
                                   >
                                     {busyBranchId === br.id ? (
@@ -384,7 +394,9 @@ export default function AdminBusinessDetailPage() {
                                   </Button>
                                 </span>
                               </TooltipTrigger>
-                              {!canMutate && <TooltipContent>{readOnlyHint}</TooltipContent>}
+                              {(!canMutate || (!br.isListed && (br.status !== 'Approved' || business?.status !== 'Active' || business?.kyc?.status !== 'Verified'))) && (
+                                <TooltipContent>{!canMutate ? readOnlyHint : 'Activate the business, approve the branch, and verify KYC before listing.'}</TooltipContent>
+                              )}
                             </Tooltip>
                           </TableCell>
                         </TableRow>
@@ -519,6 +531,22 @@ export default function AdminBusinessDetailPage() {
           </TabsContent>
         </Tabs>
       </div>
+      <AlertDialog open={confirmSuspend} onOpenChange={(open) => { if (!isSavingStatus) setConfirmSuspend(open); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Suspend {business.displayName}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Its listed branches will disappear from customer discovery and new bookings will be blocked. Existing bookings remain available to manage.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSavingStatus}>Keep active</AlertDialogCancel>
+            <AlertDialogAction disabled={isSavingStatus} onClick={(event) => { event.preventDefault(); void handleBusinessStatus('Suspended'); }}>
+              {isSavingStatus ? 'Suspending...' : 'Suspend business'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TooltipProvider>
   );
 }

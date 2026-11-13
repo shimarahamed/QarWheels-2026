@@ -2,12 +2,12 @@
 
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { Timestamp } from 'firebase/firestore';
 import { Car, Clock3, UserCog } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Booking, BookingStatus, WithId } from '@/lib/types';
+import { bookingScheduleDate } from '@/lib/vendor-schedule';
 
 /**
  * The command center's kanban — the live shop floor at a glance. Columns are
@@ -23,12 +23,9 @@ const COLUMNS: { status: BookingStatus; label: string; accent: string }[] = [
   { status: 'ReadyForPickup', label: 'Ready for pickup', accent: 'border-emerald-500/30 bg-emerald-500/5' },
 ];
 
-function toDate(value: Booking['bookingDate']) {
-  return value instanceof Timestamp ? value.toDate() : new Date(value);
-}
-
 function JobCardTile({ booking }: { booking: WithId<Booking> }) {
   const router = useRouter();
+  const preferredDate = bookingScheduleDate(booking.bookingDate);
   return (
     <button
       type="button"
@@ -37,7 +34,7 @@ function JobCardTile({ booking }: { booking: WithId<Booking> }) {
     >
       <div className="flex items-start justify-between gap-2">
         <p className="min-w-0 truncate text-sm font-bold">{booking.customerName || 'Customer'}</p>
-        <Badge variant="outline" className="shrink-0 text-[10px]">{format(toDate(booking.bookingDate), 'MMM d')}</Badge>
+        <Badge variant="outline" className="shrink-0 text-[10px]">{preferredDate ? format(preferredDate, 'MMM d') : 'Date unavailable'}</Badge>
       </div>
       <p className="truncate text-xs text-muted-foreground">{booking.serviceName}</p>
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -57,7 +54,7 @@ function JobCardTile({ booking }: { booking: WithId<Booking> }) {
   );
 }
 
-export function JobBoard({ bookings, isLoading }: { bookings: WithId<Booking>[] | null | undefined; isLoading: boolean }) {
+export function JobBoard({ bookings, isLoading, view = 'stages' }: { bookings: WithId<Booking>[] | null | undefined; isLoading: boolean; view?: 'stages' | 'matrix' }) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -71,7 +68,7 @@ export function JobBoard({ bookings, isLoading }: { bookings: WithId<Booking>[] 
   const byStatus = (status: BookingStatus) =>
     (bookings ?? [])
       .filter((b) => b.status === status)
-      .sort((a, b) => toDate(a.bookingDate).getTime() - toDate(b.bookingDate).getTime());
+      .sort((a, b) => (bookingScheduleDate(a.bookingDate)?.getTime() ?? Infinity) - (bookingScheduleDate(b.bookingDate)?.getTime() ?? Infinity));
 
   const totalInFlight = COLUMNS.reduce((sum, col) => sum + byStatus(col.status).length, 0);
 
@@ -83,6 +80,20 @@ export function JobBoard({ bookings, isLoading }: { bookings: WithId<Booking>[] 
         description="Accepted and in-progress bookings will show up here as a live board."
       />
     );
+  }
+
+  if (view === 'matrix') {
+    const jobs = COLUMNS.flatMap((column) => byStatus(column.status));
+    return <div className="vendor-matrix">
+      {jobs.slice(0, 6).map((booking) => <div key={booking.id} className="overflow-hidden rounded-xl border border-border bg-muted/40">
+        <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+          <span className="vendor-eyebrow text-muted-foreground">#{booking.id.slice(-8)}</span>
+          <Badge variant="outline" className={booking.status === 'ReadyForPickup' ? 'vendor-gold' : 'text-primary'}>{COLUMNS.find((column) => column.status === booking.status)?.label}</Badge>
+        </div>
+        <JobCardTile booking={booking} />
+      </div>)}
+      {jobs.length > 6 && <p className="col-span-full text-xs text-muted-foreground">Showing 6 of {jobs.length} open work orders. Open All work orders for the full board.</p>}
+    </div>;
   }
 
   return (

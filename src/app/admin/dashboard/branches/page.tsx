@@ -220,7 +220,7 @@ export default function AdminBranchesPage() {
                                   <Button
                                     size="sm"
                                     className="h-8 rounded-xl text-xs"
-                                    disabled={!canMutate || busyId === br.id}
+                                    disabled={!canMutate || busyId === br.id || !businesses?.some((business) => business.id === br.businessId && business.status === 'Active' && business.kyc?.status === 'Verified')}
                                     onClick={() => void handleDecision(br.id, 'Approved')}
                                   >
                                     {busyId === br.id
@@ -230,7 +230,9 @@ export default function AdminBranchesPage() {
                                   </Button>
                                 </span>
                               </TooltipTrigger>
-                              {!canMutate && <TooltipContent>{readOnlyHint}</TooltipContent>}
+                              {(!canMutate || !businesses?.some((business) => business.id === br.businessId && business.status === 'Active' && business.kyc?.status === 'Verified')) && (
+                                <TooltipContent>{!canMutate ? readOnlyHint : 'Activate the business and verify KYC before approving this branch.'}</TooltipContent>
+                              )}
                             </Tooltip>
                             <Tooltip>
                               <TooltipTrigger asChild>

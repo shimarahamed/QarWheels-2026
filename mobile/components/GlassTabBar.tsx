@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { BlurView } from 'expo-blur';
 import { useEffect, useState } from 'react';
-import { AccessibilityInfo, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -40,19 +40,26 @@ export type GlassTab = {
 
 export const GLASS_TAB_HEIGHT = 68;
 
+function tabHeight(fontScale: number): number {
+  return Math.max(GLASS_TAB_HEIGHT, Math.ceil(22 + 3 + 14 * fontScale + 12));
+}
+
 function bottomOffset(bottomInset: number): number {
   return bottomInset > 0 ? Math.max(bottomInset - 4, 10) : 12;
 }
 
 export function useGlassTabBottom(): number {
   const { bottom } = useSafeAreaInsets();
-  return GLASS_TAB_HEIGHT + bottomOffset(bottom) + 10;
+  const { fontScale } = useWindowDimensions();
+  return tabHeight(fontScale) + bottomOffset(bottom) + 10;
 }
 
-function GlassTabItem({ item, dark, reducedMotion }: {
+function GlassTabItem({ item, dark, reducedMotion, fontScale, height }: {
   item: GlassTab;
   dark: boolean;
   reducedMotion: boolean;
+  fontScale: number;
+  height: number;
 }) {
   const c = getQarColors(dark ? 'dark' : 'light');
   const selected = useSharedValue(item.selected ? 1 : 0);
@@ -71,7 +78,7 @@ function GlassTabItem({ item, dark, reducedMotion }: {
 
   return (
     <Pressable
-      style={styles.item}
+      style={[styles.item, { height: height - 2 }, fontScale > 1 && { minWidth: Math.ceil(68 * fontScale) }]}
       onPress={item.onPress}
       onPressIn={() => { if (!reducedMotion) pressed.value = withSpring(0.94, motion.pressIn); }}
       onPressOut={() => { if (!reducedMotion) pressed.value = withSpring(1, motion.pressOut); }}
@@ -79,7 +86,7 @@ function GlassTabItem({ item, dark, reducedMotion }: {
       accessibilityLabel={item.label}
       accessibilityState={{ selected: item.selected }}
     >
-      <Animated.View style={[styles.itemContent, pressStyle]}>
+      <Animated.View style={[styles.itemContent, { height: height - 12, maxWidth: Math.max(68, Math.ceil(68 * fontScale)) }, pressStyle]}>
         <Animated.View
           pointerEvents="none"
           testID={`glass-tab-selection-${item.key}`}
@@ -109,11 +116,16 @@ function GlassTabItem({ item, dark, reducedMotion }: {
 
 export function GlassTabBar({ items }: { items: GlassTab[] }) {
   const { bottom } = useSafeAreaInsets();
+  const { fontScale } = useWindowDimensions();
+  const height = tabHeight(fontScale);
   const themeMode = useQarWheelStore((s) => s.themeMode);
   const dark = themeMode === 'dark';
   const reducedMotion = useReducedMotion();
   const [reduceTransparency, setReduceTransparency] = useState(false);
   const nativeGlass = reduceTransparency ? null : nativeGlassModule();
+  const tabs = items.map((item) => (
+    <GlassTabItem key={item.key} item={item} dark={dark} reducedMotion={reducedMotion} fontScale={fontScale} height={height} />
+  ));
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
@@ -134,7 +146,7 @@ export function GlassTabBar({ items }: { items: GlassTab[] }) {
         shadowOffset: { width: 0, height: 8 },
         elevation: 12,
       }]}>
-        <View style={[styles.surface, {
+        <View style={[styles.surface, { height }, {
           borderColor: nativeGlass ? 'transparent' : dark ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.85)',
           backgroundColor: nativeGlass ? 'transparent' : reduceTransparency || Platform.OS === 'android'
             ? (dark ? '#1C232D' : '#F8F8FA')
@@ -159,11 +171,10 @@ export function GlassTabBar({ items }: { items: GlassTab[] }) {
               ? 'transparent'
               : dark ? 'rgba(25,28,34,0.24)' : 'rgba(255,255,255,0.22)',
           }]} /> : null}
-          <View style={styles.row}>
-            {items.map((item) => (
-              <GlassTabItem key={item.key} item={item} dark={dark} reducedMotion={reducedMotion} />
-            ))}
-          </View>
+          {fontScale > 1 ? <ScrollView testID="glass-tab-scroll" horizontal showsHorizontalScrollIndicator
+            style={styles.rowScroll} contentContainerStyle={[styles.row, styles.scrollRow]}>
+            {tabs}
+          </ScrollView> : <View style={[styles.row, styles.defaultRow]}>{tabs}</View>}
         </View>
       </View>
     </View>
@@ -183,30 +194,28 @@ const styles = StyleSheet.create({
     borderRadius: 34,
   },
   surface: {
-    height: GLASS_TAB_HEIGHT,
     borderRadius: 34,
     borderWidth: 1,
     overflow: 'hidden',
   },
   tint: { ...StyleSheet.absoluteFill },
   nativeGlass: { borderRadius: 34 },
+  rowScroll: { flex: 1 },
   row: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 6,
   },
+  defaultRow: { flex: 1 },
+  scrollRow: { flexGrow: 1 },
   item: {
     flex: 1,
     minWidth: 0,
-    height: GLASS_TAB_HEIGHT - 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   itemContent: {
     width: '100%',
-    maxWidth: 68,
-    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,

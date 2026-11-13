@@ -135,7 +135,7 @@ function BookingWizard() {
   const addOnServicesRef = useMemoFirebase(
     () =>
       garageId
-        ? query(collection(firestore, 'branch_services'), where('branchId', '==', garageId))
+        ? query(collection(firestore, 'branch_services'), where('branchId', '==', garageId), where('active', '==', true))
         : null,
     [firestore, garageId]
   );

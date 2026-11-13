@@ -1,9 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { VendorText as Text } from '@/components/vendor/VendorText';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarWheelStore, useQarColors } from '@/lib/store';
+import { useQarWheelStore } from '@/lib/store';
+import { useVendorColors as useQarColors } from '@/lib/vendor-theme';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';

@@ -1,12 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarWheelStore, useQarColors } from '@/lib/store';
+import { useQarWheelStore } from '@/lib/store';
+import { useVendorColors as useQarColors } from '@/lib/vendor-theme';
+import { VendorText as Text } from '@/components/vendor/VendorText';
+import { exportVendorCsv } from '@/lib/vendor-export';
 import { MotionScreen } from '@/lib/motion';
-import { radius, shadow, spacing, typography } from '@/lib/theme';
-import { useVendorTabBottom } from '@/components/VendorTabBar';
+import { radius, spacing } from '@/lib/theme';
+import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
 import { useAuthContext } from '@/lib/AuthContext';
 import { canAccess } from '@/lib/permissions';
 
@@ -22,14 +25,30 @@ export default function InventoryScreen() {
   const updateQty = useQarWheelStore((s) => s.updateVendorInventoryQty);
   const addInventoryItem = useQarWheelStore((s) => s.addVendorInventoryItem);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [query, setQuery] = useState('');
+  const [stockFilter, setStockFilter] = useState<'All stock' | 'Low stock' | 'Out of stock'>('All stock');
+  const [exporting, setExporting] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [draft, setDraft] = useState({ name: '', sku: '', quantity: '0', minQuantity: '1', unitPrice: '', unit: 'piece', supplier: '' });
   const [category, setCategory] = useState('Accessories');
   const [error, setError] = useState('');
   const submitted = useRef(false);
 
-  const filtered = activeCategory === 'All' ? inventory : inventory.filter((i) => i.category === activeCategory);
+  const filtered = inventory.filter((item) =>
+    (activeCategory === 'All' || item.category === activeCategory) &&
+    (stockFilter === 'All stock' || (stockFilter === 'Out of stock' ? item.quantity === 0 : item.quantity <= item.minQuantity)) &&
+    `${item.name} ${item.sku} ${item.supplier}`.toLowerCase().includes(query.trim().toLowerCase()));
   const lowStock = inventory.filter((i) => i.quantity <= i.minQuantity);
+
+  async function handleExport() {
+    if (!canRead || exporting) return;
+    setExporting(true); setError('');
+    try {
+      await exportVendorCsv('qarwheel-inventory-drafts.csv', ['SKU', 'Item', 'Category', 'Quantity', 'Minimum', 'Unit price (QAR)', 'Unit', 'Supplier'],
+        filtered.map((item) => [item.sku, item.name, item.category, item.quantity, item.minQuantity, item.unitPrice, item.unit, item.supplier]));
+    } catch { setError('Inventory was not exported. Please try again.'); }
+    finally { setExporting(false); }
+  }
 
   function handleAdjust(itemId: string, itemName: string, delta: number) {
     if (!canWrite) return;
@@ -78,7 +97,12 @@ export default function InventoryScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <View style={[s.navbar, { backgroundColor: c.background, borderBottomColor: c.border }]}>
-        <Text style={[s.navTitle, { color: c.text }]}>Inventory</Text>
+        <Text heading style={[s.navTitle, { color: c.text }]}>Inventory &amp; Spare Parts Depot</Text>
+        {canRead && <Pressable accessibilityRole="button" accessibilityLabel="Export visible inventory drafts" disabled={exporting || filtered.length === 0}
+          accessibilityState={{ disabled: exporting || filtered.length === 0, busy: exporting }} onPress={() => void handleExport()}
+          style={[s.exportBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border, opacity: exporting || !filtered.length ? 0.5 : 1 }]}>
+          <Ionicons name="download-outline" size={16} color={c.text} /><Text style={{ color: c.text }}>Export CSV</Text>
+        </Pressable>}
         {canWrite && <Pressable
           style={[s.addBtn, { backgroundColor: c.primary }]}
           onPress={() => { submitted.current = false; setError(''); setShowAdd(!showAdd); }}
@@ -92,8 +116,8 @@ export default function InventoryScreen() {
       {/* Low stock alert */}
       {canRead && lowStock.length > 0 && (
         <View style={[s.alertBanner, { backgroundColor: '#F59E0B20', borderColor: '#F59E0B30' }]}>
-          <Ionicons name="warning-outline" size={16} color="#F59E0B" />
-          <Text style={[s.alertText, { color: '#F59E0B' }]}>
+          <Ionicons name="warning-outline" size={16} color={c.warning} />
+          <Text style={[s.alertText, { color: c.warning }]}>
             {lowStock.length} item{lowStock.length > 1 ? 's' : ''} low or out of stock. Review stock.
           </Text>
         </View>
@@ -146,29 +170,46 @@ export default function InventoryScreen() {
               <Text style={{ color: '#fff', fontWeight: '700' }}>Add inventory draft</Text>
             </Pressable>
           </View>}
+          <View style={[s.search, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+            <Ionicons name="search-outline" size={18} color={c.muted} />
+            <TextInput accessibilityLabel="Search inventory by name or SKU" placeholder="Search part, SKU or supplier" placeholderTextColor={c.muted}
+              value={query} onChangeText={setQuery} style={{ flex: 1, minWidth: 0, color: c.text, minHeight: 44, fontFamily: 'VendorBody' }} />
+          </View>
+          <View style={s.stockFilters}>
+            {(['All stock', 'Low stock', 'Out of stock'] as const).map((filter) => <Pressable key={filter} accessibilityRole="tab"
+              accessibilityState={{ selected: stockFilter === filter }} onPress={() => setStockFilter(filter)}
+              style={[s.catChip, { backgroundColor: stockFilter === filter ? c.primaryLight : c.surface, borderColor: stockFilter === filter ? c.primary : c.border }]}>
+              <Text style={{ color: c.text }}>{filter}</Text>
+            </Pressable>)}
+          </View>
           {/* Summary */}
           <View style={s.summaryRow}>
             {[
               { label: 'Total Items', value: String(inventory.length), color: c.text },
-              { label: 'Low Stock', value: String(lowStock.length), color: '#F59E0B' },
+              { label: 'Low / depleted', value: String(lowStock.length), color: c.warning },
+              { label: 'Out of stock', value: String(inventory.filter((item) => item.quantity === 0).length), color: c.danger },
               { label: 'Total Value', value: `QAR ${inventory.reduce((s, i) => s + i.quantity * i.unitPrice, 0).toLocaleString()}`, color: c.success },
             ].map((stat) => (
               <View key={stat.label} style={[s.summaryCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-                <Text style={[s.summaryValue, { color: stat.color }]}>{stat.value}</Text>
+                <Text telemetry style={[s.summaryValue, { color: stat.color }]}>{stat.value}</Text>
                 <Text style={[s.summaryLabel, { color: c.muted }]}>{stat.label}</Text>
               </View>
             ))}
           </View>
 
+          <View style={s.matrixHeader}>
+            <Text heading style={[s.emptyTitle, { color: c.text }]}>Depot Stock Matrix</Text>
+            <Text telemetry style={{ color: c.muted }}>{filtered.length} displayed</Text>
+          </View>
           {/* Items */}
           {filtered.length === 0 && (
             <View style={s.emptyState}>
               <Ionicons name="cube-outline" size={36} color={c.muted} />
               <Text style={[s.emptyTitle, { color: c.text }]}>No items</Text>
-              <Text style={[s.emptyText, { color: c.muted }]}>No {activeCategory === 'All' ? '' : `${activeCategory} `}inventory items found.</Text>
+              <Text style={[s.emptyText, { color: c.muted }]}>No inventory drafts match these filters.</Text>
             </View>
           )}
-          <View style={{ gap: 10 }}>
+          <View style={s.itemGrid}>
             {filtered.map((item) => {
               const isLow = item.quantity <= item.minQuantity;
               const isOut = item.quantity === 0;
@@ -187,7 +228,7 @@ export default function InventoryScreen() {
                   <View style={s.itemTop}>
                     <View style={{ flex: 1, gap: 2 }}>
                       <Text style={[s.itemName, { color: c.text }]}>{item.name}</Text>
-                      <Text style={[s.itemSku, { color: c.muted }]}>{item.sku}</Text>
+                      <Text telemetry style={[s.itemSku, { color: c.muted }]}>{item.sku}</Text>
                       <View style={s.itemMeta}>
                         <View style={[s.catTag, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                           <Text style={[s.catTagText, { color: c.textSecondary }]}>{item.category}</Text>
@@ -199,7 +240,7 @@ export default function InventoryScreen() {
                       <Text style={[s.unitPrice, { color: c.text }]}>QAR {item.unitPrice}/{item.unit}</Text>
                       {(isLow || isOut) && (
                         <View style={[s.stockAlert, { backgroundColor: isOut ? '#EF444420' : '#F59E0B20' }]}>
-                          <Text style={[s.stockAlertText, { color: isOut ? '#EF4444' : '#F59E0B' }]}>
+                          <Text style={[s.stockAlertText, { color: isOut ? c.danger : c.warning }]}>
                             {isOut ? 'Out of stock' : 'Low stock'}
                           </Text>
                         </View>
@@ -239,22 +280,27 @@ export default function InventoryScreen() {
         </MotionScreen>
       </ScrollView>
       </KeyboardAvoidingView>
+      <VendorTabBar />
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   safe: { flex: 1 },
+  exportBtn: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12, borderWidth: 1, borderRadius: 8 },
+  search: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  stockFilters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  matrixHeader: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', alignItems: 'center', marginVertical: 16 },
+  itemGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
   navbar: {
-    flexDirection: 'row', 
+    flexDirection: 'row', flexWrap: 'wrap', gap: 12,
     alignItems: 'center', 
     justifyContent: 'space-between',
     paddingHorizontal: spacing.page, 
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    ...shadow.sm,
   },
-  navTitle: { ...typography.h3 },
+  navTitle: { fontSize: 26, lineHeight: 32, fontWeight: '800', flexShrink: 1 },
   addBtn: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   input: { minHeight: 44, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12 },
   formButton: { minHeight: 44, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
@@ -273,18 +319,18 @@ const s = StyleSheet.create({
   },
   catChipText: { fontSize: 13, fontWeight: '700' },
 
-  content: { padding: spacing.page, gap: spacing.gap },
+  content: { padding: spacing.page, gap: 14, width: '100%', maxWidth: 1600, alignSelf: 'center' },
 
   summaryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   summaryCard: {
     flexGrow: 1, flexBasis: 100, borderRadius: radius.lg, borderWidth: 1, padding: 12,
-    alignItems: 'center', gap: 4, ...shadow.xs,
+    alignItems: 'center', gap: 4,
   },
-  summaryValue: { ...typography.h4 },
+  summaryValue: { fontSize: 26, fontWeight: '700', fontVariant: ['tabular-nums'] },
   summaryLabel: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
 
-  itemCard: { borderRadius: radius.xl, borderWidth: 1, overflow: 'hidden', ...shadow.xs },
-  itemTop: { flexDirection: 'row', padding: 14, gap: 10 },
+  itemCard: { flexBasis: 340, flexGrow: 1, flexShrink: 1, minWidth: 0, borderRadius: radius.xl, borderWidth: 1, overflow: 'hidden' },
+  itemTop: { flexDirection: 'row', flexWrap: 'wrap', padding: 14, gap: 10 },
   itemName: { fontSize: 14, fontWeight: '700' },
   itemSku: { fontSize: 12, fontWeight: '600' },
   itemMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
@@ -304,7 +350,7 @@ const s = StyleSheet.create({
   emptyTitle: { fontSize: 15, fontWeight: '800' },
   emptyText: { fontSize: 13, fontWeight: '500', textAlign: 'center' },
 
-  qtyBtn: { width: 44, height: 44, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  qtyBtn: { width: 44, height: 44, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   qtyValue: { fontSize: 15, fontWeight: '900', minWidth: 28, textAlign: 'center' },
   minQty: { fontSize: 12, fontWeight: '600' },
   restocked: { fontSize: 12, fontWeight: '500', flex: 1 },

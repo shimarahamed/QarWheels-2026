@@ -14,13 +14,13 @@ export default function VendorMessagesPage() {
   const { user } = useUser();
   const { business, activeBranch } = useVendor();
   // Conversations are addressed to the BRANCH, not to an individual staff
-  // member — anyone with access to the branch sees the same inbox.
+  // member — branch members with Messages access share the inbox.
   const participantId = activeBranch?.id ?? null;
-  const { data: conversations, isLoading } = useConversations(participantId, 'vendor');
+  const { data: conversations, isLoading, error } = useConversations(participantId, 'vendor', business.id);
   const [active, setActive] = useState<WithId<Conversation> | null>(null);
 
-  const activeConversation = active
-    ? conversations?.find((c) => c.id === active.id) ?? active
+  const activeConversation = active && !isLoading && !error && active.businessId === business.id && active.branchId === participantId
+    ? conversations?.find((c) => c.id === active.id) ?? null
     : null;
 
   return (
@@ -36,11 +36,15 @@ export default function VendorMessagesPage() {
         }
       />
 
-      <Card className="overflow-hidden rounded-2xl border shadow-sm">
+      {error ? <div role="alert" className="rounded-2xl border border-destructive/40 bg-card p-5 text-sm">
+        {'code' in error && error.code === 'failed-precondition'
+          ? 'The messages index is not ready. Deploy the Firestore indexes for this project, wait until the index is ready, then refresh.'
+          : 'Messages could not be loaded. Check your connection and workshop access, then refresh to retry.'}
+      </div> : <Card className="overflow-hidden rounded-2xl border shadow-sm">
         <div className="grid min-h-[560px] md:grid-cols-[320px_1fr]">
           <div className="border-b md:border-b-0 md:border-r">
             <ConversationList
-              conversations={conversations}
+              conversations={conversations?.filter((conversation) => conversation.businessId === business.id && conversation.branchId === participantId) ?? null}
               isLoading={isLoading}
               activeId={activeConversation?.id ?? null}
               participantId={participantId ?? ''}
@@ -56,7 +60,7 @@ export default function VendorMessagesPage() {
             participantId={participantId ?? ''}
           />
         </div>
-      </Card>
+      </Card>}
     </div>
   );
 }

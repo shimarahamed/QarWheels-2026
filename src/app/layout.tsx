@@ -1,22 +1,26 @@
 ﻿import './globals.css';
 import type { Metadata, Viewport } from 'next';
-import { DM_Sans, Outfit } from 'next/font/google';
+import localFont from 'next/font/local';
 import { headers } from 'next/headers';
 import { FirebaseClientProvider } from '@/firebase';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 
-const fontBody = DM_Sans({
-  subsets: ['latin'],
+const fontBody = localFont({
+  src: './fonts/DMSans.ttf',
+  weight: '100 1000',
   display: 'swap',
   variable: '--font-body',
 });
 
-const fontHeadline = Outfit({
-  subsets: ['latin'],
+const fontHeadline = localFont({
+  src: './fonts/Outfit.ttf',
+  weight: '100 900',
   display: 'swap',
   variable: '--font-headline',
 });
+
+const fontTelemetry = localFont({ src: './fonts/SpaceGrotesk.ttf', weight: '300 700', display: 'swap', variable: '--font-telemetry' });
 
 export const metadata: Metadata = {
   title: 'QarWheel — Your Car. Our Care.',
@@ -43,7 +47,7 @@ export default async function RootLayout({
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
-    <html lang="en" className={`${fontBody.variable} ${fontHeadline.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${fontBody.variable} ${fontHeadline.variable} ${fontTelemetry.variable}`} suppressHydrationWarning>
       <head>
         {/* Material Symbols isn't in next/font/google's icon-font list, so
             it's loaded the way Google's own embed docs recommend — a

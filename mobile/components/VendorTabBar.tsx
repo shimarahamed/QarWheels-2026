@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { usePathname, useRouter } from 'expo-router';
-import { Platform } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
+import { VENDOR_SIDEBAR_BREAKPOINT } from '@/lib/vendor-workspace';
 
 import { GlassTabBar, GLASS_TAB_HEIGHT, useGlassTabBottom, type GlassTab } from '@/components/GlassTabBar';
 import { useAuthContext } from '@/lib/AuthContext';
@@ -19,23 +20,26 @@ type VendorTabDef = {
 
 export const VENDOR_TAB_PATHS: VendorTabDef[] = [
   { path: '/vendor/dashboard', label: 'Home', icon: 'grid-outline', iconActive: 'grid' },
-  { path: '/vendor/bookings', label: 'Bookings', icon: 'calendar-outline', iconActive: 'calendar', section: 'bookings' },
-  { path: '/vendor/services', label: 'Services', icon: 'construct-outline', iconActive: 'construct', section: 'services' },
-  { path: '/vendor/analytics', label: 'Analytics', icon: 'bar-chart-outline', iconActive: 'bar-chart', section: 'analytics' },
-  { path: '/vendor/settings', label: 'Settings', icon: 'settings-outline', iconActive: 'settings' },
+  { path: '/vendor/requests', label: 'Requests', icon: 'file-tray-outline', iconActive: 'file-tray', section: 'bookings' },
+  { path: '/vendor/bookings', label: 'Jobs', icon: 'calendar-outline', iconActive: 'calendar', section: 'bookings' },
+  { path: '/vendor/inventory', label: 'Stock', icon: 'cube-outline', iconActive: 'cube', section: 'inventory' },
+  { path: '/vendor/analytics', label: 'Stats', icon: 'bar-chart-outline', iconActive: 'bar-chart', section: 'analytics' },
 ];
 
 export const VENDOR_TAB_BAR_HEIGHT = GLASS_TAB_HEIGHT;
 export const VENDOR_TAB_BOTTOM = Platform.OS === 'ios' ? 108 : 90;
 
 export function useVendorTabBottom(): number {
-  return useGlassTabBottom();
+  const { width } = useWindowDimensions();
+  const bottom = useGlassTabBottom();
+  return width >= VENDOR_SIDEBAR_BREAKPOINT ? 16 : bottom;
 }
 
 export function VendorTabBar() {
   const router = useRouter();
   const pathname = usePathname();
   const { role } = useAuthContext();
+  const { width } = useWindowDimensions();
 
   const items: GlassTab[] = VENDOR_TAB_PATHS
     .filter((tab) => !tab.section || (role !== 'customer' && role !== 'master_admin' && canAccess(role, tab.section)))
@@ -54,5 +58,5 @@ export function VendorTabBar() {
       };
     });
 
-  return <GlassTabBar items={items} />;
+  return width >= VENDOR_SIDEBAR_BREAKPOINT ? null : <GlassTabBar items={items} />;
 }

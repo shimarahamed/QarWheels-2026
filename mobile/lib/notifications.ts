@@ -129,33 +129,3 @@ export async function clearPushTokenFromProfile(userId: string): Promise<void> {
     // Best effort.
   }
 }
-
-// ── Local notification helpers ───────────────────────────────────────────────
-
-export async function scheduleLocalNotification(title: string, body: string): Promise<void> {
-  await Notifications.scheduleNotificationAsync({
-    content: { title, body, sound: 'default' },
-    trigger: null, // fire immediately
-  });
-}
-
-export async function notifyBookingStatusChange(
-  status: string,
-  garageName?: string,
-): Promise<void> {
-  const labels: Record<string, string> = {
-    Confirmed:   'Booking confirmed',
-    'In Progress': 'Service started',
-    Completed:   'Service complete',
-    Cancelled:   'Booking cancelled',
-    Pending:     'Awaiting confirmation',
-  };
-  const title = labels[status] ?? 'Booking updated';
-  const body = garageName
-    ? `${garageName} — your booking is now ${status.toLowerCase()}.`
-    : `Your booking is now ${status.toLowerCase()}.`;
-
-  await scheduleLocalNotification(title, body).catch(() => {
-    // Silently ignore if notifications aren't granted (first-run, web preview, etc.)
-  });
-}

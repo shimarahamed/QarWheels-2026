@@ -29,29 +29,30 @@ import type { Conversation, Message, WithId } from '@/lib/types';
  *    for a vendor participant, which reads `branchId` as a plain field, not
  *    through `participants`. An array-contains query on `participants`
  *    doesn't let Firestore relate the filtered value to `convo.branchId`,
- *    so that query is rejected as unprovable — filtering on the `branchId`
- *    field directly is what the rule can actually verify.
+ *    so the query must bind BOTH `businessId` and `branchId` to prove the
+ *    tenant and branch scope required by isMessenger.
  */
 export function useConversations(
   participantId: string | null,
   as: 'customer' | 'vendor' = 'customer',
+  businessId: string | null = null,
 ) {
   const { firestore } = useFirebase();
   const conversationsQuery = useMemoFirebase(
     () =>
-      participantId
+      participantId && (as !== 'vendor' || businessId)
         ? query(
             collection(firestore, 'conversations'),
-            as === 'vendor'
-              ? where('branchId', '==', participantId)
-              : where('participants', 'array-contains', participantId),
+            ...(as === 'vendor'
+              ? [where('businessId', '==', businessId), where('branchId', '==', participantId)]
+              : [where('participants', 'array-contains', participantId)]),
             orderBy('lastMessageAt', 'desc'),
             limit(50),
           )
         : null,
-    [firestore, participantId, as],
+    [firestore, participantId, as, businessId],
   );
-  return useCollection<WithId<Conversation>>(conversationsQuery);
+  return useCollection<WithId<Conversation>>(conversationsQuery, { suppressPermissionError: as === 'vendor' });
 }
 
 export function useMessages(conversationId: string | null) {

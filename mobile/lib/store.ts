@@ -1,7 +1,6 @@
 ﻿import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { notifyBookingStatusChange } from '@/lib/notifications';
 import { bookings as seedBookings, type Booking } from '@/lib/marketplace';
 import { getQarColors, type QarColors, type QarThemeMode } from '@/lib/theme';
 import {
@@ -628,15 +627,6 @@ export const useQarWheelStore = create<QarWheelState>()(
       counterOffers: [],
       vendorPromotions: [],
       updateVendorBookingStatus: (id, status) => {
-        if (status === 'Completed') {
-          const state = get();
-          const existing = state.vendorInvoices.find((inv) => inv.bookingId === id);
-          if (!existing) {
-            try { get().createVendorInvoice(id); } catch { /* booking may be seed-only */ }
-          }
-        }
-        const booking = get().vendorBookings.find((b) => b.id === id);
-        void notifyBookingStatusChange(status, booking?.customerName);
         set((state) => ({
           vendorBookings: state.vendorBookings.map((b) =>
             b.id === id ? { ...b, status } : b,
@@ -644,15 +634,6 @@ export const useQarWheelStore = create<QarWheelState>()(
           bookings: state.bookings.map((b) =>
             b.vendorBookingId === id ? { ...b, status } : b,
           ),
-          notifications: [
-            {
-              id: makeId(`notif_status_${id}`),
-              title: 'Booking status updated',
-              body: `Your booking is now ${status}.`,
-              read: false,
-            },
-            ...state.notifications,
-          ],
         }));
       },
       assignVendorBookingStaff: (bookingId, staffId, staffName) =>
@@ -948,6 +929,11 @@ export const useQarWheelStore = create<QarWheelState>()(
         };
       },
       storage: createJSONStorage(() => AsyncStorage),
+      merge: (persisted, current) => ({
+        ...current,
+        ...(persisted as Partial<QarWheelState>),
+        vendorBookings: [],
+      }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
         // Sanitize any Firestore Timestamp objects that may have been persisted
@@ -984,7 +970,6 @@ export const useQarWheelStore = create<QarWheelState>()(
         walletTransactions: state.walletTransactions,
         invoices: state.invoices,
         documents: state.documents,
-        vendorBookings: state.vendorBookings,
         vendorProfile: state.vendorProfile,
         vendorStaff: state.vendorStaff,
         vendorInventory: state.vendorInventory,

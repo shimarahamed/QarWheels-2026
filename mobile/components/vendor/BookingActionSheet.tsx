@@ -1,10 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useQarColors } from '@/lib/store';
+import { ActivityIndicator, Alert, I18nManager, Pressable, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
+import { VendorText as Text } from '@/components/vendor/VendorText';
+import { useVendorColors as useQarColors } from '@/lib/vendor-theme';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import {
+  canTransitionBooking,
   getBookingStatusLabel,
   isBookingTerminal,
   nextForwardStatus,
@@ -35,6 +37,8 @@ export function BookingActionSheet({
 }: BookingActionSheetProps) {
   const c = useQarColors();
   const router = useRouter();
+  const { width, fontScale } = useWindowDimensions();
+  const stackActions = width < 380 || fontScale >= 1.4;
   const [pending, setPending] = useState<PendingAction>(null);
   const [reasonOpen, setReasonOpen] = useState(false);
   const [selectedReason, setSelectedReason] = useState<DeclineReason | null>(null);
@@ -83,6 +87,19 @@ export function BookingActionSheet({
     ]);
   }
 
+  function handleAdvance() {
+    if (busy) return;
+    const advance = () => { void run('advance', () => advanceBookingStatus(booking.id, booking.status)); };
+    if (next !== 'Completed') {
+      advance();
+      return;
+    }
+    Alert.alert('Complete booking?', 'Confirm the vehicle has been collected and the service is complete. This cannot be undone.', [
+      { text: 'Keep open', style: 'cancel' },
+      { text: 'Mark completed', onPress: advance },
+    ]);
+  }
+
   // ── Terminal: nothing actionable, just say where it landed ──────────────
   if (terminal) {
     return (
@@ -111,7 +128,9 @@ export function BookingActionSheet({
                     { backgroundColor: active ? c.primaryLight : c.surfaceAlt, borderColor: active ? c.primaryMid : c.border },
                   ]}
                   onPress={() => setSelectedReason(reason)}
-                  accessible accessibilityRole="radio" accessibilityState={{ selected: active }}
+                  disabled={busy}
+                  accessible accessibilityRole="radio" accessibilityLabel={reason}
+                  accessibilityState={{ selected: active, disabled: busy }}
                 >
                   <Ionicons
                     name={active ? 'radio-button-on' : 'radio-button-off'}
@@ -125,30 +144,37 @@ export function BookingActionSheet({
           </View>
 
           {selectedReason === 'Other' && (
-            <TextInput
-              style={[s.reasonInput, { backgroundColor: c.surfaceAlt, borderColor: c.border, color: c.text }]}
-              placeholder="Tell the customer why"
-              placeholderTextColor={c.muted}
-              value={otherReason}
-              onChangeText={setOtherReason}
-              multiline
-              maxLength={300}
-            />
+            <View style={s.reasonField}>
+              <Text style={[s.reasonText, { color: c.textSecondary }]}>Reason for the customer</Text>
+              <TextInput
+                style={[s.reasonInput, { backgroundColor: c.surfaceAlt, borderColor: c.border, color: c.text }]}
+                accessibilityLabel="Reason for the customer"
+                placeholder="Tell the customer why"
+                placeholderTextColor={c.muted}
+                value={otherReason}
+                onChangeText={setOtherReason}
+                editable={!busy}
+                multiline
+                maxLength={300}
+              />
+            </View>
           )}
 
-          <View style={s.btnRow}>
+          <View style={[s.btnRow, stackActions && s.btnRowStacked]}>
             <Pressable
-              style={[s.btn, s.btnGhost, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
+              style={[s.btn, stackActions && s.btnStacked, s.btnGhost, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
               onPress={() => { setReasonOpen(false); setSelectedReason(null); setOtherReason(''); }}
               disabled={busy}
+              accessibilityRole="button" accessibilityLabel="Back to booking actions"
             >
               <Text style={[s.btnGhostText, { color: c.textSecondary }]}>Back</Text>
             </Pressable>
             <Pressable
-              style={[s.btn, s.btnSolid, { backgroundColor: c.danger, opacity: canConfirm && !busy ? 1 : 0.5 }]}
+              style={[s.btn, stackActions && s.btnStacked, s.btnSolid, { backgroundColor: c.danger, opacity: canConfirm && !busy ? 1 : 0.5 }]}
               onPress={confirmDecline}
               disabled={!canConfirm || busy}
-              accessible accessibilityRole="button" accessibilityLabel="Confirm decline"
+              accessible accessibilityRole="button"
+              accessibilityLabel={pending === 'decline' ? 'Declining booking' : 'Confirm decline'}
             >
               {pending === 'decline' ? (
                 <ActivityIndicator size="small" color="#fff" />
@@ -163,9 +189,9 @@ export function BookingActionSheet({
 
     return (
       <View style={[s.wrap, compact && s.wrapCompact]}>
-        <View style={s.btnRow}>
+        <View style={[s.btnRow, stackActions && s.btnRowStacked]}>
           <Pressable
-            style={[s.btn, s.btnOutline, { borderColor: c.danger, opacity: busy ? 0.5 : 1 }]}
+            style={[s.btn, stackActions && s.btnStacked, s.btnOutline, { borderColor: c.danger, opacity: busy ? 0.5 : 1 }]}
             onPress={() => setReasonOpen(true)}
             disabled={busy}
             accessible accessibilityRole="button" accessibilityLabel="Decline booking"
@@ -174,7 +200,7 @@ export function BookingActionSheet({
             <Text style={[s.btnOutlineText, { color: c.danger }]}>Decline</Text>
           </Pressable>
           <Pressable
-            style={[s.btn, s.btnSolid, { backgroundColor: c.success, opacity: busy ? 0.6 : 1 }]}
+            style={[s.btn, stackActions && s.btnStacked, s.btnSolid, { backgroundColor: c.success, opacity: busy ? 0.6 : 1 }]}
             onPress={() => router.push(`/vendor/booking-detail/${booking.id}` as never)}
             disabled={busy}
             accessible accessibilityRole="button" accessibilityLabel="Review booking quote"
@@ -193,27 +219,29 @@ export function BookingActionSheet({
       {next && (
         <Pressable
           style={[s.btn, s.btnSolid, s.btnFull, { backgroundColor: c.primary, opacity: busy ? 0.6 : 1 }]}
-          onPress={() => { void run('advance', () => advanceBookingStatus(booking.id, booking.status)); }}
+          onPress={handleAdvance}
           disabled={busy}
-          accessible accessibilityRole="button" accessibilityLabel={`Mark as ${getBookingStatusLabel(next)}`}
+          accessible accessibilityRole="button"
+          accessibilityLabel={pending === 'advance' ? 'Updating booking status' : `Mark as ${getBookingStatusLabel(next)}`}
         >
           {pending === 'advance' ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
             <>
-              <Ionicons name="arrow-forward-circle-outline" size={17} color="#fff" />
+              <Ionicons name={I18nManager.isRTL ? 'arrow-back-circle-outline' : 'arrow-forward-circle-outline'} size={17} color="#fff" />
               <Text style={s.btnSolidText}>Mark as {getBookingStatusLabel(next)}</Text>
             </>
           )}
         </Pressable>
       )}
 
-      {showCancel && (
+      {showCancel && canTransitionBooking(booking.status, 'Cancelled') && (
         <Pressable
           style={[s.btn, s.btnOutline, s.btnFull, { borderColor: c.danger, opacity: busy ? 0.5 : 1 }]}
           onPress={handleCancel}
           disabled={busy}
-          accessible accessibilityRole="button" accessibilityLabel="Cancel booking"
+          accessible accessibilityRole="button"
+          accessibilityLabel={pending === 'cancel' ? 'Cancelling booking' : 'Cancel booking'}
         >
           {pending === 'cancel' ? (
             <ActivityIndicator size="small" color={c.danger} />
@@ -234,20 +262,23 @@ const s = StyleSheet.create({
   wrapCompact: { gap: 8 },
 
   btnRow: { flexDirection: 'row', gap: 10 },
+  btnRowStacked: { flexDirection: 'column' },
   btn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 7, minHeight: 46, paddingHorizontal: 14, paddingVertical: 12, borderRadius: radius.xl,
   },
+  btnStacked: { flex: 0, width: '100%' },
   btnFull: { flex: 0, width: '100%' },
   btnSolid: { ...shadow.xs },
-  btnSolidText: { fontSize: 14, fontWeight: '800', color: '#fff' },
+  btnSolidText: { fontSize: 14, fontWeight: '800', color: '#fff', flexShrink: 1, textAlign: 'center' },
   btnOutline: { borderWidth: 1 },
-  btnOutlineText: { fontSize: 14, fontWeight: '800' },
+  btnOutlineText: { fontSize: 14, fontWeight: '800', flexShrink: 1, textAlign: 'center' },
   btnGhost: { borderWidth: 1 },
-  btnGhostText: { fontSize: 14, fontWeight: '700' },
+  btnGhostText: { fontSize: 14, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
 
   reasonTitle: { ...typography.h4 },
   reasonList: { gap: 8 },
+  reasonField: { gap: 8 },
   reasonOption: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: 14, paddingVertical: 12, borderRadius: radius.lg, borderWidth: 1,

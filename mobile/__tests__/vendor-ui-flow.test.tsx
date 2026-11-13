@@ -16,10 +16,14 @@ import type { VendorBooking, VendorService } from '@/lib/vendor-data';
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
-jest.mock('expo-router', () => ({ Stack: { Screen: () => null }, useLocalSearchParams: () => ({ id: 'missing' }),
+jest.mock('expo-router', () => ({ Stack: { Screen: () => null }, useFocusEffect: () => {}, useLocalSearchParams: () => ({ id: 'missing' }),
   useRouter: () => ({ push: mockPush, replace: mockReplace, back: jest.fn() }) }));
 jest.mock('@/lib/AuthContext', () => ({ useAuthContext: jest.fn() }));
-jest.mock('@/components/vendor/BranchSwitcher', () => ({ BranchSwitcher: () => null }));
+jest.mock('@/lib/vendorQueries', () => ({ useVendorBranches: () => ({ activeBranch: null, loading: false, error: false }) }));
+jest.mock('@/components/vendor/BranchSwitcher', () => ({ BranchSwitcher: () => {
+  const { Text } = require('react-native');
+  return <Text testID="branch-switcher">Selected branch</Text>;
+} }));
 jest.mock('@/components/vendor/BookingActionSheet', () => ({ BookingActionSheet: () => null }));
 jest.mock('@/components/VendorTabBar', () => {
   const { View } = require('react-native');
@@ -27,7 +31,7 @@ jest.mock('@/components/VendorTabBar', () => {
 });
 jest.mock('@sentry/react-native', () => ({ addBreadcrumb: jest.fn() }));
 const retry = jest.fn();
-const session = { user: { uid: 'vendor' }, claims: { r: 'vendor_staff', b: 'business', br: ['branch'] },
+const session = { user: { uid: 'vendor' }, role: 'vendor_staff', claims: { r: 'vendor_staff', b: 'business', br: ['branch'] },
   claimsLoading: false, loading: false, refreshClaims: jest.fn() };
 const booking = (id: string, status: VendorBooking['status'] = 'Pending'): VendorBooking => ({
   id, customerName: `Customer ${id}`, customerPhone: '', service: `Service ${id}`, serviceCategory: 'repair',
@@ -81,6 +85,7 @@ it('does not call a stalled or failed request feed all caught up', async () => {
   expect(retry).toHaveBeenCalledTimes(1);
   await rerender(requestsView());
   expect(screen.getByText('All caught up')).toBeTruthy();
+  expect(screen.getByTestId('branch-switcher')).toBeTruthy();
 });
 
 it('keeps the pending inbox virtualized and oldest first', async () => {
@@ -91,6 +96,14 @@ it('keeps the pending inbox virtualized and oldest first', async () => {
   expect(screen.getByText('3000 awaiting your response')).toBeTruthy();
   expect(screen.getByText('Customer 0')).toBeTruthy();
   expect(screen.getAllByRole('button', { name: /^Open booking/ }).length).toBeLessThan(100);
+});
+
+it('shows the selected branch in the request inbox and opens a pending booking', async () => {
+  useQarWheelStore.setState({ vendorBookings: [booking('a')] });
+  await render(requestsView());
+  expect(screen.getByTestId('branch-switcher')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: 'Open booking for Customer a' }));
+  expect(mockPush).toHaveBeenCalledWith('/vendor/booking-detail/a');
 });
 
 it('provides declined and missed filters and independent booking actions', async () => {

@@ -10,7 +10,8 @@ import { useQarColors, useQarWheelStore, type StoredInvoice } from '@/lib/store'
 import { exportInvoicePdf, printInvoice } from '@/lib/invoice-pdf';
 import { MotionScreen } from '@/lib/motion';
 import { palette, radius, shadow, spacing, typography } from '@/lib/theme';
-import { findVendorInvoice } from '@/lib/vendor-data';
+import type { VendorInvoice } from '@/lib/vendor-data';
+import RecordNotFound from '@/components/RecordNotFound';
 
 function typeColor(type: string): string {
   const map: Record<string, string> = { service: palette.blue, part: palette.green, labour: palette.amber };
@@ -139,22 +140,21 @@ function CounterOfferModal({ visible, invoiceTotal, invoiceId, bookingId, custom
 export default function InvoiceRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const customerInvoice = useQarWheelStore((s) => s.invoices.find((item) => item.id === id));
+  const vendorInvoice = useQarWheelStore((s) => s.vendorInvoices.find((item) => item.id === id));
 
   if (customerInvoice) return <CustomerReceiptScreen invoice={customerInvoice} />;
-  return <VendorInvoiceScreen />;
+  if (vendorInvoice) return <VendorInvoiceScreen invoice={vendorInvoice} />;
+  return <RecordNotFound title="Invoice not found" message="This invoice may have been removed or the link is out of date." />;
 }
 
-function VendorInvoiceScreen() {
+function VendorInvoiceScreen({ invoice }: { invoice: VendorInvoice }) {
   const c = useQarColors();
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
 
-  const storeInvoice = useQarWheelStore((s) => s.vendorInvoices.find((item) => item.id === id));
   const vendorProfile = useQarWheelStore((s) => s.vendorProfile);
   const counterOffers = useQarWheelStore((s) => s.counterOffers);
   const themeMode = useQarWheelStore((s) => s.themeMode);
   const pdfTheme = themeMode === 'dark' ? 'dark' : 'light';
-  const invoice = storeInvoice ?? findVendorInvoice(id);
   const sc = statusColors(invoice.status);
   const invoiceNum = invoice.id.replace('inv_', '').toUpperCase();
 

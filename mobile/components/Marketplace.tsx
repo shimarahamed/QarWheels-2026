@@ -454,7 +454,7 @@ export function BookingsScreen() {
             <Text style={[ss.emptyTitle, { color: c.text }]}>No {activeTab.toLowerCase()} bookings</Text>
             <Text style={[ss.emptyDesc, { color: c.textSecondary }]}>{feed.hasMore ? 'Load older bookings to continue searching this history.' : 'Choose a garage to book your next service.'}</Text>
           </View>}
-        ListFooterComponent={feed.hasMore ? <Pressable
+        ListFooterComponent={feed.hasMore && !feed.loading && !feed.error ? <Pressable
           accessibilityRole="button" accessibilityLabel="Load older bookings"
           accessibilityState={{ disabled: feed.loadingMore }}
           disabled={feed.loadingMore}

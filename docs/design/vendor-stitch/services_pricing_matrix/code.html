@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;family=Outfit:wght@100..900&amp;family=Space+Grotesk:wght@300..700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {"darkMode":"class","theme":{"extend":{"colors":{"error":"#ffb4ab","surface-bright":"#36393e","secondary":"#ffb3af","surface-tint":"#ffb4ab","outline-variant":"#5d3f3c","on-background":"#e0e2e8","surface-container":"#1d2024","on-tertiary-fixed":"#241a00","on-tertiary-fixed-variant":"#574500","surface-variant":"#32353a","on-secondary-fixed":"#410005","on-tertiary-container":"#4f3d00","on-primary-fixed-variant":"#93000d","on-secondary":"#68000d","primary-fixed":"#ffdad6","inverse-on-surface":"#2d3135","background":"#101418","secondary-fixed-dim":"#ffb3af","on-primary-container":"#fffafa","error-container":"#93000a","inverse-surface":"#e0e2e8","tertiary-fixed":"#ffe088","surface-container-low":"#191c20","secondary-container":"#92131e","surface-container-high":"#272a2f","on-error":"#690005","on-secondary-fixed-variant":"#8e101c","outline":"#ae8883","on-surface-variant":"#e7bdb8","tertiary":"#e9c349","on-surface":"#e0e2e8","primary":"#ffb4ab","surface":"#101418","on-error-container":"#ffdad6","inverse-primary":"#c00014","surface-dim":"#101418","surface-container-lowest":"#0b0e13","primary-fixed-dim":"#ffb4ab","secondary-fixed":"#ffdad7","tertiary-container":"#cca730","on-primary-fixed":"#410002","on-secondary-container":"#ff9e99","surface-container-highest":"#32353a","primary-container":"#e31e24","on-tertiary":"#3c2f00","on-primary":"#690006","tertiary-fixed-dim":"#e9c349"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"unit":"4px","md":"16px","gutter":"14px","xxs":"4px","xxxl":"40px","xxl":"32px","lg":"20px","sm":"12px","xs":"8px","xl":"24px","card-pad":"20px","section-gap":"26px"},"fontFamily":{"body-bold":["DM Sans"],"display-lg":["Outfit"],"kpi-stat":["Space Grotesk"],"body-medium":["DM Sans"],"label-eyebrow":["Space Grotesk"],"display-xl-mobile":["Outfit"],"display-xl":["Outfit"],"headline-md":["Outfit"],"body-base":["DM Sans"],"headline-lg":["Outfit"],"display-lg-mobile":["Outfit"],"body-lg":["DM Sans"],"chip-status":["DM Sans"]},"fontSize":{"body-bold":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"600"}],"display-lg":["36px",{"lineHeight":"42px","letterSpacing":"-0.025em","fontWeight":"800"}],"kpi-stat":["30px",{"lineHeight":"36px","letterSpacing":"-0.02em","fontWeight":"700"}],"body-medium":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"500"}],"label-eyebrow":["10px",{"lineHeight":"14px","letterSpacing":"0.18em","fontWeight":"700"}],"display-xl-mobile":["32px",{"lineHeight":"38px","letterSpacing":"-0.025em","fontWeight":"900"}],"display-xl":["48px",{"lineHeight":"52px","letterSpacing":"-0.03em","fontWeight":"900"}],"headline-md":["22px",{"lineHeight":"28px","letterSpacing":"-0.015em","fontWeight":"700"}],"body-base":["15px",{"lineHeight":"24px","letterSpacing":"-0.005em","fontWeight":"400"}],"headline-lg":["28px",{"lineHeight":"34px","letterSpacing":"-0.02em","fontWeight":"700"}],"display-lg-mobile":["26px",{"lineHeight":"32px","letterSpacing":"-0.02em","fontWeight":"800"}],"body-lg":["18px",{"lineHeight":"28px","letterSpacing":"0em","fontWeight":"400"}],"chip-status":["11px",{"lineHeight":"16px","letterSpacing":"0.02em","fontWeight":"700"}]}}}}</script></head><body class="bg-background font-body-base text-on-surface antialiased min-h-screen"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-container-low z-50 flex flex-col justify-between shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex flex-col"><div class="h-16 px-lg flex items-center justify-between bg-surface-container-lowest"><div class="flex items-center gap-xs"><img alt="Brand logo. - Primary color: #e31e24
+- Font: outfit
+- Mode: dark
+- Roundness: rounded-md
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1VZBLIcu6uddLqupC0qGR_CLAjvKm9PYsh-TQ4mNUgMYi9FmQXPiOin-p8S4IXCtqtuFbirUDS-JvxsrrKJytaJLSndD-8fWSiT4ko-iPtSqIRP7OqqYoVmMSb05UWT5JGhXvbgGf8iL8vWqV6wRqB4SfQlfpe2wDYUjKb8rLfsohE_q5D0_7b-Ud0nEv5ZfMHtxD9jZ2ZOaVItKzLho-tCI5XbijFUS0KzvG0bhEz4bHt-JTBpjHCd"/><div class="flex flex-col"><span class="font-headline-md text-headline-md tracking-tight text-on-surface leading-none">QarWheel</span><span class="font-label-eyebrow text-label-eyebrow text-primary uppercase">Vendor OS</span></div></div><span class="px-xs py-xxs rounded-full bg-secondary-container text-on-secondary-container font-chip-status text-chip-status uppercase tracking-wider">Al Quoz 3</span></div><nav class="px-sm py-md space-y-md overflow-y-auto max-h-[calc(100vh-140px)]" data-active-classes="bg-primary-container text-on-primary-container font-body-bold rounded-lg shadow-[0_4px_20px_-4px_rgba(227,30,36,0.35)]"><div class="space-y-xxs"><span class="px-sm font-label-eyebrow text-label-eyebrow text-outline uppercase">Operations</span><div class="space-y-xxs pt-xxs"><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="dashboard" href="#"><span class="material-symbols-outlined text-lg leading-none">speed</span><span>Dashboard</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="bookings-bay-calendar" href="#"><span class="material-symbols-outlined text-lg leading-none">calendar_view_week</span><span>Bookings &amp; Bay Calendar</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="work-orders" href="#"><span class="material-symbols-outlined text-lg leading-none">precision_manufacturing</span><span>Work Orders</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="services-rates" href="#"><span class="material-symbols-outlined text-lg leading-none">tune</span><span>Services &amp; Rates</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="inventory-depot" href="#"><span class="material-symbols-outlined text-lg leading-none">inventory_2</span><span>Inventory Depot</span></a></div></div><div class="space-y-xxs"><span class="px-sm font-label-eyebrow text-label-eyebrow text-outline uppercase">Fleet &amp; Customers</span><div class="space-y-xxs pt-xxs"><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="customer-directory" href="#"><span class="material-symbols-outlined text-lg leading-none">contact_page</span><span>Customer Directory</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="fleet-telemetry" href="#"><span class="material-symbols-outlined text-lg leading-none">sensors</span><span>Fleet Telemetry</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="staff-roster" href="#"><span class="material-symbols-outlined text-lg leading-none">badge</span><span>Staff Roster</span></a></div></div><div class="space-y-xxs"><span class="px-sm font-label-eyebrow text-label-eyebrow text-outline uppercase">Telemetry Core</span><div class="space-y-xxs pt-xxs"><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="workshop-profile" href="#"><span class="material-symbols-outlined text-lg leading-none">garage</span><span>Workshop Profile</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="analytics-ratings" href="#"><span class="material-symbols-outlined text-lg leading-none">monitoring</span><span>Analytics &amp; Ratings</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="settings" href="#"><span class="material-symbols-outlined text-lg leading-none">settings_suggest</span><span>Settings</span></a></div></div></nav></div><div class="p-sm bg-surface-container-lowest mx-xs mb-xs rounded-xl flex items-center justify-between"><div class="flex items-center gap-xs"><span class="material-symbols-outlined text-tertiary text-lg">router</span><div class="flex flex-col"><span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant">LINK NODE</span><span class="font-kpi-stat text-body-medium text-on-surface">DXB-OBD-09</span></div></div><span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span></div></aside><div class="pl-72"><header class="fixed top-0 left-72 right-0 h-16 bg-surface-container-low/90 backdrop-blur-xl z-40 px-xl flex items-center justify-between shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex items-center gap-lg"><div class="flex items-center gap-xs"><span class="w-2.5 h-2.5 rounded-full bg-primary-container animate-ping"></span><span class="font-body-bold text-body-bold text-on-surface">Apex Performance Lab</span><span class="text-outline font-body-medium text-body-medium">•</span><span class="font-kpi-stat text-body-medium text-primary">6/8 Bays Active</span></div><div class="hidden xl:flex items-center gap-xs px-sm py-xxs rounded-full bg-surface-container-high"><span class="w-2 h-2 rounded-full bg-tertiary"></span><span class="font-label-eyebrow text-label-eyebrow text-tertiary tracking-widest">CAN-BUS LIVE (100Hz)</span></div></div><div class="flex items-center gap-lg"><div class="hidden md:flex items-center gap-xs px-sm py-xxs rounded-lg bg-surface-container-high"><span class="material-symbols-outlined text-base text-on-surface-variant">schedule</span><span class="font-kpi-stat text-body-medium text-on-surface">GST 14:48:22</span></div><div class="flex items-center gap-xs px-sm py-xxs rounded-full bg-error-container text-on-error-container font-chip-status text-chip-status"><span class="material-symbols-outlined text-sm leading-none">warning</span><span>2 Critical DTC Alerts</span></div><button aria-label="Notifications" class="relative p-xs rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-lg leading-none">notifications</span><span class="absolute top-1 right-1 w-2 h-2 bg-primary-container rounded-full"></span></button><div class="flex items-center gap-xs pl-xs"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1VHZAp-vFBUryJpjtcoNB5jW4UunNwrxJ3GnOa_FS01vACtrCrtoKBFlMgoOQOpZoYtPnIc9LhFk_-xHY-qt2JXvIKkHOR8UvN1AtQCP_A2TC6n2HOHV3Y5EU2bCz26PseTvCCLu13t0gdg08qhA8yWZPdYdGtFATij_mOVIQM7WUY9UopWmuoav-tU62XgzNF0qhGHHZPphhPbLZFgzWNL6ZpG6xIv3Qi25wQRi2jPlkIPJJfhObJk"/><div class="hidden lg:flex flex-col text-left"><span class="font-body-bold text-body-medium text-on-surface leading-tight">Tariq Al-Mansoor</span><span class="font-label-eyebrow text-label-eyebrow text-outline leading-tight uppercase">Master Tech L4</span></div></div></div></header><main class="w-full pt-16 bg-background min-h-screen px-xl py-lg"><div class="flex flex-col w-full space-y-lg">
+<!-- Top Breadcrumb & Page Sub-Bar -->
+<div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-md">
+<div class="space-y-xxs">
+<div class="flex items-center gap-xs">
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase tracking-widest">WORKSHOP OS // RATE ENGINE v4.2</span>
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+<span class="font-chip-status text-chip-status text-tertiary">DXB-ALQUOZ-BAYS-LIVE</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Service Catalog &amp; Dynamic Rate Engine</h1>
+<p class="font-body-base text-body-base text-on-surface-variant max-w-3xl">
+        Configure diagnostic tiers, 800V EV specialty procedures, hourly bay rates, and automated CAN-bus pricing matrices for immediate client quoting.
+      </p>
+</div>
+<!-- Quick Actions -->
+<div class="flex items-center gap-sm">
+<button class="flex items-center gap-xs px-md py-xs rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-variant transition-all text-body-bold font-body-bold" type="button">
+<span class="material-symbols-outlined text-base">download</span>
+<span>Export Rate Matrix (CSV)</span>
+</button>
+<button class="flex items-center gap-xs px-md py-xs rounded-lg bg-primary-container text-on-primary-container font-body-bold text-body-bold shadow-[0_4px_20px_-4px_rgba(227,30,36,0.35)] hover:brightness-110 active:scale-[0.985] transition-all" type="button">
+<span class="material-symbols-outlined text-base">add_circle</span>
+<span>+ Add New Service</span>
+</button>
+</div>
+</div>
+<!-- Real-Time Workshop Environment Visual Preview & Quick Status -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-md items-stretch">
+<!-- Visual Diagnostic Lab Feed -->
+<div class="xl:col-span-4 rounded-xl bg-surface-container-low overflow-hidden relative group">
+<div class="bg-cover bg-center w-full h-48 xl:h-full min-h-[190px]" data-alt="High-tech automotive workshop with modern silver sports car hoisted on a hydraulic bay lift. A lead technician in grey telemetry uniform calibrates diagnostic scanners while dual digital HUD monitors display real-time CAN-bus waveform curves and high-voltage circuit health in a pristine, bright architectural service garage." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD2b9TKzMFzIOcTMx5yx3-p7dEzyaZYhWOBYYSsiGfnfyFNQaSUj_JF26B8ZRZQsZh7nJEvpC1ngu_srYfTlK9YADVcU0vfNG3ZIbnI3fkdUnKhGgfYoHtETtRZHBIyKrDighXS0duAFeBKCgMrT_CHYQJpXks4JSH_eGndqOUCqB-BPfyZ1TGgaBd3UE1XNtbxxAva5zribbcTJM6zcXMlhcKEoHzoighpsvr1qPCu-nydMFmTXw')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/60 to-transparent flex flex-col justify-end p-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
+<span class="font-label-eyebrow text-label-eyebrow text-on-surface uppercase">Bay 03 · Audi e-tron GT Live Telemetry</span>
+</div>
+<span class="px-xs py-xxs rounded bg-surface-container-highest text-tertiary font-chip-status text-chip-status">DEKRA 800V</span>
+</div>
+<span class="font-kpi-stat text-body-bold text-on-surface mt-xxs">CAN-BUS Oscilloscope Syncing: 100Hz Active</span>
+</div>
+</div>
+<!-- 4 KPI Telemetry Cards -->
+<div class="xl:col-span-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-sm">
+<!-- KPI 1 -->
+<div class="rounded-xl bg-surface-container-low p-md flex flex-col justify-between hover:bg-surface-container transition-all">
+<div class="flex items-center justify-between text-outline">
+<span class="font-label-eyebrow text-label-eyebrow uppercase">Base Labor Rate</span>
+<span class="material-symbols-outlined text-base text-primary">engineering</span>
+</div>
+<div class="my-xs">
+<div class="flex items-baseline gap-xxs">
+<span class="font-kpi-stat text-kpi-stat text-on-surface">310</span>
+<span class="font-body-medium text-body-medium text-outline">AED/hr</span>
+</div>
+<span class="font-body-medium text-chip-status text-outline">$84.40 USD base benchmark</span>
+</div>
+<div class="flex items-center gap-xxs text-primary font-chip-status text-chip-status">
+<span class="material-symbols-outlined text-sm leading-none">trending_up</span>
+<span>+4.2% vs Q1 regional avg</span>
+</div>
+</div>
+<!-- KPI 2 -->
+<div class="rounded-xl bg-surface-container-low p-md flex flex-col justify-between hover:bg-surface-container transition-all">
+<div class="flex items-center justify-between text-outline">
+<span class="font-label-eyebrow text-label-eyebrow uppercase">Flat ECU Deep Scan</span>
+<span class="material-symbols-outlined text-base text-tertiary">memory</span>
+</div>
+<div class="my-xs">
+<div class="flex items-baseline gap-xxs">
+<span class="font-kpi-stat text-kpi-stat text-on-surface">165</span>
+<span class="font-body-medium text-body-medium text-outline">AED flat</span>
+</div>
+<span class="font-body-medium text-chip-status text-outline">Instant OBD-II &amp; CAN-Bus</span>
+</div>
+<div class="flex items-center gap-xxs text-tertiary font-chip-status text-chip-status">
+<span class="material-symbols-outlined text-sm leading-none">bolt</span>
+<span>Automatic dispatch sync</span>
+</div>
+</div>
+<!-- KPI 3 -->
+<div class="rounded-xl bg-surface-container-low p-md flex flex-col justify-between hover:bg-surface-container transition-all">
+<div class="flex items-center justify-between text-outline">
+<span class="font-label-eyebrow text-label-eyebrow uppercase">OEM Parts Margin</span>
+<span class="material-symbols-outlined text-base text-secondary">inventory_2</span>
+</div>
+<div class="my-xs">
+<div class="flex items-baseline gap-xxs">
+<span class="font-kpi-stat text-kpi-stat text-on-surface">28.4%</span>
+</div>
+<span class="font-body-medium text-chip-status text-outline">Avg markup on hub supply</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1.5 rounded-full overflow-hidden mt-xxs">
+<div class="bg-secondary h-full rounded-full" style="width: 71%;"></div>
+</div>
+</div>
+<!-- KPI 4 -->
+<div class="rounded-xl bg-surface-container-low p-md flex flex-col justify-between hover:bg-surface-container transition-all">
+<div class="flex items-center justify-between text-outline">
+<span class="font-label-eyebrow text-label-eyebrow uppercase">QarWheel Network Rate</span>
+<span class="material-symbols-outlined text-base text-tertiary">verified_user</span>
+</div>
+<div class="my-xs">
+<div class="flex items-baseline gap-xxs">
+<span class="font-kpi-stat text-kpi-stat text-tertiary">15%</span>
+<span class="font-body-medium text-body-medium text-outline">Tier-1</span>
+</div>
+<span class="font-body-medium text-chip-status text-outline">Fleet Contract Auto-Applied</span>
+</div>
+<div class="flex items-center gap-xxs text-outline font-chip-status text-chip-status">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span>94 Fleet Accounts Bound</span>
+</div>
+</div>
+</div>
+</div>
+<!-- AI Dynamic Estimator Synced Banner -->
+<div class="rounded-xl bg-surface-container-low p-md flex flex-col md:flex-row items-start md:items-center justify-between gap-md shadow-sm">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary-container shrink-0">
+<span class="material-symbols-outlined text-xl">auto_fix_high</span>
+</div>
+<div>
+<div class="flex items-center gap-xs">
+<span class="font-body-bold text-body-bold text-on-surface">AI Dynamic Estimator &amp; Dubai Hub Sourcing Synced</span>
+<span class="px-xs py-xxs rounded-full bg-secondary-container text-on-secondary-container font-chip-status text-chip-status">ALGORITHM V3.8</span>
+</div>
+<p class="font-body-medium text-body-medium text-on-surface-variant">
+          Quotes auto-factor live inventory lead times from Al Quoz, Ras Al Khor depot tiers, technician ASIL cert multipliers, and CAN-bus telemetry severity.
+        </p>
+</div>
+</div>
+<div class="flex items-center gap-sm shrink-0 self-end md:self-center">
+<span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">Matrix Sync: LIVE</span>
+<button aria-pressed="true" class="w-12 h-6 rounded-full bg-primary-container p-0.5 flex items-center transition-colors focus:outline-none" type="button">
+<span class="w-5 h-5 rounded-full bg-white ml-auto transition-transform shadow"></span>
+</button>
+</div>
+</div>
+<!-- Filter Strip and Search Toolbar -->
+<div class="flex flex-col xl:flex-row xl:items-center justify-between gap-md">
+<!-- Category Tabs -->
+<div class="flex items-center gap-xxs overflow-x-auto pb-xxs xl:pb-0 scrollbar-none">
+<button class="px-sm py-xs rounded-lg bg-surface-container-high text-on-surface font-body-bold text-body-medium whitespace-nowrap shadow-sm">
+        All (34)
+      </button>
+<button class="px-sm py-xs rounded-lg hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface font-body-medium text-body-medium whitespace-nowrap transition-colors">
+        High-Voltage &amp; EV (8)
+      </button>
+<button class="px-sm py-xs rounded-lg hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface font-body-medium text-body-medium whitespace-nowrap transition-colors">
+        Brakes &amp; Hydraulics (7)
+      </button>
+<button class="px-sm py-xs rounded-lg hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface font-body-medium text-body-medium whitespace-nowrap transition-colors">
+        Powertrain &amp; Dyno (6)
+      </button>
+<button class="px-sm py-xs rounded-lg hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface font-body-medium text-body-medium whitespace-nowrap transition-colors">
+        Suspension &amp; Steering (5)
+      </button>
+<button class="px-sm py-xs rounded-lg hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface font-body-medium text-body-medium whitespace-nowrap transition-colors">
+        Rapid Diagnostics (8)
+      </button>
+</div>
+<!-- Search Input & Quick Controls -->
+<div class="flex items-center gap-xs">
+<div class="relative w-full xl:w-72">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline text-base">search</span>
+<input class="w-full bg-surface-container-lowest text-on-surface text-body-medium font-body-medium pl-xl pr-sm py-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-container" placeholder="Search procedure, code or cert..." type="text"/>
+</div>
+<button class="p-xs rounded-lg bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface" type="button">
+<span class="material-symbols-outlined text-base">tune</span>
+</button>
+</div>
+</div>
+<!-- Primary Services & Rates Data Table -->
+<div class="rounded-xl bg-surface-container-low overflow-hidden shadow-md">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-lowest text-outline font-label-eyebrow text-label-eyebrow uppercase tracking-wider">
+<th class="py-sm px-md">Service Code</th>
+<th class="py-sm px-md">Procedure &amp; System</th>
+<th class="py-sm px-md">Category</th>
+<th class="py-sm px-md">Tech Cert Req.</th>
+<th class="py-sm px-md">Standard Dur.</th>
+<th class="py-sm px-md">Base Labor</th>
+<th class="py-sm px-md">Avg Spares / Fluids</th>
+<th class="py-sm px-md text-right">Fixed Price (Cust.)</th>
+<th class="py-sm px-md">Network Availability</th>
+<th class="py-sm px-md text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container font-body-medium text-body-medium text-on-surface">
+<!-- Row 1: High Voltage Flush -->
+<tr class="hover:bg-surface-container/60 transition-colors group">
+<td class="py-md px-md font-kpi-stat text-body-bold text-primary">QW-EV-01</td>
+<td class="py-md px-md">
+<div class="font-body-bold text-on-surface">High-Voltage Battery Coolant &amp; Thermal Flush</div>
+<div class="font-body-base text-chip-status text-outline">Thermal bypass purge, dielectric dielectric flow resistance test</div>
+</td>
+<td class="py-md px-md">
+<span class="px-xs py-xxs rounded bg-secondary-container text-on-secondary-container font-chip-status text-chip-status whitespace-nowrap">High-Voltage EV</span>
+</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="font-chip-status text-chip-status text-tertiary">DEKRA 800V Master</span>
+</div>
+</td>
+<td class="py-md px-md font-kpi-stat text-on-surface">2.5 hrs</td>
+<td class="py-md px-md font-kpi-stat text-on-surface">AED 775</td>
+<td class="py-md px-md">
+<span class="font-kpi-stat text-on-surface">AED 420</span>
+<span class="text-outline text-chip-status block">Dielectric OEM Fluid</span>
+</td>
+<td class="py-md px-md text-right">
+<div class="font-kpi-stat text-body-bold text-on-surface">AED 1,195</div>
+<div class="font-chip-status text-chip-status text-primary">Fleet rate: AED 1,015</div>
+</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
+<span class="font-chip-status text-chip-status text-on-surface">Active &amp; Instant Book</span>
+</div>
+</td>
+<td class="py-md px-md text-right whitespace-nowrap">
+<button class="p-xs rounded hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-base">edit</span>
+</button>
+<button class="p-xs rounded hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-base">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 2: Brake Bleed -->
+<tr class="hover:bg-surface-container/60 transition-colors group">
+<td class="py-md px-md font-kpi-stat text-body-bold text-primary">QW-BRK-04</td>
+<td class="py-md px-md">
+<div class="font-body-bold text-on-surface">Automated Pressure Brake Bleed &amp; Caliper Recalibration</div>
+<div class="font-body-base text-chip-status text-outline">ABS pump cycle purge, pad thickness optical measurement</div>
+</td>
+<td class="py-md px-md">
+<span class="px-xs py-xxs rounded bg-surface-container-high text-on-surface font-chip-status text-chip-status whitespace-nowrap">Brakes &amp; Hydraulics</span>
+</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface"></span>
+<span class="font-chip-status text-chip-status text-on-surface">ASIL-D Brake Cert</span>
+</div>
+</td>
+<td class="py-md px-md font-kpi-stat text-on-surface">1.0 hr</td>
+<td class="py-md px-md font-kpi-stat text-on-surface">AED 310</td>
+<td class="py-md px-md">
+<span class="font-kpi-stat text-on-surface">AED 205</span>
+<span class="text-outline text-chip-status block">OEM DOT4 LV Low Visc</span>
+</td>
+<td class="py-md px-md text-right">
+<div class="font-kpi-stat text-body-bold text-on-surface">AED 515</div>
+<div class="font-chip-status text-chip-status text-outline">Standard Bay Slot</div>
+</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span class="font-chip-status text-chip-status text-on-surface">Active &amp; Instant Book</span>
+</div>
+</td>
+<td class="py-md px-md text-right whitespace-nowrap">
+<button class="p-xs rounded hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-base">edit</span>
+</button>
+<button class="p-xs rounded hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-base">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 3: CAN-Bus Deep Scan -->
+<tr class="hover:bg-surface-container/60 transition-colors group">
+<td class="py-md px-md font-kpi-stat text-body-bold text-primary">QW-ECU-02</td>
+<td class="py-md px-md">
+<div class="font-body-bold text-on-surface">100Hz CAN-Bus High-Speed Bus Health &amp; DTC Deep Scan</div>
+<div class="font-body-base text-chip-status text-outline">Full gateway signal trace, freeze-frame clearing, log archive</div>
+</td>
+<td class="py-md px-md">
+<span class="px-xs py-xxs rounded bg-surface-container-high text-on-surface font-chip-status text-chip-status whitespace-nowrap">Rapid Diagnostics</span>
+</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface"></span>
+<span class="font-chip-status text-chip-status text-on-surface">Level 2 Tech</span>
+</div>
+</td>
+<td class="py-md px-md font-kpi-stat text-on-surface">0.5 hr</td>
+<td class="py-md px-md font-kpi-stat text-on-surface">AED 165 (Flat)</td>
+<td class="py-md px-md">
+<span class="font-kpi-stat text-outline">AED 0</span>
+<span class="text-outline text-chip-status block">Pure Telemetry</span>
+</td>
+<td class="py-md px-md text-right">
+<div class="font-kpi-stat text-body-bold text-on-surface">AED 165</div>
+<div class="font-chip-status text-chip-status text-tertiary">Express 20-min Lane</div>
+</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span class="font-chip-status text-chip-status text-on-surface">Active &amp; Instant Book</span>
+</div>
+</td>
+<td class="py-md px-md text-right whitespace-nowrap">
+<button class="p-xs rounded hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-base">edit</span>
+</button>
+<button class="p-xs rounded hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-base">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 4: PASM Suspension -->
+<tr class="hover:bg-surface-container/60 transition-colors group">
+<td class="py-md px-md font-kpi-stat text-body-bold text-primary">QW-SUS-08</td>
+<td class="py-md px-md">
+<div class="font-body-bold text-on-surface">PASM Air Suspension Leak Detection &amp; Compressor Calibration</div>
+<div class="font-body-base text-chip-status text-outline">Pressure vessel ultrasonic sniff, valve block duty cycle reset</div>
+</td>
+<td class="py-md px-md">
+<span class="px-xs py-xxs rounded bg-surface-container-high text-on-surface font-chip-status text-chip-status whitespace-nowrap">Suspension</span>
+</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="font-chip-status text-chip-status text-tertiary">Porsche Master L3</span>
+</div>
+</td>
+<td class="py-md px-md font-kpi-stat text-on-surface">1.8 hrs</td>
+<td class="py-md px-md font-kpi-stat text-on-surface">AED 558</td>
+<td class="py-md px-md">
+<span class="font-kpi-stat text-on-surface">AED 140</span>
+<span class="text-outline text-chip-status block">Pneumatic Seal Kit</span>
+</td>
+<td class="py-md px-md text-right">
+<div class="font-kpi-stat text-body-bold text-on-surface">AED 698</div>
+<div class="font-chip-status text-chip-status text-outline">Calibration Certified</div>
+</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span class="font-chip-status text-chip-status text-on-surface">Active Bay Available</span>
+</div>
+</td>
+<td class="py-md px-md text-right whitespace-nowrap">
+<button class="p-xs rounded hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-base">edit</span>
+</button>
+<button class="p-xs rounded hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-base">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 5: 4-Wheel Dyno -->
+<tr class="hover:bg-surface-container/60 transition-colors group">
+<td class="py-md px-md font-kpi-stat text-body-bold text-primary">QW-DYN-01</td>
+<td class="py-md px-md">
+<div class="font-body-bold text-on-surface">4-Wheel Precision Hub Dyno Performance &amp; Power Run</div>
+<div class="font-body-base text-chip-status text-outline">Wheel torque trace, AFR ratio map, intake temp vs boost graphing</div>
+</td>
+<td class="py-md px-md">
+<span class="px-xs py-xxs rounded bg-surface-container-high text-on-surface font-chip-status text-chip-status whitespace-nowrap">Powertrain &amp; Dyno</span>
+</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface"></span>
+<span class="font-chip-status text-chip-status text-on-surface">Dyno Lead Tech</span>
+</div>
+</td>
+<td class="py-md px-md font-kpi-stat text-on-surface">1.5 hrs</td>
+<td class="py-md px-md font-kpi-stat text-on-surface">AED 650</td>
+<td class="py-md px-md">
+<span class="font-kpi-stat text-outline">AED 0</span>
+<span class="text-outline text-chip-status block">Acoustic Cell Included</span>
+</td>
+<td class="py-md px-md text-right">
+<div class="font-kpi-stat text-body-bold text-on-surface">AED 650</div>
+<div class="font-chip-status text-chip-status text-tertiary">3 Verified Pulls</div>
+</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span class="font-chip-status text-chip-status text-on-surface">Active (Bay 6)</span>
+</div>
+</td>
+<td class="py-md px-md text-right whitespace-nowrap">
+<button class="p-xs rounded hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-base">edit</span>
+</button>
+<button class="p-xs rounded hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-base">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 6: Inverter Gate Driver -->
+<tr class="hover:bg-surface-container/60 transition-colors group">
+<td class="py-md px-md font-kpi-stat text-body-bold text-primary">QW-EV-09</td>
+<td class="py-md px-md">
+<div class="font-body-bold text-on-surface">Inverter Gate Driver Diagnostic &amp; Thermal Sensor Replacement</div>
+<div class="font-body-base text-chip-status text-outline">High-voltage galvanic isolation verify, IGBT thermal pad torque</div>
+</td>
+<td class="py-md px-md">
+<span class="px-xs py-xxs rounded bg-secondary-container text-on-secondary-container font-chip-status text-chip-status whitespace-nowrap">High-Voltage EV</span>
+</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="font-chip-status text-chip-status text-tertiary">DEKRA 800V Master</span>
+</div>
+</td>
+<td class="py-md px-md font-kpi-stat text-on-surface">3.5 hrs</td>
+<td class="py-md px-md font-kpi-stat text-on-surface">AED 1,085</td>
+<td class="py-md px-md">
+<span class="font-kpi-stat text-on-surface">AED 1,850</span>
+<span class="text-outline text-chip-status block">OEM Sensor Rail</span>
+</td>
+<td class="py-md px-md text-right">
+<div class="font-kpi-stat text-body-bold text-on-surface">AED 2,935</div>
+<div class="font-chip-status text-chip-status text-outline">Depot Verification</div>
+</td>
+<td class="py-md px-md">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-chip-status text-chip-status text-secondary">On-Request Quote</span>
+</div>
+</td>
+<td class="py-md px-md text-right whitespace-nowrap">
+<button class="p-xs rounded hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-base">edit</span>
+</button>
+<button class="p-xs rounded hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-base">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer / Pagination -->
+<div class="bg-surface-container-lowest px-md py-sm flex flex-col sm:flex-row items-center justify-between gap-sm text-outline font-body-medium text-body-medium">
+<span>Showing 6 of 34 verified rate items</span>
+<div class="flex items-center gap-xs">
+<button class="px-sm py-xxs rounded bg-surface-container-high text-on-surface disabled:opacity-50">Previous</button>
+<button class="px-sm py-xxs rounded bg-primary-container text-on-primary-container font-body-bold">1</button>
+<button class="px-sm py-xxs rounded bg-surface-container-high text-on-surface">2</button>
+<button class="px-sm py-xxs rounded bg-surface-container-high text-on-surface">3</button>
+<button class="px-sm py-xxs rounded bg-surface-container-high text-on-surface">Next</button>
+</div>
+</div>
+</div>
+<!-- Bottom Tier Configuration Drawer & Rules Matrix -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-md">
+<!-- Bay Hourly Surcharge Rates by Powertrain Tier -->
+<div class="lg:col-span-7 rounded-xl bg-surface-container-low p-card-pad flex flex-col justify-between space-y-md shadow-sm">
+<div class="flex items-center justify-between">
+<div>
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase">Rate Governance Matrix</span>
+<h2 class="font-headline-md text-headline-md text-on-surface">Hourly Bay Rates by Vehicle Platform</h2>
+</div>
+<span class="px-xs py-xxs rounded bg-surface-container-high text-tertiary font-chip-status text-chip-status">3 TIERS ACTIVE</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-sm">
+<!-- Tier 1 -->
+<div class="p-sm rounded-lg bg-surface-container-lowest flex flex-col justify-between space-y-sm">
+<div class="flex items-center justify-between text-outline">
+<span class="font-label-eyebrow text-label-eyebrow uppercase">Standard ICE</span>
+<span class="material-symbols-outlined text-base">minor_crash</span>
+</div>
+<div>
+<span class="font-kpi-stat text-headline-md text-on-surface">AED 280</span>
+<span class="text-outline text-chip-status block">per bay hour</span>
+</div>
+<div class="font-chip-status text-chip-status text-on-surface-variant">
+            Euro / JDM / GCC standard combustion spec
+          </div>
+</div>
+<!-- Tier 2 -->
+<div class="p-sm rounded-lg bg-surface-container-lowest flex flex-col justify-between space-y-sm">
+<div class="flex items-center justify-between text-outline">
+<span class="font-label-eyebrow text-label-eyebrow uppercase text-primary">Performance / Supercar</span>
+<span class="material-symbols-outlined text-base text-primary">sports_score</span>
+</div>
+<div>
+<span class="font-kpi-stat text-headline-md text-on-surface">AED 350</span>
+<span class="text-outline text-chip-status block">per bay hour</span>
+</div>
+<div class="font-chip-status text-chip-status text-on-surface-variant">
+            Twin-turbo, mid-engine &amp; carbon tub fixtures
+          </div>
+</div>
+<!-- Tier 3 -->
+<div class="p-sm rounded-lg bg-surface-container-lowest flex flex-col justify-between space-y-sm">
+<div class="flex items-center justify-between text-outline">
+<span class="font-label-eyebrow text-label-eyebrow uppercase text-tertiary">800V High-Voltage EV</span>
+<span class="material-symbols-outlined text-base text-tertiary">bolt</span>
+</div>
+<div>
+<span class="font-kpi-stat text-headline-md text-on-surface">AED 380</span>
+<span class="text-outline text-chip-status block">per bay hour</span>
+</div>
+<div class="font-chip-status text-chip-status text-on-surface-variant">
+            Arc-flash safety isolation bay &amp; chiller rigs
+          </div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-xs">
+<span class="font-body-medium text-chip-status text-outline">Platform updates propagate automatically to customer app instant-estimates.</span>
+<button class="px-sm py-xs rounded bg-surface-container-high text-on-surface font-body-bold text-chip-status hover:bg-surface-variant">Update Platform Multipliers</button>
+</div>
+</div>
+<!-- Auto-Approve Repair Threshold & Rapid Lane Policy -->
+<div class="lg:col-span-5 rounded-xl bg-surface-container-low p-card-pad flex flex-col justify-between space-y-md shadow-sm">
+<div>
+<div class="flex items-center justify-between">
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase">Express Bay Throughput</span>
+<span class="material-symbols-outlined text-primary text-base">flash_on</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Fleet Auto-Approve Threshold</h2>
+<p class="font-body-base text-body-medium text-on-surface-variant mt-xxs">
+          Repairs under this dollar ceiling bypass manual dispatcher call-backs, maintaining a sub-2hr bay turn latency.
+        </p>
+</div>
+<div class="rounded-lg bg-surface-container-lowest p-md flex items-center justify-between">
+<div>
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase">Pre-Approved Customer Cap</span>
+<div class="flex items-baseline gap-xxs">
+<span class="font-kpi-stat text-headline-lg text-primary">AED 1,500</span>
+<span class="font-body-medium text-body-medium text-outline">($408 USD)</span>
+</div>
+</div>
+<button class="px-md py-xs rounded-lg bg-surface-container-high hover:bg-surface-variant text-on-surface font-body-bold text-body-medium transition-colors">
+          Adjust Limit
+        </button>
+</div>
+<div class="space-y-xs">
+<div class="flex items-center justify-between font-chip-status text-chip-status text-outline">
+<span>BAY TURN VELOCITY TODAY</span>
+<span class="text-tertiary">91.4% ON SCHEDULE</span>
+</div>
+<div class="w-full bg-surface-container-highest h-2 rounded-full overflow-hidden">
+<div class="bg-primary-container h-full rounded-full" style="width: 88%;"></div>
+</div>
+<span class="font-label-eyebrow text-label-eyebrow text-outline block text-right">Target ≤ 120 mins per turnaround</span>
+</div>
+</div>
+</div>
+</div></main></div></body></html>

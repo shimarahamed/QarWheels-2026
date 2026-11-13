@@ -1,6 +1,6 @@
-import { afterAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { addDoc, collection, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { asCustomer, asUserWithClaims, getTestEnv, seedWithoutRules, teardownTestEnv } from './setup';
 
 const BIZ_A = 'biz_aab_auto';
@@ -42,6 +42,50 @@ describe('Phase 3 chat: conversations and messages', () => {
     const ctx = await asUserWithClaims('uid_staff_a1', { r: 'vendor_staff', b: BIZ_A, br: [BRANCH_A1] });
     await assertSucceeds(getDoc(doc(ctx.firestore(), 'conversations', 'conv_1')));
     await assertSucceeds(getDoc(doc(ctx.firestore(), 'messages', 'msg_1')));
+  });
+
+  it('rejects the old vendor branch-only inbox query because it does not constrain businessId', async () => {
+    const ctx = await asUserWithClaims('uid_owner_a', { r: 'business_owner', b: BIZ_A, br: [] });
+    await assertFails(getDocs(query(collection(ctx.firestore(), 'conversations'),
+      where('branchId', '==', BRANCH_A1), orderBy('lastMessageAt', 'desc'), limit(50))));
+  });
+
+  it.each(['business_owner', 'vendor_admin', 'vendor_manager', 'vendor_staff'] as const)(
+    '%s CAN list the inbox constrained to its business and branch', async (role) => {
+      const ctx = await asUserWithClaims(`uid_${role}_a`, {
+        r: role, b: BIZ_A, br: role === 'vendor_staff' ? [BRANCH_A1] : [],
+      });
+      const snapshot = await assertSucceeds(getDocs(query(collection(ctx.firestore(), 'conversations'),
+        where('businessId', '==', BIZ_A), where('branchId', '==', BRANCH_A1),
+        orderBy('lastMessageAt', 'desc'), limit(50))));
+      expect(snapshot.docs.map((entry) => entry.id)).toEqual(['conv_1']);
+    },
+  );
+
+  it.each([
+    ['another business', 'vendor_staff', 'biz_other', [BRANCH_A1]],
+    ['another branch', 'vendor_staff', BIZ_A, [BRANCH_A2]],
+    ['cashier', 'vendor_cashier', BIZ_A, [BRANCH_A1]],
+    ['inventory', 'vendor_inventory', BIZ_A, [BRANCH_A1]],
+  ] as const)('denies the scoped vendor inbox to %s', async (_label, role, businessId, branches) => {
+    const ctx = await asUserWithClaims(`uid_denied_${role}`, { r: role, b: businessId, br: [...branches] });
+    await assertFails(getDocs(query(collection(ctx.firestore(), 'conversations'),
+      where('businessId', '==', BIZ_A), where('branchId', '==', BRANCH_A1),
+      orderBy('lastMessageAt', 'desc'), limit(50))));
+  });
+
+  it('denies a vendor inbox query to an account without vendor claims', async () => {
+    const ctx = await asCustomer(CUSTOMER);
+    await assertFails(getDocs(query(collection(ctx.firestore(), 'conversations'),
+      where('businessId', '==', BIZ_A), where('branchId', '==', BRANCH_A1),
+      orderBy('lastMessageAt', 'desc'), limit(50))));
+  });
+
+  it('still allows the customer inbox query scoped by its participant UID', async () => {
+    const ctx = await asCustomer(CUSTOMER);
+    const snapshot = await assertSucceeds(getDocs(query(collection(ctx.firestore(), 'conversations'),
+      where('participants', 'array-contains', CUSTOMER), orderBy('lastMessageAt', 'desc'), limit(50))));
+    expect(snapshot.docs.map((entry) => entry.id)).toEqual(['conv_1']);
   });
 
   it('staff at a DIFFERENT branch of the same business cannot read the conversation', async () => {

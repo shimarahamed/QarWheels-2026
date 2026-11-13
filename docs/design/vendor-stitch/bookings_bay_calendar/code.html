@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;family=Outfit:wght@100..900&amp;family=Space+Grotesk:wght@300..700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {"darkMode":"class","theme":{"extend":{"colors":{"error":"#ffb4ab","surface-bright":"#36393e","secondary":"#ffb3af","surface-tint":"#ffb4ab","outline-variant":"#5d3f3c","on-background":"#e0e2e8","surface-container":"#1d2024","on-tertiary-fixed":"#241a00","on-tertiary-fixed-variant":"#574500","surface-variant":"#32353a","on-secondary-fixed":"#410005","on-tertiary-container":"#4f3d00","on-primary-fixed-variant":"#93000d","on-secondary":"#68000d","primary-fixed":"#ffdad6","inverse-on-surface":"#2d3135","background":"#101418","secondary-fixed-dim":"#ffb3af","on-primary-container":"#fffafa","error-container":"#93000a","inverse-surface":"#e0e2e8","tertiary-fixed":"#ffe088","surface-container-low":"#191c20","secondary-container":"#92131e","surface-container-high":"#272a2f","on-error":"#690005","on-secondary-fixed-variant":"#8e101c","outline":"#ae8883","on-surface-variant":"#e7bdb8","tertiary":"#e9c349","on-surface":"#e0e2e8","primary":"#ffb4ab","surface":"#101418","on-error-container":"#ffdad6","inverse-primary":"#c00014","surface-dim":"#101418","surface-container-lowest":"#0b0e13","primary-fixed-dim":"#ffb4ab","secondary-fixed":"#ffdad7","tertiary-container":"#cca730","on-primary-fixed":"#410002","on-secondary-container":"#ff9e99","surface-container-highest":"#32353a","primary-container":"#e31e24","on-tertiary":"#3c2f00","on-primary":"#690006","tertiary-fixed-dim":"#e9c349"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"unit":"4px","md":"16px","gutter":"14px","xxs":"4px","xxxl":"40px","xxl":"32px","lg":"20px","sm":"12px","xs":"8px","xl":"24px","card-pad":"20px","section-gap":"26px"},"fontFamily":{"body-bold":["DM Sans"],"display-lg":["Outfit"],"kpi-stat":["Space Grotesk"],"body-medium":["DM Sans"],"label-eyebrow":["Space Grotesk"],"display-xl-mobile":["Outfit"],"display-xl":["Outfit"],"headline-md":["Outfit"],"body-base":["DM Sans"],"headline-lg":["Outfit"],"display-lg-mobile":["Outfit"],"body-lg":["DM Sans"],"chip-status":["DM Sans"]},"fontSize":{"body-bold":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"600"}],"display-lg":["36px",{"lineHeight":"42px","letterSpacing":"-0.025em","fontWeight":"800"}],"kpi-stat":["30px",{"lineHeight":"36px","letterSpacing":"-0.02em","fontWeight":"700"}],"body-medium":["14px",{"lineHeight":"20px","letterSpacing":"0em","fontWeight":"500"}],"label-eyebrow":["10px",{"lineHeight":"14px","letterSpacing":"0.18em","fontWeight":"700"}],"display-xl-mobile":["32px",{"lineHeight":"38px","letterSpacing":"-0.025em","fontWeight":"900"}],"display-xl":["48px",{"lineHeight":"52px","letterSpacing":"-0.03em","fontWeight":"900"}],"headline-md":["22px",{"lineHeight":"28px","letterSpacing":"-0.015em","fontWeight":"700"}],"body-base":["15px",{"lineHeight":"24px","letterSpacing":"-0.005em","fontWeight":"400"}],"headline-lg":["28px",{"lineHeight":"34px","letterSpacing":"-0.02em","fontWeight":"700"}],"display-lg-mobile":["26px",{"lineHeight":"32px","letterSpacing":"-0.02em","fontWeight":"800"}],"body-lg":["18px",{"lineHeight":"28px","letterSpacing":"0em","fontWeight":"400"}],"chip-status":["11px",{"lineHeight":"16px","letterSpacing":"0.02em","fontWeight":"700"}]}}}}</script></head><body class="bg-background font-body-base text-on-surface antialiased min-h-screen"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-container-low z-50 flex flex-col justify-between shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex flex-col"><div class="h-16 px-lg flex items-center justify-between bg-surface-container-lowest"><div class="flex items-center gap-xs"><img alt="Brand logo. - Primary color: #e31e24
+- Font: outfit
+- Mode: dark
+- Roundness: rounded-md
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1VZBLIcu6uddLqupC0qGR_CLAjvKm9PYsh-TQ4mNUgMYi9FmQXPiOin-p8S4IXCtqtuFbirUDS-JvxsrrKJytaJLSndD-8fWSiT4ko-iPtSqIRP7OqqYoVmMSb05UWT5JGhXvbgGf8iL8vWqV6wRqB4SfQlfpe2wDYUjKb8rLfsohE_q5D0_7b-Ud0nEv5ZfMHtxD9jZ2ZOaVItKzLho-tCI5XbijFUS0KzvG0bhEz4bHt-JTBpjHCd"/><div class="flex flex-col"><span class="font-headline-md text-headline-md tracking-tight text-on-surface leading-none">QarWheel</span><span class="font-label-eyebrow text-label-eyebrow text-primary uppercase">Vendor OS</span></div></div><span class="px-xs py-xxs rounded-full bg-secondary-container text-on-secondary-container font-chip-status text-chip-status uppercase tracking-wider">Al Quoz 3</span></div><nav class="px-sm py-md space-y-md overflow-y-auto max-h-[calc(100vh-140px)]" data-active-classes="bg-primary-container text-on-primary-container font-body-bold rounded-lg shadow-[0_4px_20px_-4px_rgba(227,30,36,0.35)]"><div class="space-y-xxs"><span class="px-sm font-label-eyebrow text-label-eyebrow text-outline uppercase">Operations</span><div class="space-y-xxs pt-xxs"><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="dashboard" href="#"><span class="material-symbols-outlined text-lg leading-none">speed</span><span>Dashboard</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="bookings-bay-calendar" href="#"><span class="material-symbols-outlined text-lg leading-none">calendar_view_week</span><span>Bookings &amp; Bay Calendar</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="work-orders" href="#"><span class="material-symbols-outlined text-lg leading-none">precision_manufacturing</span><span>Work Orders</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="services-rates" href="#"><span class="material-symbols-outlined text-lg leading-none">tune</span><span>Services &amp; Rates</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="inventory-depot" href="#"><span class="material-symbols-outlined text-lg leading-none">inventory_2</span><span>Inventory Depot</span></a></div></div><div class="space-y-xxs"><span class="px-sm font-label-eyebrow text-label-eyebrow text-outline uppercase">Fleet &amp; Customers</span><div class="space-y-xxs pt-xxs"><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="customer-directory" href="#"><span class="material-symbols-outlined text-lg leading-none">contact_page</span><span>Customer Directory</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="fleet-telemetry" href="#"><span class="material-symbols-outlined text-lg leading-none">sensors</span><span>Fleet Telemetry</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="staff-roster" href="#"><span class="material-symbols-outlined text-lg leading-none">badge</span><span>Staff Roster</span></a></div></div><div class="space-y-xxs"><span class="px-sm font-label-eyebrow text-label-eyebrow text-outline uppercase">Telemetry Core</span><div class="space-y-xxs pt-xxs"><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="workshop-profile" href="#"><span class="material-symbols-outlined text-lg leading-none">garage</span><span>Workshop Profile</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="analytics-ratings" href="#"><span class="material-symbols-outlined text-lg leading-none">monitoring</span><span>Analytics &amp; Ratings</span></a><a class="flex items-center gap-sm px-sm py-xs rounded-lg text-on-surface-variant font-body-medium text-body-medium hover:bg-surface-container-high hover:text-on-surface transition-all duration-150" data-path="settings" href="#"><span class="material-symbols-outlined text-lg leading-none">settings_suggest</span><span>Settings</span></a></div></div></nav></div><div class="p-sm bg-surface-container-lowest mx-xs mb-xs rounded-xl flex items-center justify-between"><div class="flex items-center gap-xs"><span class="material-symbols-outlined text-tertiary text-lg">router</span><div class="flex flex-col"><span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant">LINK NODE</span><span class="font-kpi-stat text-body-medium text-on-surface">DXB-OBD-09</span></div></div><span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span></div></aside><div class="pl-72"><header class="fixed top-0 left-72 right-0 h-16 bg-surface-container-low/90 backdrop-blur-xl z-40 px-xl flex items-center justify-between shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex items-center gap-lg"><div class="flex items-center gap-xs"><span class="w-2.5 h-2.5 rounded-full bg-primary-container animate-ping"></span><span class="font-body-bold text-body-bold text-on-surface">Apex Performance Lab</span><span class="text-outline font-body-medium text-body-medium">•</span><span class="font-kpi-stat text-body-medium text-primary">6/8 Bays Active</span></div><div class="hidden xl:flex items-center gap-xs px-sm py-xxs rounded-full bg-surface-container-high"><span class="w-2 h-2 rounded-full bg-tertiary"></span><span class="font-label-eyebrow text-label-eyebrow text-tertiary tracking-widest">CAN-BUS LIVE (100Hz)</span></div></div><div class="flex items-center gap-lg"><div class="hidden md:flex items-center gap-xs px-sm py-xxs rounded-lg bg-surface-container-high"><span class="material-symbols-outlined text-base text-on-surface-variant">schedule</span><span class="font-kpi-stat text-body-medium text-on-surface">GST 14:48:22</span></div><div class="flex items-center gap-xs px-sm py-xxs rounded-full bg-error-container text-on-error-container font-chip-status text-chip-status"><span class="material-symbols-outlined text-sm leading-none">warning</span><span>2 Critical DTC Alerts</span></div><button aria-label="Notifications" class="relative p-xs rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-lg leading-none">notifications</span><span class="absolute top-1 right-1 w-2 h-2 bg-primary-container rounded-full"></span></button><div class="flex items-center gap-xs pl-xs"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1VHZAp-vFBUryJpjtcoNB5jW4UunNwrxJ3GnOa_FS01vACtrCrtoKBFlMgoOQOpZoYtPnIc9LhFk_-xHY-qt2JXvIKkHOR8UvN1AtQCP_A2TC6n2HOHV3Y5EU2bCz26PseTvCCLu13t0gdg08qhA8yWZPdYdGtFATij_mOVIQM7WUY9UopWmuoav-tU62XgzNF0qhGHHZPphhPbLZFgzWNL6ZpG6xIv3Qi25wQRi2jPlkIPJJfhObJk"/><div class="hidden lg:flex flex-col text-left"><span class="font-body-bold text-body-medium text-on-surface leading-tight">Tariq Al-Mansoor</span><span class="font-label-eyebrow text-label-eyebrow text-outline leading-tight uppercase">Master Tech L4</span></div></div></div></header><main class="w-full pt-16 bg-background min-h-screen px-xl py-lg"><div class="flex flex-col w-full gap-section-gap">
+<!-- Top Command Matrix Header & Operational Meta Strip -->
+<div class="flex flex-col gap-md">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-md bg-surface-container-low p-lg rounded-xl shadow-md">
+<div class="flex flex-col gap-xxs">
+<div class="flex items-center gap-xs">
+<span class="font-label-eyebrow text-label-eyebrow text-primary uppercase tracking-widest">STATION 04 // WORKSHOP TELEMETRY</span>
+<span class="text-outline font-body-medium text-body-medium">•</span>
+<span class="font-label-eyebrow text-label-eyebrow text-tertiary flex items-center gap-xxs">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-ping"></span>
+            BAY MATRIX SYNCHRONIZED
+          </span>
+</div>
+<h1 class="font-display-lg text-display-lg text-on-surface tracking-tight leading-tight">Bay Operations &amp; Schedule Matrix</h1>
+<p class="font-body-base text-body-base text-on-surface-variant max-w-2xl">
+          Real-time intake tracking across 8 dedicated mechanical &amp; high-voltage EV diagnostic bays with automated CAN-Bus sensor feedback.
+        </p>
+</div>
+<!-- Quick Actions and Primary CTA -->
+<div class="flex flex-wrap items-center gap-sm">
+<div class="flex items-center bg-surface-container-lowest rounded-lg p-xxs">
+<button class="px-sm py-xs rounded font-chip-status text-chip-status bg-surface-container-high text-on-surface transition-all" id="view-gantt">TIMELINE</button>
+<button class="px-sm py-xs rounded font-chip-status text-chip-status text-on-surface-variant hover:text-on-surface transition-all" id="view-kanban">KANBAN</button>
+<button class="px-sm py-xs rounded font-chip-status text-chip-status text-on-surface-variant hover:text-on-surface transition-all" id="view-split">METRICS</button>
+</div>
+<button class="flex items-center gap-xs px-sm py-xs rounded-lg bg-surface-container-high text-on-surface font-body-medium text-body-medium hover:bg-surface-variant transition-colors shadow-sm" type="button">
+<span class="material-symbols-outlined text-base text-on-surface-variant">tune</span>
+<span>Filter Bays</span>
+<span class="px-xs py-0.5 rounded text-[10px] font-label-eyebrow bg-secondary-container text-on-secondary-container">ALL 8</span>
+</button>
+<button class="flex items-center gap-xs px-md py-xs rounded-lg bg-primary-container text-on-primary-container font-body-bold text-body-medium hover:brightness-110 active:scale-[0.985] transition-all shadow-[0_4px_20px_-4px_rgba(227,30,36,0.4)]" type="button">
+<span class="material-symbols-outlined text-lg">add_circle</span>
+<span>+ Create Direct Work Order</span>
+</button>
+</div>
+</div>
+<!-- Date Navigator & Status KPI Cluster Bar -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-gutter items-center">
+<!-- Date Navigator -->
+<div class="xl:col-span-4 flex items-center justify-between bg-surface-container-low px-md py-sm rounded-xl shadow-sm">
+<div class="flex items-center gap-xs">
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-base">chevron_left</span>
+</button>
+<div class="flex flex-col">
+<span class="font-body-bold text-body-bold text-on-surface flex items-center gap-xs">
+              Today, Wednesday, Oct 24, 2024
+              <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline tracking-wider">SHIFT: MORNING / AFTERNOON (07:00 - 19:00 GST)</span>
+</div>
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-base">chevron_right</span>
+</button>
+</div>
+<button class="px-xs py-xxs rounded bg-surface-container-high font-label-eyebrow text-label-eyebrow text-primary uppercase">NOW</button>
+</div>
+<!-- Quick Metrics Strip -->
+<div class="xl:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-gutter">
+<div class="bg-surface-container-low px-sm py-xs rounded-xl flex items-center gap-sm">
+<div class="w-9 h-9 rounded-lg bg-surface-container-lowest flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-lg">garage_home</span>
+</div>
+<div class="flex flex-col">
+<span class="font-kpi-stat text-headline-md text-on-surface leading-none">6 <span class="text-outline text-body-medium">/ 8</span></span>
+<span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">Bays Active</span>
+</div>
+</div>
+<div class="bg-surface-container-low px-sm py-xs rounded-xl flex items-center gap-sm">
+<div class="w-9 h-9 rounded-lg bg-surface-container-lowest flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-lg">check_circle</span>
+</div>
+<div class="flex flex-col">
+<span class="font-kpi-stat text-headline-md text-tertiary leading-none">2 Ready</span>
+<span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">Bays 03 &amp; 07</span>
+</div>
+</div>
+<div class="bg-surface-container-low px-sm py-xs rounded-xl flex items-center gap-sm">
+<div class="w-9 h-9 rounded-lg bg-surface-container-lowest flex items-center justify-center text-secondary-container">
+<span class="material-symbols-outlined text-lg">minor_crash</span>
+</div>
+<div class="flex flex-col">
+<span class="font-kpi-stat text-headline-md text-on-surface leading-none">14</span>
+<span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">Scheduled Intake</span>
+</div>
+</div>
+<div class="bg-surface-container-low px-sm py-xs rounded-xl flex items-center gap-sm">
+<div class="w-9 h-9 rounded-lg bg-surface-container-lowest flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-lg">timer</span>
+</div>
+<div class="flex flex-col">
+<span class="font-kpi-stat text-headline-md text-primary leading-none">98.4%</span>
+<span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">On-Time SLA</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Pipeline Stage Ticker Bar (Kanban Horizontal Micro-Strip) -->
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-gutter">
+<!-- Stage 1 -->
+<div class="bg-surface-container-low p-sm rounded-xl flex items-center justify-between group hover:bg-surface-container transition-all">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+<div class="flex flex-col">
+<span class="font-label-eyebrow text-label-eyebrow text-on-surface uppercase">Arrival &amp; Check-In</span>
+<span class="font-chip-status text-chip-status text-on-surface-variant">Gate RFID linked</span>
+</div>
+</div>
+<span class="px-sm py-xxs rounded-full bg-surface-container-highest font-kpi-stat text-body-bold text-on-surface">3</span>
+</div>
+<!-- Stage 2 -->
+<div class="bg-surface-container-low p-sm rounded-xl flex items-center justify-between group hover:bg-surface-container transition-all">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<div class="flex flex-col">
+<span class="font-label-eyebrow text-label-eyebrow text-on-surface uppercase">AI Optical Inspection</span>
+<span class="font-chip-status text-chip-status text-tertiary">LiDAR scanner active</span>
+</div>
+</div>
+<span class="px-sm py-xxs rounded-full bg-surface-container-highest font-kpi-stat text-body-bold text-tertiary">2</span>
+</div>
+<!-- Stage 3 Active -->
+<div class="bg-surface-container-low p-sm rounded-xl flex items-center justify-between group hover:bg-surface-container transition-all">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-primary-container animate-ping"></span>
+<div class="flex flex-col">
+<span class="font-label-eyebrow text-label-eyebrow text-primary uppercase">In Bay / Staged</span>
+<span class="font-chip-status text-chip-status text-primary">6 active lifts engaged</span>
+</div>
+</div>
+<span class="px-sm py-xxs rounded-full bg-primary-container font-kpi-stat text-body-bold text-on-primary-container shadow-sm">6</span>
+</div>
+<!-- Stage 4 -->
+<div class="bg-surface-container-low p-sm rounded-xl flex items-center justify-between group hover:bg-surface-container transition-all">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-secondary-fixed"></span>
+<div class="flex flex-col">
+<span class="font-label-eyebrow text-label-eyebrow text-on-surface uppercase">QC &amp; Dyno Test</span>
+<span class="font-chip-status text-chip-status text-on-surface-variant">OBD2 telemetry clear</span>
+</div>
+</div>
+<span class="px-sm py-xxs rounded-full bg-surface-container-highest font-kpi-stat text-body-bold text-on-surface">1</span>
+</div>
+<!-- Stage 5 -->
+<div class="bg-surface-container-low p-sm rounded-xl flex items-center justify-between group hover:bg-surface-container transition-all col-span-2 md:col-span-1">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<div class="flex flex-col">
+<span class="font-label-eyebrow text-label-eyebrow text-on-surface uppercase">Release &amp; Passport</span>
+<span class="font-chip-status text-chip-status text-outline">NFT service mint</span>
+</div>
+</div>
+<span class="px-sm py-xxs rounded-full bg-surface-container-highest font-kpi-stat text-body-bold text-on-surface">4</span>
+</div>
+</div>
+<!-- Primary Workstation Split: Gantt Bay Schedule (Left) + Real-Time Inbound Telemetry Queue (Right) -->
+<div class="grid grid-cols-1 2xl:grid-cols-12 gap-section-gap items-start">
+<!-- Left Section: Interactive Gantt Bay Timeline Matrix (2xl:col-span-9) -->
+<div class="2xl:col-span-9 flex flex-col gap-md">
+<!-- Bay Visual Preview Card (Audi / EV Calibration Bay from inspection prompt context) -->
+<div class="relative w-full rounded-2xl overflow-hidden bg-surface-container-low shadow-xl">
+<div class="grid grid-cols-1 lg:grid-cols-12">
+<!-- Workshop Live Bay Viewport Image -->
+<div class="lg:col-span-5 relative h-56 lg:h-auto min-h-[220px]">
+<img class="w-full h-full object-cover brightness-90 contrast-105" data-alt="Ultra-clean modern automotive workshop bay with a high-end Audi e-tron electric vehicle hoisted on a silver hydraulic lift. High tech diagnostics console with real-time graphs on a dark dual monitor workstation, LED strip ceiling illumination, gray polished concrete floors, and a certified technician in sleek racing-style overalls running diagnostic software on a ruggedized tablet." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOwjTl_Nzvs79gfkY6dvwiLxs5IqN-y_K5u7zA77h-DaKbd9BJ-kEELXduihIVtdWayjzSwZIpllLmW_gGH5AQdpqXiIvVbT30k9abkbi2FFYjdwFFiAPH2PS1OAQEDzpCkbsDptm5t7uqgpEIeN5vrz9e39ONZ-ljS6aCeY2kafFnB7YJOtbuSFGLr7Q2d4bCjYb6yUuOYHNvtmf2_SSvREhtX3DJNkaDN8uigkATU9rVMvuC6w"/>
+<div class="absolute inset-0 bg-gradient-to-t lg:bg-gradient-to-r from-surface-container-low via-transparent to-transparent"></div>
+<div class="absolute top-sm left-sm px-xs py-xxs rounded bg-surface-container-lowest/90 backdrop-blur-md flex items-center gap-xxs font-label-eyebrow text-label-eyebrow text-on-surface">
+<span class="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
+              CCTV CAM 04: BAY ELEVATION
+            </div>
+<div class="absolute bottom-sm left-sm px-sm py-xs rounded-lg bg-surface-container-lowest/80 backdrop-blur-md">
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase block">Station Uplink</span>
+<span class="font-kpi-stat text-body-bold text-on-surface">BAY 01 // ROTARY LIFT 4.5T</span>
+</div>
+</div>
+<!-- Active Diagnostics Telemetry Feed -->
+<div class="lg:col-span-7 p-md lg:p-lg flex flex-col justify-between gap-sm bg-surface-container-low">
+<div class="flex items-start justify-between">
+<div>
+<span class="px-xs py-0.5 rounded font-chip-status text-chip-status bg-secondary-container text-on-secondary-container uppercase">BAY 01 IN-PROGRESS</span>
+<h3 class="font-headline-md text-headline-md text-on-surface mt-xxs">Porsche Taycan 4S — <span class="text-primary font-kpi-stat">AA 9284</span></h3>
+<p class="font-body-medium text-body-medium text-on-surface-variant">Brake Fluid Flush, Dynamic Caliper Recalibration &amp; Regenerative Brake Bias Sync</p>
+</div>
+<div class="text-right">
+<span class="font-label-eyebrow text-label-eyebrow text-tertiary block uppercase">DIAGNOSTIC CYCLE</span>
+<span class="font-kpi-stat text-headline-md text-on-surface">78%</span>
+</div>
+</div>
+<!-- In-bay CAN-BUS Telemetry Bar -->
+<div class="flex flex-col gap-xxs bg-surface-container-lowest p-sm rounded-xl">
+<div class="flex items-center justify-between text-on-surface-variant font-label-eyebrow text-label-eyebrow uppercase">
+<span class="flex items-center gap-xxs">
+<span class="material-symbols-outlined text-sm text-primary">sensors</span>
+                  CAN-BUS REALTIME TELEMETRY (100Hz STREAM)
+                </span>
+<span class="font-kpi-stat text-on-surface">0.82 BAR // 42.4°C FLUID TEMP</span>
+</div>
+<div class="w-full h-2 bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-primary-container rounded-full" style="width: 78%"></div>
+</div>
+<div class="flex items-center justify-between font-chip-status text-chip-status text-outline pt-xxs">
+<span>Lead Tech: Marcus Chen (L3 EV Certified)</span>
+<span>Time Remaining: 24 mins (Est. Finish 12:30 PM)</span>
+</div>
+</div>
+<div class="flex flex-wrap items-center justify-between gap-xs">
+<div class="flex items-center gap-xs">
+<span class="px-xs py-xxs rounded bg-surface-container-high font-label-eyebrow text-label-eyebrow text-on-surface">TORQUE SPEC: 140 Nm VERIFIED</span>
+<span class="px-xs py-xxs rounded bg-surface-container-high font-label-eyebrow text-label-eyebrow text-tertiary">HV ISOLATION: PASS</span>
+</div>
+<div class="flex items-center gap-xs">
+<button class="px-sm py-xxs rounded-lg bg-surface-container-high hover:bg-surface-variant text-on-surface font-body-bold text-body-medium transition-colors">Digital Inspection Form</button>
+<button class="px-sm py-xxs rounded-lg bg-primary text-on-primary font-body-bold text-body-medium transition-colors">Flag Complete</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Gantt Multi-Bay Matrix Container -->
+<div class="bg-surface-container-low rounded-2xl p-md shadow-lg flex flex-col gap-sm overflow-hidden">
+<div class="flex items-center justify-between pb-xs">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">view_timeline</span>
+<span class="font-headline-md text-body-bold text-on-surface uppercase tracking-wider">Multi-Bay Gantt Deployment Grid</span>
+</div>
+<div class="flex items-center gap-sm text-on-surface-variant font-chip-status text-chip-status">
+<div class="flex items-center gap-xxs">
+<span class="w-2.5 h-2.5 rounded bg-primary-container"></span>
+<span>Active Mechanical</span>
+</div>
+<div class="flex items-center gap-xxs">
+<span class="w-2.5 h-2.5 rounded bg-tertiary-container"></span>
+<span>EV High-Voltage</span>
+</div>
+<div class="flex items-center gap-xxs">
+<span class="w-2.5 h-2.5 rounded bg-surface-container-highest"></span>
+<span>Complete / QC</span>
+</div>
+<div class="flex items-center gap-xxs">
+<span class="w-2.5 h-2.5 rounded bg-secondary-container"></span>
+<span>Vacant Staged</span>
+</div>
+</div>
+</div>
+<!-- Schedule Matrix Visual Grid -->
+<div class="w-full overflow-x-auto">
+<div class="min-w-[880px] flex flex-col">
+<!-- Matrix Timeline X-Axis: 08:00 to 19:00 -->
+<div class="grid grid-cols-12 bg-surface-container-lowest py-xs px-sm rounded-lg mb-xs text-center font-kpi-stat text-label-eyebrow text-outline tracking-wider">
+<div class="text-left font-label-eyebrow text-on-surface">BAY UNIT</div>
+<div>08:00</div>
+<div>09:00</div>
+<div>10:00</div>
+<div>11:00</div>
+<div>12:00</div>
+<div>13:00</div>
+<div>14:00</div>
+<div>15:00</div>
+<div>16:00</div>
+<div>17:00</div>
+<div>18:00</div>
+</div>
+<!-- Bay Rows Stack -->
+<div class="flex flex-col gap-xs">
+<!-- Bay 01 [High-Voltage EV] -->
+<div class="grid grid-cols-12 items-center bg-surface-container p-xs rounded-xl relative group hover:bg-surface-container-high transition-all">
+<div class="col-span-2 flex flex-col">
+<span class="font-body-bold text-body-bold text-on-surface">Bay 01 [HV EV]</span>
+<span class="font-label-eyebrow text-label-eyebrow text-primary">Marcus Chen (L3)</span>
+</div>
+<div class="col-span-10 relative h-14 bg-surface-container-lowest rounded-lg p-xxs flex items-center">
+<!-- Time indicator 10:00 to 12:30 (starts at 18%, spans 24%) -->
+<div class="absolute left-[18.18%] w-[24.5%] h-11 rounded-lg bg-primary-container/20 p-xs flex flex-col justify-center shadow-[0_2px_12px_rgba(227,30,36,0.3)]">
+<div class="flex items-center justify-between">
+<span class="font-body-bold text-chip-status text-on-primary leading-none truncate">Porsche Taycan 4S (AA 9284)</span>
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse"></span>
+</div>
+<span class="font-label-eyebrow text-[9px] text-primary truncate">Caliper Recalibration • 78% Done</span>
+</div>
+<!-- Scheduled after lunch at 14:00 - 17:00 -->
+<div class="absolute left-[54.54%] w-[27.27%] h-11 rounded-lg bg-surface-container-high p-xs flex flex-col justify-center">
+<span class="font-body-bold text-chip-status text-on-surface truncate">Audi RS e-tron GT (DXB 8821)</span>
+<span class="font-label-eyebrow text-[9px] text-outline truncate">HV Inverter Replacement</span>
+</div>
+</div>
+</div>
+<!-- Bay 02 [EV Diagnostics] -->
+<div class="grid grid-cols-12 items-center bg-surface-container p-xs rounded-xl relative group hover:bg-surface-container-high transition-all">
+<div class="col-span-2 flex flex-col">
+<span class="font-body-bold text-body-bold text-on-surface">Bay 02 [EV Diag]</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline">Viktor K. (L2)</span>
+</div>
+<div class="col-span-10 relative h-14 bg-surface-container-lowest rounded-lg p-xxs flex items-center">
+<!-- Finished block 09:00 to 11:30 -->
+<div class="absolute left-[9.09%] w-[22.72%] h-11 rounded-lg bg-surface-container-highest p-xs flex flex-col justify-center">
+<div class="flex items-center justify-between">
+<span class="font-body-bold text-chip-status text-on-surface truncate">Tesla Model S Plaid</span>
+<span class="material-symbols-outlined text-xs text-tertiary">check</span>
+</div>
+<span class="font-label-eyebrow text-[9px] text-tertiary truncate">Thermal Leak Test Passed // QC</span>
+</div>
+<!-- Next job 12:30 to 15:00 -->
+<div class="absolute left-[40.9%] w-[24.5%] h-11 rounded-lg bg-tertiary-container/30 p-xs flex flex-col justify-center">
+<span class="font-body-bold text-chip-status text-tertiary-fixed truncate">Lucid Air Dream Ed.</span>
+<span class="font-label-eyebrow text-[9px] text-outline truncate">Drive Unit Firmware 4.2 Flash</span>
+</div>
+</div>
+</div>
+<!-- Bay 03 [Rapid Diagnostic Scan] - VACANT HIGHLIGHT -->
+<div class="grid grid-cols-12 items-center bg-surface-container p-xs rounded-xl relative group bg-secondary-container/10 transition-all">
+<div class="col-span-2 flex flex-col">
+<div class="flex items-center gap-xxs">
+<span class="font-body-bold text-body-bold text-on-surface">Bay 03 [Rapid Scan]</span>
+</div>
+<span class="font-label-eyebrow text-label-eyebrow text-tertiary flex items-center gap-xxs">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span> READY &amp; VACANT
+                  </span>
+</div>
+<div class="col-span-10 relative h-14 bg-surface-container-lowest rounded-lg p-xxs flex items-center">
+<!-- Current vacant status fill until 14:00 -->
+<div class="absolute left-0 w-[54.54%] h-11 rounded-lg bg-surface-container-low px-md flex items-center justify-between">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-base text-tertiary">ev_station</span>
+<span class="font-body-medium text-chip-status text-on-surface-variant">Available for Urgent Intake or Drive-by OBD2 Scan</span>
+</div>
+<button class="px-sm py-xxs rounded bg-primary-container text-on-primary-container font-chip-status text-chip-status hover:brightness-110 transition-all shadow-sm">Assign Urgent Vehicle</button>
+</div>
+<!-- Staged Taycan Express at 14:00 -->
+<div class="absolute left-[54.54%] w-[20%] h-11 rounded-lg bg-surface-container-high p-xs flex flex-col justify-center">
+<span class="font-body-bold text-chip-status text-on-surface truncate">Taycan Express Check-In</span>
+<span class="font-label-eyebrow text-[9px] text-outline truncate">Pre-assigned via Link Node</span>
+</div>
+</div>
+</div>
+<!-- Bay 04 [Mechanical & Powertrain] -->
+<div class="grid grid-cols-12 items-center bg-surface-container p-xs rounded-xl relative group hover:bg-surface-container-high transition-all">
+<div class="col-span-2 flex flex-col">
+<span class="font-body-bold text-body-bold text-on-surface">Bay 04 [Mechanical]</span>
+<span class="font-label-eyebrow text-label-eyebrow text-primary">Tariq Al-Mansoor</span>
+</div>
+<div class="col-span-10 relative h-14 bg-surface-container-lowest rounded-lg p-xxs flex items-center">
+<!-- Long job from 11:00 to 15:00 -->
+<div class="absolute left-[27.27%] w-[36.36%] h-11 rounded-lg bg-primary-container/25 p-xs flex flex-col justify-center shadow-md">
+<div class="flex items-center justify-between">
+<span class="font-body-bold text-chip-status text-on-surface truncate">Land Rover Defender V8 (DXB K 49102)</span>
+<span class="font-chip-status text-[10px] text-primary bg-surface-container-lowest px-xxs py-0.5 rounded">HEAVY MECHANICAL</span>
+</div>
+<span class="font-label-eyebrow text-[9px] text-primary truncate">Air Bladder Suspension Swap &amp; Dyno Calibration</span>
+</div>
+</div>
+</div>
+<!-- Bay 05 [Wheel Alignment & Laser] -->
+<div class="grid grid-cols-12 items-center bg-surface-container p-xs rounded-xl relative group hover:bg-surface-container-high transition-all">
+<div class="col-span-2 flex flex-col">
+<span class="font-body-bold text-body-bold text-on-surface">Bay 05 [Laser Align]</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline">Sami R. (Specialist)</span>
+</div>
+<div class="col-span-10 relative h-14 bg-surface-container-lowest rounded-lg p-xxs flex items-center">
+<div class="absolute left-[45.45%] w-[31.81%] h-11 rounded-lg bg-surface-container-high p-xs flex flex-col justify-center">
+<div class="flex items-center justify-between">
+<span class="font-body-bold text-chip-status text-on-surface truncate">Porsche 911 GT3 RS</span>
+<span class="material-symbols-outlined text-xs text-primary">track_changes</span>
+</div>
+<span class="font-label-eyebrow text-[9px] text-outline truncate">Laser Geometry &amp; Corner Balancing (Track Spec)</span>
+</div>
+</div>
+</div>
+<!-- Bay 06 [General Service & Fluids] -->
+<div class="grid grid-cols-12 items-center bg-surface-container p-xs rounded-xl relative group hover:bg-surface-container-high transition-all">
+<div class="col-span-2 flex flex-col">
+<span class="font-body-bold text-body-bold text-on-surface">Bay 06 [General Service]</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline">Farhan N. (Tech L1)</span>
+</div>
+<div class="col-span-10 relative h-14 bg-surface-container-lowest rounded-lg p-xxs flex items-center">
+<!-- Morning service complete 08:30 to 10:30 -->
+<div class="absolute left-[4.54%] w-[18.18%] h-11 rounded-lg bg-surface-container-highest p-xs flex flex-col justify-center">
+<span class="font-body-bold text-chip-status text-on-surface-variant line-through truncate">Audi RS6 Avant</span>
+<span class="font-label-eyebrow text-[9px] text-tertiary truncate">30,000km Major Fluid Exchange // COMPLETE</span>
+</div>
+<!-- Scheduled at 13:00 to 16:00 -->
+<div class="absolute left-[45.45%] w-[27.27%] h-11 rounded-lg bg-primary-container/20 p-xs flex flex-col justify-center">
+<span class="font-body-bold text-chip-status text-on-surface truncate">Mercedes-AMG E63s (W213)</span>
+<span class="font-label-eyebrow text-[9px] text-outline truncate">Spark Plugs, Differential Oil &amp; Filter Set</span>
+</div>
+</div>
+</div>
+<!-- Diagnostic Staging / Buffer Area -->
+<div class="grid grid-cols-12 items-center bg-surface-container-lowest p-xs rounded-xl relative">
+<div class="col-span-2 flex flex-col">
+<span class="font-body-bold text-body-bold text-outline uppercase text-[12px]">Diagnostic Buffer</span>
+<span class="font-label-eyebrow text-[10px] text-outline">Pre-Flight Bay</span>
+</div>
+<div class="col-span-10 relative h-10 bg-surface-container-low rounded-lg p-xxs flex items-center">
+<div class="w-full flex items-center justify-between px-sm text-outline font-chip-status text-chip-status">
+<span>OBD2 Automated Diagnostic Handshake: Active scanner linked on Gate 2</span>
+<span class="font-kpi-stat text-tertiary">3 Staged in Holding</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Timeline Legend and Quick Filter Bar -->
+<div class="flex flex-wrap items-center justify-between pt-xs">
+<div class="flex items-center gap-xs font-chip-status text-chip-status text-on-surface-variant">
+<span class="material-symbols-outlined text-sm text-outline">info</span>
+<span>Current Realtime Position Marker: <strong class="text-primary font-kpi-stat">GST 14:48:22</strong> — Visual red indicator tracks CAN-Bus updates.</span>
+</div>
+<div class="flex items-center gap-xs">
+<button class="text-on-surface-variant hover:text-on-surface text-body-medium font-body-bold px-sm py-xxs rounded bg-surface-container">Export Shift Schedule</button>
+<button class="text-primary-container hover:brightness-125 text-body-medium font-body-bold px-sm py-xxs rounded bg-surface-container">Recalibrate Gantt Times</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Section: Side Drawer Telemetry Influx Queue (2xl:col-span-3) -->
+<div class="2xl:col-span-3 flex flex-col gap-md">
+<!-- Realtime Influx Card -->
+<div class="bg-surface-container-low rounded-2xl p-md shadow-lg flex flex-col gap-md relative overflow-hidden">
+<!-- Header with Live Pulse -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-xs">
+<span class="w-2.5 h-2.5 rounded-full bg-primary-container animate-ping"></span>
+<h2 class="font-headline-md text-body-bold text-on-surface">Live Inbound Telemetry</h2>
+</div>
+<span class="px-xs py-xxs rounded-full bg-secondary-container text-on-secondary-container font-chip-status text-chip-status uppercase tracking-wider">5km Radius</span>
+</div>
+<p class="font-body-medium text-chip-status text-on-surface-variant -mt-xs">
+          Automatic link nodes detecting approaching subscriber vehicles with active DTC warning codes.
+        </p>
+<!-- Inbound Vehicle 1: Critical DTC -->
+<div class="bg-surface-container p-sm rounded-xl flex flex-col gap-xs relative overflow-hidden shadow-sm">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<div class="flex items-center gap-xxs">
+<span class="font-kpi-stat text-body-bold text-on-surface">Porsche Taycan GTS</span>
+<span class="font-label-eyebrow text-label-eyebrow text-primary">DXB 1204</span>
+</div>
+<span class="font-chip-status text-chip-status text-error flex items-center gap-xxs mt-0.5">
+<span class="material-symbols-outlined text-sm leading-none">error</span>
+                DTC P0A1F: Battery Mgmt Controller
+              </span>
+</div>
+<div class="text-right">
+<span class="font-kpi-stat text-body-bold text-primary block leading-none">ETA 14m</span>
+<span class="font-label-eyebrow text-[9px] text-outline">DIST: 3.8 KM</span>
+</div>
+</div>
+<!-- Quick Telemetry Spec Strip -->
+<div class="grid grid-cols-2 gap-xxs bg-surface-container-lowest p-xs rounded-lg text-on-surface-variant font-label-eyebrow text-label-eyebrow">
+<div>SOC: <span class="text-on-surface font-kpi-stat">22%</span></div>
+<div>CELL DELTA: <span class="text-error font-kpi-stat">48mV</span></div>
+</div>
+<div class="flex items-center justify-between gap-xs pt-xxs">
+<span class="font-chip-status text-chip-status text-tertiary flex items-center gap-xxs">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span> Auto-Routed
+            </span>
+<button class="px-sm py-xxs rounded bg-primary-container text-on-primary-container font-body-bold text-chip-status hover:brightness-110 transition-all">
+              Pre-stage Bay 3
+            </button>
+</div>
+</div>
+<!-- Inbound Vehicle 2: Sensor Warning -->
+<div class="bg-surface-container p-sm rounded-xl flex flex-col gap-xs relative overflow-hidden shadow-sm">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<div class="flex items-center gap-xxs">
+<span class="font-kpi-stat text-body-bold text-on-surface">BMW M5 Competition</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline">DXB S 7729</span>
+</div>
+<span class="font-chip-status text-chip-status text-tertiary flex items-center gap-xxs mt-0.5">
+<span class="material-symbols-outlined text-sm leading-none">info</span>
+                Brake Pad Sensor Triggered (2.1mm)
+              </span>
+</div>
+<div class="text-right">
+<span class="font-kpi-stat text-body-bold text-on-surface block leading-none">ETA 28m</span>
+<span class="font-label-eyebrow text-[9px] text-outline">DIST: 8.4 KM</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-xxs bg-surface-container-lowest p-xs rounded-lg text-on-surface-variant font-label-eyebrow text-label-eyebrow">
+<div>BRAKE WEAR: <span class="text-tertiary font-kpi-stat">FRONT 91%</span></div>
+<div>STATUS: <span class="text-on-surface font-kpi-stat">IN TRANSIT</span></div>
+</div>
+<div class="flex items-center justify-between gap-xs pt-xxs">
+<span class="font-chip-status text-chip-status text-on-surface-variant">Parts in Inventory: 2 Sets</span>
+<button class="px-sm py-xxs rounded bg-surface-container-high text-on-surface font-body-bold text-chip-status hover:bg-surface-variant transition-all">
+              Queue to Bay 06
+            </button>
+</div>
+</div>
+<!-- Inbound Vehicle 3: Scheduled Rapid Intake -->
+<div class="bg-surface-container p-sm rounded-xl flex flex-col gap-xs relative overflow-hidden shadow-sm opacity-90">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<div class="flex items-center gap-xxs">
+<span class="font-kpi-stat text-body-bold text-on-surface">Mercedes-AMG GT R</span>
+<span class="font-label-eyebrow text-label-eyebrow text-outline">AD 10992</span>
+</div>
+<span class="font-chip-status text-chip-status text-outline flex items-center gap-xxs mt-0.5">
+<span class="material-symbols-outlined text-sm leading-none">check</span>
+                Track Alignment Booking (15:30)
+              </span>
+</div>
+<div class="text-right">
+<span class="font-kpi-stat text-body-bold text-on-surface-variant block leading-none">ETA 45m</span>
+<span class="font-label-eyebrow text-[9px] text-outline">HIGHWAY E11</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Workshop Capacity & Revenue Load Dial Meter -->
+<div class="bg-surface-container-low rounded-2xl p-md shadow-lg flex flex-col gap-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase tracking-wider">Bay Utilization &amp; Forecast</span>
+<span class="font-chip-status text-chip-status text-tertiary font-body-bold">TARGET EXCEEDED</span>
+</div>
+<div class="flex items-center justify-between gap-md bg-surface-container-lowest p-md rounded-xl">
+<!-- Inline SVG Semi-Circular Capacity Gauge -->
+<div class="relative w-28 h-20 flex items-center justify-center">
+<svg class="w-28 h-28 transform -rotate-90" viewbox="0 0 100 100">
+<!-- Background Circle -->
+<circle class="text-surface-variant" cx="50" cy="50" fill="none" r="40" stroke="currentColor" stroke-dasharray="251.2" stroke-dashoffset="62.8" stroke-linecap="round" stroke-width="8"></circle>
+<!-- Progress Circle 84% Load -->
+<circle class="text-primary-container" cx="50" cy="50" fill="none" r="40" stroke="currentColor" stroke-dasharray="251.2" stroke-dashoffset="94" stroke-linecap="round" stroke-width="8"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center pt-2">
+<span class="font-kpi-stat text-headline-md text-on-surface leading-none">84%</span>
+<span class="font-label-eyebrow text-[8px] text-outline uppercase">DAILY LOAD</span>
+</div>
+</div>
+<div class="flex flex-col gap-xxs flex-1">
+<span class="font-label-eyebrow text-label-eyebrow text-on-surface-variant uppercase">PROJECTED BILLING</span>
+<span class="font-kpi-stat text-headline-lg text-primary leading-none">AED 28,450</span>
+<span class="font-chip-status text-chip-status text-tertiary flex items-center gap-xxs mt-0.5">
+<span class="material-symbols-outlined text-sm">trending_up</span> +14.2% vs yesterday
+            </span>
+</div>
+</div>
+<!-- Rapid Roster Tech Status Pills -->
+<div class="flex flex-col gap-xs pt-xxs">
+<span class="font-label-eyebrow text-label-eyebrow text-outline uppercase">Technician Load Roster</span>
+<div class="flex items-center justify-between bg-surface-container p-xs rounded-lg text-body-medium">
+<div class="flex items-center gap-xs">
+<div class="w-6 h-6 rounded-full bg-primary-container/20 flex items-center justify-center text-primary font-kpi-stat text-[11px]">MC</div>
+<span class="font-body-medium text-chip-status text-on-surface">Marcus Chen (EV Master)</span>
+</div>
+<span class="font-chip-status text-chip-status px-xs py-0.5 rounded bg-surface-container-high text-primary">Bay 01 Active</span>
+</div>
+<div class="flex items-center justify-between bg-surface-container p-xs rounded-lg text-body-medium">
+<div class="flex items-center gap-xs">
+<div class="w-6 h-6 rounded-full bg-surface-container-high flex items-center justify-center text-tertiary font-kpi-stat text-[11px]">TM</div>
+<span class="font-body-medium text-chip-status text-on-surface">Tariq Al-Mansoor (L4)</span>
+</div>
+<span class="font-chip-status text-chip-status px-xs py-0.5 rounded bg-surface-container-high text-on-surface-variant">Bay 04 Active</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+  // Simple view switcher interaction toggle
+  const ganttBtn = document.getElementById('view-gantt');
+  const kanbanBtn = document.getElementById('view-kanban');
+  const splitBtn = document.getElementById('view-split');
+
+  const btns = [ganttBtn, kanbanBtn, splitBtn];
+
+  btns.forEach(btn => {
+    btn?.addEventListener('click', () => {
+      btns.forEach(b => {
+        b.classList.remove('bg-surface-container-high', 'text-on-surface');
+        b.classList.add('text-on-surface-variant');
+      });
+      btn.classList.add('bg-surface-container-high', 'text-on-surface');
+      btn.classList.remove('text-on-surface-variant');
+    });
+  });
+</script></main></div></body></html>

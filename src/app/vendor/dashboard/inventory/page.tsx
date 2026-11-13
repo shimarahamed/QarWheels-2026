@@ -17,7 +17,7 @@ import {
     TableRow,
   } from "@/components/ui/table";
   import { Button } from "@/components/ui/button";
-  import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2 } from "lucide-react";
+  import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, Download } from "lucide-react";
   import { MaterialIcon } from "@/components/ui/material-icon";
   import { PageHeader } from "@/components/ui/page-header";
   import { StatCard, StatCardGrid } from "@/components/ui/stat-card";
@@ -59,6 +59,8 @@ import type { InventoryItem, WithId } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { downloadVendorCsv } from "@/lib/vendor-export";
+import { filterVendorInventory, type StockFilter } from "@/lib/vendor-catalog";
 
 const inventorySchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -121,12 +123,14 @@ function InventoryForm({ item, onSave, onCancel, isSubmitting }: { item?: WithId
 
 export default function VendorInventoryPage() {
     const { firestore } = useFirebase();
-    const { business, activeBranch } = useVendor();
+    const { business, activeBranch, canAccess } = useVendor();
+    const canWrite = canAccess('inventory', 'write');
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<WithId<InventoryItem> | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [search, setSearch] = useState("");
+    const [stockFilter, setStockFilter] = useState<StockFilter>('all');
     const { toast } = useToast();
 
     // Must filter on both businessId and branchId — firestore.rules'
@@ -144,7 +148,7 @@ export default function VendorInventoryPage() {
         : null,
       [firestore, business, activeBranch],
     );
-    const { data: inventory, isLoading } = useCollection<WithId<InventoryItem>>(inventoryQuery);
+    const { data: inventory, isLoading, error } = useCollection<WithId<InventoryItem>>(inventoryQuery);
 
     const lowStockCount = (inventory ?? []).filter((item) => item.stock < 10).length;
     const stockValue = (inventory ?? []).reduce((sum, item) => sum + (item.price ?? 0) * (item.stock ?? 0), 0);
@@ -152,18 +156,21 @@ export default function VendorInventoryPage() {
       .filter((item) => item.stock < 10)
       .sort((a, b) => a.stock - b.stock)[0];
 
-    const visibleInventory = (inventory ?? []).filter((item) => {
-      const q = search.trim().toLowerCase();
-      if (!q) return true;
-      return item.name.toLowerCase().includes(q) || item.sku.toLowerCase().includes(q) || item.supplier.toLowerCase().includes(q);
-    });
+    const outOfStockCount = (inventory ?? []).filter((item) => item.stock === 0).length;
+    const visibleInventory = filterVendorInventory(inventory ?? [], search, stockFilter);
+    const unavailable = isLoading || !!error || !activeBranch;
+    const exportInventory = () => downloadVendorCsv('qarwheel-inventory.csv',
+      ['SKU', 'Part name', 'Stock', 'Unit price (QAR)', 'Supplier'],
+      visibleInventory.map((item) => [item.sku, item.name, item.stock, item.price, item.supplier]));
 
     const handleRowClick = (item: WithId<InventoryItem>) => {
+        if (!canWrite) return;
         setSelectedItem(item);
         setIsFormOpen(true);
     };
 
     const handleAddNewClick = () => {
+        if (!canWrite || !activeBranch) return;
         setSelectedItem(null);
         setIsFormOpen(true);
     };
@@ -173,57 +180,64 @@ export default function VendorInventoryPage() {
         setIsDeleteConfirmOpen(true);
     };
 
-    const handleSaveItem = (data: z.infer<typeof inventorySchema>) => {
-        if (!activeBranch) return;
+    const handleSaveItem = async (data: z.infer<typeof inventorySchema>) => {
+        if (!activeBranch || !canWrite) return;
         setIsSubmitting(true);
-        if (selectedItem) {
-            // Update
-            const itemDocRef = doc(firestore, 'branch_inventory', selectedItem.id);
-            safeUpdateDoc(itemDocRef, data);
-            toast({ title: "Item Updated", description: `"${data.name}" has been updated.`});
-        } else {
-            // Create
-            safeAddDoc(collection(firestore, 'branch_inventory'), {
-                ...data,
-                businessId: business.id,
-                branchId: activeBranch.id,
+        try {
+          if (selectedItem) {
+            await safeUpdateDoc(doc(firestore, 'branch_inventory', selectedItem.id), data);
+          } else {
+            await safeAddDoc(collection(firestore, 'branch_inventory'), {
+              ...data, businessId: business.id, branchId: activeBranch.id,
             });
-            toast({ title: "Item Added", description: `"${data.name}" has been added to inventory.` });
+          }
+          toast({ title: selectedItem ? 'Item Updated' : 'Item Added', description: `"${data.name}" has been saved to inventory.` });
+          setIsFormOpen(false);
+          setSelectedItem(null);
+        } catch {
+          toast({ title: 'Could not save item', description: 'Your changes are still in the form. Please try again.', variant: 'destructive' });
+        } finally {
+          setIsSubmitting(false);
         }
-        setIsSubmitting(false);
-        setIsFormOpen(false);
-        setSelectedItem(null);
-    }
+    };
 
-     const handleDeleteConfirm = () => {
-        if (!selectedItem) return;
-        const itemDocRef = doc(firestore, 'branch_inventory', selectedItem.id);
-        safeDeleteDoc(itemDocRef);
-        toast({
-            title: "Item Deleted",
-            description: `The item "${selectedItem.name}" has been deleted from inventory.`,
-            variant: "destructive"
-        });
-        setIsDeleteConfirmOpen(false);
-        setSelectedItem(null);
-    }
+    const handleDeleteConfirm = async () => {
+        if (!selectedItem || !canWrite) return;
+        setIsSubmitting(true);
+        try {
+          await safeDeleteDoc(doc(firestore, 'branch_inventory', selectedItem.id));
+          toast({ title: 'Item Deleted', description: `"${selectedItem.name}" has been deleted from inventory.` });
+          setIsDeleteConfirmOpen(false);
+          setSelectedItem(null);
+        } catch {
+          toast({ title: 'Could not delete item', description: 'The item has not been removed. Please try again.', variant: 'destructive' });
+        } finally {
+          setIsSubmitting(false);
+        }
+    };
 
     return (
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4">
+      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4">
         <PageHeader
-          eyebrow="Parts intelligence"
-          icon={<MaterialIcon name="auto_awesome" className="text-sm" />}
-          title="Inventory that feels under control."
-          description="Track stock, suppliers, SKU details, and prices with a cleaner operational view."
+          eyebrow="Workshop operations / Inventory depot"
+          icon={<MaterialIcon name="inventory_2" className="text-sm" />}
+          title="Inventory & Spare Parts Depot"
+          description="Track parts, stock levels and suppliers for the selected branch."
           action={
-            <Button onClick={handleAddNewClick} className="justify-start shadow-[0_4px_20px_-4px_rgba(227,30,36,0.35)]">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add New Item
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" disabled={unavailable || visibleInventory.length === 0} onClick={exportInventory}>
+                <Download className="mr-2 h-4 w-4" /> Export Stock (CSV)
+              </Button>
+              {canWrite && <Button onClick={handleAddNewClick} disabled={!activeBranch}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Stock Item
+              </Button>}
+            </div>
           }
         />
 
-        {lowStockCount > 0 && lowestStockItem && (
+        {error && <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">Inventory could not be loaded. Check your connection and reload this page.</div>}
+        {!activeBranch && <p role="status" className="text-sm text-muted-foreground">Select a branch to view its inventory.</p>}
+        {!unavailable && lowStockCount > 0 && lowestStockItem && (
           <div className="flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <span className="icon-pill h-9 w-9 shrink-0 bg-destructive/10 text-destructive">
@@ -240,42 +254,46 @@ export default function VendorInventoryPage() {
                 </p>
               </div>
             </div>
-            <Button size="sm" variant="outline" className="shrink-0 gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10" onClick={() => handleRowClick(lowestStockItem)}>
+            {canWrite && <Button size="sm" variant="outline" className="shrink-0 gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/10" onClick={() => handleRowClick(lowestStockItem)}>
               <MaterialIcon name="edit" className="text-sm" />
-              Restock now
-            </Button>
+              Adjust stock
+            </Button>}
           </div>
         )}
 
         <StatCardGrid>
           <StatCard
             label="Stock items"
-            value={isLoading ? '—' : inventory?.length ?? 0}
+            value={unavailable ? '—' : inventory?.length ?? 0}
             icon={<MaterialIcon name="inventory_2" className="text-base" />}
           />
           <StatCard
             label="Low stock"
-            value={isLoading ? '—' : lowStockCount}
+            value={unavailable ? '—' : lowStockCount}
             icon={<MaterialIcon name="warning" className="text-base" />}
             accent="bg-destructive/10 text-destructive"
             hint="Fewer than 10 in stock"
           />
           <StatCard
             label="Stock value"
-            value={isLoading ? '—' : `QAR ${stockValue.toFixed(2)}`}
+            value={unavailable ? '—' : `QAR ${stockValue.toFixed(2)}`}
             icon={<MaterialIcon name="payments" className="text-base" />}
-            accent="bg-emerald-500/10 text-emerald-600"
+            accent="bg-muted vendor-gold"
           />
+          <StatCard label="Out of stock" value={unavailable ? '--' : outOfStockCount}
+            icon={<MaterialIcon name="remove_shopping_cart" className="text-base" />}
+            accent="bg-destructive/10 text-destructive" hint="Items with zero units" />
         </StatCardGrid>
         <Card className="overflow-hidden rounded-xl border bg-card shadow-sm">
             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">Stock Ledger</CardTitle>
+                  <CardTitle className="text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">Depot Stock Matrix</CardTitle>
                   <CardDescription>A list of all parts and supplies in your inventory.</CardDescription>
                 </div>
-                <div className="relative w-full sm:w-64">
+                <div className="relative w-full sm:w-72">
                   <MaterialIcon name="search" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-base text-muted-foreground" />
                   <Input
+                    aria-label="Search inventory"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Filter by name, SKU, or supplier…"
@@ -284,14 +302,19 @@ export default function VendorInventoryPage() {
                 </div>
             </CardHeader>
           <CardContent>
+            <div aria-label="Filter inventory by stock" className="mb-4 flex flex-wrap gap-2">
+              {([['all', 'All parts'], ['low', 'Low stock (<10)'], ['out', 'Out of stock'], ['available', 'In stock']] as const).map(([value, label]) => (
+                <Button key={value} variant={stockFilter === value ? 'default' : 'outline'} size="sm" aria-pressed={stockFilter === value} onClick={() => setStockFilter(value)}>{label}</Button>
+              ))}
+            </div>
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted/60 text-[10px] uppercase tracking-wider">
                 <TableRow>
                   <TableHead>Item Name</TableHead>
                   <TableHead className="hidden sm:table-cell">SKU</TableHead>
                   <TableHead>Stock</TableHead>
                   <TableHead className="hidden md:table-cell">Supplier</TableHead>
-                  <TableHead className="hidden md:table-cell text-right">Price</TableHead>
+                  <TableHead className="text-right">Unit price (QAR)</TableHead>
                   <TableHead className="text-right">
                     Actions
                   </TableHead>
@@ -304,28 +327,31 @@ export default function VendorInventoryPage() {
                         <TableCell className="hidden sm:table-cell"><Skeleton className="h-5 w-24"/></TableCell>
                         <TableCell><Skeleton className="h-6 w-24 rounded-full"/></TableCell>
                         <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-28"/></TableCell>
-                        <TableCell className="hidden md:table-cell text-right"><Skeleton className="h-5 w-16"/></TableCell>
+                        <TableCell className="text-right"><Skeleton className="h-5 w-16"/></TableCell>
                         <TableCell className="text-right"><Skeleton className="h-8 w-8"/></TableCell>
                     </TableRow>
                 ))}
-                {!isLoading && inventory && visibleInventory.map((item) => (
-                  <TableRow key={item.id} onClick={() => handleRowClick(item)} className="cursor-pointer">
-                    <TableCell className="font-medium">{item.name}</TableCell>
+                {!unavailable && inventory && visibleInventory.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="max-w-[240px] whitespace-normal font-medium">
+                      {canWrite ? <button type="button" className="text-left font-semibold hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring" onClick={() => handleRowClick(item)}>{item.name}</button> : item.name}
+                      <p className="mt-1 font-mono text-xs text-muted-foreground sm:hidden">{item.sku}</p>
+                    </TableCell>
                     <TableCell className="hidden sm:table-cell font-mono text-xs">{item.sku}</TableCell>
                     <TableCell>
-                        <Badge variant={item.stock < 10 ? 'destructive' : item.stock < 50 ? 'warning' : 'default'} className="kpi-number gap-1.5">
-                            <span className={`status-dot ${item.stock < 10 ? 'bg-destructive-foreground' : item.stock < 50 ? 'bg-amber-900' : 'bg-primary-foreground'}`} />
-                            {item.stock} in stock
+                        <Badge variant={item.stock === 0 ? 'destructive' : item.stock < 10 ? 'warning' : 'outline'} className="kpi-number gap-1.5">
+                            <span className={`status-dot ${item.stock === 0 ? 'bg-destructive-foreground' : item.stock < 10 ? 'bg-amber-900' : 'bg-emerald-500'}`} />
+                            {item.stock === 0 ? 'Out of stock' : `${item.stock} in stock`}
                         </Badge>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{item.supplier}</TableCell>
-                    <TableCell className="hidden md:table-cell text-right kpi-number">QAR {item.price?.toFixed(2)}</TableCell>
+                    <TableCell className="text-right kpi-number">{item.price?.toFixed(2)}</TableCell>
                     <TableCell className="text-right">
-                      <DropdownMenu>
+                      {canWrite && <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                               <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
                               <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Toggle menu</span>
+                              <span className="sr-only">Actions for {item.name}</span>
                               </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -338,34 +364,34 @@ export default function VendorInventoryPage() {
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                               </DropdownMenuItem>
                           </DropdownMenuContent>
-                      </DropdownMenu>
+                      </DropdownMenu>}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-            {!isLoading && inventory && inventory.length === 0 && (
+            {!unavailable && inventory && inventory.length === 0 && (
               <EmptyState
                 icon={<MaterialIcon name="inventory_2" className="text-3xl" />}
                 title="Your inventory is empty"
                 description="Add the parts and supplies you keep on hand to track stock as jobs consume them."
                 action={
-                  <Button onClick={handleAddNewClick}>
+                  canWrite ? <Button onClick={handleAddNewClick}>
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Add New Item
-                  </Button>
+                    Add Stock Item
+                  </Button> : undefined
                 }
               />
             )}
-            {!isLoading && inventory && inventory.length > 0 && visibleInventory.length === 0 && (
+            {!unavailable && inventory && inventory.length > 0 && visibleInventory.length === 0 && (
               <EmptyState
                 icon={<MaterialIcon name="search" className="text-3xl" />}
-                title="No items match your search"
-                description="Try a different name, SKU, or supplier."
+                title="No items match your filters"
+                description="Try another search or stock filter."
               />
             )}
           </CardContent>
-          {!isLoading && inventory && inventory.length > 0 && (
+          {!unavailable && inventory && inventory.length > 0 && (
             <div className="flex items-center justify-between border-t px-6 py-3 text-xs text-muted-foreground">
               <span>Showing {visibleInventory.length} of {inventory.length} items</span>
             </div>
@@ -394,7 +420,7 @@ export default function VendorInventoryPage() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteConfirm}>Continue</AlertDialogAction>
+                <AlertDialogAction disabled={isSubmitting} onClick={(event) => { event.preventDefault(); void handleDeleteConfirm(); }}>{isSubmitting ? 'Deleting...' : 'Delete item'}</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

@@ -38,6 +38,14 @@ export async function requireRole(request: NextRequest, allowed: QwRole[]): Prom
   return { ok: true, auth };
 }
 
+export async function requireAdminMutation(request: NextRequest): Promise<RequireRoleResult> {
+  const access = await requireRole(request, ['master_admin']);
+  if (!access.ok || access.auth.claims?.r !== 'master_admin' || !['super', 'ops'].includes(access.auth.claims.lvl)) {
+    return access.ok ? { ok: false, reason: 'forbidden' } : access;
+  }
+  return access;
+}
+
 /**
  * Requires the caller to hold the given level of access to a dashboard
  * section, per the matrix in permissions.ts. Prefer this over listing roles
@@ -54,7 +62,8 @@ export async function requireSection(
 ): Promise<RequireRoleResult> {
   const auth = await authenticate(request);
   if (!auth) return { ok: false, reason: 'unauthenticated' };
-  if (auth.role === 'master_admin') return { ok: true, auth };
+  if (auth.role === 'master_admin') return need === 'write' && auth.claims?.r === 'master_admin' && auth.claims.lvl === 'support'
+    ? { ok: false, reason: 'forbidden' } : { ok: true, auth };
   if (auth.role === 'customer' || !auth.claims || auth.claims.r === 'master_admin') {
     return { ok: false, reason: 'forbidden' };
   }
@@ -73,7 +82,8 @@ export async function requireAction(
 ): Promise<RequireRoleResult> {
   const auth = await authenticate(request);
   if (!auth) return { ok: false, reason: 'unauthenticated' };
-  if (auth.role === 'master_admin') return { ok: true, auth };
+  if (auth.role === 'master_admin') return auth.claims?.r === 'master_admin' && auth.claims.lvl === 'support'
+    ? { ok: false, reason: 'forbidden' } : { ok: true, auth };
   if (auth.role === 'customer' || !auth.claims || auth.claims.r === 'master_admin') {
     return { ok: false, reason: 'forbidden' };
   }
@@ -85,10 +95,11 @@ export async function requireAction(
  * Requires the caller to be a master admin, or a business member whose claim
  * covers the given branch (business-wide roles cover every branch).
  */
-export async function requireBranchAccess(request: NextRequest, branchId: string): Promise<RequireRoleResult> {
+export async function requireBranchAccess(request: NextRequest, branchId: string, need: 'read' | 'write' = 'read'): Promise<RequireRoleResult> {
   const auth = await authenticate(request);
   if (!auth) return { ok: false, reason: 'unauthenticated' };
-  if (auth.role === 'master_admin') return { ok: true, auth };
+  if (auth.role === 'master_admin') return need === 'write' && auth.claims?.r === 'master_admin' && auth.claims.lvl === 'support'
+    ? { ok: false, reason: 'forbidden' } : { ok: true, auth };
   if (!auth.claims || !claimsCoverBranch(auth.claims, branchId)) {
     return { ok: false, reason: 'forbidden' };
   }

@@ -79,7 +79,8 @@ export async function POST(request: NextRequest) {
         return unavailable('Choose a service listed by this garage');
       }
       const businessSnap = await tx.get(db.collection('businesses').doc(branch.businessId));
-      if (!businessSnap.exists || (businessSnap.data() as Business).status !== 'Active') {
+      const business = businessSnap.exists ? businessSnap.data() as Business : null;
+      if (!business || business.status !== 'Active' || business.kyc?.status !== 'Verified') {
         return unavailable('The garage is not taking requests');
       }
 

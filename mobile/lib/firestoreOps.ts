@@ -31,6 +31,7 @@ import { vehicleCreateSchema } from './validation';
 import { recordedHealth } from './vehicle-records';
 import { canAccess, isBusinessWideRole } from './permissions';
 import { apiPost } from './api';
+import { isBookingQuote } from './booking-quote';
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -788,7 +789,9 @@ export function useVendorFirestoreBookings() {
         const data = d.data();
         return {
           id: d.id,
+          branchId: String(data.branchId ?? ''),
           customerName: String(data.customerName ?? data.carName ?? 'Customer'),
+          customerId: typeof data.userId === 'string' ? data.userId : undefined,
           customerPhone: String(data.customerPhone ?? ''),
           vehicle: String(data.carDescription ?? data.carName ?? ''),
           vehiclePlate: String(data.vehiclePlate ?? ''),
@@ -817,9 +820,12 @@ export function useVendorFirestoreBookings() {
           address: data.address ? String(data.address) : '',
           paymentMethod: data.paymentMethod ? String(data.paymentMethod) : 'Pay at garage',
           addOns: Array.isArray(data.addOns) ? (data.addOns as unknown[]).filter((x) => x != null).map(String) : [],
-          staffId: data.staffId ? String(data.staffId) : '',
-          staffName: data.staffName ? String(data.staffName) : '',
+          staffId: data.assignedStaffId ? String(data.assignedStaffId) : '',
+          staffName: data.assignedStaffName ? String(data.assignedStaffName) : '',
           totalAmount: Number(data.cost ?? 0),
+          requiresQuote: Boolean(data.requiresQuote),
+          acceptedQuoteAmountMinorUnits: isBookingQuote(data.quote) && data.quote.status === 'Accepted'
+            ? data.quote.amountMinorUnits : undefined,
           invoiceId: data.invoiceId ? String(data.invoiceId) : '',
           chatId: `chat_${d.id}`,
           createdAt: toIsoString(data.createdAt) || new Date().toISOString(),

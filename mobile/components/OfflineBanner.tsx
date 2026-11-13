@@ -50,7 +50,7 @@ export function OfflineBanner() {
     >
       <View style={styles.row}>
         <Ionicons name="cloud-offline-outline" size={16} color={c.warning} />
-        <Text style={[styles.label, { color: c.text }]} numberOfLines={1}>
+        <Text style={[styles.label, { color: c.text }]}>
           {t('offline.banner')}
         </Text>
       </View>
@@ -75,5 +75,6 @@ const styles = StyleSheet.create({
   label: {
     ...typography.caption,
     fontWeight: '600',
+    flexShrink: 1,
   },
 });

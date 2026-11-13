@@ -47,6 +47,10 @@ it.each(['login', 'vendor-login'])('preserves a failed %s form instead of overri
 it('routes expired vendor sessions to vendor login, not onboarding', () => {
   expect(authRedirect(base)).toBe('/(auth)/vendor-login');
 });
+it('sends a signed-out email-verification session to login for recovery', () => {
+  expect(authRedirect({ ...base, segments: ['(auth)', 'email-verification'] })).toBe('/(auth)/login');
+  expect(authRedirect({ ...base, segments: ['(auth)', 'email-verification'], userId: 'customer', currentUserId: 'customer' })).toBeNull();
+});
 it('resumes a restored vendor session at the dashboard', () => {
   expect(authRedirect({ ...base, segments: ['(auth)', 'splash'], userId: 'vendor', currentUserId: 'vendor',
     claims: { r: 'vendor_staff', b: 'business', br: ['branch'] } })).toBe('/vendor/dashboard');

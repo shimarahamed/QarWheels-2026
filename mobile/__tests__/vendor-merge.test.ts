@@ -82,6 +82,15 @@ it('migrates only known fixtures while retaining current records and preferences
   });
 });
 
+it('does not persist or restore the server-owned vendor booking feed', () => {
+  const options = useQarWheelStore.persist.getOptions();
+  useQarWheelStore.setState({ vendorBookings: [{ id: 'private-booking' } as never] });
+  const persisted = options.partialize!(useQarWheelStore.getState());
+  expect(persisted).not.toHaveProperty('vendorBookings');
+  const restored = options.merge!({ vendorBookings: [{ id: 'stale-booking' }] }, useQarWheelStore.getState());
+  expect(restored.vendorBookings).toEqual([]);
+});
+
 it('recovers from a stalled initial read and cleans up timeout and listener', async () => {
   jest.useFakeTimers();
   try {

@@ -44,4 +44,26 @@ describe('production rate limit', () => {
     expect(await isRateLimited('booking:test', { max: 2, windowSecs: 60 })).toBe(true);
     vi.restoreAllMocks();
   });
+
+  it('denies requests when configured Redis fails in preview', async () => {
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'test-token');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { isRateLimited } = await import('@/lib/rate-limit');
+    expect(await isRateLimited('booking:test', { max: 2, windowSecs: 60 })).toBe(true);
+    vi.restoreAllMocks();
+  });
+
+  it('keeps the in-memory fallback for unconfigured local development', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('VERCEL_ENV', '');
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const { isRateLimited } = await import('@/lib/rate-limit');
+    expect(await isRateLimited('booking:test', { max: 2, windowSecs: 60 })).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
 });

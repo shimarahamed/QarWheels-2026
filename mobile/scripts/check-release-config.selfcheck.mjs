@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { releaseConfigIssues } from './check-release-config.mjs';
+import { releaseAndroidGradle, releaseConfigIssues } from './check-release-config.mjs';
 
 const env = {
   EXPO_PUBLIC_API_BASE_URL: 'https://backend.example.test',
@@ -37,9 +37,32 @@ test('blocks missing API, CI projects and public server secrets without echoing 
 
 test('rejects unsafe release endpoints accepted only for development', () => {
   for (const url of ['http://backend.example.test', 'https://localhost', 'https://127.0.0.2',
-    'https://[::1]', 'https://user:secret@backend.example.test', 'https://backend.example.test?key=secret', 'not-a-url']) {
+    'https://[::1]', 'https://user:secret@backend.example.test', 'https://backend.example.test?key=secret',
+    'https://backend.example.test/api', 'https://backend.example.test/api/', 'not-a-url']) {
     const issues = releaseConfigIssues({ ...env, EXPO_PUBLIC_API_BASE_URL: url });
     assert.ok(issues.some((issue) => issue.startsWith('EXPO_PUBLIC_API_BASE_URL:')), url);
+  }
+  assert.deepEqual(releaseConfigIssues({ ...env, EXPO_PUBLIC_API_BASE_URL: 'https://backend.example.test/' }), []);
+});
+
+test('EAS production hook blocks invalid configuration without gating development builds', () => {
+  const directory = mkdtempSync(resolve(tmpdir(), 'qarwheel-eas-release-'));
+  const envFile = resolve(directory, 'mobile.env');
+  const hook = fileURLToPath(new URL('./check-eas-build-config.mjs', import.meta.url));
+  try {
+    writeFileSync(envFile, Object.entries({ ...env, EXPO_PUBLIC_API_BASE_URL: 'https://backend.example.test/api' })
+      .map(([key, value]) => `${key}=${value}`).join('\n'));
+    const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('EXPO_PUBLIC_')));
+    const run = (profile) => spawnSync(process.execPath, [hook, '--env-file', envFile], {
+      env: { ...inherited, EAS_BUILD_PROFILE: profile }, encoding: 'utf8',
+    });
+    assert.equal(run('development').status, 0);
+    const production = run('production');
+    assert.equal(production.status, 1);
+    assert.match(production.stderr, /EXPO_PUBLIC_API_BASE_URL/);
+  } finally {
+    assert.equal(dirname(directory), resolve(tmpdir()));
+    rmSync(directory, { recursive: true, force: true });
   }
 });
 
@@ -47,6 +70,25 @@ test('blocks stale native identities while web release ignores native-only confi
   const options = { config, androidGradle: "applicationId 'com.other.app'" };
   assert.ok(releaseConfigIssues(env, options).some((issue) => issue.includes('applicationId')));
   assert.deepEqual(releaseConfigIssues({ ...env, EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: '' }, { ...options, platform: 'web' }), []);
+});
+
+test('checks tracked native identity but ignores local CNG output', () => {
+  const directory = mkdtempSync(resolve(tmpdir(), 'qarwheel-native-release-'));
+  try {
+    const gradlePath = resolve(directory, 'android/app/build.gradle');
+    mkdirSync(dirname(gradlePath), { recursive: true });
+    writeFileSync(resolve(directory, '.gitignore'), '/android/\n');
+    writeFileSync(gradlePath, "applicationId 'com.other.app'");
+    const init = spawnSync('git', ['init', '--quiet', directory], { encoding: 'utf8' });
+    assert.equal(init.status, 0, init.stderr);
+    assert.equal(releaseAndroidGradle(directory), undefined);
+    const add = spawnSync('git', ['add', '-f', 'android/app/build.gradle'], { cwd: directory, encoding: 'utf8' });
+    assert.equal(add.status, 0, add.stderr);
+    assert.match(releaseAndroidGradle(directory), /com\.other\.app/);
+  } finally {
+    assert.equal(dirname(directory), resolve(tmpdir()));
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test('aligns Firebase project and App Hosting API origin without comparing distinct client app IDs', () => {

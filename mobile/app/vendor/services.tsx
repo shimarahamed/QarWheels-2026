@@ -3,12 +3,15 @@ import { Stack } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
   Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet,
-  Text, TextInput, View,
+  TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarWheelStore, useQarColors } from '@/lib/store';
+import { useQarWheelStore } from '@/lib/store';
+import { useVendorColors as useQarColors } from '@/lib/vendor-theme';
+import { VendorText as Text } from '@/components/vendor/VendorText';
+import { exportVendorCsv } from '@/lib/vendor-export';
 import { MotionScreen } from '@/lib/motion';
-import { radius, shadow, spacing, typography } from '@/lib/theme';
+import { radius, spacing } from '@/lib/theme';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
 import { BranchSwitcher } from '@/components/vendor/BranchSwitcher';
 import type { VendorService } from '@/lib/vendor-data';
@@ -93,7 +96,7 @@ function EditServiceModal({ visible, service, onSave, onClose, c }: {
                 accessibilityRole="radio" accessibilityLabel={cat} accessibilityState={{ checked: category === cat, disabled: saving }}
                 disabled={saving} onPress={() => setCategory(cat)}
               >
-                <Text style={[mod.catChipText, { color: category === cat ? c.primary : c.muted }]}>{cat}</Text>
+                <Text style={[mod.catChipText, { color: category === cat ? c.primaryText : c.muted }]}>{cat}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -156,12 +159,26 @@ export default function ServicesScreen() {
   const toggleService = useQarWheelStore((s) => s.toggleVendorService);
 
   const [activeCategory, setActiveCategory] = useState('All');
+  const [query, setQuery] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
   const [editingService, setEditingService] = useState<Partial<VendorService> | null>(null);
   const [showModal, setShowModal] = useState(false);
 
-  const filtered = activeCategory === 'All' ? services : services.filter((s) => s.category === activeCategory);
+  const filtered = services.filter((service) => (activeCategory === 'All' || service.category === activeCategory) &&
+    `${service.name} ${service.description} ${service.category}`.toLowerCase().includes(query.trim().toLowerCase()));
   const activeCount = services.filter((s) => s.active).length;
   const totalRevenuePotential = services.filter((s) => s.active).reduce((sum, s) => sum + s.basePrice, 0);
+
+  async function handleExport() {
+    if (!canRead || exporting) return;
+    setExporting(true); setExportError('');
+    try {
+      await exportVendorCsv('qarwheel-service-rate-drafts.csv', ['Service', 'Category', 'Description', 'Duration (minutes)', 'Base price (QAR)', 'Draft availability'],
+        filtered.map((service) => [service.name, service.category, service.description, service.duration, service.basePrice, service.active ? 'Active' : 'Inactive']));
+    } catch { setExportError('Service rates were not exported. Please try again.'); }
+    finally { setExporting(false); }
+  }
 
   function handleEdit(service: VendorService) {
     setEditingService(service);
@@ -189,8 +206,13 @@ export default function ServicesScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <View style={[s.navbar, { backgroundColor: c.background, borderBottomColor: c.border }]}>
-        <Text style={[s.navTitle, { color: c.text }]}>Services</Text>
+        <Text heading style={[s.navTitle, { color: c.text }]}>Service Catalog &amp; Rates</Text>
         <BranchSwitcher />
+        {canRead && <Pressable accessibilityRole="button" accessibilityLabel="Export visible service rate drafts" disabled={exporting || filtered.length === 0}
+          accessibilityState={{ disabled: exporting || filtered.length === 0, busy: exporting }} onPress={() => void handleExport()}
+          style={[s.exportBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border, opacity: exporting || !filtered.length ? 0.5 : 1 }]}>
+          <Ionicons name="download-outline" size={16} color={c.text} /><Text style={{ color: c.text }}>Export rates CSV</Text>
+        </Pressable>}
         {canWrite && <Pressable
           style={[s.addBtn, { backgroundColor: c.primary }]}
           accessibilityRole="button" accessibilityLabel="Add service"
@@ -222,38 +244,48 @@ export default function ServicesScreen() {
           {!canRead ? <Text accessibilityRole="alert" style={{ color: c.muted }}>{claimsLoading ? 'Checking service access...' : 'Services are unavailable for your role.'}</Text> : <>
           <Text style={{ color: c.muted, marginBottom: 12 }}>Device-local service drafts. Prices and availability are not published or synced to any branch.</Text>
 
+          {!!exportError && <Text accessibilityRole="alert" style={{ color: c.danger, marginBottom: 12 }}>{exportError}</Text>}
+          <View style={[s.search, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+            <Ionicons name="search-outline" size={18} color={c.muted} />
+            <TextInput accessibilityLabel="Search services" value={query} onChangeText={setQuery} placeholder="Search procedure or category"
+              placeholderTextColor={c.muted} style={{ flex: 1, minWidth: 0, minHeight: 44, color: c.text, fontFamily: 'VendorBody' }} />
+          </View>
           {/* Summary */}
           <View style={s.summaryRow}>
             {[
               { label: 'Total Services', value: String(services.length), color: c.text },
               { label: 'Active', value: String(activeCount), color: c.success },
-              { label: 'Active list prices', value: `QAR ${totalRevenuePotential}`, color: c.primary },
+              { label: 'Active list prices', value: `QAR ${totalRevenuePotential}`, color: c.gold },
             ].map((stat) => (
               <View key={stat.label} style={[s.summaryCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-                <Text style={[s.summaryValue, { color: stat.color }]}>{stat.value}</Text>
+                <Text telemetry style={[s.summaryValue, { color: stat.color }]}>{stat.value}</Text>
                 <Text style={[s.summaryLabel, { color: c.muted }]}>{stat.label}</Text>
               </View>
             ))}
           </View>
 
+          <View style={s.matrixHeader}>
+            <Text heading style={[s.emptyTitle, { color: c.text }]}>Service Pricing Matrix</Text>
+            <Text telemetry style={{ color: c.muted }}>{filtered.length} displayed</Text>
+          </View>
           {/* Service list */}
           {filtered.length === 0 && (
             <View style={s.empty}>
               <Ionicons name="construct-outline" size={36} color={c.muted} />
               <Text style={[s.emptyTitle, { color: c.text }]}>No services</Text>
-              <Text style={[s.emptyText, { color: c.muted }]}>Add your first service to get started.</Text>
+              <Text style={[s.emptyText, { color: c.muted }]}>{services.length ? 'No service drafts match these filters.' : 'Add your first service to get started.'}</Text>
             </View>
           )}
 
-          <View style={{ gap: 10 }}>
+          <View style={s.itemGrid}>
             {filtered.map((svc) => (
               <View
                 key={svc.id}
-                style={[s.card, { backgroundColor: c.surface, borderColor: svc.active ? c.border : c.borderLight, opacity: svc.active ? 1 : 0.6 }]}
+                style={[s.card, { backgroundColor: c.surface, borderColor: svc.active ? c.border : c.borderLight, opacity: 1 }]}
               >
                 <View style={s.cardTop}>
                   <View style={[s.iconWrap, { backgroundColor: c.primaryLight }]}>
-                    <Ionicons name={(CATEGORY_ICONS[svc.category] ?? 'construct-outline') as 'construct-outline'} size={18} color={c.primary} />
+                    <Ionicons name={(CATEGORY_ICONS[svc.category] ?? 'construct-outline') as 'construct-outline'} size={18} color={c.primaryText} />
                   </View>
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={[s.svcName, { color: c.text }]}>{svc.name}</Text>
@@ -269,7 +301,7 @@ export default function ServicesScreen() {
                     ) : null}
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                    <Text style={[s.price, { color: c.text }]}>QAR {svc.basePrice}</Text>
+                    <Text telemetry style={[s.price, { color: c.text }]}>QAR {svc.basePrice}</Text>
                     <View style={[s.activeBadge, {
                       backgroundColor: svc.active ? c.successBg : c.surfaceAlt,
                     }]}>
@@ -300,9 +332,9 @@ export default function ServicesScreen() {
                     <Ionicons
                       name={svc.active ? 'pause-circle-outline' : 'play-circle-outline'}
                       size={13}
-                      color={svc.active ? c.muted : c.primary}
+                      color={svc.active ? c.muted : c.primaryText}
                     />
-                    <Text style={[s.footerBtnText, { color: svc.active ? c.muted : c.primary }]}>
+                    <Text style={[s.footerBtnText, { color: svc.active ? c.muted : c.primaryText }]}>
                       {svc.active ? 'Deactivate' : 'Activate'}
                     </Text>
                   </Pressable>}
@@ -335,37 +367,39 @@ export default function ServicesScreen() {
 
 const s = StyleSheet.create({
   safe: { flex: 1 },
+  exportBtn: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12, borderWidth: 1, borderRadius: 8 },
+  search: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  matrixHeader: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', alignItems: 'center', marginVertical: 16 },
+  itemGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
   navbar: {
-    flexWrap: 'wrap', gap: 8,
-    flexDirection: 'row', 
+    flexDirection: 'row', flexWrap: 'wrap', gap: 12,
     alignItems: 'center', 
     justifyContent: 'space-between',
     paddingHorizontal: spacing.page, 
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    ...shadow.sm,
   },
-  navTitle: { ...typography.h3 },
+  navTitle: { fontSize: 26, lineHeight: 32, fontWeight: '800', flexShrink: 1 },
   addBtn: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
 
   catBar: { flexGrow: 0 },
   catBarContent: { paddingHorizontal: spacing.page, paddingVertical: 12, gap: 12 },
-  catChip: { minHeight: 44, paddingHorizontal: 15, paddingVertical: 9, borderRadius: radius.full, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  catChip: { minHeight: 44, paddingHorizontal: 15, paddingVertical: 9, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   catChipText: { fontSize: 13, fontWeight: '700' },
 
-  content: { padding: spacing.page, gap: spacing.gap },
+  content: { padding: spacing.page, gap: 14, width: '100%', maxWidth: 1600, alignSelf: 'center' },
 
   summaryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  summaryCard: { flexGrow: 1, flexBasis: 100, borderRadius: 8, borderWidth: 1, padding: 12, alignItems: 'center', gap: 4, ...shadow.xs },
-  summaryValue: { ...typography.h4 },
+  summaryCard: { flexGrow: 1, flexBasis: 100, borderRadius: 8, borderWidth: 1, padding: 12, alignItems: 'center', gap: 4 },
+  summaryValue: { fontSize: 26, fontWeight: '700', fontVariant: ['tabular-nums'] },
   summaryLabel: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
 
   empty: { alignItems: 'center', gap: 8, paddingVertical: 40 },
   emptyTitle: { fontSize: 15, fontWeight: '800' },
   emptyText: { fontSize: 13, textAlign: 'center' },
 
-  card: { borderRadius: radius.xl, borderWidth: 1, overflow: 'hidden', ...shadow.xs },
-  cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14 },
+  card: { flexBasis: 340, flexGrow: 1, flexShrink: 1, minWidth: 0, borderRadius: radius.xl, borderWidth: 1, overflow: 'hidden' },
+  cardTop: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: 12, padding: 14 },
   iconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   svcName: { fontSize: 14, fontWeight: '800' },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
@@ -378,7 +412,7 @@ const s = StyleSheet.create({
   activeBadgeText: { fontSize: 12, fontWeight: '800' },
 
   cardFooter: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth },
-  footerBtn: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.full, borderWidth: 1 },
+  footerBtn: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
   footerBtnText: { fontSize: 12, fontWeight: '700' },
   priceTag: { flexDirection: 'row', alignItems: 'center', gap: 4, marginStart: 'auto', paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full, borderWidth: 1 },
   priceTagText: { fontSize: 12, fontWeight: '600' },

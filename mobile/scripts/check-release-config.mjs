@@ -1,9 +1,20 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs, parseEnv } from 'node:util';
 
 const mobileRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+export function releaseAndroidGradle(root = mobileRoot) {
+  const path = resolve(root, 'android/app/build.gradle');
+  if (!existsSync(path)) return undefined;
+  // CNG does not upload an ignored native tree; app.json generates that tree on EAS.
+  const ignored = !existsSync(resolve(root, '.easignore'))
+    && spawnSync('git', ['check-ignore', '--quiet', '--', 'android/app/build.gradle'],
+      { cwd: root, stdio: 'ignore' }).status === 0;
+  return ignored ? undefined : readFileSync(path, 'utf8');
+}
 
 export function releaseConfigIssues(env, { platform = 'native', config, androidGradle, webEnvironment } = {}) {
   const issues = [];
@@ -30,8 +41,8 @@ export function releaseConfigIssues(env, { platform = 'native', config, androidG
   if (env.EXPO_PUBLIC_API_BASE_URL?.trim()) {
     try {
       const url = new URL(env.EXPO_PUBLIC_API_BASE_URL.trim());
-      if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
-        issues.push('EXPO_PUBLIC_API_BASE_URL: use HTTPS without credentials, query parameters or fragments.');
+      if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+        issues.push('EXPO_PUBLIC_API_BASE_URL: use an HTTPS origin without credentials, paths, query parameters or fragments.');
       }
       if (['localhost', '0.0.0.0', '[::]', '[::1]'].includes(url.hostname)
           || url.hostname.endsWith('.localhost') || /^127\./.test(url.hostname)) {
@@ -116,8 +127,7 @@ export function checkReleaseConfig(args = process.argv.slice(2)) {
   try {
     config = JSON.parse(readFileSync(resolve(mobileRoot, 'app.json'), 'utf8')).expo;
     if (!config) throw new Error();
-    const gradlePath = resolve(mobileRoot, 'android/app/build.gradle');
-    androidGradle = existsSync(gradlePath) ? readFileSync(gradlePath, 'utf8') : undefined;
+    androidGradle = releaseAndroidGradle();
   } catch {
     console.error('Mobile release configuration could not be read: app.json or Android configuration.');
     return 2;

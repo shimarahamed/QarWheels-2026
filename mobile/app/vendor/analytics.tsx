@@ -1,14 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { VendorText as Text } from '@/components/vendor/VendorText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ErrorState from '@/components/ErrorState';
 import { BranchSwitcher } from '@/components/vendor/BranchSwitcher';
 import { VendorTabBar, useVendorTabBottom } from '@/components/VendorTabBar';
 import { formatMinorUnits } from '@/lib/money';
 import { MotionScreen, MotionSurface } from '@/lib/motion';
-import { useQarColors } from '@/lib/store';
+import { useVendorColors as useQarColors } from '@/lib/vendor-theme';
 import { radius, spacing, typography } from '@/lib/theme';
 import { aggregateVendorBookings, INSIGHT_LIMITS, INSIGHT_PERIODS, useVendorInsights, type InsightPeriod } from '@/lib/vendor-insights';
 

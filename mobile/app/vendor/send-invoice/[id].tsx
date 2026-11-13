@@ -4,15 +4,16 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Keyboard, Pressable, ScrollView,
-  Share, StyleSheet, Text, TextInput, View,
+  Share, StyleSheet, TextInput, View,
 } from 'react-native';
+import { VendorText as Text } from '@/components/vendor/VendorText';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors } from '@/lib/store';
+import { useVendorColors as useQarColors } from '@/lib/vendor-theme';
 import { useAuthContext } from '@/lib/AuthContext';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import { formatMinorUnits } from '@/lib/money';
-import { fetchInvoices, type LiveInvoice } from '@/lib/billing';
+import { fetchInvoice, type LiveInvoice } from '@/lib/billing';
 
 export default function SendInvoiceScreen() {
   const c = useQarColors();
@@ -35,8 +36,7 @@ export default function SendInvoiceScreen() {
     }
     try {
       setError(null);
-      const invoices = await fetchInvoices(businessId);
-      const found = invoices.find((inv) => inv.id === id) ?? null;
+      const found = await fetchInvoice(id);
       setInvoice(found);
       if (!found) {
         setError('This invoice could not be found.');

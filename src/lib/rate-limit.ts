@@ -135,15 +135,8 @@ export async function isRateLimited(key: string, options: RateLimitOptions): Pro
     if (redisResult !== null) return redisResult;
   } catch (error) {
     console.error('[rate-limit] Upstash request failed:', error);
-    // In production, a Redis outage must not silently disable rate limiting
-    // (falling back to a fresh, per-process, easily-bypassed counter is
-    // effectively "no limit" under real traffic). Fail closed instead: treat
-    // the request as rate-limited until Redis recovers. Non-prod keeps the
-    // permissive in-memory fallback so local/preview dev isn't blocked by a
-    // missing/misconfigured Upstash env.
-    if (isProduction) {
-      return true;
-    }
+    // A configured Redis outage must not switch to an independent per-process counter.
+    return true;
   }
 
   return isRateLimitedInMemory(key, options);

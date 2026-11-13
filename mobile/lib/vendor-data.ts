@@ -12,6 +12,8 @@ export function bookingAmountLabel(amount: number): string {
 
 export type VendorBooking = {
   id: string;
+  branchId?: string;
+  customerId?: string;
   customerName: string;
   customerPhone: string;
   customerAvatar?: string;
@@ -32,6 +34,8 @@ export type VendorBooking = {
   staffId?: string;
   staffName?: string;
   totalAmount: number;
+  requiresQuote?: boolean;
+  acceptedQuoteAmountMinorUnits?: number;
   invoiceId?: string;
   chatId: string;
   createdAt: string;
@@ -631,14 +635,6 @@ export function findVendorStaff(id: string): VendorStaff {
 
 export function findVendorCustomer(id: string): VendorCustomer {
   return vendorCustomers.find((c) => c.id === id) ?? vendorCustomers[0];
-}
-
-export function findVendorInvoice(id: string): VendorInvoice {
-  return vendorInvoices.find((i) => i.id === id) ?? vendorInvoices[0];
-}
-
-export function findVendorInvoiceByBooking(bookingId: string): VendorInvoice | undefined {
-  return vendorInvoices.find((i) => i.bookingId === bookingId);
 }
 
 export function getBookingsByStatus(status: VendorBookingStatus): VendorBooking[] {

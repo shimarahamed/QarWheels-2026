@@ -3,29 +3,47 @@
 // These are the primary write path for booking status changes: every call goes
 // through the server route at /api/bookings/{id}/transition, which is the only
 // place that validates the transition against the actor's claims and atomically
-// appends statusHistory + acceptedAt/declinedReason. The raw Firestore write in
-// firestoreOps.ts (updateVendorBookingStatusInFirestore) stays available as an
-// offline fallback per the architecture plan, but is no longer what the vendor
-// UI calls.
+// appends statusHistory + acceptedAt/declinedReason. The vendor UI does not
+// use the legacy direct Firestore update helper as an offline fallback.
 //
 // Each function updates the Zustand store optimistically so the UI responds
 // immediately, then rolls that update back and rethrows if the server rejects
 // the transition — callers are expected to surface the error.
 import { auth } from './firebase';
-import { apiPost } from './api';
+import { apiGet, apiPost } from './api';
 import { useQarWheelStore } from './store';
 import { nextForwardStatus, type BookingWorkflowStatus } from './booking-workflow';
+import type { MembershipRole } from './roles';
 
 type TransitionResponse = {
   status: BookingWorkflowStatus;
   from: BookingWorkflowStatus;
 };
 
-// Seed-demo bookings (id prefixed "vb_") have no Firestore document behind
-// them, so the server would 404. They stay local-only, same as the previous
-// direct-write path did.
-function isLiveBooking(bookingId: string): boolean {
-  return !bookingId.startsWith('vb_');
+export type StaffRosterEntry = {
+  id: string;
+  userId: string;
+  displayName: string;
+  role: MembershipRole;
+  status: 'Active' | 'Inactive';
+  branchIds: string[];
+};
+
+export async function fetchStaffRoster(businessId: string): Promise<StaffRosterEntry[]> {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error('Sign in again to see your team.');
+  const result = await apiGet<{ roster: StaffRosterEntry[] }>(
+    `/api/vendor/staff/roster?businessId=${encodeURIComponent(businessId)}`, token,
+  );
+  return result.roster;
+}
+
+export async function assignBookingStaff(bookingId: string, membershipId: string | null) {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error('Sign in again before assigning a team member.');
+  return apiPost<{ assignedStaffId: string | null; assignedStaffName: string | null }>(
+    `/api/bookings/${encodeURIComponent(bookingId)}/assignment`, token, { membershipId },
+  );
 }
 
 async function transition(
@@ -38,8 +56,6 @@ async function transition(
 
   // Optimistic local update first so the UI responds immediately...
   store.updateVendorBookingStatus(bookingId, status);
-
-  if (!isLiveBooking(bookingId)) return;
 
   try {
     const token = (await auth.currentUser?.getIdToken()) ?? null;

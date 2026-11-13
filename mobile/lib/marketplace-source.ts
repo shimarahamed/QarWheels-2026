@@ -39,7 +39,7 @@ function start() {
   unsubscribe = onSnapshot(query(collection(firestore, 'branches'), where('isListed', '==', true)), (snapshot) => {
     if (current !== generation) return;
     clearTimeout(timeout);
-    publish({ docs: snapshot.docs.filter((entry) => !entry.data().vacationMode), loading: false, error: false });
+    publish({ docs: snapshot.docs.filter((entry) => entry.data().status === 'Approved' && !entry.data().vacationMode), loading: false, error: false });
   }, () => {
     if (current !== generation) return;
     clearTimeout(timeout);
@@ -73,7 +73,7 @@ export const SERVICE_QUERY_CONCURRENCY = 3;
 
 export async function fetchMarketplaceServices(branchIds: string[], signal?: AbortSignal): Promise<QueryDocumentSnapshot[]> {
   const batches: string[][] = [];
-  for (let i = 0; i < branchIds.length; i += 30) batches.push(branchIds.slice(i, i + 30));
+  for (let i = 0; i < branchIds.length; i += 10) batches.push(branchIds.slice(i, i + 10));
   const pages: QueryDocumentSnapshot[][] = new Array(batches.length);
   let cursor = 0;
   let failed = false;

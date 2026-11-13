@@ -22,10 +22,16 @@ it('rejects a loopback endpoint on native devices', () => {
   expect(apiBaseUrl).toThrow('device-reachable');
 });
 
-it('accepts an HTTPS endpoint and removes a trailing slash', () => {
+it('accepts an HTTPS origin with a trailing slash', () => {
+  Platform.OS = 'android';
+  process.env.EXPO_PUBLIC_API_BASE_URL = 'https://staging.example.test/';
+  expect(apiBaseUrl()).toBe('https://staging.example.test');
+});
+
+it('rejects an API path because callers already append /api', () => {
   Platform.OS = 'android';
   process.env.EXPO_PUBLIC_API_BASE_URL = 'https://staging.example.test/api/';
-  expect(apiBaseUrl()).toBe('https://staging.example.test/api');
+  expect(apiBaseUrl).toThrow('origin only');
 });
 
 it('keeps local web development available without a configured endpoint', () => {

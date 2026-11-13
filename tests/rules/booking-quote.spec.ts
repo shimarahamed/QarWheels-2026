@@ -100,13 +100,42 @@ describe('server-owned quote boundary', () => {
       await seed(accepted ? {
         status: 'Confirmed', cost: 123.45, quote: { ...quote, status: 'Accepted', acceptedBy: 'customer_1' },
       } : {});
-      await assertSucceeds(updateDoc(ref, {
+      await assertFails(updateDoc(ref, {
         assignedStaffId: 'tech_1', assignedStaffName: 'Technician',
+      }));
+      await assertSucceeds(updateDoc(ref, {
         partsUsed: [{ name: 'Brake pads', qty: 1, unitPrice: 100, inventoryItemId: 'part_1' }],
         laborEntries: [{ staffId: 'tech_1', minutes: 30 }], photoPaths: ['photo.jpg'],
         notes: 'Inspection finished', updatedAt: '2026-11-02',
       }));
     }
+  });
+
+  it.each(['customer', 'vendor_manager', 'master_admin'])(
+    '%s cannot write assignment fields directly while job-card edits remain allowed', async (role) => {
+      const ctx = await actor(role);
+      const ref = doc(ctx.firestore(), 'bookings', 'booking_1');
+      for (const patch of [
+        { assignedStaffId: 'member_1' },
+        { assignedStaffName: 'Forged name' },
+        { assignedStaffId: 'member_1', assignedStaffName: 'Forged name', notes: 'Inspection finished' },
+      ]) {
+        await assertFails(updateDoc(ref, patch));
+      }
+      if (role !== 'customer') {
+        await assertSucceeds(updateDoc(ref, { notes: 'Inspection finished', updatedAt: '2026-11-02' }));
+      }
+    },
+  );
+
+  it('rejects replacing or deleting an existing server assignment without blocking job-card edits', async () => {
+    await seed({ assignedStaffId: 'member_1', assignedStaffName: 'Technician' });
+    const manager = await actor('vendor_manager');
+    const ref = doc(manager.firestore(), 'bookings', 'booking_1');
+    await assertFails(updateDoc(ref, { assignedStaffId: 'other_member' }));
+    await assertFails(updateDoc(ref, { assignedStaffName: 'Forged name' }));
+    await assertFails(updateDoc(ref, { assignedStaffId: deleteField(), assignedStaffName: deleteField() }));
+    await assertSucceeds(updateDoc(ref, { notes: 'Inspection finished', updatedAt: '2026-11-02' }));
   });
 
   it('still allows customer cancellation and staff decline before acceptance', async () => {

@@ -8,6 +8,7 @@ import { isBusinessWideRole } from './permissions';
 export type VendorBranch = {
   id: string; businessId: string; name: string; status: string; city: string; country: string;
   vacationMode?: boolean;
+  rating?: number; reviewCount?: number;
 };
 
 function useVendorBranchData() {

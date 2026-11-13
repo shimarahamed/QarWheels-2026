@@ -31,6 +31,11 @@ service cloud.firestore {
       return isMasterAdmin();
     }
 
+    function canAdminMutate() {
+      return isAdmin()
+        && get(/databases/$(database)/documents/roles_admin/$(request.auth.uid)).data.level in ['super', 'ops'];
+    }
+
     function isOwner(uid) {
       return isSignedIn() && request.auth.uid == uid;
     }
@@ -150,7 +155,7 @@ service cloud.firestore {
                     'pushTokens', 'pushPlatform', 'defaultCarId', 'updatedAt']);
       }
 
-      allow update: if isAdmin()
+      allow update: if canAdminMutate()
         || (isOwner(userId)
         && onlyUserWritableFieldsChanged()
         && (!('firstName' in request.resource.data) || (request.resource.data.firstName is string && request.resource.data.firstName.size() <= 50))
@@ -167,7 +172,7 @@ service cloud.firestore {
             && exists(/databases/$(database)/documents/users/$(userId)/cars/$(request.resource.data.defaultCarId))))
         && (!('pushTokens' in request.resource.data) || (request.resource.data.pushTokens is list && request.resource.data.pushTokens.size() <= 20)));
 
-      allow delete: if isAdmin();
+      allow delete: if canAdminMutate();
 
       // ─── Cars (subcollection — will migrate to flat collection) ─────────────
       match /cars/{carId} {
@@ -188,7 +193,7 @@ service cloud.firestore {
           && notChanging(['vin', 'userId', 'createdAt'])
           && (!('currentMileage' in request.resource.data) || (request.resource.data.currentMileage is int && request.resource.data.currentMileage >= 0));
 
-        allow delete: if isOwner(userId) || isAdmin();
+        allow delete: if isOwner(userId) || canAdminMutate();
 
         // ─── Service Records ─────────────────────────────────────────────────
         match /serviceRecords/{recordId} {
@@ -204,13 +209,13 @@ service cloud.firestore {
             && request.resource.data.mileageAtService >= 0;
 
           // Service records are immutable — only admins can correct them
-          allow update, delete: if isAdmin();
+          allow update, delete: if canAdminMutate();
         }
 
         // ─── Service Predictions ─────────────────────────────────────────────
         match /servicePredictions/{predictionId} {
           allow read: if isOwner(userId) || isAdmin();
-          allow write: if isAdmin();
+          allow write: if canAdminMutate();
         }
       }
     }
@@ -231,13 +236,13 @@ service cloud.firestore {
       // Self-signup goes through /api/vendor/register (Admin SDK, transactional:
       // creates the Auth user, the business, the first branch, and the owner
       // membership together) — not a direct client create.
-      allow create: if isAdmin();
+      allow create: if canAdminMutate();
 
-      allow update: if isAdmin()
+      allow update: if (canAdminMutate() && notChanging(['status']))
         || (isBusinessAdmin(businessId)
         && notChanging(['ownerId', 'status', 'kyc', 'payout', 'commissionRateBps', 'createdAt', 'branchCount']));
 
-      allow delete: if isAdmin();
+      allow delete: if canAdminMutate();
     }
 
     // ─── Business private data (full IBAN, banking details) ───────────────────
@@ -252,6 +257,13 @@ service cloud.firestore {
     // ─── Branches ─────────────────────────────────────────────────────────────
     // The customer-facing garage location; unit of scheduling, inventory, staff.
     match /branches/{branchId} {
+      function eligibleForListing() {
+        return request.resource.data.isListed != true
+          || (request.resource.data.status == 'Approved'
+            && get(/databases/$(database)/documents/businesses/$(request.resource.data.businessId)).data.status == 'Active'
+            && get(/databases/$(database)/documents/businesses/$(request.resource.data.businessId)).data.kyc.status == 'Verified');
+      }
+
       // Customers see approved + listed branches; members see their own regardless of status
       allow get: if resource.data.isListed == true
         || isBusinessMember(resource.data.businessId)
@@ -269,16 +281,16 @@ service cloud.firestore {
         || isBusinessMember(resource.data.businessId)
         || isAdmin();
 
-      allow create: if isAdmin()
+      allow create: if (canAdminMutate() && eligibleForListing())
         || (isBusinessAdmin(request.resource.data.businessId)
         && request.resource.data.status == 'Pending Approval'
         && request.resource.data.isListed == false);
 
-      allow update: if isAdmin()
+      allow update: if (canAdminMutate() && eligibleForListing())
         || (isBusinessWideBranchWriter(resource.data.businessId, branchId)
         && notChanging(['businessId', 'status', 'isListed', 'rating', 'reviewCount', 'approvedAt', 'approvedBy', 'createdAt']));
 
-      allow delete: if isAdmin();
+      allow delete: if canAdminMutate();
     }
 
     // ─── Memberships (staff/auth link) ─────────────────────────────────────────
@@ -309,8 +321,16 @@ service cloud.firestore {
 
     // ─── Branch Services (public read, business-wide-role write) ────────────────
     match /branch_services/{serviceId} {
-      allow read: if true;
-      allow create: if isAdmin()
+      function isPublicService() {
+        return resource.data.active == true
+          && get(/databases/$(database)/documents/branches/$(resource.data.branchId)).data.isListed == true
+          && get(/databases/$(database)/documents/branches/$(resource.data.branchId)).data.status == 'Approved';
+      }
+
+      allow read: if isPublicService()
+        || inBranchScope(resource.data.businessId, resource.data.branchId)
+        || isAdmin();
+      allow create: if canAdminMutate()
         || (isBusinessWideBranchWriter(request.resource.data.businessId, request.resource.data.branchId)
         && exists(/databases/$(database)/documents/branches/$(request.resource.data.branchId))
         && get(/databases/$(database)/documents/branches/$(request.resource.data.branchId)).data.businessId == request.resource.data.businessId
@@ -319,14 +339,14 @@ service cloud.firestore {
         && request.resource.data.price >= 0
         && request.resource.data.duration is int
         && request.resource.data.duration > 0);
-      allow update: if isAdmin()
+      allow update: if canAdminMutate()
         || (isBusinessWideBranchWriter(resource.data.businessId, resource.data.branchId)
         && notChanging(['businessId', 'branchId'])
         && request.resource.data.price is number
         && request.resource.data.price >= 0
         && request.resource.data.duration is int
         && request.resource.data.duration > 0);
-      allow delete: if isBusinessWideBranchWriter(resource.data.businessId, resource.data.branchId) || isAdmin();
+      allow delete: if isBusinessWideBranchWriter(resource.data.businessId, resource.data.branchId) || canAdminMutate();
     }
 
     // ─── Branch Inventory ─────────────────────────────────────────────────────
@@ -350,12 +370,12 @@ service cloud.firestore {
       // delete (needs no field validation) — a plain isInventoryManager() ||
       // isAdmin() `write` would let update skip the same type/range checks
       // create enforces, so update is validated here identically to create.
-      allow update: if isAdmin()
+      allow update: if canAdminMutate()
         || (isInventoryManager(resource.data.businessId, resource.data.branchId)
         && notChanging(['businessId', 'branchId'])
         && isValidInventoryItem());
-      allow delete: if isInventoryManager(resource.data.businessId, resource.data.branchId) || isAdmin();
-      allow create: if isAdmin()
+      allow delete: if isInventoryManager(resource.data.businessId, resource.data.branchId) || canAdminMutate();
+      allow create: if canAdminMutate()
         || (isInventoryManager(request.resource.data.businessId, request.resource.data.branchId)
         && hasAllRequired(['businessId', 'branchId', 'name', 'sku', 'stock', 'price'])
         && isValidInventoryItem());
@@ -367,7 +387,7 @@ service cloud.firestore {
     // directly rather than inBranchScope, which is about a single branch.
     match /branch_promotions/{promotionId} {
       allow read: if true;
-      allow create, update: if isAdmin()
+      allow create, update: if canAdminMutate()
         || (isBusinessMember(request.resource.data.businessId) && isBusinessWideRole()
         && hasAllRequired(['businessId', 'title', 'code', 'discount', 'startDate', 'endDate', 'status'])
         && request.resource.data.status in ['Active', 'Expired', 'Scheduled']
@@ -377,7 +397,7 @@ service cloud.firestore {
         // data model (which is out of scope here).
         && request.resource.data.discount is string
         && request.resource.data.discount.size() >= 1 && request.resource.data.discount.size() <= 50);
-      allow delete: if (isBusinessMember(resource.data.businessId) && isBusinessWideRole()) || isAdmin();
+      allow delete: if (isBusinessMember(resource.data.businessId) && isBusinessWideRole()) || canAdminMutate();
     }
 
     // ─── Reviews (flat, business/branch/booking-keyed) ─────────────────────────
@@ -406,14 +426,14 @@ service cloud.firestore {
         && request.resource.data.comment.size() <= 1000;
 
       // Customer-facing roles can only attach a reply — everything else is admin-only
-      allow update: if isAdmin()
+      allow update: if canAdminMutate()
         || (isReviewReplier(resource.data.businessId, resource.data.branchId)
         && notChanging(['userId', 'businessId', 'branchId', 'bookingId', 'customerName', 'rating', 'comment', 'service', 'date'])
         && request.resource.data.vendorReply is string
         && request.resource.data.vendorReply.size() >= 1
         && request.resource.data.vendorReply.size() <= 1000);
 
-      allow delete: if isAdmin();
+      allow delete: if canAdminMutate();
     }
 
     // ─── Bookings ─────────────────────────────────────────────────────────────
@@ -428,12 +448,12 @@ service cloud.firestore {
       // tenancy and availability, and omits unverified price.
       allow create: if false;
 
-      // Only operational job-card fields are client writable; quote and
-      // receipt fields (including future additions) remain server-owned.
+      // Only operational job-card fields are client writable; quote, receipt
+      // and staff-assignment fields remain server-owned.
       allow update: if isSignedIn()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status', 'statusHistory', 'updatedAt', 'cost', 'notes', 'timeSlot',
-          'assignedStaffId', 'assignedStaffName', 'partsUsed', 'laborEntries', 'photoPaths',
+          'partsUsed', 'laborEntries', 'photoPaths',
           'acceptedAt', 'acceptedBy', 'declinedAt', 'declinedReason', 'expiresAt'
         ])
         && (resource.data.get('requiresQuote', false) != true || (
@@ -476,13 +496,13 @@ service cloud.firestore {
         // to — identity fields stay immutable and the transition still has
         // to be legal, same as branch staff. Only the actor-role check is
         // relaxed (an admin can act on any business's booking).
-        || (isAdmin()
+        || (canAdminMutate()
           && notChanging(['userId', 'customerName', 'customerEmail', 'customerPhone', 'businessId', 'branchId', 'branchName', 'carId', 'carDescription', 'serviceId', 'serviceName', 'bookingDate', 'requestFingerprint', 'createdAt'])
           && canTransitionBooking(resource.data.status, request.resource.data.status)
           && request.resource.data.statusHistory.size() == resource.data.statusHistory.size() + 1)
       );
 
-      allow delete: if isAdmin();
+      allow delete: if canAdminMutate();
     }
 
     // ─── Admin roles (read-only — managed exclusively via the Admin SDK) ───
@@ -534,7 +554,7 @@ service cloud.firestore {
         && (!('lastMessage' in request.resource.data) || (request.resource.data.lastMessage is string && request.resource.data.lastMessage.size() <= 2000))
         && (!('unread' in request.resource.data) || request.resource.data.unread is map);
 
-      allow delete: if isAdmin();
+      allow delete: if canAdminMutate();
     }
 
     match /messages/{messageId} {
@@ -557,7 +577,7 @@ service cloud.firestore {
       // Messages are immutable once sent — editing history in a dispute
       // between a customer and a garage is exactly what you don't want.
       allow update: if false;
-      allow delete: if isAdmin();
+      allow delete: if canAdminMutate();
     }
 
     // ─── Money: transactions, payouts, invoices ───────────────────────────────

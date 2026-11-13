@@ -9,13 +9,16 @@ export function apiBaseUrl(): string {
   if (url.username || url.password || url.search || url.hash) {
     throw new Error('Backend API URL must not contain credentials or query parameters.');
   }
+  if (url.pathname !== '/') {
+    throw new Error('Backend API URL must be the origin only; callers add /api paths.');
+  }
   if (url.protocol !== 'https:' && !(__DEV__ && url.protocol === 'http:')) {
     throw new Error('Backend API requires HTTPS.');
   }
   if (Platform.OS !== 'web' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) {
     throw new Error('Backend API must use a device-reachable address.');
   }
-  return url.origin + url.pathname.replace(/\/$/, '');
+  return url.origin;
 }
 
 export type ApiEnvelope<T> = {

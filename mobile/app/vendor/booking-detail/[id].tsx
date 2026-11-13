@@ -1,8 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, Pressable, View, Alert } from 'react-native';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Pressable, View, Alert } from 'react-native';
+import { VendorText as Text } from '@/components/vendor/VendorText';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQarColors, useQarWheelStore } from '@/lib/store';
+import { useQarWheelStore } from '@/lib/store';
+import { useVendorColors as useQarColors } from '@/lib/vendor-theme';
 import { MotionScreen } from '@/lib/motion';
 import { radius, shadow, spacing, typography } from '@/lib/theme';
 import {
@@ -14,6 +17,10 @@ import {
 import { MissingRecord } from '@/components/vendor/MissingRecord';
 import { BOOKING_WORKFLOW, getBookingStatusIndex } from '@/lib/booking-workflow';
 import BookingQuotePanel from '@/components/BookingQuotePanel';
+import { useAuthContext } from '@/lib/AuthContext';
+import { createInvoice, fetchBookingInvoice, type LiveInvoice } from '@/lib/billing';
+import { canAccess } from '@/lib/permissions';
+import ErrorState from '@/components/ErrorState';
 
 function InfoRow({ label, value, c }: { label: string; value: string; c: ReturnType<typeof useQarColors> }) {
   return (
@@ -28,29 +35,62 @@ export default function BookingDetailScreen() {
   const c = useQarColors();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { role } = useAuthContext();
   const storeBooking = useQarWheelStore((state) => state.vendorBookings.find((b) => b.id === id));
-  const storeInvoices = useQarWheelStore((state) => state.vendorInvoices);
-  const createVendorInvoice = useQarWheelStore((state) => state.createVendorInvoice);
+  const [invoice, setInvoice] = useState<LiveInvoice | null>(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(true);
+  const [invoiceError, setInvoiceError] = useState(false);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
   const booking = storeBooking;
+  const canReadInvoice = role === 'master_admin' || (role !== 'customer' && canAccess(role, 'invoices'));
+  const canCreateInvoice = role === 'master_admin' || (role !== 'customer' && canAccess(role, 'invoices', 'write'));
+  const loadInvoice = useCallback(async () => {
+    if (!id) return;
+    setInvoiceLoading(true);
+    setInvoiceError(false);
+    try {
+      setInvoice(await fetchBookingInvoice(id));
+    } catch {
+      setInvoiceError(true);
+    } finally {
+      setInvoiceLoading(false);
+    }
+  }, [id]);
+  useFocusEffect(useCallback(() => {
+    if (booking?.status === 'Completed' && canReadInvoice) void loadInvoice();
+    else { setInvoice(null); setInvoiceLoading(false); }
+  }, [booking?.status, canReadInvoice, loadInvoice]));
   if (!booking) return <MissingRecord title="Booking unavailable" />;
   const sc = getStatusColor(booking.status);
   const customer = vendorCustomers.find((cu) => cu.name === booking.customerName);
   const currentStatusIndex = getBookingStatusIndex(booking.status);
 
-  // Viewing a booking must never create a financial record as a render side effect.
-  const invoice = (() => {
-    const found = storeInvoices.find((item) => item.bookingId === booking.id);
-    if (found) return found;
-    return undefined;
-  })();
-
-  function handleCreateInvoice() {
-    if (!booking) return;
+  async function handleCreateInvoice() {
+    if (!booking || creatingInvoice || booking.status !== 'Completed' || !canCreateInvoice) return;
+    const amount = booking.requiresQuote
+      ? booking.acceptedQuoteAmountMinorUnits : Math.round(booking.totalAmount * 100);
+    if (typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount <= 0) {
+      Alert.alert('Invoice unavailable', 'A customer-accepted quote with a valid amount is required.');
+      return;
+    }
+    setCreatingInvoice(true);
     try {
-      const created = createVendorInvoice(booking.id);
-      router.push(`/vendor/invoice/${created.id}` as never);
+      const created = await createInvoice({ bookingId: booking.id, lineItems: [{
+        description: booking.service || 'Service', quantity: 1, unitPriceMinorUnits: amount,
+      }] });
+      router.push(`/vendor/invoice/${created.invoiceId}` as never);
     } catch (error) {
+      try {
+        const existing = await fetchBookingInvoice(booking.id);
+        if (existing) {
+          setInvoice(existing);
+          router.push(`/vendor/invoice/${existing.id}` as never);
+          return;
+        }
+      } catch { /* The original error remains the useful one to show. */ }
       Alert.alert('Invoice unavailable', error instanceof Error ? error.message : 'Could not create invoice.');
+    } finally {
+      setCreatingInvoice(false);
     }
   }
 
@@ -176,11 +216,17 @@ export default function BookingDetailScreen() {
           </View>
 
           {/* Invoice */}
-          <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
+          {canReadInvoice ? <View style={[s.section, { backgroundColor: c.surface, borderColor: c.border }]}>
             <View style={s.sectionHeaderRow}>
               <Text style={[s.sectionTitle, { color: c.text }]}>Invoice</Text>
             </View>
-            {invoice ? (
+            {booking.status !== 'Completed' ? (
+              <Text style={[s.noStaff, { color: c.muted }]}>Available after the job is completed.</Text>
+            ) : invoiceLoading ? (
+              <ActivityIndicator accessibilityLabel="Loading invoice" color={c.primary} />
+            ) : invoiceError ? (
+              <ErrorState compact onRetry={loadInvoice} />
+            ) : invoice ? (
               <View style={s.actionRow}>
                 <Pressable
                   style={[s.contactBtn, { backgroundColor: c.primaryLight, borderColor: c.primaryMid }]}
@@ -197,16 +243,18 @@ export default function BookingDetailScreen() {
                   <Text style={[s.contactBtnText, { color: c.textSecondary }]}>Send</Text>
                 </Pressable>
               </View>
-            ) : (
+            ) : canCreateInvoice ? (
               <Pressable
-                style={[s.createInvoiceBtn, { backgroundColor: c.primaryLight, borderColor: c.primaryMid }]}
-                onPress={handleCreateInvoice}
+                style={[s.createInvoiceBtn, { backgroundColor: c.primaryLight, borderColor: c.primaryMid, opacity: creatingInvoice ? 0.6 : 1 }]}
+                onPress={() => { void handleCreateInvoice(); }}
+                disabled={creatingInvoice}
+                accessibilityRole="button" accessibilityLabel="Create invoice"
               >
                 <Ionicons name="add-circle-outline" size={16} color={c.primary} />
-                <Text style={[s.createInvoiceText, { color: c.primary }]}>Create Invoice</Text>
+                <Text style={[s.createInvoiceText, { color: c.primary }]}>{creatingInvoice ? 'Creating...' : 'Create Invoice'}</Text>
               </Pressable>
-            )}
-          </View>
+            ) : null}
+          </View> : null}
         </MotionScreen>
       </ScrollView>
       </KeyboardAvoidingView>

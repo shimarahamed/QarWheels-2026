@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { ok, Errors } from '@/lib/api-response';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireAdminMutation } from '@/lib/auth/require-role';
 import { deleteAccount } from '@/lib/account-deletion';
 import { getAdminFirestore } from '@/lib/firebase-admin';
 import { isRateLimited, getRateLimitKey } from '@/lib/rate-limit';
@@ -28,7 +28,7 @@ export async function POST(
   { params }: { params: Promise<{ uid: string }> },
 ) {
   const { uid } = await params;
-  const access = await requireRole(request, ['master_admin']);
+  const access = await requireAdminMutation(request);
   if (!access.ok) {
     return access.reason === 'unauthenticated' ? Errors.unauthorized() : Errors.forbidden();
   }

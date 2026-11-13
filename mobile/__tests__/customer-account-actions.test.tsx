@@ -84,6 +84,14 @@ it('loads stored profile fields through the profile-overview route and returns f
   expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)/account');
 });
 
+it('opens the live invoice list instead of displaying local receipt data', async () => {
+  useQarWheelStore.setState({ invoices: [{ id: 'local-only', number: 'TEST', status: 'Paid' }] as never });
+  await render(<AccountServices initialSection="invoices" />);
+  expect(screen.queryByText('TEST')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', { name: 'View invoices' }));
+  expect(mockRouter.push).toHaveBeenCalledWith('/invoices');
+});
+
 it('keeps drafts on failed saves, disables pending controls, and retries without writing email', async () => {
   const pending = deferred<void>();
   jest.mocked(setDoc).mockReturnValueOnce(pending.promise);

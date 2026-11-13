@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import { addDoc, collection, doc, setDoc, updateDoc } from 'firebase/firestore';
-import { asAnonymous, asCustomer, getTestEnv, seedWithoutRules, teardownTestEnv } from './setup';
+import { asAnonymous, asCustomer, asUserWithClaims, getTestEnv, seedWithoutRules, teardownTestEnv } from './setup';
 
 describe('Phase 0 fixes still hold under the Phase 1 rules rewrite', () => {
   beforeEach(async () => {
@@ -25,6 +25,26 @@ describe('Phase 0 fixes still hold under the Phase 1 rules rewrite', () => {
     const ctx = await asCustomer('uid_vendor_1');
     const ref = doc(ctx.firestore(), 'vendors', 'uid_vendor_1');
     await assertFails(updateDoc(ref, { 'kyc.status': 'Verified' }));
+  });
+
+  it('does not let an admin list a branch before business KYC and branch approval', async () => {
+    await seedWithoutRules(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'businesses', 'biz_a'), { status: 'Active', kyc: { status: 'Pending' } });
+      await setDoc(doc(ctx.firestore(), 'branches', 'branch_a'), { businessId: 'biz_a', status: 'Pending Approval', isListed: false });
+    });
+    const admin = await asUserWithClaims('admin_1', { r: 'master_admin' });
+    const branch = doc(admin.firestore(), 'branches', 'branch_a');
+    await assertFails(updateDoc(branch, { isListed: true }));
+    await seedWithoutRules(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'businesses', 'biz_a'), { 'kyc.status': 'Verified' });
+    });
+    await assertFails(updateDoc(branch, { isListed: true }));
+    await assertSucceeds(updateDoc(branch, { status: 'Approved', isListed: true }));
+    await assertSucceeds(updateDoc(branch, { isListed: false }));
+    await seedWithoutRules(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'businesses', 'biz_a'), { status: 'Suspended' });
+    });
+    await assertFails(updateDoc(branch, { isListed: true }));
   });
 
   it('unauthenticated reads of the flat reviews collection are allowed (public read)', async () => {

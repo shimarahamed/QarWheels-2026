@@ -27,7 +27,7 @@ it('shares one listener across 20 mounted consumers and releases it after the la
 
 it('keeps cached listings on failure and ignores old callbacks after retry', async () => {
   subscribe();
-  const docs = [{ id: 'garage-a', data: () => ({ isListed: true }) }];
+  const docs = [{ id: 'garage-a', data: () => ({ isListed: true, status: 'Approved' }) }];
   snapshots[0]({ docs });
   failures[0]();
   expect(marketplaceSource.getSnapshot()).toMatchObject({ docs, error: true, loading: false });
@@ -54,7 +54,7 @@ it('coalesces refresh taps while the listener is already loading', async () => {
   await Promise.all([first, second]);
 });
 
-it('loads services for 3,001 branches in batches of 30 with only three concurrent reads', async () => {
+it('loads services for 3,001 branches in rules-safe batches of 10 with only three concurrent reads', async () => {
   let active = 0; let peak = 0;
   (getDocs as jest.Mock).mockImplementation(async () => {
     active++; peak = Math.max(peak, active);
@@ -64,11 +64,11 @@ it('loads services for 3,001 branches in batches of 30 with only three concurren
   });
   const ids = Array.from({ length: 3001 }, (_, index) => `branch-${index}`);
   const result = await fetchMarketplaceServices(ids);
-  expect(getDocs).toHaveBeenCalledTimes(101);
+  expect(getDocs).toHaveBeenCalledTimes(301);
   expect(peak).toBe(SERVICE_QUERY_CONCURRENCY);
-  expect(result).toHaveLength(101);
+  expect(result).toHaveLength(301);
   const batches = (where as jest.Mock).mock.calls.filter(([field]) => field === 'branchId').map(([, , values]) => values);
-  expect(batches.every((batch: string[]) => batch.length <= 30)).toBe(true);
+  expect(batches.every((batch: string[]) => batch.length <= 10)).toBe(true);
   expect(batches.flat()).toEqual(ids);
 });
 

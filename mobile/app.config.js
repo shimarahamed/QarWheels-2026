@@ -6,7 +6,6 @@ module.exports = ({ config }) => {
       if (plugin !== 'react-native-maps' || !mapsKey) return plugin;
       return ['react-native-maps', {
         androidGoogleMapsApiKey: mapsKey,
-        iosGoogleMapsApiKey: mapsKey,
       }];
     }),
   };

@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
-import { useQarColors } from '@/lib/store';
+import { Pressable, View } from 'react-native';
+import { VendorText as Text } from '@/components/vendor/VendorText';
+import { useVendorColors as useQarColors } from '@/lib/vendor-theme';
 
 export function MissingRecord({ title }: { title: string }) {
   const c = useQarColors();

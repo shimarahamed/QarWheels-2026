@@ -8,6 +8,7 @@ const mockPush = jest.fn();
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('@/components/vendor/BranchSwitcher', () => ({ BranchSwitcher: () => null }));
 jest.mock('@/components/VendorTabBar', () => ({ VendorTabBar: () => null, useVendorTabBottom: () => 70 }));
+jest.mock('@/lib/AuthContext', () => ({ useAuthContext: () => ({ role: 'business_owner' }) }));
 jest.mock('@/lib/vendorQueries', () => ({ useVendorBranches: () => ({ activeBranch: { name: 'Test Workshop' } }) }));
 jest.mock('@sentry/react-native', () => ({ addBreadcrumb: jest.fn() }));
 
@@ -35,7 +36,7 @@ it('uses actual booking counts and never renders fabricated activity or revenue'
 
   expect(screen.getByRole('button', { name: 'Today: 2. Open bookings' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Pending: 1. Open new requests' })).toBeTruthy();
-  expect(screen.getByText('Customer a')).toBeTruthy();
+  expect(screen.getAllByText('Customer a')).toHaveLength(2);
   expect(screen.queryByText('Customer c')).toBeNull();
   expect(screen.queryByText('Recent Activity')).toBeNull();
   expect(screen.queryByText('QAR 1,640')).toBeNull();
@@ -57,6 +58,24 @@ it('bounds the dashboard preview and distinguishes loading from an empty day', a
   expect(screen.getByText('No bookings today')).toBeTruthy();
 
   await act(() => useQarWheelStore.setState({ vendorBookings: Array.from({ length: 8 }, (_, i) => booking(String(i))) }));
-  expect(screen.getByText('Customer 0')).toBeTruthy();
+  expect(screen.getAllByText('Customer 0')).toHaveLength(2);
   expect(screen.queryByText('Customer 7')).toBeNull();
+});
+
+it('follows the web dashboard hierarchy and opens live shop-floor jobs', async () => {
+  useQarWheelStore.setState({ vendorBookings: [booking('repair', 'InProgress')] });
+  await render(dashboard());
+  expect(screen.getByText('Completed booking value')).toBeTruthy();
+  expect(screen.getByRole('header', { name: 'Interactive workstation matrix' })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('tab', { name: 'In progress jobs' }));
+  expect(screen.getAllByRole('button', { name: 'View booking Customer repair' })).toHaveLength(2);
+  await fireEvent.press(screen.getAllByRole('button', { name: 'View booking Customer repair' })[0]);
+  expect(mockPush).toHaveBeenCalledWith('/vendor/booking-detail/repair');
+});
+
+it('does not infer customer identities or revenue from missing data', async () => {
+  useQarWheelStore.setState({ vendorBookings: [booking('legacy', 'Completed')] });
+  await render(dashboard());
+  expect(screen.getAllByText('Unavailable').length).toBeGreaterThanOrEqual(2);
+  expect(screen.queryByText('QAR 0')).toBeNull();
 });

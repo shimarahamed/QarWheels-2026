@@ -343,6 +343,7 @@ export default function BookingComposer() {
       serviceCategory: selectedGarage?.category ?? '',
     };
 
+    let remoteId: string;
     try {
       if (!user || selectedCar.source !== 'firestore' || !selectedGarage || !selectedService) {
         throw new Error('Sign in, save your vehicle, and choose an available garage before booking.');
@@ -367,16 +368,25 @@ export default function BookingComposer() {
         requestIdentity.current = { signature, key: Crypto.randomUUID() };
       }
       const remote = await createFirestoreBooking(user.uid, { ...request, idempotencyKey: requestIdentity.current.key });
-      const localBooking = createLocalBooking({ ...bookingDetails, id: remote.id });
-
-      void success();
-      router.replace(route(`/booking/${localBooking.id}`));
+      remoteId = remote.id;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Booking could not be created.';
       Alert.alert('Booking not sent', `${message}\n\nPlease retry. The garage has not received this request.`);
+      return;
     } finally {
       submissionInFlight.current = false;
       setSubmitting(false);
+    }
+    try {
+      createLocalBooking({ ...bookingDetails, id: remoteId });
+    } catch {
+      console.warn('[booking] local cache update failed');
+    }
+    void success();
+    try {
+      router.replace(route(`/booking/${remoteId}`));
+    } catch {
+      Alert.alert('Request sent', 'Your booking request was received. Open Bookings to view it.');
     }
   }
 

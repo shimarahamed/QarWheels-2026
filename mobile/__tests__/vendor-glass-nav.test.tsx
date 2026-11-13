@@ -36,13 +36,16 @@ beforeEach(() => {
 it('keeps vendor destinations and their current state', async () => {
   await render(<VendorTabBar />);
   expect(screen.getByRole('tab', { name: 'Home' })).toBeSelected();
-  await fireEvent.press(screen.getByRole('tab', { name: 'Services' }));
-  expect(mockRouter.push).toHaveBeenCalledWith('/vendor/services');
+  await fireEvent.press(screen.getByRole('tab', { name: 'Requests' }));
+  expect(mockRouter.push).toHaveBeenCalledWith('/vendor/requests');
+  expect(screen.getByRole('tab', { name: 'Jobs' })).toBeTruthy();
+  expect(screen.getByRole('tab', { name: 'Stock' })).toBeTruthy();
+  expect(screen.getByRole('tab', { name: 'Stats' })).toBeTruthy();
 });
 
 it('does not show a role-restricted tab', async () => {
-  jest.mocked(canAccess).mockImplementation((_role, section) => section !== 'services');
+  jest.mocked(canAccess).mockImplementation((_role, section) => section !== 'inventory');
   await render(<VendorTabBar />);
-  expect(screen.queryByRole('tab', { name: 'Services' })).toBeNull();
+  expect(screen.queryByRole('tab', { name: 'Stock' })).toBeNull();
   expect(screen.getByRole('tab', { name: 'Home' })).toBeTruthy();
 });

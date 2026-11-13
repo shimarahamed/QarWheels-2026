@@ -254,13 +254,30 @@ export default function VendorBookingsPage() {
         setIsSubmitting(true);
         const bookingRef = doc(firestore, 'bookings', selectedBooking.id);
         const statusChanged = data.status !== selectedBooking.status;
+        const assignmentChanged = (data.assignedStaffId || null) !== (selectedBooking.assignedStaffId || null);
+        let assignmentSaved = false;
 
         try {
+            if (assignmentChanged) {
+                if (!user) throw new Error('Sign in to assign staff.');
+                const token = await user.getIdToken();
+                const response = await fetch(`/api/bookings/${selectedBooking.id}/assignment`, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ membershipId: data.assignedStaffId || null }),
+                });
+                if (!response.ok) {
+                    const result = await response.json().catch(() => null);
+                    throw new Error(result?.error || 'Could not save assignment.');
+                }
+                assignmentSaved = true;
+                setSelectedBooking((current) => current?.id === selectedBooking.id
+                    ? { ...current, assignedStaffId: data.assignedStaffId || undefined, assignedStaffName: staff?.find((member) => member.id === data.assignedStaffId)?.displayName }
+                    : current);
+            }
             await safeUpdateDoc(bookingRef, {
                 status: data.status,
                 cost: data.cost,
-                assignedStaffId: data.assignedStaffId || null,
-                assignedStaffName: data.assignedStaffName || null,
                 partsUsed: data.partsUsed || [],
                 // Security rules require statusHistory to grow by exactly one
                 // entry whenever branch staff touch the booking.
@@ -283,17 +300,17 @@ export default function VendorBookingsPage() {
                 title: "Booking Updated",
                 description: `The booking has been updated.`,
             });
+            setIsFormOpen(false);
+            setSelectedBooking(null);
         } catch(e) {
             console.error(e);
             toast({
-                title: "Error",
-                description: "Could not update the booking.",
+                title: assignmentSaved ? "Assignment saved, booking details not saved" : "Booking not updated",
+                description: e instanceof Error ? e.message : "Could not update the booking. Please try again.",
                 variant: "destructive",
             });
         } finally {
             setIsSubmitting(false);
-            setIsFormOpen(false);
-            setSelectedBooking(null);
         }
     };
 

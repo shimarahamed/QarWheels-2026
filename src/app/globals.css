@@ -1,11 +1,4 @@
-/* Outfit and DM Sans are loaded via next/font/google in layout.tsx
-   (fontHeadline/fontBody); Space Grotesk still needs a plain fetch since
-   nothing else here wires it up. Material Symbols Outlined is loaded via a
-   <link> in layout.tsx's <head>, not a CSS @import — a raw @import left the
-   icon ligature text (e.g. "search") permanently visible instead of
-   swapping to the glyph once the font loaded. */
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
-
+/* Outfit, DM Sans and Space Grotesk are bundled locally in layout.tsx. */
 /* Shared design tokens — generated from packages/tokens by
    `npm run tokens:build`. Defines both the raw --qw-* tokens and the
    shadcn/ui semantic HSL triplets derived from them, so the web app and
@@ -106,7 +99,7 @@
                 color var(--motion-slow) var(--ease-smooth);
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: var(--font-telemetry), sans-serif;
     @apply tracking-tight;
   }
   a,
@@ -230,13 +223,13 @@
   }
 
   .metric-number {
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: var(--font-telemetry), sans-serif;
     @apply text-3xl font-bold tracking-tight tabular-nums;
   }
 
   /* Cockpit-precision tabular numerals — KPI tiles, ledgers, totals. */
   .kpi-number {
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: var(--font-telemetry), sans-serif;
     @apply font-bold tracking-tight tabular-nums;
     font-variant-numeric: tabular-nums;
   }
@@ -604,3 +597,7 @@
 }
 .legal-prose strong { font-weight: 600; color: hsl(var(--foreground)); }
 .legal-prose a { color: hsl(var(--primary)); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Vendor web/native typography uses the same bundled font families. */
+.vendor-workspace { font-family: var(--font-body), sans-serif; }
+.vendor-workspace :is(h1, h2, h3, h4, h5, h6) { font-family: var(--font-headline), sans-serif; }

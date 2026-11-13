@@ -61,17 +61,11 @@ function NotAuthorized() {
 
 export function AdminProvider({ children }: { children: ReactNode }) {
   const { firestore } = useFirebase();
-  const { user, isUserLoading, claims } = useUser();
-
-  // The `qw` custom claim is the authoritative signal (it is what the API
-  // routes and firestore.rules gate on). The roles_admin doc read stays as a
-  // fallback for sessions holding an ID token minted before claims sync.
-  const claimIsMasterAdmin = claims?.r === 'master_admin';
-  const claimLevel = claims?.r === 'master_admin' ? claims.lvl : null;
+  const { user, isUserLoading } = useUser();
 
   const adminRef = useMemoFirebase(
-    () => (user && !claimIsMasterAdmin ? doc(firestore, 'roles_admin', user.uid) : null),
-    [firestore, user, claimIsMasterAdmin]
+    () => user ? doc(firestore, 'roles_admin', user.uid) : null,
+    [firestore, user]
   );
 
   const { data: adminRole, isLoading: isLoadingRole } = useDoc<{ uid: string; level?: AdminLevel }>(
@@ -79,11 +73,9 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     { suppressPermissionError: true }
   );
 
-  const isLoading = isUserLoading || (!claimIsMasterAdmin && isLoadingRole);
-  const isAdmin = claimIsMasterAdmin || Boolean(adminRole);
-  // Prefer the claim; fall back to the doc's level, then to the most
-  // restrictive level so an unknown level never unlocks a mutation.
-  const level: AdminLevel | null = claimLevel ?? adminRole?.level ?? (isAdmin ? 'support' : null);
+  const isLoading = isUserLoading || isLoadingRole;
+  const isAdmin = Boolean(adminRole);
+  const level: AdminLevel | null = adminRole?.level ?? (isAdmin ? 'support' : null);
 
   const value = useMemo(
     () => ({

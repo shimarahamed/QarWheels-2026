@@ -148,7 +148,7 @@ export async function POST(
       if (isOwner) {
         actorRole = 'customer';
       } else {
-        const access = await requireBranchAccess(request, booking.branchId);
+        const access = await requireBranchAccess(request, booking.branchId, 'write');
         if (!access.ok) return { error: access.reason };
         const branch = await tx.get(db.collection('branches').doc(booking.branchId));
         if (!branch.exists || branch.get('businessId') !== booking.businessId) {

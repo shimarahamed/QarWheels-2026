@@ -179,7 +179,7 @@ export default function PublicGarageDetailsPage() {
 
     // A "garage" in the customer marketplace is a single Branch of a Business.
     const garageRef = useMemoFirebase(() => garageId ? doc(firestore, 'branches', garageId) : null, [firestore, garageId]);
-    const servicesRef = useMemoFirebase(() => garageId ? query(collection(firestore, 'branch_services'), where('branchId', '==', garageId)) : null, [firestore, garageId]);
+    const servicesRef = useMemoFirebase(() => garageId ? query(collection(firestore, 'branch_services'), where('branchId', '==', garageId), where('active', '==', true)) : null, [firestore, garageId]);
     const reviewsRef = useMemoFirebase(() => garageId ? query(collection(firestore, 'reviews'), where('branchId', '==', garageId)) : null, [firestore, garageId]);
     const promotionsRef = useMemoFirebase(() => garageId ? query(collection(firestore, 'branch_promotions'), where('branchIds', 'array-contains', garageId)) : null, [firestore, garageId]);
 

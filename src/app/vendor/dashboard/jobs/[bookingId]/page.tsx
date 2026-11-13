@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { doc, Timestamp, arrayUnion, serverTimestamp, collection, query, where } from 'firebase/firestore';
+import { doc, arrayUnion, serverTimestamp, collection, query, where } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { MaterialIcon } from '@/components/ui/material-icon';
 import { Badge } from '@/components/ui/badge';
@@ -26,12 +26,10 @@ import { PartsPanel } from '@/components/vendor/jobs/parts-panel';
 import { LaborLog } from '@/components/vendor/jobs/labor-log';
 import { StatusHistoryTimeline } from '@/components/vendor/jobs/status-history-timeline';
 import { DeclineDialog } from '@/components/vendor/bookings/decline-dialog';
+import { isBusinessWideRole } from '@/lib/auth/permissions';
 import { nextForwardStatus } from '@/lib/types';
+import { bookingScheduleDate } from '@/lib/vendor-schedule';
 import type { Booking, BookingLaborEntry, InventoryItem, WithId } from '@/lib/types';
-
-function toDate(value: Booking['bookingDate']) {
-  return value instanceof Timestamp ? value.toDate() : new Date(value);
-}
 
 export default function JobCardPage() {
   const params = useParams<{ bookingId: string }>();
@@ -43,6 +41,7 @@ export default function JobCardPage() {
   const { transition, pendingId } = useBookingTransition();
   const [declineOpen, setDeclineOpen] = useState(false);
   const [isSavingCost, setIsSavingCost] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
 
   const bookingRef = useMemoFirebase(
     () => (params.bookingId ? doc(firestore, 'bookings', params.bookingId) : null),
@@ -89,7 +88,7 @@ export default function JobCardPage() {
 
   const canEditCost = canPerform('bookings.editCost');
   const next = nextForwardStatus(booking.status);
-  const bookingDate = toDate(booking.bookingDate);
+  const bookingDate = bookingScheduleDate(booking.bookingDate);
   const cost = costDraft ?? String(booking.cost ?? 0);
 
   async function saveField(patch: Record<string, unknown>) {
@@ -98,19 +97,27 @@ export default function JobCardPage() {
   }
 
   async function handleAssignStaff(staffId: string) {
-    if (!booking) return;
+    if (!booking || !user) return;
     // Radix Select.Item forbids value="" (it's reserved to mean "clear and
     // show the placeholder"), so the unassign option uses this sentinel
     // instead and it's translated back to null here.
     const resolvedId = staffId === 'unassigned' ? null : staffId;
-    const member = (staff ?? []).find((s) => s.id === resolvedId);
+    setIsAssigning(true);
     try {
-      await saveField({
-        assignedStaffId: resolvedId,
-        assignedStaffName: member?.displayName ?? null,
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/bookings/${booking.id}/assignment`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ membershipId: resolvedId }),
       });
-    } catch {
-      toast({ title: 'Could not assign staff', variant: 'destructive' });
+      if (!response.ok) {
+        const result = await response.json().catch(() => null);
+        throw new Error(result?.error || 'Assignment failed');
+      }
+    } catch (error) {
+      toast({ title: 'Could not assign staff', description: error instanceof Error ? error.message : undefined, variant: 'destructive' });
+    } finally {
+      setIsAssigning(false);
     }
   }
 
@@ -160,15 +167,23 @@ export default function JobCardPage() {
   }
 
   const partsTotal = (booking.partsUsed ?? []).reduce((sum, p) => sum + p.qty * p.unitPrice, 0);
-  const activeStaff = (staff ?? []).filter((s) => s.status === 'Active');
+  const activeStaff = (staff ?? []).filter((s) =>
+    s.status === 'Active' && (isBusinessWideRole(s.role) || s.branchIds.includes(booking.branchId)),
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
       <div>
-        <Button variant="ghost" size="sm" className="mb-3 -ml-2 gap-1.5 text-muted-foreground" onClick={() => router.push('/vendor/dashboard/bookings')}>
-          <MaterialIcon name="arrow_back" className="text-base" />
-          Back to bookings
-        </Button>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 print:hidden">
+          <Button variant="ghost" size="sm" className="-ml-2 gap-1.5 text-muted-foreground" onClick={() => router.push('/vendor/dashboard/bookings')}>
+            <MaterialIcon name="arrow_back" className="text-base" />
+            Back to bookings
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5 print:hidden" onClick={() => window.print()}>
+            <MaterialIcon name="print" className="text-base" />
+            Print job card
+          </Button>
+        </div>
 
         <Card className="relative overflow-hidden rounded-xl border bg-card shadow-sm">
           <div className="card-accent-top from-primary via-[var(--qw-gold)] to-transparent" />
@@ -177,7 +192,7 @@ export default function JobCardPage() {
               <div className="min-w-0">
                 <div className="mb-2 flex items-center gap-2">
                   <StatusBadge status={booking.status} />
-                  <Badge variant="outline" className="text-[11px]">{format(bookingDate, 'MMM d, yyyy · h:mm a')}</Badge>
+                  <Badge variant="outline" className="text-[11px]">{bookingDate ? format(bookingDate, 'MMM d, yyyy · h:mm a') : 'Date unavailable'}</Badge>
                 </div>
                 <h1 className="text-2xl font-bold tracking-tight">{booking.serviceName}</h1>
                 <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -237,13 +252,18 @@ export default function JobCardPage() {
                 <span className="icon-pill h-9 w-9 bg-violet-500/10 text-violet-600"><MaterialIcon name="engineering" className="text-base" /></span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">Assigned to</p>
-                  {activeStaff.length > 0 ? (
-                    <Select value={booking.assignedStaffId || 'unassigned'} onValueChange={handleAssignStaff}>
+                  {(activeStaff.length > 0 || booking.assignedStaffId) && !['Completed', 'Cancelled', 'Declined', 'NoShow'].includes(booking.status) ? (
+                    <Select value={booking.assignedStaffId || 'unassigned'} onValueChange={handleAssignStaff} disabled={isAssigning}>
                       <SelectTrigger className="mt-0.5 h-7 border-0 bg-transparent p-0 text-xs text-muted-foreground shadow-none focus:ring-0">
                         <SelectValue placeholder="Unassigned" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {booking.assignedStaffId && !activeStaff.some((s) => s.id === booking.assignedStaffId) && (
+                          <SelectItem value={booking.assignedStaffId} disabled>
+                            {booking.assignedStaffName || 'Previously assigned staff'} (unavailable)
+                          </SelectItem>
+                        )}
                         {activeStaff.map((s) => (
                           <SelectItem key={s.id} value={s.id}>{s.displayName}</SelectItem>
                         ))}

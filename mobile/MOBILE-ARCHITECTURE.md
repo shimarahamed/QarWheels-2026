@@ -1,6 +1,6 @@
 # QarWheel Mobile Architecture and Flow Map
 
-Updated: 2026-11-11. Scope: mobile and its backend. This is an implementation map,
+Updated: 2026-11-13. Scope: mobile and its backend. This is an implementation map,
 not a claim that every screen has production data or a validated native build.
 
 ## Runtime and Boundaries
@@ -71,6 +71,17 @@ renderable route is not automatically a functional product feature.
 
 ## Data and Authorization Contracts
 
+### Core journeys and ownership
+
+| Actor | Journey | Authoritative state and recovery |
+| --- | --- | --- |
+| Customer | Sign in or register -> verify email when prompted -> browse listed garages and active services -> choose a saved vehicle and preferred time -> review -> send request | Firebase owns identity; Firestore owns vehicle and catalog; `POST /api/bookings` creates one Pending request per idempotency key. A preferred time is not a reservation and no payment is collected. A failed send offers retry; a successful send stays successful even if the optional device cache fails. |
+| Customer | Open Bookings or a direct booking link -> read status/quote -> accept the current quote or message/cancel while allowed -> review completed work | The owned server booking is the only detail source. Loading, read failure and missing records have distinct states; stale device/sample bookings cannot masquerade as live. Quote acceptance is server-owned; cancel is confirmed by the server before local cache changes. Rescheduling is a conversation request, not a silent slot change. |
+| Vendor | Sign in -> resolve business and permitted branch -> select a branch -> view Requests/Bookings -> open a job -> offer/revise quote -> transition status -> send invoice | Claims and branch membership constrain reads/writes. The mobile flow uses server APIs for quote, status and invoice; the dashboard and requests inbox derive from the live scoped feed and expose loading/error/retry. Catalog, inventory, promotions and staff edits remain device-local drafts and must not be described as published business changes. |
+| Platform admin | Review KYC and branch status -> approve/list eligible branches or suspend a business | Support admins may read but not mutate. Ops/super actions use server APIs and current admin records; business suspension atomically delists its branches. Reactivation does not silently relist them. Public discovery requires an Active, verified business and an approved, listed branch. |
+
+For the first release, the lifecycle is **Requested -> Quoted -> Customer accepted -> Confirmed -> Completed -> pay at garage**. Completion and an invoice do not prove payment. Online charging, settlement and payouts remain disabled. Offline or timed-out reads must present a retry state rather than an empty list or a fabricated record.
+
 1. Startup loads local preferences, restores Firebase user, then resolves claims.
    Sign-in owns its explicit redirect until vendor access and KYC checks finish;
    the root guard handles restored sessions and signed-out protected routes.
@@ -84,12 +95,15 @@ renderable route is not automatically a functional product feature.
 3. Vendors derive business and permitted branch IDs from claims. Business-wide
    roles may query the business; branch staff may only read assigned branches.
    Selecting a branch updates local UI scope, not the authorization grant.
-4. Vendor booking transitions go to `/api/bookings/:id/transition`; the server
+4. Mobile vendor booking transitions go to `/api/bookings/:id/transition`; the server
    validates the actor and branch/business link, then appends status history.
    Completion never settles money. First release is pay-at-garage only;
    payout requests and online charging remain disabled. The local optimistic status
    rolls back on failure. Review replies use a checked transaction. UI-only
-   role checks are defense in depth, not the source of authorization.
+  role checks are defense in depth, not the source of authorization. Old demo
+  booking IDs must also reach the API; a missing server record rolls back.
+   The web vendor dashboard still has a direct Firestore status writer; migrate
+   it before claiming that every client uses the server transition contract.
 5. Local store actions (wallet, vendor catalog, staff, promotions, invoices)
    are not a remote transaction or settlement. Treat their screens as local
    drafts until a scoped backend write/read contract and migration are built.
@@ -98,9 +112,10 @@ renderable route is not automatically a functional product feature.
 
 Use `npm ci`, `npx expo install --check`, `npm run typecheck`,
 `npm test -- --runInBand`, then `npm run export:all` from `mobile/`.
-On 2026-11-11, typecheck, 59 suites / 515 tests, and an Android/iOS/web
-export with 153 static routes passed. The backend typecheck, 85 unit tests,
-and 92 serial Firestore/Storage rules tests passed. Expo
+On 2026-11-13, mobile typecheck and 70 suites / 573 tests passed; the latest
+Android/iOS/web export produced 153 static routes. Backend typecheck,
+177 unit tests and 111 serial Firestore/Storage rules tests passed (rules were
+last run before the 2026-11-13 API-only KYC changes). Expo
 Router file-resolution and missing Sentry project configuration warnings
 remain; neither was an export failure.
 Bundle export checks JS packaging for Android/iOS/web, not installability or

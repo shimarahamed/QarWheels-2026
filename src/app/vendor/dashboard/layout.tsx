@@ -1,4 +1,5 @@
 'use client';
+import '@/app/vendor-theme.css';
 import Link from "next/link";
 import { Sidebar, SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { VendorSidebar } from "@/components/vendor/sidebar";
@@ -9,7 +10,6 @@ import { MaterialIcon } from "@/components/ui/material-icon";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect } from "react";
-import { Logo } from "@/components/logo";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { useVendor } from "@/components/vendor/vendor-provider";
 import { RequireVendorSection } from "@/components/vendor/require-section";
@@ -24,6 +24,7 @@ const SECTION_BY_ROUTE: [prefix: string, section: VendorSection][] = [
   ["/vendor/dashboard/bookings", "bookings"],
   ["/vendor/dashboard/requests", "bookings"],
   ["/vendor/dashboard/jobs", "bookings"],
+  ["/vendor/dashboard/calendar", "bookings"],
   ["/vendor/dashboard/technicians", "staff"],
   ["/vendor/dashboard/customers", "customers"],
   ["/vendor/dashboard/services", "services"],
@@ -75,6 +76,7 @@ function VendorMobileNav() {
                             key={item.href}
                             href={item.href}
                             data-active={isActive}
+                            aria-current={isActive ? 'page' : undefined}
                             style={isActive ? { animation: 'tab-pop 300ms cubic-bezier(0.34,1.56,0.64,1) both' } : undefined}
                             className={`liquid-glass-nav-item flex min-h-[3.5rem] flex-1 flex-col items-center justify-center gap-[3px] rounded-xl py-2 px-1 text-[10px] font-semibold tracking-tight ${
                                 isActive
@@ -92,9 +94,22 @@ function VendorMobileNav() {
     );
 }
 
+function VendorStatusHeader() {
+    const { business, activeBranch } = useVendor();
+    return <header className="vendor-status-header sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b border-border px-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3"><SidebarTrigger className="h-10 w-10 shrink-0" /><div className="min-w-0"><p className="truncate text-sm font-semibold">{business.displayName || 'Vendor workspace'}</p><p className="vendor-eyebrow truncate text-muted-foreground">{activeBranch?.name || 'Select a branch'}</p></div></div>
+        <div className="flex shrink-0 items-center gap-3"><span className="vendor-eyebrow vendor-gold hidden sm:inline">Workshop operations</span><ThemeToggle className="h-10 w-10" /></div>
+    </header>;
+}
+
 export default function VendorDashboardLayout({ children }: { children: React.ReactNode }) {
     const { user, isUserLoading } = useFirebase();
     const router = useRouter();
+
+    useEffect(() => {
+        document.body.classList.add('vendor-theme');
+        return () => document.body.classList.remove('vendor-theme');
+    }, []);
 
     useEffect(() => {
         if (!isUserLoading && !user) {
@@ -115,20 +130,7 @@ export default function VendorDashboardLayout({ children }: { children: React.Re
 
     return (
         <VendorProvider>
-            <div className="relative min-h-screen overflow-hidden bg-background">
-                {/* Multi-layer ambient background */}
-                <div
-                    aria-hidden
-                    className="pointer-events-none fixed inset-0 z-0"
-                    style={{
-                        background: [
-                            'radial-gradient(ellipse 80% 50% at 20% -10%, hsl(221 83% 53% / 0.08), transparent)',
-                            'radial-gradient(ellipse 60% 40% at 80% 110%, hsl(160 84% 39% / 0.06), transparent)',
-                            'radial-gradient(ellipse 50% 60% at 50% 50%, hsl(38 92% 50% / 0.03), transparent)',
-                            'linear-gradient(180deg, hsl(220 33% 98%), hsl(210 40% 96% / 0.6))',
-                        ].join(', '),
-                    }}
-                />
+            <div className="vendor-workspace relative min-h-screen overflow-hidden bg-background">
                 <SidebarProvider>
                     <div className="relative z-10 flex w-full">
                         <Sidebar>
@@ -136,13 +138,7 @@ export default function VendorDashboardLayout({ children }: { children: React.Re
                         </Sidebar>
                         <SidebarInset>
                             <main className="min-h-screen bg-transparent pb-24 md:pb-0">
-                                <header className="liquid-glass-tab-bar sticky top-3 z-30 mx-3 flex items-center justify-between rounded-xl px-4 py-3 md:hidden">
-                                    <Logo />
-                                    <div className="flex items-center gap-1">
-                                        <ThemeToggle className="h-8 w-8" />
-                                        <SidebarTrigger className="rounded-lg" />
-                                    </div>
-                                </header>
+                                <VendorStatusHeader />
                                 <PullToRefresh>
                                     <div className="page-motion mx-auto max-w-[1600px] p-3 sm:p-5 lg:p-6 xl:p-8">
                                         <VendorRouteGate>{children}</VendorRouteGate>

@@ -32,7 +32,6 @@ import {
   useQarColors,
   useQarWheelStore,
   type SavedAddress,
-  type StoredInvoice,
   type VaultDocument,
   type VaultDocumentKind,
   type WalletTransaction,
@@ -942,27 +941,11 @@ export default function AccountServices({ initialSection = 'profile' }: { initia
       return (
         <SectionCard
           title="Invoices"
-          subtitle="Tax invoices issued for completed services."
+          subtitle="Invoices issued by garages for completed work."
           icon="document-text-outline"
           c={c}
         >
-          {invoices.length === 0 ? (
-            <EmptyState
-              title="No invoices yet"
-              body="An invoice is issued when a booking is completed and paid."
-              icon="document-text-outline"
-              c={c}
-            />
-          ) : (
-            invoices.map((invoice) => (
-              <InvoiceRow
-                key={invoice.id}
-                invoice={invoice}
-                c={c}
-                onPress={() => router.push(route(`/invoice/${invoice.id}`))}
-              />
-            ))
-          )}
+          <PrimaryButton label="View invoices" icon="document-text-outline" onPress={() => router.push(route('/invoices'))} c={c} />
         </SectionCard>
       );
     }
@@ -1490,39 +1473,6 @@ function TransactionRow({ txn, c }: { txn: WalletTransaction; c: ReturnType<type
         <Text style={[styles.txnBalance, { color: c.muted }]}>{money(txn.balanceAfter)}</Text>
       </View>
     </View>
-  );
-}
-
-function InvoiceRow({ invoice, c, onPress }: {
-  invoice: StoredInvoice;
-  c: ReturnType<typeof useQarColors>;
-  onPress: () => void;
-}) {
-  const tone = invoice.status === 'Paid' ? c.success : invoice.status === 'Refunded' ? c.warning : c.danger;
-  const toneBg = invoice.status === 'Paid' ? c.successBg : invoice.status === 'Refunded' ? c.warningBg : c.dangerBg;
-
-  return (
-    <AnimatedPressable
-      style={[styles.txnRow, { borderColor: c.border }]}
-      onPress={() => { void tap(); onPress(); }}
-      accessibilityLabel={`Invoice ${invoice.number}, ${invoice.service}, ${money(invoice.amount)}, ${invoice.status}`}
-    >
-      <View style={[styles.actionIcon, { backgroundColor: c.primaryLight }]}>
-        <Ionicons name="document-text-outline" size={16} color={c.primary} />
-      </View>
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text style={[styles.rowTitle, { color: c.text }]} numberOfLines={1}>{invoice.service}</Text>
-        <Text style={[styles.rowMeta, { color: c.muted }]} numberOfLines={1}>
-          {invoice.number} · {invoice.garage}
-        </Text>
-      </View>
-      <View style={{ alignItems: 'flex-end', gap: 4 }}>
-        <Text style={[styles.txnAmount, { color: c.text }]}>{money(invoice.amount).replace('QAR ', '')}</Text>
-        <View style={[styles.defaultChip, { backgroundColor: toneBg }]}>
-          <Text style={[styles.defaultChipText, { color: tone }]}>{invoice.status}</Text>
-        </View>
-      </View>
-    </AnimatedPressable>
   );
 }
 
